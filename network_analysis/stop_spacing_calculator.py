@@ -1,3 +1,7 @@
+"""
+Script that takes bus network, road network, and GTFS data and outputs a route shapefile that
+matches the network and is segmented at the stops. It is very useful for checking stop spacing.
+"""
 
 import os
 import pandas as pd
