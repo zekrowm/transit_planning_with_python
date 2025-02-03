@@ -1,447 +1,542 @@
-"""
-This script processes transportation route geometries and stop locations to split routes
-into segments based on stop positions. It is designed for use with transit network data
-and GTFS feeds, making it suitable for tasks such as stop spacing analysis, transit
-performance evaluation, and network optimization.
-"""
 
 import os
-import csv
-import statistics
-from collections import defaultdict
-
-import geopandas as gpd
 import pandas as pd
-from shapely.geometry import Point, LineString
-from shapely.ops import nearest_points, split, unary_union
-
-# ----------------------------------------------------------------------
-# CONFIGURATION
-# ----------------------------------------------------------------------
-# 1) Input GTFS and route shapefile
-input_folder = r"C:\Users\Your\GTFS_Data_Folder" # Replace with your folder path
-route_shapefile = r"C:\Users\Your\bus_routes.shp" # Replace with your file path
-
-# 2) Base output folder (ALL outputs go here)
-base_output_folder = r"C:\Users\Your\Output_Folder" # Replace with your folder path
-os.makedirs(base_output_folder, exist_ok=True)
-
-# 3) Route short name filter. If empty list, process all route short names in shapefile.
-route_filter = ['101', '102']  # or [] to process all
-
-# 4) Coordinate system (well-known ID) for Northern Virginia: EPSG:2283 (NAD83 / Virginia North)
-#    We assume this has FEET as its linear unit. If it's actually meters, multiply by 3.28084 below.
-target_crs = "EPSG:2283" # Replace with with an EPSG code appropriate for your study area
-
-# 5) Field name configurations
-shp_field_original_route_num = 'ROUTE_NUMB' # Replace with the short route name column in your route_shapefile data
-shp_field_new_route_short = 'route_shor'
-shp_field_new_route_shrt = 'ROUTE_SHRT'  # no spaces
-
-
-# ----------------------------------------------------------------------
-# HELPER FUNCTIONS
-# ----------------------------------------------------------------------
-
-def read_routes_from_shapefile(gdf, route_filter, orig_route_field):
-    """
-    Reads unique routes from the shapefile and returns:
-      (1) a list of route_short_names that match the filter,
-      (2) a dict mapping route_short_name -> route_shrt (no spaces).
-    """
-    if not route_filter:
-        route_values = gdf[orig_route_field].unique().tolist()
-        route_values = [str(r).strip() for r in route_values if isinstance(r, (str, int, float))]
-    else:
-        route_values = []
-        for r in gdf[orig_route_field].unique():
-            r_stripped = str(r).strip()
-            if r_stripped in route_filter:
-                route_values.append(r_stripped)
-    route_dict = {r: r.replace(" ", "") for r in route_values}
-    return sorted(route_values), route_dict
-
-def add_route_fields(gdf, orig_field, new_field_short, new_field_shrt):
-    """
-    Adds/updates route_short_name (new_field_short) and ROUTE_SHRT (new_field_shrt)
-    columns in the GeoDataFrame based on the original route field.
-    """
-    if new_field_short not in gdf.columns:
-        gdf[new_field_short] = None
-    if new_field_shrt not in gdf.columns:
-        gdf[new_field_shrt] = None
-
-    for idx, row in gdf.iterrows():
-        route_num = str(row[orig_field]).strip()
-        route_shrt = route_num.replace(" ", "")
-        gdf.at[idx, new_field_short] = route_num
-        gdf.at[idx, new_field_shrt] = route_shrt
-    return gdf
-
-
-def get_stops_for_route_and_direction(gtfs_folder, route_short_name):
-    """
-    Reads GTFS tables and returns a dictionary like:
-       {
-         '0': DataFrame of stops for direction=0,
-         '1': DataFrame of stops for direction=1,
-         ...
-       }
-    If a route has multiple directions, each direction is returned separately.
-    """
-    routes_path = os.path.join(gtfs_folder, "routes.txt")
-    trips_path = os.path.join(gtfs_folder, "trips.txt")
-    stop_times_path = os.path.join(gtfs_folder, "stop_times.txt")
-    stops_path = os.path.join(gtfs_folder, "stops.txt")
-
-    # Read CSVs
-    routes_df = pd.read_csv(routes_path, dtype=str)
-    trips_df = pd.read_csv(trips_path, dtype=str)
-    stop_times_df = pd.read_csv(stop_times_path, dtype=str)
-    stops_df = pd.read_csv(stops_path, dtype=str)
-
-    # Filter routes to the matching route_short_name
-    filtered_routes = routes_df[routes_df['route_short_name'] == route_short_name].copy()
-    if filtered_routes.empty:
-        return {}
-
-    # Grab all route_id values that match this short name
-    route_ids = filtered_routes['route_id'].unique().tolist()
-
-    # Filter trips to these route_ids
-    trips_for_route = trips_df[trips_df['route_id'].isin(route_ids)]
-    if trips_for_route.empty:
-        return {}
-
-    directions_dict = {}
-    for direction_val, direction_trips in trips_for_route.groupby('direction_id'):
-        trip_ids = direction_trips['trip_id'].unique().tolist()
-        stop_times_for_dir = stop_times_df[stop_times_df['trip_id'].isin(trip_ids)]
-        if stop_times_for_dir.empty:
-            directions_dict[direction_val] = pd.DataFrame(columns=stops_df.columns)
-            continue
-        stop_ids = stop_times_for_dir['stop_id'].unique().tolist()
-        stops_for_dir = stops_df[stops_df['stop_id'].isin(stop_ids)].copy()
-        directions_dict[direction_val] = stops_for_dir
-
-    return directions_dict
-
-
-def build_stops_geodataframe(stops_df, wgs84_crs="EPSG:4326"):
-    """
-    Convert a DataFrame of stops (with columns stop_lat, stop_lon) into a GeoDataFrame.
-    Drops rows with invalid lat/lon.
-    """
-    if stops_df.empty:
-        return gpd.GeoDataFrame(stops_df, geometry=[], crs=wgs84_crs)
-
-    stops_df["stop_lat"] = pd.to_numeric(stops_df["stop_lat"], errors='coerce')
-    stops_df["stop_lon"] = pd.to_numeric(stops_df["stop_lon"], errors='coerce')
-    stops_df = stops_df.dropna(subset=["stop_lat", "stop_lon"])
-
-    geometry = [Point(xy) for xy in zip(stops_df["stop_lon"], stops_df["stop_lat"])]
-    gdf_stops = gpd.GeoDataFrame(stops_df, geometry=geometry, crs=wgs84_crs)
-    return gdf_stops
-
-
-def pieces_union_all(pieces, crs):
-    """
-    Combines a list of LineString objects into a single geometry using 'union_all()' if available.
-    Falls back to shapely.ops.unary_union() if 'union_all()' is not available.
-    """
-    geo_series = gpd.GeoSeries(pieces, crs=crs)
-
-    # If Shapely >= 2.0, union_all() is the recommended approach.
-    if hasattr(geo_series, 'union_all'):
-        # Returns a GeoSeries with one geometry, so we take .iloc[0].
-        return geo_series.union_all().iloc[0]
-    else:
-        # Fallback for older Shapely
-        return unary_union(geo_series)
-
-
-def split_line_at_points(line, points, buffer_radius=1e-6):
-    """
-    Splits a single Shapely LineString by a collection of (snapped) points.
-    Applies a tiny buffer to prevent floating-point issues.
-    Returns a list of LineStrings.
-    """
-    for pt in points:
-        line = split(line, pt.buffer(buffer_radius))
-        pieces = []
-
-        if line.geom_type == "MultiLineString":
-            for segment in line.geoms:
-                pieces.append(segment)
-        elif line.geom_type == "LineString":
-            pieces.append(line)
-        else:
-            for subgeom in line.geoms:
-                if subgeom.geom_type == "LineString":
-                    pieces.append(subgeom)
-
-        try:
-            line = pieces_union_all(pieces, line.crs)
-        except AttributeError:
-            # Fallback in case union_all not available
-            line = unary_union(gpd.GeoSeries(pieces))
-
-    if line.geom_type == "MultiLineString":
-        return list(line.geoms)
-    elif line.geom_type == "LineString":
-        return [line]
-    else:
-        segments = []
-        for g in line.geoms:
-            if g.geom_type == "LineString":
-                segments.append(g)
-        return segments
-
-
-# ----------------------------------------------------------------------
-# MAIN SCRIPT
-# ----------------------------------------------------------------------
-def main():
-    # 1) Read the route shapefile (all routes)
-    gdf_routes = gpd.read_file(route_shapefile)
-
-    # 2) Read unique route short names from shapefile & filter
-    route_list, route_dict = read_routes_from_shapefile(
-        gdf_routes, route_filter, shp_field_original_route_num
-    )
-    print("Routes to process:", route_list)
-
-    # Warn if some filtered routes are not present in the shapefile
-    if route_filter:
-        missing_routes = set(route_filter) - set(route_list)
-        for mr in missing_routes:
-            print(f"WARNING: Route '{mr}' specified in filter not found in shapefile.")
-
-    # 3) Add 'route_short_name' & 'ROUTE_SHRT' columns to the route GDF
-    gdf_routes = add_route_fields(
-        gdf_routes,
-        shp_field_original_route_num,
-        shp_field_new_route_short,
-        shp_field_new_route_shrt
-    )
-
-    # 4) Project the route shapefile to target CRS
-    gdf_routes_prj = gdf_routes.to_crs(target_crs)
-
-    # 5) Write out the projected original route shapes for visual inspection (one shapefile with all routes)
-    shapes_shp = os.path.join(base_output_folder, "all_routes_projected.shp")
-    gdf_routes_prj.to_file(shapes_shp, driver="ESRI Shapefile")
-    print(f"All route shapes projected to Shapefile: {shapes_shp}")
-
-    # Prepare CSV data (we'll add a DirectionID column)
-    csv_rows = [["Route", "DirectionID", "SegmentOrder", "SegmentLength"]]
-
-    # For snapping lines
-    snap_lines_data = []
-
-    # For summary stats: dict key = (route, direction_id), value = list of segment lengths
-    route_segments_summary = defaultdict(list)
-
-    # ------------------------------------------------------------------
-    # 6) PROCESS EACH ROUTE
-    # ------------------------------------------------------------------
-    for route_sn in route_list:
-        print(f"\nProcessing route: {route_sn}")
-
-        # Filter route lines from gdf_routes_prj by 'ROUTE_NUMB'
-        route_lines = gdf_routes_prj[gdf_routes_prj[shp_field_original_route_num] == route_sn].copy()
-        if route_lines.empty:
-            print(f"No geometry found for route {route_sn} in the shapefile.")
-            continue
-
-        # Create the base folder for this route
-        route_output_dir = os.path.join(base_output_folder, route_sn.replace(" ", "_"))
-        os.makedirs(route_output_dir, exist_ok=True)
-
-        # ------------------------------------------------------------------
-        # A) GRAB STOPS FROM GTFS FOR THIS ROUTE, SEPARATED BY DIRECTION
-        # ------------------------------------------------------------------
-        stops_by_dir = get_stops_for_route_and_direction(input_folder, route_sn)
-        if not stops_by_dir:
-            print(f"No stops found in GTFS for route_short_name='{route_sn}'. Skipping.")
-            continue
-
-        # For each direction_id in stops_by_dir
-        for direction_val, stops_df_for_dir in stops_by_dir.items():
-            dir_str = str(direction_val).strip() if pd.notna(direction_val) else "unknown"
-            print(f"  Direction: {dir_str}")
-
-            if stops_df_for_dir.empty:
-                print(f"  No stops for direction={dir_str}. Skipping.")
-                continue
-
-            # Convert DataFrame -> GeoDataFrame
-            gdf_stops_for_dir = build_stops_geodataframe(stops_df_for_dir, wgs84_crs="EPSG:4326")
-            if gdf_stops_for_dir.empty:
-                print(f"  No valid lat/lon for direction={dir_str}. Skipping.")
-                continue
-
-            # Project them to the target CRS
-            gdf_stops_for_dir = gdf_stops_for_dir.to_crs(target_crs)
-
-            # Create a sub-folder for this route+direction
-            dir_output_dir = os.path.join(route_output_dir, f"direction_{dir_str}")
-            os.makedirs(dir_output_dir, exist_ok=True)
-
-            # Export the GTFS stops (un-snapped) for visual validation
-            raw_stops_shp = os.path.join(dir_output_dir, f"{route_sn}_dir{dir_str}_raw_stops.shp")
-            gdf_stops_for_dir.to_file(raw_stops_shp, driver="ESRI Shapefile")
-            print(f"    Exported raw GTFS stops for route {route_sn}, dir={dir_str} to: {raw_stops_shp}")
-
-            # ------------------------------------------------------------------
-            # B) SNAP STOPS TO ROUTE LINES
-            # ------------------------------------------------------------------
-            snapped_points = []
-            for _, stop_row in gdf_stops_for_dir.iterrows():
-                stop_pt = stop_row.geometry
-
-                # Find the line in route_lines that is closest to this stop
-                nearest_geom = None
-                min_dist = float("inf")
-                for _, line_row in route_lines.iterrows():
-                    line = line_row.geometry
-                    dist = stop_pt.distance(line)
-                    if dist < min_dist:
-                        min_dist = dist
-                        nearest_geom = line
-
-                if nearest_geom is None:
-                    print(f"WARNING: No nearest geometry found for stop {stop_row.get('stop_id', 'Unknown')}.")
-                    continue
-
-                # Snap the stop to the line
-                snapped_pt_on_line, _ = nearest_points(nearest_geom, stop_pt)
-                snapped_points.append(snapped_pt_on_line)
-
-                # Store a line from original -> snapped for visual check
-                snap_lines_data.append({
-                    "Route": route_sn,
-                    "DirectionID": dir_str,
-                    "StopID": stop_row.get("stop_id", ""),
-                    "Distance": min_dist,
-                    "geometry": LineString([stop_pt, snapped_pt_on_line])
-                })
-
-            # Build a GeoDataFrame for the snapped stops
-            snapped_stops_gdf = gdf_stops_for_dir.copy()
-            snapped_stops_gdf = snapped_stops_gdf.iloc[:len(snapped_points)].copy()
-            snapped_stops_gdf["geometry"] = snapped_points
-
-            # Write the snapped stops to a shapefile in this route+direction folder
-            snapped_stops_shp = os.path.join(dir_output_dir, f"{route_sn}_dir{dir_str}_snapped_stops.shp")
-            snapped_stops_gdf.to_file(snapped_stops_shp, driver="ESRI Shapefile")
-            print(f"    Snapped stops shapefile created at: {snapped_stops_shp}")
-
-            # ------------------------------------------------------------------
-            # C) SPLIT THE ROUTE GEOMETRY AT THESE SNAPPED STOP LOCATIONS
-            # ------------------------------------------------------------------
-            route_segments = []
-            if snapped_stops_gdf.empty:
-                print(f"    No snapped stops to split route {route_sn}, dir={dir_str}.")
-                continue
-
-            for route_geom in route_lines.geometry:
-                try:
-                    route_segments.extend(
-                        split_line_at_points(route_geom, list(snapped_stops_gdf.geometry))
-                    )
-                except Exception as e:
-                    print(f"    ERROR while splitting route {route_sn}, direction={dir_str}: {e}")
-                    continue
-
-            # Remove near-zero-length segments
-            MIN_LENGTH_FEET = 0.01  # or pick your own
-            route_segments = [seg for seg in route_segments if seg.length > MIN_LENGTH_FEET]
-
-            # ------------------------------------------------------------------
-            # D) CALCULATE SEGMENT LENGTHS & WRITE TO CSV
-            # ------------------------------------------------------------------
-            seg_lengths = []
-            for i, segment in enumerate(route_segments, start=1):
-                length_ft = segment.length  # EPSG:2283 should be in feet
-                seg_lengths.append(length_ft)
-                csv_rows.append([route_sn, dir_str, i, length_ft])
-
-            route_segments_summary[(route_sn, dir_str)].extend(seg_lengths)
-
-            if seg_lengths:
-                mn = min(seg_lengths)
-                mx = max(seg_lengths)
-                avg = sum(seg_lengths) / len(seg_lengths)
-                med = statistics.median(seg_lengths)
-                print(f"    Route {route_sn}, dir={dir_str} -> "
-                      f"min={mn:.2f}ft, max={mx:.2f}ft, avg={avg:.2f}ft, med={med:.2f}ft")
-
-            # ------------------------------------------------------------------
-            # E) EXPORT SPLIT SEGMENTS TO SHAPEFILE WITH LENGTH
-            # ------------------------------------------------------------------
-            gdf_segments = gpd.GeoDataFrame(
-                {
-                    "SegmentID": list(range(1, len(route_segments) + 1)),
-                    "Length_ft": [round(seg.length, 2) for seg in route_segments]
-                },
-                geometry=route_segments,
-                crs=route_lines.crs
-            )
-            route_split_shp = os.path.join(dir_output_dir, f"{route_sn}_dir{dir_str}_split_segments.shp")
-            gdf_segments.to_file(route_split_shp, driver="ESRI Shapefile")
-            print(f"    Copied split segments for route {route_sn}, dir={dir_str} to {route_split_shp}")
-
-    # ------------------------------------------------------------------
-    # 7) WRITE SEGMENT-LEVEL CSV (ALL ROUTES & DIRECTIONS)
-    # ------------------------------------------------------------------
-    segment_csv_path = os.path.join(base_output_folder, "segment_spacing.csv")
-    with open(segment_csv_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerows(csv_rows)
-    print(f"\nSegment spacing CSV written to: {segment_csv_path}")
-
-    # ------------------------------------------------------------------
-    # 8) WRITE SNAP LINES SHP (ORIGINAL -> SNAPPED) - FOR ALL ROUTES
-    # ------------------------------------------------------------------
-    if snap_lines_data:
-        snap_lines_gdf = gpd.GeoDataFrame(snap_lines_data, geometry='geometry', crs=gdf_routes_prj.crs)
-        snap_lines_gdf["SnapLen_ft"] = snap_lines_gdf["Distance"].astype(float).round(2)
-
-        snap_lines_shp = os.path.join(base_output_folder, "snap_lines_all_routes.shp")
-        snap_lines_gdf.to_file(snap_lines_shp, driver="ESRI Shapefile")
-        print(f"Snap lines shapefile created at: {snap_lines_shp}")
-
-    # ------------------------------------------------------------------
-    # 9) WRITE SUMMARY XLSX
-    # ------------------------------------------------------------------
-    summary_data = [("Route", "DirectionID", "Min (ft)", "Max (ft)", "Mean (ft)", "Median (ft)")]
-    for (r, d), lengths in route_segments_summary.items():
-        if not lengths:
-            summary_data.append((r, d, None, None, None, None))
-            continue
-        mn = min(lengths)
-        mx = max(lengths)
-        avg = sum(lengths) / len(lengths)
-        med = statistics.median(lengths)
-        summary_data.append((r, d, mn, mx, avg, med))
-
-    summary_xlsx_path = os.path.join(base_output_folder, "spacing_summary.xlsx")
+import geopandas as gpd
+import networkx as nx
+from shapely.geometry import Point, LineString, MultiLineString, MultiPoint
+from shapely.ops import nearest_points, linemerge, split
+
+# -----------------------------------------------------------------------------
+# STEP 0: CONFIGURATION
+# -----------------------------------------------------------------------------
+GTFS_FOLDER = r'C:\Your\Folder\Path\For\GTFS'  
+ROAD_NETWORK_FILE = r'C:\Your\File\Path\For\road_network.shp'
+ROUTE_SHAPE_FILE = r'C:\Your\File\Path\For\bus_system_network.sh'
+
+OUTPUT_FOLDER = r''
+if not os.path.exists(OUTPUT_FOLDER):
+    os.makedirs(OUTPUT_FOLDER)
+
+# Choose a projected CRS (units in feet or meters); e.g., EPSG:2263 for the DC area
+PROJECTED_CRS = "EPSG:2263"
+
+FILTER_ROUTE = '101'
+FILTER_DIRECTION = '0'  
+FILTER_DEPARTURE = '08:00'  
+FILTER_CALENDAR = '3'  
+
+print("STEP 0: Filtering criteria set:")
+print(f"  Route:           {FILTER_ROUTE}")
+print(f"  Direction:       {FILTER_DIRECTION}")
+print(f"  Departure time:  {FILTER_DEPARTURE}")
+print(f"  Calendar:        {FILTER_CALENDAR}")
+
+# =============================================================================
+# STEP 1: Load GTFS files, filter trips, and select one trip
+# =============================================================================
+def load_gtfs(gtfs_folder):
+    stops = pd.read_csv(os.path.join(gtfs_folder, "stops.txt"))
+    stop_times = pd.read_csv(os.path.join(gtfs_folder, "stop_times.txt"))
+    trips = pd.read_csv(os.path.join(gtfs_folder, "trips.txt"))
+    calendar = pd.read_csv(os.path.join(gtfs_folder, "calendar.txt"))
+    return stops, stop_times, trips, calendar
+
+stops_df, stop_times_df, trips_df, calendar_df = load_gtfs(GTFS_FOLDER)
+print("Loaded GTFS files.")
+
+# Debug: print some unique values
+print("Unique route_id in trips:", trips_df["route_id"].unique())
+print("Unique direction_id in trips:", trips_df["direction_id"].unique())
+print("Unique service_id in trips:", trips_df["service_id"].unique())
+
+# Filter the calendar
+try:
+    service_filter = int(FILTER_CALENDAR)
+except ValueError:
+    service_filter = FILTER_CALENDAR
+calendar_filtered = calendar_df[calendar_df["service_id"] == service_filter]
+valid_service_ids = calendar_filtered["service_id"].unique()
+print(f"Calendar filter applied: found {len(valid_service_ids)} valid service_id(s): {valid_service_ids}")
+
+# Filter trips
+trips_df["route_id"] = trips_df["route_id"].astype(str)
+trips_df["direction_id"] = trips_df["direction_id"].astype(str)
+trips_df["service_id"] = trips_df["service_id"].astype(str)
+
+FILTER_ROUTE_str = str(FILTER_ROUTE)
+FILTER_DIRECTION_str = str(FILTER_DIRECTION)
+FILTER_CALENDAR_str = str(FILTER_CALENDAR)
+
+trips_filtered = trips_df[
+    (trips_df["route_id"] == FILTER_ROUTE_str) &
+    (trips_df["direction_id"] == FILTER_DIRECTION_str) &
+    (trips_df["service_id"].isin([FILTER_CALENDAR_str]))
+]
+print(f"Trips filtered by route, direction, calendar: {len(trips_filtered)} trips found.")
+
+# Merge stop_times with filtered trips
+merged = pd.merge(stop_times_df, trips_filtered, on="trip_id")
+print(f"After merging stop_times with filtered trips, {len(merged)} records found.")
+if not merged.empty:
+    print("Sample original departure_time values:")
+    print(merged["departure_time"].head(10).to_string(index=False))
+else:
+    print("No records after merging stop_times and trips.")
+
+merged["departure_time_wo_sec"] = merged["departure_time"].str[:5]
+if not merged.empty:
+    print("Sample departure_time without seconds:")
+    print(merged["departure_time_wo_sec"].head(10).to_string(index=False))
+
+merged_filtered = merged[merged["departure_time_wo_sec"] >= FILTER_DEPARTURE]
+print(f"After filtering by departure time >= {FILTER_DEPARTURE}, {len(merged_filtered)} records remain.")
+
+if merged_filtered.empty:
+    print("WARNING: No trips found matching the specified criteria!")
+    selected_trip_id = None
+else:
+    selected_trip_id = merged_filtered["trip_id"].iloc[0]
+    print(f"Selected trip: {selected_trip_id}")
+
+# =============================================================================
+# STEP 1 (Revised): Create unsnapped stops and chord segments for the selected trip
+# =============================================================================
+
+if selected_trip_id is None:
+    raise ValueError("No trip selected from STEP 0; cannot proceed with STEP 1.")
+
+# Make sure the output folder is absolute
+OUTPUT_FOLDER = os.path.abspath(OUTPUT_FOLDER)
+if not os.path.exists(OUTPUT_FOLDER):
+    os.makedirs(OUTPUT_FOLDER)
+
+# Load relevant GTFS files
+stops_file = os.path.join(GTFS_FOLDER, "stops.txt")
+stop_times_file = os.path.join(GTFS_FOLDER, "stop_times.txt")
+stops_df = pd.read_csv(stops_file)
+stop_times_df = pd.read_csv(stop_times_file)
+
+# Merge stops with stop_times to get lat/lon, etc.
+trip_stops_df = pd.merge(stop_times_df, stops_df, on="stop_id", how="left")
+trip_stops_selected = trip_stops_df[trip_stops_df["trip_id"] == selected_trip_id].copy()
+print(f"Number of stops for trip {selected_trip_id}: {len(trip_stops_selected)}")
+if trip_stops_selected.empty:
+    raise ValueError(f"No stops found for trip {selected_trip_id}.")
+
+trip_stops_selected["stop_sequence"] = trip_stops_selected["stop_sequence"].astype(int)
+trip_stops_selected.sort_values("stop_sequence", inplace=True)
+
+print("Sample selected stops (trip_id, stop_id, stop_name, stop_sequence, stop_lat, stop_lon):")
+print(trip_stops_selected[["trip_id","stop_id","stop_name","stop_sequence","stop_lat","stop_lon"]].head(10))
+
+# Create a GeoDataFrame of unsnapped stops in EPSG:4326, then reproject
+unsnapped_stops_gdf = gpd.GeoDataFrame(
+    trip_stops_selected,
+    geometry=gpd.points_from_xy(trip_stops_selected["stop_lon"], trip_stops_selected["stop_lat"]),
+    crs="EPSG:4326"
+)
+# Reproject to the chosen CRS
+unsnapped_stops_gdf = unsnapped_stops_gdf.to_crs(PROJECTED_CRS)
+
+print(f"unsnapped_stops_gdf shape: {unsnapped_stops_gdf.shape}")
+print("Sample geometry from unsnapped stops:", unsnapped_stops_gdf.geometry.head(2))
+
+# Export unsnapped stops
+unsnapped_stops_out = os.path.join(OUTPUT_FOLDER, f"unsnapped_stops_trip_{selected_trip_id}.shp")
+unsnapped_stops_gdf.to_file(unsnapped_stops_out)
+print(f"Exported unsnapped stops to {unsnapped_stops_out}")
+
+# Create chord segments between consecutive stops (unsnapped)
+sorted_stops = unsnapped_stops_gdf.sort_values("stop_sequence").reset_index(drop=True)
+chord_segments = []
+for i in range(len(sorted_stops) - 1):
+    start_stop = sorted_stops.iloc[i]
+    end_stop   = sorted_stops.iloc[i+1]
+    segment_line = LineString([start_stop.geometry, end_stop.geometry])
+    attrs = {
+        "segment_id": i + 1,
+        "start_stop_id": start_stop["stop_id"],
+        "start_stop_name": start_stop.get("stop_name", None),
+        "start_seq": start_stop["stop_sequence"],
+        "end_stop_id": end_stop["stop_id"],
+        "end_stop_name": end_stop.get("stop_name", None),
+        "end_seq": end_stop["stop_sequence"],
+        "length": segment_line.length,
+        "geometry": segment_line
+    }
+    chord_segments.append(attrs)
+
+chord_segments_gdf = gpd.GeoDataFrame(chord_segments, crs=unsnapped_stops_gdf.crs)
+chord_segments_out = os.path.join(OUTPUT_FOLDER, f"chord_segments_trip_{selected_trip_id}.shp")
+chord_segments_gdf.to_file(chord_segments_out)
+print(f"Exported chord segments to {chord_segments_out}")
+
+# =============================================================================
+# STEP 3: Snap stops to roads, filter road segments, etc.
+# =============================================================================
+route_shapes_gdf = gpd.read_file(ROUTE_SHAPE_FILE)
+# Reproject
+route_shapes_gdf = route_shapes_gdf.to_crs(PROJECTED_CRS)
+
+route_shape_selected = route_shapes_gdf[route_shapes_gdf["ROUTE_NUMB"] == FILTER_ROUTE]
+if route_shape_selected.empty:
+    raise ValueError(f"No route shape found with ROUTE_NUMB = {FILTER_ROUTE}")
+bus_route_feature = route_shape_selected.iloc[0]
+
+# Export bus route
+bus_route_out = os.path.join(OUTPUT_FOLDER, f"bus_route_{FILTER_ROUTE}.shp")
+gpd.GeoDataFrame([bus_route_feature], crs=route_shapes_gdf.crs).to_file(bus_route_out)
+print(f"Exported bus route to {bus_route_out}")
+
+# Buffer the route by 25 feet
+bus_route_proj = gpd.GeoSeries([bus_route_feature.geometry], crs=route_shapes_gdf.crs)
+bus_route_buffer = bus_route_proj.buffer(25)
+bus_route_buffer_out = os.path.join(OUTPUT_FOLDER, f"bus_route_{FILTER_ROUTE}_buffer.shp")
+gpd.GeoDataFrame(geometry=[bus_route_buffer.unary_union], crs=PROJECTED_CRS).to_file(bus_route_buffer_out)
+print("Created and exported bus route buffer (25 feet).")
+
+# Load and reproject the road network
+roads_gdf = gpd.read_file(ROAD_NETWORK_FILE)
+roads_gdf = roads_gdf.to_crs(PROJECTED_CRS)
+buffer_geom = bus_route_buffer.unary_union
+
+# Filter roads that are completely within the buffer
+filtered_roads = roads_gdf[roads_gdf.within(buffer_geom)]
+print(f"Filtered roads: {len(filtered_roads)} segments within buffer.")
+filtered_roads_out = os.path.join(OUTPUT_FOLDER, "roads_within_buffer.shp")
+filtered_roads.to_file(filtered_roads_out)
+print(f"Exported filtered roads to {filtered_roads_out}")
+
+# Dissolve filtered roads for snapping
+if filtered_roads.empty:
+    raise ValueError("No roads found within the route buffer!")
+all_roads_raw = filtered_roads.unary_union
+merged_roads = linemerge(all_roads_raw)
+if merged_roads.geom_type == "LineString":
+    roads_for_snapping = merged_roads
+else:
+    roads_for_snapping = all_roads_raw
+print("Road geometry for snapping type:", roads_for_snapping.geom_type)
+
+# Snap function using project/interpolate fallback
+def snap_point_to_roads(pt, roads_geom):
     try:
-        from openpyxl import Workbook
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Spacing Summary"
+        distance_along = roads_geom.project(pt)
+        return roads_geom.interpolate(distance_along)
+    except Exception as e:
+        print("Project/Interpolate failed, using nearest_points. Error:", e)
+        _, snapped_pt = nearest_points(pt, roads_geom)
+        return snapped_pt
 
-        for row_idx, row_val in enumerate(summary_data, start=1):
-            for col_idx, col_val in enumerate(row_val, start=1):
-                ws.cell(row=row_idx, column=col_idx, value=col_val)
+# Snap unsnapped stops
+unsnapped_stops_proj = unsnapped_stops_gdf  # already in PROJECTED_CRS
+snapped_geoms = unsnapped_stops_proj.geometry.apply(lambda pt: snap_point_to_roads(pt, roads_for_snapping))
+snapped_stops_gdf = unsnapped_stops_proj.copy()
+snapped_stops_gdf["geometry"] = snapped_geoms
 
-        wb.save(summary_xlsx_path)
-        print(f"Summary XLSX written to: {summary_xlsx_path}")
-    except ImportError:
-        print("openpyxl not installed. Could not write XLSX. Install openpyxl or export CSV.")
+snapped_stops_out = os.path.join(OUTPUT_FOLDER, f"snapped_stops_trip_{selected_trip_id}.shp")
+snapped_stops_gdf.to_file(snapped_stops_out)
+print(f"Exported snapped stops to {snapped_stops_out}")
 
+# Create chord segments for snapped stops
+sorted_snapped = snapped_stops_gdf.sort_values("stop_sequence").reset_index(drop=True)
+snapped_chord_segments = []
+for i in range(len(sorted_snapped) - 1):
+    start_stop = sorted_snapped.iloc[i]
+    end_stop   = sorted_snapped.iloc[i+1]
+    segment_line = LineString([start_stop.geometry, end_stop.geometry])
+    seg_attrs = {
+        "segment_id": i + 1,
+        "start_stop_id": start_stop["stop_id"],
+        "start_stop_name": start_stop.get("stop_name", None),
+        "start_seq": start_stop["stop_sequence"],
+        "end_stop_id": end_stop["stop_id"],
+        "end_stop_name": end_stop.get("stop_name", None),
+        "end_seq": end_stop["stop_sequence"],
+        "length": segment_line.length,
+        "geometry": segment_line
+    }
+    snapped_chord_segments.append(seg_attrs)
 
-if __name__ == "__main__":
-    main()
+snapped_chord_segments_gdf = gpd.GeoDataFrame(snapped_chord_segments, crs=PROJECTED_CRS)
+snapped_chord_segments_out = os.path.join(OUTPUT_FOLDER, f"snapped_chord_segments_trip_{selected_trip_id}.shp")
+snapped_chord_segments_gdf.to_file(snapped_chord_segments_out)
+print(f"Exported snapped chord segments to {snapped_chord_segments_out}")
+
+# (Optional) Merge them into one feature
+merged_snapped_line = linemerge([seg["geometry"] for seg in snapped_chord_segments])
+merged_snapped_gdf = gpd.GeoDataFrame({"trip_id": [selected_trip_id]}, geometry=[merged_snapped_line], crs=PROJECTED_CRS)
+merged_snapped_out = os.path.join(OUTPUT_FOLDER, f"merged_snapped_chord_trip_{selected_trip_id}.shp")
+merged_snapped_gdf.to_file(merged_snapped_out)
+print(f"Exported merged snapped chord to {merged_snapped_out}")
+
+# =============================================================================
+# STEP 4: Build a directed network that includes mid-segment connections
+#         for each snapped stop, then compute shortest paths
+# =============================================================================
+
+import networkx as nx
+from shapely.geometry import Point, LineString
+from shapely.ops import linemerge
+
+def build_directed_network_with_stops(roads_gdf, snapped_stops_gdf, oneway_col="ONEWAY"):
+    """
+    Builds a directed graph from roads_gdf, respecting ONEWAY='Y' or 'N',
+    AND connects each snapped stop (mid-segment) to the relevant segment endpoints.
+
+    1) For each road line, add edges for each pair of consecutive endpoints.
+       - If oneway='Y', add one forward edge; if 'N', add both directions.
+    2) For each snapped stop:
+        - Identify the nearest line and its endpoints (A->B).
+        - Create small "shortcut" edges from (stop) to A/B so that the stop is
+          actually reachable in the graph.
+        - If oneway='Y' or 'N', respect direction logic for these small edges.
+    """
+
+    # --- 1. Basic directed edges from road endpoints ---
+    G = nx.DiGraph()
+
+    for idx, row in roads_gdf.iterrows():
+        oneway_value = str(row.get(oneway_col, "N")).upper()
+        geom = row.geometry
+
+        if geom.geom_type == "MultiLineString":
+            lines = list(geom.geoms)
+        else:
+            lines = [geom]
+
+        for line in lines:
+            coords = list(line.coords)
+            # Add edges from each pair of consecutive coords
+            for i in range(len(coords) - 1):
+                start = coords[i]
+                end   = coords[i+1]
+                seg_line = LineString([start, end])
+                length   = seg_line.length
+
+                if oneway_value == 'Y':
+                    G.add_edge(start, end, weight=length, geometry=seg_line)
+                else:
+                    # 'N' or anything else => two-way
+                    G.add_edge(start, end, weight=length, geometry=seg_line)
+                    G.add_edge(end, start, weight=length, geometry=seg_line)
+
+    # --- 2. Insert each snapped stop as a node + small edges to the nearest segment ---
+    # We can store the full geometry for each coordinate, or just keep the weight
+    # so that the route is possible in the final path search.
+
+    # We'll need a function to find the single nearest road segment and
+    # the coordinates of that segment's endpoints for each stop.
+    from shapely.ops import nearest_points
+
+    def find_nearest_segment_and_endpoints(stop_pt, roads_union):
+        """
+        Returns:
+           best_line:  the single linestring from roads that is nearest
+           coordsA, coordsB: the line endpoints
+        """
+        # 1) nearest_points on the big merged geometry
+        #    (like you did for snapping).
+        nearest_on_line = roads_union.interpolate(roads_union.project(stop_pt))
+        # 2) But we also need to figure out which actual linestring
+        #    in the multi-geometry that point is on.
+        #    Easiest approach: iterate all lines in roads_gdf, find min distance.
+        #    For large datasets, that's not the fastest, but it's straightforward.
+
+        min_dist = float("inf")
+        best_line = None
+        for row in roads_gdf.itertuples():
+            geom = row.geometry
+            # If it's multi, break it down
+            if geom.geom_type == "MultiLineString":
+                these_lines = geom.geoms
+            else:
+                these_lines = [geom]
+
+            for single_line in these_lines:
+                dist = single_line.distance(stop_pt)
+                if dist < min_dist:
+                    min_dist = dist
+                    best_line = single_line
+
+        if best_line is not None:
+            coords = list(best_line.coords)
+            # We'll just treat the entire line as a set of consecutive segments
+            # Because a linestring can have multiple vertices. The stop might
+            # lie in the middle of e.g. the third sub-segment. We only need
+            # the bounding endpoints for the sub-segment on which the stop falls.
+            #
+            # Let's find the "parameter" along best_line
+            param_on_line = best_line.project(stop_pt)
+            # We'll walk along the line coords to see which sub-segment it belongs to.
+            cumulative = 0.0
+            for i in range(len(coords) - 1):
+                sub_line = LineString([coords[i], coords[i+1]])
+                seg_len  = sub_line.length
+                if cumulative + seg_len >= param_on_line:
+                    # The stop is on this sub_line
+                    return (best_line, coords[i], coords[i+1])
+                else:
+                    cumulative += seg_len
+
+            # If we get here, it's presumably on the last segment
+            return (best_line, coords[-2], coords[-1])
+
+        return (None, None, None)
+
+    # We'll also keep a union of roads for nearest_points:
+    roads_union = roads_gdf.unary_union  # merged geometry
+
+    # Add each snapped stop as a node if missing
+    for idx, row in snapped_stops_gdf.iterrows():
+        stop_pt = row.geometry
+        stop_node = (stop_pt.x, stop_pt.y)
+        if stop_node not in G:
+            G.add_node(stop_node)
+
+        # Find the nearest line and its endpoints
+        best_line, A, B = find_nearest_segment_and_endpoints(stop_pt, roads_union)
+        if not best_line or not A or not B:
+            # fallback: no line found?
+            # This would be unusual if everything is correct, but let's handle gracefully
+            continue
+
+        # Weight from stop to each endpoint
+        distA = stop_pt.distance(Point(A))
+        distB = stop_pt.distance(Point(B))
+
+        # Determine oneway logic for that line
+        # If your roads_gdf had multiple rows that share best_line geometry,
+        # you'd want to fetch the row that actually matched. We'll do a simpler approach:
+        # assume oneway is the same for the entire line. You might want a function
+        # that truly fetches the correct row's "ONEWAY".
+        # For demonstration, we'll just do a naive search:
+        oneway_value = 'N'
+        for rrow in roads_gdf.itertuples():
+            # If the geometry is the same object, or "close enough"
+            # a robust approach might be geometry.equals()
+            if rrow.geometry.equals(best_line):
+                oneway_value = str(getattr(rrow, oneway_col, 'N')).upper()
+                break
+
+        # If oneway='Y', we only connect A->B. So if the sub-segment is A->B,
+        # does that mean the bus can go from A to B but not B to A?
+        # We'll create edges in the direction of sub-line, plus the opposite direction if 'N'.
+        sub_line = LineString([A, B])
+        # check if param(B) > param(A)
+        # We'll do a minimal approach: If 'Y', connect STOP->B if travel is A->B, etc.
+
+        # 2A. If the sub_line is oriented from A->B, let's assume the bus travels that way:
+        # Actually, the simpler approach is: we add edges from the STOP to each endpoint
+        # and from each endpoint to the STOP, but only if it doesn't violate the direction.
+
+        if oneway_value == 'Y':
+            # We have to figure out which direction is the "forward" direction
+            # for the entire linestring. In practice, many real road networks
+            # store direction in the attribute (like from-node, to-node).
+            # For demonstration, let's assume that if the line is from A->B,
+            # the "forward" direction is A->B, so:
+            #   - allow STOP -> B
+            #   - allow A -> STOP
+            # but not STOP -> A or B -> STOP
+            # Because that would mean going backward along the line.
+            #
+            # If your data has a separate "from_x, from_y, to_x, to_y", you'd match them.
+            # Or you might not strictly need this if your roads are mostly two-way (N).
+            # Below is an example logic:
+
+            # distance from A to B
+            AB_len = sub_line.length
+            # distance from A to STOP
+            A_stop_len = Point(A).distance(stop_pt)
+            # distance from STOP to B
+            stop_B_len = stop_pt.distance(Point(B))
+
+            # If A_stop_len + stop_B_len is approximately AB_len, we interpret that
+            # the stop is actually on the segment from A->B (and not an extension).
+            # Then do "forward edges" only
+            G.add_edge(A, stop_node, weight=distA)          # A -> stop
+            G.add_edge(stop_node, B, weight=distB)          # stop -> B
+
+        else:
+            # 'N' => two-way
+            # So we add edges in both directions to A and B
+            G.add_edge(stop_node, A, weight=distA)
+            G.add_edge(A, stop_node, weight=distA)
+            G.add_edge(stop_node, B, weight=distB)
+            G.add_edge(B, stop_node, weight=distB)
+
+    return G
+
+# ---------------------------------------------------------------------
+# Now we create the graph:
+print("Building directed network (with mid-segment stop connections)...")
+road_network = build_directed_network_with_stops(
+    roads_gdf=filtered_roads, 
+    snapped_stops_gdf=snapped_stops_gdf, 
+    oneway_col="ONEWAY"  # or whatever your oneway column is
+)
+print(f"Network built: {road_network.number_of_nodes()} nodes, {road_network.number_of_edges()} edges.")
+
+# ---------------------------------------------------------------------
+# Then do your nearest-node logic as before:
+def find_nearest_node(pt, graph_nodes):
+    min_dist = float("inf")
+    nearest = None
+    for node in graph_nodes:
+        dist = Point(node).distance(pt)
+        if dist < min_dist:
+            min_dist = dist
+            nearest = node
+    return nearest
+
+sorted_snapped_stops = snapped_stops_gdf.sort_values("stop_sequence").reset_index(drop=True)
+stop_points = sorted_snapped_stops.geometry.tolist()
+nodes_list  = list(road_network.nodes())
+
+individual_segments = []
+individual_lengths = []
+
+for i in range(len(stop_points) - 1):
+    pt_start = stop_points[i]
+    pt_end   = stop_points[i+1]
+
+    node_start = find_nearest_node(pt_start, nodes_list)
+    node_end   = find_nearest_node(pt_end, nodes_list)
+
+    try:
+        node_path = nx.shortest_path(road_network, source=node_start, target=node_end, weight="weight")
+        segment_line = LineString(node_path)
+        individual_segments.append(segment_line)
+        individual_lengths.append(segment_line.length)
+        print(f"Segment {i+1}: length = {segment_line.length:.2f}")
+    except nx.NetworkXNoPath:
+        print(f"No path found between stop {i} and {i+1}. Skipping segment.")
+
+# ---------------------------------------------------------------------
+# Finally, export segments
+import os
+import geopandas as gpd
+
+segments_gdf = gpd.GeoDataFrame({
+    "segment_id": list(range(1, len(individual_segments)+1)),
+    "length": individual_lengths
+}, geometry=individual_segments, crs=PROJECTED_CRS)
+
+segments_out = os.path.join(OUTPUT_FOLDER, f"shortest_path_segments_trip_{selected_trip_id}.shp")
+
+if len(segments_gdf) > 0:
+    segments_gdf.to_file(segments_out)
+    print(f"Exported {len(segments_gdf)} shortest path segments to {segments_out}")
+
+    # Merge them
+    merged_line = linemerge(individual_segments)
+    if merged_line.is_empty or merged_line.geom_type == "GeometryCollection":
+        print("Merged line is empty/GeometryCollection; skipping shapefile export.")
+    else:
+        merged_gdf = gpd.GeoDataFrame({"trip_id": [selected_trip_id]}, geometry=[merged_line], crs=PROJECTED_CRS)
+        merged_out = os.path.join(OUTPUT_FOLDER, f"merged_shortest_path_trip_{selected_trip_id}.shp")
+        merged_gdf.to_file(merged_out)
+        print(f"Exported merged shortest path to {merged_out}")
+else:
+    print("No shortest path segments were created; skipping export.")
