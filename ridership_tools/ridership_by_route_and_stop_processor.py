@@ -34,7 +34,7 @@ REQUIRED_COLUMNS = ['TIME_PERIOD', 'ROUTE_NAME', 'STOP', 'STOP_ID', 'BOARD_ALL',
 COLUMNS_TO_RETAIN = ['ROUTE_NAME', 'STOP', 'STOP_ID', 'BOARD_ALL', 'ALIGHT_ALL']
 
 # Time Periods for Aggregation
-TIME_PERIODS = ['AM PEAK', 'PM PEAK']  # Replace with your time periods of interest
+TIME_PERIODS = ['AM Early', 'AM PEAK', 'MIDDAY', 'PM PEAK', 'PM LATE', 'PM NITE', 'OTHER']  # Replace with your time periods of interest
 
 # ==========================
 # End of Configuration
