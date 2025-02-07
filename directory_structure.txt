@@ -14,6 +14,10 @@ transit_planning_with_python/
 │   ├── bus_block_timeline_exporter.py
 │   ├── bus_schedule_exporter.py
 │   └── gtfs_bus_arrivals_checklist_printable.py
+├── external_variables/
+│   ├── eia_gas_price_processor.py
+│   ├── fred_unemployment_processor.py
+│   └── noaa_weather_processor.py
 ├── gtfs_validation/
 │   ├── gtfs_stop_capitalization_suffix_checker.py
 │   ├── gtfs_stop_road_shp_typo_finder.py
@@ -24,8 +28,8 @@ transit_planning_with_python/
 │   └── stop_spacing_calculator.py
 ├── ridership_tools/
 │   ├── bus_stops_ridership_joiner.py
-│   ├── ridership_by_route_and_stop_processor.py
-│   └── weather_data_processor.py
+│   ├── load_factor_violation_checker.py
+│   └── ridership_by_route_and_stop_processor.py
 ├── service_analysis/
 │   ├── gtfs_headway_span_trips_calculator.py
 │   ├── gtfs_nearby_routes_finder.py
