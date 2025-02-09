@@ -131,6 +131,13 @@ def plot_yearly_comparison(df: pd.DataFrame, series_column: str, output_folder: 
     print(f"Yearly comparison chart saved as '{output_path}'.")
 
 def main():
+    """
+    Main execution function.
+
+    Loads employment data from a CSV file, filters it by the specified start and end dates,
+    exports the filtered data to an Excel file, and generates both a continuous line chart
+    and a yearly comparison chart saved as JPEG images.
+    """
     # Load data from CSV and detect data series column
     df, series_column = load_data(CSV_FILE_PATH)
 
