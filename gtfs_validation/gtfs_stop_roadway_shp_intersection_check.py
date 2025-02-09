@@ -12,9 +12,9 @@ as shapefiles and CSV files.
 
 import os
 
-from shapely.geometry import Point
 import geopandas as gpd
 import pandas as pd
+from shapely.geometry import Point
 
 # ==============================
 # CONFIGURATION SECTION - CUSTOMIZE HERE
