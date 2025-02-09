@@ -243,6 +243,19 @@ def compute_daily_averages(filtered_df, valid_station_names):
 # Main function
 # -----------------------------
 def main():
+    """
+    Process Capital Bikeshare data to generate trip activity reports.
+
+    This function:
+      - Loads bikeshare station data (and optionally a study area boundary) from shapefiles.
+      - Loads and concatenates trip data from CSV files.
+      - Applies fixed and interactive corrections to station names.
+      - Filters trips to valid stations and aggregates monthly counts.
+      - Computes daily average trip counts (weekday, Saturday, Sunday).
+      - Exports the aggregated results to CSV and Excel files.
+
+    Configuration (file paths, fuzzy matching threshold, etc.) is handled at the module level.
+    """
     # Use file paths from the configuration.
     bikeshare_shp_path = BIKESHARE_SHP_PATH
     boundary_shp_path = BOUNDARY_SHP_PATH  # Optional; set to empty string or None to use all stops.
