@@ -11,8 +11,8 @@ as shapefiles and CSV files.
 """
 
 import os
-from shapely.geometry import Point
 
+from shapely.geometry import Point
 import geopandas as gpd
 import pandas as pd
 
