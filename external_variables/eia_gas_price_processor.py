@@ -69,17 +69,17 @@ def filter_data(df: pd.DataFrame, date_col: tuple, price_col: tuple, start_date:
         df_filtered = df[[date_col, price_col]].copy()
     except KeyError as e:
         raise KeyError(f"One or more specified columns were not found: {e}")
-    
+
     # Rename the columns for clarity.
     df_filtered.columns = ['Date', 'Weekly Central Atlantic Price']
 
     # Convert the 'Date' column to datetime format.
     df_filtered['Date'] = pd.to_datetime(df_filtered['Date'], errors='coerce')
-    
+
     # Filter rows based on the date range.
     mask = (df_filtered['Date'] >= pd.to_datetime(start_date)) & (df_filtered['Date'] <= pd.to_datetime(end_date))
     df_filtered = df_filtered.loc[mask]
-    
+
     return df_filtered
 
 def export_data(df: pd.DataFrame, output_file: str):
@@ -96,13 +96,13 @@ def export_data(df: pd.DataFrame, output_file: str):
 def main():
     # Load data from Excel.
     df = load_data(INPUT_FILE, SHEET_NAME, HEADER_ROWS)
-    
+
     # Filter data to keep only the columns of interest and apply the date filter.
     df_filtered = filter_data(df, DATE_COLUMN, PRICE_COLUMN, DATE_FILTER_START, DATE_FILTER_END)
-    
+
     # Display the first few rows of the filtered DataFrame.
     print(df_filtered.head())
-    
+
     # Export the filtered data to an Excel file.
     export_data(df_filtered, OUTPUT_FILE)
 
