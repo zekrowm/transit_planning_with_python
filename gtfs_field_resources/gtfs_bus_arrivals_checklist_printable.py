@@ -3,6 +3,7 @@ Module for generating GTFS bus arrivals checklists in printable Excel format.
 """
 
 import os
+
 import pandas as pd
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
