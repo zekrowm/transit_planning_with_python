@@ -35,7 +35,7 @@ def load_data(csv_path: str) -> pd.DataFrame:
     if 'observation_date' not in df.columns:
         raise ValueError("The CSV file must contain an 'observation_date' column.")
     df['observation_date'] = pd.to_datetime(df['observation_date'])
-    
+
     # Dynamically detect the data series column
     data_columns = [col for col in df.columns if col != 'observation_date']
     if not data_columns:
@@ -77,12 +77,12 @@ def plot_continuous_line(df: pd.DataFrame, series_column: str, output_folder: st
     plt.xlabel('Observation Date')
     plt.ylabel(f'{series_column} (%)')
     plt.grid(True)
-    
+
     # Format x-axis to display only the year
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
     plt.gcf().autofmt_xdate()
-    
+
     plt.tight_layout()
     plt.savefig(output_path, format='jpeg')
     plt.close()
@@ -105,7 +105,7 @@ def plot_yearly_comparison(df: pd.DataFrame, series_column: str, output_folder: 
 
     years = sorted(df['Year'].unique())
     cmap = plt.get_cmap('tab10')
-    
+
     for i, year in enumerate(years):
         yearly_data = df[df['Year'] == year].sort_values(by='Month')
         plt.plot(yearly_data['Month'], yearly_data[series_column],
@@ -113,16 +113,16 @@ def plot_yearly_comparison(df: pd.DataFrame, series_column: str, output_folder: 
                  linestyle='-',
                  color=cmap(i),
                  label=str(year))
-    
+
     plt.title(f'{series_column} by Month (Grouped by Year)')
     plt.xlabel('Month')
     plt.ylabel(f'{series_column} (%)')
-    
+
     # Map month numbers to 3-letter abbreviations
     month_abbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     plt.xticks(range(1, 13), month_abbr)
-    
+
     plt.legend(title='Year')
     plt.grid(True)
     plt.tight_layout()
@@ -133,26 +133,26 @@ def plot_yearly_comparison(df: pd.DataFrame, series_column: str, output_folder: 
 def main():
     # Load data from CSV and detect data series column
     df, series_column = load_data(CSV_FILE_PATH)
-    
+
     # Filter data based on the configuration dates
     filtered_df = filter_data(df, START_DATE, END_DATE)
-    
+
     # Create a dynamic suffix for output filenames with underscores between year and month
     start_dt = pd.to_datetime(START_DATE)
     end_dt = pd.to_datetime(END_DATE)
     dynamic_suffix = f"{start_dt.strftime('%Y_%m')}-{end_dt.strftime('%Y_%m')}"
-    
+
     # Define dynamic output filenames
     continuous_chart_filename = f"line_graph_{dynamic_suffix}.jpeg"
     yearly_chart_filename = f"yearly_line_graph_{dynamic_suffix}.jpeg"
     excel_filename = f"filtered_data_{dynamic_suffix}.xlsx"
-    
+
     # Export filtered data to Excel
     export_to_excel(filtered_df, OUTPUT_FOLDER, excel_filename)
-    
+
     # Generate continuous line chart (with x-axis showing only the year)
     plot_continuous_line(filtered_df, series_column, OUTPUT_FOLDER, continuous_chart_filename)
-    
+
     # Generate yearly comparison chart (with 3-letter month abbreviations)
     plot_yearly_comparison(filtered_df, series_column, OUTPUT_FOLDER, yearly_chart_filename)
 
