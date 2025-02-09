@@ -5,8 +5,8 @@
     with ridership information and aggregated data by census block.
 """
 
-import os
 import csv
+import os
 
 import arcpy
 import pandas as pd
