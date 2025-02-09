@@ -5,9 +5,9 @@ matches the network and is segmented at the stops. It is very useful for checkin
 
 import os
 
-import pandas as pd
 import geopandas as gpd
 import networkx as nx
+import pandas as pd
 from shapely.geometry import Point, LineString, MultiLineString, MultiPoint
 from shapely.ops import nearest_points, linemerge, split
 
