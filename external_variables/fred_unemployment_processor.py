@@ -119,7 +119,7 @@ def plot_yearly_comparison(df: pd.DataFrame, series_column: str, output_folder: 
     plt.ylabel(f'{series_column} (%)')
 
     # Map month numbers to 3-letter abbreviations
-    month_abbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+    month_abbr = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     plt.xticks(range(1, 13), month_abbr)
 
