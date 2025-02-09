@@ -3,6 +3,8 @@ This module processes Capital Bikeshare data by combining spatial data from shap
 It optionally clips bikeshare locations to a geographic boundary, reconciles station names between datasets,
 aggregates monthly trip activity per station, and calculates daily averages by weekday, Saturday, and Sunday.
 
+If you are interested in other bikeshare systems you may need to modify the script to match their data format.
+
 Data sources:
 - https://opendata.dc.gov/datasets/DCGIS::capital-bikeshare-locations/explore?location=38.813802%2C-77.103538%2C9.67
 - https://capitalbikeshare.com/system-data
