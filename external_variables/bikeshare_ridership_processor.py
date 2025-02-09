@@ -41,7 +41,7 @@ def load_shapefiles(bikeshare_shp_path, boundary_shp_path=None):
     """Load the bikeshare shapefile and optionally the boundary shapefile."""
     print("Loading bikeshare shapefile...")
     bikeshare_gdf = gpd.read_file(bikeshare_shp_path)
-    
+
     boundary_gdf = None
     if boundary_shp_path and os.path.exists(boundary_shp_path):
         print("Loading boundary shapefile...")
@@ -110,7 +110,7 @@ def interactive_update_station_names(unmatched_start, unmatched_end, valid_stati
     """
     For station names not matching any valid stop in the study area,
     interactively prompt the user with a fuzzy match suggestion.
-    
+
     If the suggested name is different from the original, the user can confirm
     the update. Otherwise, a message is shown advising manual correction.
     Returns a mapping dictionary of updates.
@@ -118,10 +118,10 @@ def interactive_update_station_names(unmatched_start, unmatched_end, valid_stati
     update_mapping = {}
     # Combine unmatched names from both start and end columns.
     combined_unmatched = set(unmatched_start).union(set(unmatched_end))
-    
+
     print("\nInteractive review of fuzzy match suggestions:")
     print("(For each suggestion, if the proposed correction is different, type 'y' to update it.)\n")
-    
+
     for station in combined_unmatched:
         suggestion = find_close_matches(station, valid_station_names, threshold)
         if suggestion:
@@ -201,19 +201,19 @@ def compute_daily_averages(filtered_df, valid_station_names):
     # Compute day-of-week for start and end trips.
     filtered_df['start_day'] = filtered_df['started_at'].dt.day_name()
     filtered_df['end_day'] = filtered_df['ended_at'].dt.day_name()
-    
+
     # Create DataFrames for start and end trips.
     start_df = filtered_df[filtered_df['start_station_name'].isin(valid_station_names)][['start_station_name', 'month', 'start_day']] \
         .rename(columns={'start_station_name': 'station', 'start_day': 'day'})
     end_df = filtered_df[filtered_df['end_station_name'].isin(valid_station_names)][['end_station_name', 'month', 'end_day']] \
         .rename(columns={'end_station_name': 'station', 'end_day': 'day'})
-    
+
     # Combine start and end trip data.
     combined = pd.concat([start_df, end_df], ignore_index=True)
-    
+
     # Group by station, month, and day-of-week.
     grouped = combined.groupby(['station', 'month', 'day']).size().unstack(fill_value=0)
-    
+
     averages_list = []
     for (station, month), row in grouped.iterrows():
         try:
@@ -252,10 +252,10 @@ def main():
 
     # Load shapefiles.
     bikeshare_gdf, boundary_gdf = load_shapefiles(bikeshare_shp_path, boundary_shp_path)
-    
+
     # Load and concatenate CSV trip data.
     combined_df = load_and_concatenate_csv(csv_folder)
-    
+
     # Clip the bikeshare locations to the boundary if available; otherwise, use all stops.
     if boundary_gdf is not None:
         clipped_gdf = clip_shapefile(bikeshare_gdf, boundary_gdf)
@@ -263,15 +263,15 @@ def main():
         plot_shapefile(boundary_gdf, clipped_gdf)
     else:
         clipped_gdf = bikeshare_gdf
-    
+
     # Extract the valid station names from the study area.
     valid_station_names = clipped_gdf['NAME'].str.strip().unique()
     print(f"\nTotal unique station names within the study area: {len(valid_station_names)}")
-    
+
     # --- Fixed corrections ---
     print("\nApplying fixed station name corrections...")
     combined_df = rename_stations(combined_df)
-    
+
     # Recompute unmatched station names from CSV based on stations in the study area.
     unmatched_start = combined_df.loc[
         ~combined_df['start_station_name'].isin(valid_station_names), 'start_station_name'
@@ -279,15 +279,15 @@ def main():
     unmatched_end = combined_df.loc[
         ~combined_df['end_station_name'].isin(valid_station_names), 'end_station_name'
     ].dropna().unique()
-    
+
     print(f"\nUnique start station names not matching study area stops: {len(unmatched_start)}")
     print(unmatched_start)
     print(f"\nUnique end station names not matching study area stops: {len(unmatched_end)}")
     print(unmatched_end)
-    
+
     # --- Interactive fuzzy match review ---
     update_mapping = interactive_update_station_names(unmatched_start, unmatched_end, valid_station_names, FUZZY_THRESHOLD)
-    
+
     if update_mapping:
         print("Applying interactive station name updates:")
         print(update_mapping)
@@ -295,25 +295,25 @@ def main():
         combined_df['end_station_name'] = combined_df['end_station_name'].replace(update_mapping)
     else:
         print("No interactive updates applied.")
-    
+
     # Filter trips and aggregate the monthly activity.
     total_trip_counts, filtered_df = filter_and_aggregate_trips(combined_df, clipped_gdf)
     print("\nAggregated trip counts by station and month:")
     print(total_trip_counts)
-    
+
     # Export aggregated data to CSV.
     try:
         total_trip_counts.to_csv(output_csv)
         print(f"\nTotal monthly trip activity exported successfully to {output_csv}.")
     except Exception as e:
         print(f"Error exporting CSV: {e}")
-    
+
     # --- Compute and export daily averages ---
     print("\nComputing daily averages (weekday, Saturday, Sunday) for each station by month...")
     averages_df = compute_daily_averages(filtered_df, valid_station_names)
     print("\nDaily averages:")
     print(averages_df)
-    
+
     try:
         averages_df.to_excel(output_xlsx, index=False)
         print(f"\nDaily averages exported successfully to {output_xlsx}.")
