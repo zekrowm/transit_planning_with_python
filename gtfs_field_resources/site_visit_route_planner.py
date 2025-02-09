@@ -64,7 +64,7 @@ STREET_NAME_COL = "FULLNAME"   # Default street name field.
 TARGET_ROAD_CRS = "EPSG:2263"  # Use a projected CRS (here in US feet).
 
 # Fallback average speed in feet per second (e.g., 44 fps is roughly 30 mph).
-AVERAGE_SPEED_FPS = 44  
+AVERAGE_SPEED_FPS = 44
 
 # Optimization approach configuration.
 # Options: "ilp" or "greedy"
@@ -142,7 +142,7 @@ def compute_turn_direction(heading1, heading2, threshold=15):
 def export_gtfs_stops(gtfs_path, output_dir):
     """
     Reads the GTFS stops.txt file and exports it as a shapefile.
-    
+
     Returns:
         GeoDataFrame: A GeoDataFrame containing all GTFS stops.
     """
@@ -161,12 +161,12 @@ def export_gtfs_stops(gtfs_path, output_dir):
 def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
     """
     Filters the stops GeoDataFrame for the selected stop IDs using the specified column.
-    
+
     Args:
         stops_gdf (GeoDataFrame): GeoDataFrame containing GTFS stops.
         selected_stop_ids (list): List of stop identifiers to select.
         stop_id_col (str): The name of the column to match the identifiers (e.g., 'stop_id' or 'stop_code').
-    
+
     Returns:
         dict: A dictionary mapping stop identifiers to (longitude, latitude) tuples.
         GeoDataFrame: The filtered stops.
@@ -185,7 +185,7 @@ def build_directed_road_network(road_shp_path, oneway_col=ONEWAY_COL, speed_col=
                                 target_crs=TARGET_ROAD_CRS, street_name_col=STREET_NAME_COL):
     """
     Builds a directed road network graph from a shapefile.
-    
+
     1. Reads the road network shapefile and reprojects it to the target CRS.
     2. Iterates over each road segment, splitting geometries into consecutive coordinate pairs.
        - If oneway_col is 'Y', adds an edge in the forward direction only.
@@ -195,20 +195,20 @@ def build_directed_road_network(road_shp_path, oneway_col=ONEWAY_COL, speed_col=
        - Otherwise, falls back to the AVERAGE_SPEED_FPS value.
     4. Retrieves the street name from street_name_col.
     5. Computes travel time for each segment as: travel_time = segment_length / speed_fps.
-       
+
     Returns:
         G (DiGraph): A directed NetworkX graph of the road network.
         roads_gdf: The reprojected GeoDataFrame of roads.
     """
     roads_gdf = gpd.read_file(road_shp_path)
     roads_gdf = roads_gdf.to_crs(target_crs)
-    
+
     G = nx.DiGraph()
     for idx, row in roads_gdf.iterrows():
         oneway = str(row.get(oneway_col, "N")).upper()
         # Retrieve the street name from the configured column.
         street_name = row.get(street_name_col, "Unnamed Road")
-        
+
         # Attempt to retrieve the speed limit (assumed to be in mph) from the specified column.
         try:
             speed_val = float(row.get(speed_col, None))
@@ -217,7 +217,7 @@ def build_directed_road_network(road_shp_path, oneway_col=ONEWAY_COL, speed_col=
             speed_fps = speed_val * 1.46667  # Convert mph to feet per second.
         except (TypeError, ValueError):
             speed_fps = AVERAGE_SPEED_FPS  # Fallback average speed.
-        
+
         geom = row.geometry
         # Handle both LineString and MultiLineString geometries.
         if geom.geom_type == "MultiLineString":
@@ -259,15 +259,15 @@ def snap_point_to_network(pt, road_graph):
 def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops):
     """
     Builds a complete (directed) graph for TSP based on the road network travel times.
-    
+
     Each edge weight is computed as the shortest travel time (in seconds) between
     the snapped nodes of the bus stops.
-    
+
     Args:
         road_graph (DiGraph): The road network graph.
         stops_snapped (dict): Mapping of bus stop IDs to the snapped road network node.
         bus_stops (dict): Mapping of bus stop IDs to original (lon, lat) coordinates.
-    
+
     Returns:
         DiGraph: A complete directed graph with travel time weights.
     """
@@ -294,17 +294,17 @@ def compute_tsp_route_greedy(G):
     """
     Computes an approximate TSP route for the given complete graph using NetworkX's
     approximation algorithm (greedy approach).
-    
+
     Args:
         G (Graph): A NetworkX graph with travel time as edge weights.
-    
+
     Returns:
         tuple: The TSP route (list of stops) and the total travel time.
     """
     tsp_route = nx.approximation.traveling_salesman_problem(G, weight='weight', cycle=True)
     print("TSP Route (greedy) for selected stops (before rotation):", tsp_route)
     total_travel_time = sum(
-        G[tsp_route[i]][tsp_route[i+1]]['weight'] 
+        G[tsp_route[i]][tsp_route[i+1]]['weight']
         for i in range(len(tsp_route) - 1)
     )
     print("Total travel time (seconds) (greedy):", total_travel_time)
@@ -313,13 +313,13 @@ def compute_tsp_route_greedy(G):
 def compute_tsp_route_ilp(G):
     """
     Computes the optimal TSP route for the given complete graph using an ILP solver (PuLP).
-    
+
     Args:
         G (DiGraph): A complete directed graph with travel time as edge weights.
-    
+
     Returns:
         tuple: The TSP route (list of stops) and the total travel time.
-    
+
     Note:
         - This ILP approach (using the Miller-Tucker-Zemlin formulation) may be computationally
           intensive for a larger number of stops (generally >15). For such cases, consider using the greedy method.
@@ -330,10 +330,10 @@ def compute_tsp_route_ilp(G):
         nodes.remove('start')
         nodes.insert(0, 'start')
     n = len(nodes)
-    
+
     # Mapping from index to node
     index_to_node = {i: nodes[i] for i in range(n)}
-    
+
     # Create a dictionary for weights.
     weights = {}
     for i in range(n):
@@ -342,55 +342,55 @@ def compute_tsp_route_ilp(G):
                 u_node = index_to_node[i]
                 v_node = index_to_node[j]
                 weights[(i, j)] = G[u_node][v_node]['weight']
-    
+
     # Define the ILP model.
     prob = pulp.LpProblem("TSP", pulp.LpMinimize)
-    
+
     # Decision variables: x[i,j] = 1 if edge from i to j is in the tour.
     x = {}
     for i in range(n):
         for j in range(n):
             if i != j:
                 x[(i, j)] = pulp.LpVariable(f"x_{i}_{j}", cat='Binary')
-    
+
     # Auxiliary variables for subtour elimination (MTZ formulation).
     u = {}
     u[0] = pulp.LpVariable("u_0", lowBound=0, upBound=0, cat='Continuous')
     for i in range(1, n):
         u[i] = pulp.LpVariable(f"u_{i}", lowBound=1, upBound=n-1, cat='Continuous')
-    
+
     # Objective: minimize total travel time.
     prob += pulp.lpSum(weights[(i, j)] * x[(i, j)] for i in range(n) for j in range(n) if i != j)
-    
+
     # Constraints: each node has exactly one outgoing edge.
     for i in range(n):
         prob += pulp.lpSum(x[(i, j)] for j in range(n) if i != j) == 1, f"outgoing_{i}"
-    
+
     # Constraints: each node has exactly one incoming edge.
     for j in range(n):
         prob += pulp.lpSum(x[(i, j)] for i in range(n) if i != j) == 1, f"incoming_{j}"
-    
+
     # Subtour elimination constraints (MTZ).
     for i in range(1, n):
         for j in range(1, n):
             if i != j:
                 prob += u[i] - u[j] + n * x[(i, j)] <= n - 1, f"subtour_{i}_{j}"
-    
+
     # Solve the ILP.
     solver = pulp.PULP_CBC_CMD(msg=False)
     result_status = prob.solve(solver)
-    
+
     if pulp.LpStatus[result_status] != "Optimal":
         print("ILP solver did not find an optimal solution.")
         return None, None
-    
+
     # Extract the tour: for each node, determine its successor.
     successor = {}
     for i in range(n):
         for j in range(n):
             if i != j and pulp.value(x[(i, j)]) > 0.5:
                 successor[i] = j
-    
+
     # Reconstruct the route starting from node 0 ('start').
     route_indices = [0]
     next_index = successor.get(0)
@@ -398,18 +398,18 @@ def compute_tsp_route_ilp(G):
         route_indices.append(next_index)
         next_index = successor.get(next_index)
     route_indices.append(0)  # complete the cycle
-    
+
     # Map indices back to node names.
     tsp_route = [index_to_node[i] for i in route_indices]
-    
+
     # Calculate total travel time.
     total_travel_time = 0
     for i in range(len(route_indices) - 1):
         total_travel_time += weights[(route_indices[i], route_indices[i+1])]
-    
+
     print("TSP Route (ILP) for selected stops (before rotation):", tsp_route)
     print("Total travel time (seconds) (ILP):", total_travel_time)
-    
+
     return tsp_route, total_travel_time
 
 # --------------------- DIRECTIONS EXPORT FUNCTIONS ---------------------
@@ -417,13 +417,13 @@ def compute_tsp_route_ilp(G):
 def generate_directions(tsp_route, stops_snapped, road_graph):
     """
     Generates step-by-step driving directions for the entire TSP route.
-    
+
     For each leg (between consecutive stops in the TSP route), it:
       - Computes the shortest path on the road network.
       - Breaks the path into segments.
       - Groups consecutive segments with the same street name.
       - Uses segment headings to decide if a turn is required.
-    
+
     Returns:
         List of dictionaries with step number and instruction text.
     """
@@ -440,7 +440,7 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
         else:
             directions_steps.append({"Step": step_num, "Instruction": f"Depart from stop {source_stop}"})
             step_num += 1
-        
+
         source_node = stops_snapped[source_stop]
         dest_node = stops_snapped[dest_stop]
         try:
@@ -449,7 +449,7 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
             directions_steps.append({"Step": step_num, "Instruction": f"No path found from {source_stop} to {dest_stop}"})
             step_num += 1
             continue
-        
+
         # Build list of segments from the path.
         segments = []
         for i in range(len(path_nodes) - 1):
@@ -464,7 +464,7 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
                 "length": seg_length,
                 "heading": seg_heading
             })
-        
+
         # Group consecutive segments with the same street.
         grouped = []
         if segments:
@@ -476,7 +476,7 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
                     grouped.append(current)
                     current = seg.copy()
             grouped.append(current)
-        
+
         # Create instructions from grouped segments.
         for i, group in enumerate(grouped):
             if i == 0:
@@ -498,10 +498,10 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
                     instruction = f"Turn {turn} onto {group['street']} and continue for {group['length']:.0f} ft."
             directions_steps.append({"Step": step_num, "Instruction": instruction})
             step_num += 1
-        
+
         directions_steps.append({"Step": step_num, "Instruction": f"Arrive at stop {dest_stop}"})
         step_num += 1
-        
+
         if grouped:
             last_heading = grouped[-1]["heading"]
     return directions_steps
@@ -520,7 +520,7 @@ def export_directions_excel(directions_steps, output_dir):
 def plot_tsp_route(G, tsp_route):
     """
     Plots the complete graph and highlights the computed TSP route.
-    
+
     Args:
         G (Graph): A NetworkX graph of bus stops.
         tsp_route (list): The list of stops representing the TSP route.
@@ -539,20 +539,20 @@ def plot_tsp_route(G, tsp_route):
 
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+
     # 1. Export GTFS stops to a shapefile and get the stops GeoDataFrame.
     stops_gdf = export_gtfs_stops(GTFS_PATH, OUTPUT_DIR)
-    
+
     # 2. Filter the selected stops using the specified stop ID column.
     bus_stops, selected_stops_gdf = filter_selected_stops(stops_gdf, SELECTED_STOP_IDS, SELECTED_STOP_ID_COL)
-    
+
     # 3. Convert the starting point DMS values to decimal degrees and add to bus stops.
     start_lat = dms_to_decimal(START_LAT_DMS)
     start_lon = dms_to_decimal(START_LON_DMS)
     # Note: The bus_stops dictionary stores coordinates as (longitude, latitude).
     start_coord = (start_lon, start_lat)
     bus_stops['start'] = start_coord
-    
+
     # 4. Build the directed road network from the road shapefile.
     road_graph, roads_gdf = build_directed_road_network(
         ROADWAYS_SHP_PATH,
@@ -561,7 +561,7 @@ def main():
         target_crs=TARGET_ROAD_CRS,
         street_name_col=STREET_NAME_COL
     )
-    
+
     # 5. Snap each bus stop (and the starting point) to the nearest node in the road network.
     stops_snapped = {}
     for stop_id, coord in bus_stops.items():
@@ -570,31 +570,31 @@ def main():
     print("Bus stops snapped to road network nodes:")
     for k, v in stops_snapped.items():
         print(f"  {k}: {v}")
-    
+
     # 6. Build a complete graph where edge weights are computed as the shortest travel times
     #    between stops (via the road network).
     road_time_complete_graph = build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops)
-    
+
     # 7. Compute the TSP route using the selected optimization approach.
     opt = OPTIMIZATION_CONFIG["optimization_approach"].lower()
     if opt == "ilp":
         tsp_route, total_travel_time = compute_tsp_route_ilp(road_time_complete_graph)
     else:
         tsp_route, total_travel_time = compute_tsp_route_greedy(road_time_complete_graph)
-    
+
     if tsp_route is None:
         print("TSP route computation failed.")
         return
-    
+
     tsp_route = rotate_route(tsp_route, 'start')
     print("TSP Route based on road network travel times (after rotation):", tsp_route)
-    
+
     # 8. Generate and export driving directions as an Excel file.
     directions_steps = generate_directions(tsp_route, stops_snapped, road_graph)
     export_directions_excel(directions_steps, OUTPUT_DIR)
-    
+
     # 9. Plot the computed TSP route.
     plot_tsp_route(road_time_complete_graph, tsp_route)
-    
+
 if __name__ == '__main__':
     main()
