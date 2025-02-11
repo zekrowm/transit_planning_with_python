@@ -19,7 +19,8 @@ transit_planning_with_python/
 │   ├── bus_block_timeline_exporter.py
 │   ├── bus_schedule_exporter.py
 │   ├── gtfs_bus_arrivals_checklist_printable.py
-│   └── site_visit_route_planner.py
+│   ├── site_visit_route_planner.py
+│   └── stop_pattern_exporter.py
 ├── gtfs_validation/
 │   ├── gtfs_stop_capitalization_suffix_checker.py
 │   ├── gtfs_stop_road_shp_typo_finder.py
