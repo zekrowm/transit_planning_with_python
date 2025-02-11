@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Script to extract unique stop patterns from GTFS data and export them using openpyxl.
 For each route, an Excel workbook is created. Within that workbook, each unique stop pattern
