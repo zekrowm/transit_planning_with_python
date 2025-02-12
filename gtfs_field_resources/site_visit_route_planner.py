@@ -514,19 +514,19 @@ def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, 
     every road-segment geometry used by the route.
     """
     route_features = []
-    
+
     for i in range(len(tsp_route) - 1):
         source_stop = tsp_route[i]
         dest_stop = tsp_route[i+1]
-        
+
         source_node = stops_snapped[source_stop]
         dest_node = stops_snapped[dest_stop]
-        
+
         try:
             path_nodes = nx.shortest_path(road_graph, source=source_node, target=dest_node, weight='weight')
         except nx.NetworkXNoPath:
             continue
-        
+
         # For each consecutive node pair in this path, gather edge geometry
         for j in range(len(path_nodes) - 1):
             u = path_nodes[j]
@@ -536,7 +536,7 @@ def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, 
                 continue
             geometry = edge_data.get("geometry", None)
             street_name = edge_data.get("street", "Unnamed Road")
-            
+
             if geometry is not None:
                 route_features.append({
                     "start_stop": source_stop,
@@ -544,13 +544,13 @@ def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, 
                     "street_name": street_name,
                     "geometry": geometry
                 })
-    
+
     if not route_features:
         print("No route features found (possibly no valid path). Shapefile not created.")
         return
-    
+
     route_gdf = gpd.GeoDataFrame(route_features, geometry="geometry", crs=roads_crs)
-    
+
     out_path = os.path.join(output_dir, "tsp_route.shp")
     route_gdf.to_file(out_path)
     print(f"Exported the TSP route shapefile: {out_path}")
