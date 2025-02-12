@@ -14,7 +14,7 @@ from shapely.ops import nearest_points, linemerge, split
 # -----------------------------------------------------------------------------
 # STEP 0: CONFIGURATION
 # -----------------------------------------------------------------------------
-GTFS_FOLDER = r'C:\Your\Folder\Path\For\GTFS'  
+GTFS_FOLDER = r'C:\Your\Folder\Path\For\GTFS'
 ROAD_NETWORK_FILE = r'C:\Your\File\Path\For\road_network.shp'
 ROUTE_SHAPE_FILE = r'C:\Your\File\Path\For\bus_system_network.sh'
 
@@ -26,9 +26,9 @@ if not os.path.exists(OUTPUT_FOLDER):
 PROJECTED_CRS = "EPSG:2263"
 
 FILTER_ROUTE = '101'
-FILTER_DIRECTION = '0'  
-FILTER_DEPARTURE = '08:00'  
-FILTER_CALENDAR = '3'  
+FILTER_DIRECTION = '0'
+FILTER_DEPARTURE = '08:00'
+FILTER_CALENDAR = '3'
 
 print("STEP 0: Filtering criteria set:")
 print(f"  Route:           {FILTER_ROUTE}")
@@ -477,8 +477,8 @@ def build_directed_network_with_stops(roads_gdf, snapped_stops_gdf, oneway_col="
 # Now we create the graph:
 print("Building directed network (with mid-segment stop connections)...")
 road_network = build_directed_network_with_stops(
-    roads_gdf=filtered_roads, 
-    snapped_stops_gdf=snapped_stops_gdf, 
+    roads_gdf=filtered_roads,
+    snapped_stops_gdf=snapped_stops_gdf,
     oneway_col="ONEWAY"  # or whatever your oneway column is
 )
 print(f"Network built: {road_network.number_of_nodes()} nodes, {road_network.number_of_edges()} edges.")
