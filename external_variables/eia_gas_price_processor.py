@@ -32,10 +32,6 @@ PRICE_COLUMN = (
     "Regular Conventional Retail Gasoline Prices  (Dollars per Gallon)"
 )
 
-# NOTE:
-# If you're interested in retrieving gasoline price data for a different region,
-# update the PRICE_COLUMN tuple to match the corresponding column header in Excel.
-
 # Date filter configuration (inclusive).
 DATE_FILTER_START = "2020-01-01"
 DATE_FILTER_END = "2024-12-31"
@@ -53,13 +49,13 @@ def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFra
     Returns:
         pd.DataFrame: The loaded DataFrame.
     """
-    df = pd.read_excel(input_file, sheet_name=sheet_name, header=header_rows)
-    print("Columns available:", df.columns.tolist())
-    return df
+    loaded_dataframe = pd.read_excel(input_file, sheet_name=sheet_name, header=header_rows)
+    print("Columns available:", loaded_dataframe.columns.tolist())
+    return loaded_dataframe
 
 
 def filter_data(
-    df: pd.DataFrame,
+    input_dataframe: pd.DataFrame,
     date_col: tuple,
     price_col: tuple,
     start_date: str,
@@ -70,7 +66,7 @@ def filter_data(
     date range.
 
     Args:
-        df (pd.DataFrame): The original DataFrame.
+        input_dataframe (pd.DataFrame): The original DataFrame.
         date_col (tuple): MultiIndex tuple for the date column.
         price_col (tuple): MultiIndex tuple for the price column.
         start_date (str): Start date (inclusive) in 'YYYY-MM-DD' format.
@@ -80,35 +76,35 @@ def filter_data(
         pd.DataFrame: The filtered DataFrame with renamed columns.
     """
     try:
-        df_filtered = df[[date_col, price_col]].copy()
+        filtered_dataframe = input_dataframe[[date_col, price_col]].copy()
     except KeyError as exc:
-        raise KeyError(f"One or more specified columns were not found: {exc}")
+        raise KeyError(f"One or more specified columns were not found: {exc}") from exc
 
     # Rename the columns for clarity.
-    df_filtered.columns = ["Date", "Weekly Central Atlantic Price"]
+    filtered_dataframe.columns = ["Date", "Weekly Central Atlantic Price"]
 
     # Convert the 'Date' column to datetime format.
-    df_filtered["Date"] = pd.to_datetime(df_filtered["Date"], errors="coerce")
+    filtered_dataframe["Date"] = pd.to_datetime(filtered_dataframe["Date"], errors="coerce")
 
     # Filter rows based on the date range.
     mask = (
-        (df_filtered["Date"] >= pd.to_datetime(start_date)) &
-        (df_filtered["Date"] <= pd.to_datetime(end_date))
+        (filtered_dataframe["Date"] >= pd.to_datetime(start_date)) &
+        (filtered_dataframe["Date"] <= pd.to_datetime(end_date))
     )
-    df_filtered = df_filtered.loc[mask]
+    filtered_dataframe = filtered_dataframe.loc[mask]
 
-    return df_filtered
+    return filtered_dataframe
 
 
-def export_data(df: pd.DataFrame, output_file: str) -> None:
+def export_data(dataframe_to_export: pd.DataFrame, output_file: str) -> None:
     """
     Export the DataFrame to an Excel file.
 
     Args:
-        df (pd.DataFrame): The DataFrame to export.
+        dataframe_to_export (pd.DataFrame): The DataFrame to export.
         output_file (str): Path to the output Excel file.
     """
-    df.to_excel(output_file, index=False)
+    dataframe_to_export.to_excel(output_file, index=False)
     print(f"Extracted data has been written to {output_file}")
 
 
@@ -117,18 +113,18 @@ def main() -> None:
     Main function to load, filter, and export the data.
     """
     # Load data from Excel.
-    df = load_data(INPUT_FILE, SHEET_NAME, HEADER_ROWS)
+    raw_dataframe = load_data(INPUT_FILE, SHEET_NAME, HEADER_ROWS)
 
     # Filter data to keep only the columns of interest and apply the date filter.
-    df_filtered = filter_data(
-        df, DATE_COLUMN, PRICE_COLUMN, DATE_FILTER_START, DATE_FILTER_END
+    filtered_dataframe = filter_data(
+        raw_dataframe, DATE_COLUMN, PRICE_COLUMN, DATE_FILTER_START, DATE_FILTER_END
     )
 
     # Display the first few rows of the filtered DataFrame.
-    print(df_filtered.head())
+    print(filtered_dataframe.head())
 
     # Export the filtered data to an Excel file.
-    export_data(df_filtered, OUTPUT_FILE)
+    export_data(filtered_dataframe, OUTPUT_FILE)
 
 
 if __name__ == "__main__":
