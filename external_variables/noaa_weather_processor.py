@@ -20,18 +20,18 @@ Configuration settings such as file paths, column mappings, and weather criteria
 centralized in the configuration section for easy modification and scalability.
 """
 
-from pathlib import Path
+import os  # <-- ADDED: We'll use os for path handling
 import pandas as pd
 
 # ===========================
 # Configuration Section
 # ===========================
 
-# Path to the NOAA weather data CSV file
-FILE_PATH = Path("Path/To/Your/noaa_weather_data.csv")
-
-# Path to the output folder where processed data and summaries will be saved
-OUTPUT_FOLDER = Path("Path/To/Your/output_folder")
+# ----------------------------------------------------------
+# CHANGED: Using simple string paths instead of Path objects
+# ----------------------------------------------------------
+FILE_PATH = "Path/To/Your/noaa_weather_data.csv"
+OUTPUT_FOLDER = "Path/To/Your/output_folder"
 
 # Mapping of original column names to new, PEP-8 compliant column names
 COLUMN_MAPPING = {
@@ -85,12 +85,12 @@ POOR_WEATHER_CRITERIA = {
 # ===========================
 
 
-def load_weather_data(file_path: Path) -> pd.DataFrame:
+def load_weather_data(file_path: str) -> pd.DataFrame:
     """
     Load NOAA weather data from a CSV file.
 
     Args:
-        file_path (Path): The path to the CSV file.
+        file_path (str): The path to the CSV file.
 
     Returns:
         pd.DataFrame: DataFrame containing the weather data.
@@ -260,18 +260,21 @@ def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFram
         raise
 
 
-def save_dataframe(weather_df: pd.DataFrame, output_path: Path, filename: str):
+# ------------------------------------------------------------------
+# CHANGED: Using os.makedirs + os.path.join for saving the CSV files
+# ------------------------------------------------------------------
+def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str):
     """
-    Save a DataFrame to a CSV file in the specified output path.
+    Save a DataFrame to a CSV file in the specified output folder.
 
     Args:
         weather_df (pd.DataFrame): The DataFrame to save.
-        output_path (Path): Directory where the file will be saved.
+        output_folder (str): Directory where the file will be saved.
         filename (str): The name of the output CSV file.
     """
     try:
-        output_path.mkdir(parents=True, exist_ok=True)
-        file_full_path = output_path / filename
+        os.makedirs(output_folder, exist_ok=True)
+        file_full_path = os.path.join(output_folder, filename)
         weather_df.to_csv(file_full_path, index=False)
         print(f"Data saved to {file_full_path}")
     except Exception as error:
