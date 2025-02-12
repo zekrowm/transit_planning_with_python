@@ -280,9 +280,6 @@ print(f"Exported merged snapped chord to {merged_snapped_out}")
 #         for each snapped stop, then compute shortest paths
 # =============================================================================
 
-import networkx as nx
-from shapely.geometry import Point, LineString
-from shapely.ops import linemerge
 
 def build_directed_network_with_stops(roads_gdf, snapped_stops_gdf, oneway_col="ONEWAY"):
     """
