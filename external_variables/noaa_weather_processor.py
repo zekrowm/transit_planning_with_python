@@ -27,9 +27,6 @@ import pandas as pd
 # Configuration Section
 # ===========================
 
-# ----------------------------------------------------------
-# CHANGED: Using simple string paths instead of Path objects
-# ----------------------------------------------------------
 FILE_PATH = "Path/To/Your/noaa_weather_data.csv"
 OUTPUT_FOLDER = "Path/To/Your/output_folder"
 
