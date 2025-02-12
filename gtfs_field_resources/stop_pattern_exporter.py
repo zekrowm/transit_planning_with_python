@@ -83,7 +83,7 @@ def load_gtfs_files(input_dir):
     """
     if not os.path.exists(input_dir):
         raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
-    
+
     try:
         stops = pd.read_csv(os.path.join(input_dir, STOPS_FILE))
         trips = pd.read_csv(os.path.join(input_dir, TRIPS_FILE))
@@ -95,7 +95,7 @@ def load_gtfs_files(input_dir):
         raise Exception(f"Error parsing one of the GTFS files: {parse_error}")
     except Exception as e:
         raise Exception(f"Unexpected error loading GTFS files: {e}")
-    
+
     logging.info("Successfully loaded GTFS files.")
     return {'stops': stops, 'trips': trips, 'stop_times': stop_times, 'routes': routes}
 
@@ -109,26 +109,26 @@ def filter_trips_by_route(trips_df, routes_df):
                                 on='route_id', how='left')
     except Exception as e:
         raise Exception(f"Error merging trips and routes: {e}")
-    
+
     if FILTER_IN_ROUTE_SHORT_NAMES:
         trips_routes = trips_routes[trips_routes['route_short_name'].isin(FILTER_IN_ROUTE_SHORT_NAMES)]
     if FILTER_OUT_ROUTE_SHORT_NAMES:
         trips_routes = trips_routes[~trips_routes['route_short_name'].isin(FILTER_OUT_ROUTE_SHORT_NAMES)]
-    
+
     if trips_routes.empty:
         logging.warning("No trips remaining after filtering based on route_short_name.")
-    
+
     return trips_routes
 
 def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
     """
     For each trip, merge with stop_times and stops; sort by stop_sequence;
     and build a pattern as an ordered tuple of stops.
-    
+
     Each stop is represented as a tuple: (stop_name, stop_id, distance)
     where distance is computed as the difference in shape_dist_traveled
     from the previous stop (first stop gets "-").
-    
+
     Returns:
         A dictionary keyed by (route_id, direction_id, pattern) containing:
             - route_id
@@ -144,21 +144,21 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
         )
     except Exception as e:
         raise Exception(f"Error merging stop_times with filtered trips: {e}")
-    
+
     if 'shape_dist_traveled' not in trips_stop_times.columns:
         trips_stop_times['shape_dist_traveled'] = np.nan
-    
+
     try:
         trips_stop_times = pd.merge(
-            trips_stop_times, 
-            stops_df[['stop_id', 'stop_name']], 
+            trips_stop_times,
+            stops_df[['stop_id', 'stop_name']],
             on='stop_id', how='left'
         )
     except Exception as e:
         raise Exception(f"Error merging stop_times with stops: {e}")
-    
+
     trips_stop_times.sort_values(by=['trip_id', 'stop_sequence'], inplace=True)
-    
+
     trip_patterns = []
     for trip_id, group in trips_stop_times.groupby('trip_id'):
         group = group.sort_values('stop_sequence')
@@ -203,7 +203,7 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
             'direction_id': first_row.get('direction_id', 'Unknown'),
             'pattern': tuple(stops_list)
         })
-    
+
     patterns_dict = {}
     for rec in trip_patterns:
         key = (rec['route_id'], rec['direction_id'], rec['pattern'])
@@ -215,7 +215,7 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
                 'trip_count': 0
             }
         patterns_dict[key]['trip_count'] += 1
-        
+
     logging.info(f"Generated {len(patterns_dict)} unique patterns.")
     return patterns_dict
 
@@ -223,7 +223,7 @@ def assign_pattern_ids(patterns_dict):
     """
     Given a dictionary of patterns (keyed by (route_id, direction_id, pattern)),
     assign a sequential pattern_id for each (route_id, direction_id) group.
-    
+
     Returns a list of records, each with:
       route_id, direction_id, pattern_id, trip_count, pattern
     """
@@ -232,7 +232,7 @@ def assign_pattern_ids(patterns_dict):
         route_id = rec['route_id']
         direction_id = rec['direction_id']
         patterns_by_route_dir.setdefault((route_id, direction_id), []).append(rec)
-    
+
     pattern_records = []
     for (route_id, direction_id), recs in patterns_by_route_dir.items():
         recs = sorted(recs, key=lambda r: r['pattern'])
@@ -245,7 +245,7 @@ def assign_pattern_ids(patterns_dict):
                 'trip_count': rec['trip_count'],
                 'pattern': rec['pattern']
             })
-    
+
     logging.info("Assigned pattern IDs.")
     return pattern_records
 
@@ -259,7 +259,7 @@ def export_patterns_to_excel(pattern_records, routes_df):
     route_groups = {}
     for rec in pattern_records:
         route_groups.setdefault(rec['route_id'], []).append(rec)
-    
+
     for route_id, records in route_groups.items():
         # Retrieve the route_short_name for the given route_id.
         try:
@@ -267,18 +267,18 @@ def export_patterns_to_excel(pattern_records, routes_df):
         except Exception as e:
             logging.error(f"Error retrieving route info for route_id {route_id}: {e}")
             route_info = None
-        
+
         if route_info is not None and not route_info.empty:
             route_short_name = route_info.iloc[0].get('route_short_name', f"Route_{route_id}")
         else:
             route_short_name = f"Route_{route_id}"
-        
+
         # Create a new workbook for the route
         workbook = Workbook()
         # Remove the default sheet
         default_sheet = workbook.active
         workbook.remove(default_sheet)
-        
+
         for rec in records:
             direction_id = rec.get('direction_id', 'Unknown')
             pattern_id = rec.get('pattern_id', 'Unknown')
@@ -288,19 +288,19 @@ def export_patterns_to_excel(pattern_records, routes_df):
             except Exception as e:
                 logging.error(f"Error creating worksheet '{worksheet_title}' for route {route_id}: {e}")
                 continue
-            
+
             # Build header row: Route, Direction, Distance, plus one column per stop
             header = ["Route", "Direction", "Distance"]
             stops = rec.get('pattern', [])
             stop_headers = [f"{stop_name} ({stop_id})" for stop_name, stop_id, _ in stops]
             header.extend(stop_headers)
-            
+
             try:
                 worksheet.append(header)
             except Exception as e:
                 logging.error(f"Error writing header in worksheet '{worksheet_title}' for route {route_id}: {e}")
                 continue
-            
+
             # Calculate the total distance (sum the numeric stop distances)
             total_distance = 0.0
             for stop in stops:
@@ -311,20 +311,20 @@ def export_patterns_to_excel(pattern_records, routes_df):
                     except Exception as e:
                         logging.error(f"Error converting stop distance '{dist}' in route {route_id}: {e}")
             total_distance_str = f"{total_distance:.2f}"
-            
+
             # Use route_short_name for the Route column.
             row = [route_short_name, direction_id, total_distance_str] + [stop[2] for stop in stops]
-            
+
             try:
                 worksheet.append(row)
             except Exception as e:
                 logging.error(f"Error writing data row in worksheet '{worksheet_title}' for route {route_id}: {e}")
-            
+
             # Adjust column widths for better readability
             for i, _ in enumerate(header, start=1):
                 col_letter = get_column_letter(i)
                 worksheet.column_dimensions[col_letter].width = 20
-        
+
         output_filename = f"{route_short_name}_{SIGNUP_NAME}.xlsx"
         output_path = os.path.join(OUTPUT_DIR, output_filename)
         try:
@@ -346,7 +346,7 @@ def main():
         except Exception as e:
             logging.error(f"Unable to create output directory '{OUTPUT_DIR}': {e}")
             return
-    
+
     try:
         gtfs_data = load_gtfs_files(INPUT_DIR)
         stops_df = gtfs_data['stops']
@@ -356,28 +356,28 @@ def main():
     except Exception as e:
         logging.error(e)
         return
-    
+
     try:
         filtered_trips_df = filter_trips_by_route(trips_df, routes_df)
     except Exception as e:
         logging.error(e)
         return
-    
+
     if filtered_trips_df.empty:
         logging.error("No trips to process after filtering. Exiting.")
         return
-    
+
     try:
         patterns_dict = generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df)
         pattern_records = assign_pattern_ids(patterns_dict)
     except Exception as e:
         logging.error(f"Error generating patterns: {e}")
         return
-    
+
     if not pattern_records:
         logging.warning("No unique patterns found. Exiting.")
         return
-    
+
     try:
         export_patterns_to_excel(pattern_records, routes_df)
     except Exception as e:
