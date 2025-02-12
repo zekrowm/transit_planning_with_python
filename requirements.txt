@@ -7,3 +7,4 @@ openpyxl==3.1.2          # Excel file handling
 rapidfuzz==3.11.0        # Fuzzy string matching
 pulp==2.9.0              # Linear programming
 pylint==2.15.10          # Code linting (development)
+xlrd==2.0.1              # Excel file reader for legacy .xls files (no .xlsx support)
