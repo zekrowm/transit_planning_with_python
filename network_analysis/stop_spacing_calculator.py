@@ -517,8 +517,6 @@ for i in range(len(stop_points) - 1):
 
 # ---------------------------------------------------------------------
 # Finally, export segments
-import os
-import geopandas as gpd
 
 segments_gdf = gpd.GeoDataFrame({
     "segment_id": list(range(1, len(individual_segments)+1)),
