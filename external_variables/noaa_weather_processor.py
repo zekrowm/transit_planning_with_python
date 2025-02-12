@@ -16,13 +16,11 @@ This script performs the following tasks:
 - Saves the processed data and summaries to the designated output folder.
 - Displays the processed data for verification.
 
-Configuration settings such as file paths, column mappings, and weather criteria are centralized
-in the configuration section for easy modification and scalability.
+Configuration settings such as file paths, column mappings, and weather criteria are
+centralized in the configuration section for easy modification and scalability.
 """
 
-import os
 from pathlib import Path
-
 import pandas as pd
 
 # ===========================
@@ -30,14 +28,10 @@ import pandas as pd
 # ===========================
 
 # Path to the NOAA weather data CSV file
-FILE_PATH = Path(
-    "Path/To/Your/noaa_weather_data.csv"
-)
+FILE_PATH = Path("Path/To/Your/noaa_weather_data.csv")
 
 # Path to the output folder where processed data and summaries will be saved
-OUTPUT_FOLDER = Path(
-    "Path/To/Your/output_folder"
-)
+OUTPUT_FOLDER = Path("Path/To/Your/output_folder")
 
 # Mapping of original column names to new, PEP-8 compliant column names
 COLUMN_MAPPING = {
@@ -80,10 +74,10 @@ COLUMN_MAPPING = {
 
 # Poor weather criteria thresholds
 POOR_WEATHER_CRITERIA = {
-    'average_wind_speed': 15.0,         # in mph (example threshold)
-    'maximum_temperature': 95.0,        # in Fahrenheit (example threshold)
-    'minimum_temperature': 20.0,        # in Fahrenheit (example threshold)
-    'snowfall': 2.0                      # in inches (example threshold)
+    'average_wind_speed': 15.0,  # in mph (example threshold)
+    'maximum_temperature': 95.0,  # in Fahrenheit (example threshold)
+    'minimum_temperature': 20.0,  # in Fahrenheit (example threshold)
+    'snowfall': 2.0               # in inches (example threshold)
 }
 
 # ===========================
@@ -102,9 +96,9 @@ def load_weather_data(file_path: Path) -> pd.DataFrame:
         pd.DataFrame: DataFrame containing the weather data.
     """
     try:
-        df = pd.read_csv(file_path)
+        weather_df = pd.read_csv(file_path)
         print(f"Successfully loaded data from {file_path}")
-        return df
+        return weather_df
     except FileNotFoundError:
         print(f"Error: The file {file_path} does not exist.")
         raise
@@ -116,42 +110,42 @@ def load_weather_data(file_path: Path) -> pd.DataFrame:
         raise
 
 
-def rename_columns(df: pd.DataFrame, column_mapping: dict) -> pd.DataFrame:
+def rename_columns(weather_df: pd.DataFrame, column_mapping: dict) -> pd.DataFrame:
     """
     Rename columns to more descriptive and PEP-8 compliant names.
 
     Args:
-        df (pd.DataFrame): The original weather DataFrame.
+        weather_df (pd.DataFrame): The original weather DataFrame.
         column_mapping (dict): A dictionary mapping original column names to new names.
 
     Returns:
         pd.DataFrame: DataFrame with renamed columns.
     """
-    df.rename(columns=column_mapping, inplace=True)
+    weather_df.rename(columns=column_mapping, inplace=True)
     print("Columns renamed successfully.")
-    return df
+    return weather_df
 
 
-def process_date_columns(df: pd.DataFrame) -> pd.DataFrame:
+def process_date_columns(weather_df: pd.DataFrame) -> pd.DataFrame:
     """
     Convert 'date' column to datetime and extract year, month, day, and day of week.
 
     Args:
-        df (pd.DataFrame): The weather DataFrame with a 'date' column.
+        weather_df (pd.DataFrame): The weather DataFrame with a 'date' column.
 
     Returns:
         pd.DataFrame: DataFrame with additional date-related columns.
     """
     try:
-        df['date'] = pd.to_datetime(df['date'])
-        df['year_month'] = df['date'].dt.to_period('M')
-        df['year'] = df['date'].dt.year
-        df['month'] = df['date'].dt.month
-        df['day'] = df['date'].dt.day
-        df['day_of_week'] = df['date'].dt.dayofweek  # 0 = Monday, 6 = Sunday
-        df['day_name'] = df['date'].dt.day_name()  # Human-readable day name
+        weather_df['date'] = pd.to_datetime(weather_df['date'])
+        weather_df['year_month'] = weather_df['date'].dt.to_period('M')
+        weather_df['year'] = weather_df['date'].dt.year
+        weather_df['month'] = weather_df['date'].dt.month
+        weather_df['day'] = weather_df['date'].dt.day
+        weather_df['day_of_week'] = weather_df['date'].dt.dayofweek  # 0 = Monday, 6 = Sunday
+        weather_df['day_name'] = weather_df['date'].dt.day_name()     # Human-readable day name
         print("Date columns processed successfully.")
-        return df
+        return weather_df
     except KeyError:
         print("Error: 'date' column not found in DataFrame.")
         raise
@@ -160,41 +154,40 @@ def process_date_columns(df: pd.DataFrame) -> pd.DataFrame:
         raise
 
 
-def classify_poor_weather(df: pd.DataFrame, criteria: dict) -> pd.DataFrame:
+def classify_poor_weather(weather_df: pd.DataFrame, criteria: dict) -> pd.DataFrame:
     """
     Classify each day as a poor weather day based on defined criteria.
 
     Args:
-        df (pd.DataFrame): The processed weather DataFrame.
-        criteria (dict): A dictionary with thresholds for poor weather classification.
+        weather_df (pd.DataFrame): The processed weather DataFrame.
+        criteria (dict): Thresholds for poor weather classification.
 
     Returns:
         pd.DataFrame: DataFrame with an additional 'poor_weather' column.
     """
     conditions = (
-        (df['average_wind_speed'] > criteria['average_wind_speed']) |
-        (df['maximum_temperature'] > criteria['maximum_temperature']) |
-        (df['minimum_temperature'] < criteria['minimum_temperature']) |
-        (df['snowfall'] > criteria['snowfall'])
+        (weather_df['average_wind_speed'] > criteria['average_wind_speed'])
+        | (weather_df['maximum_temperature'] > criteria['maximum_temperature'])
+        | (weather_df['minimum_temperature'] < criteria['minimum_temperature'])
+        | (weather_df['snowfall'] > criteria['snowfall'])
     )
-    df['poor_weather'] = conditions
+    weather_df['poor_weather'] = conditions
     print("Poor weather days classified successfully.")
-    return df
+    return weather_df
 
 
-def create_daily_summary(df: pd.DataFrame) -> pd.DataFrame:
+def create_daily_summary(weather_df: pd.DataFrame) -> pd.DataFrame:
     """
     Create a daily summary of the weather data.
 
     Args:
-        df (pd.DataFrame): The processed weather DataFrame.
+        weather_df (pd.DataFrame): The processed weather DataFrame.
 
     Returns:
         pd.DataFrame: Daily summary DataFrame with aggregated metrics and day names.
     """
     try:
-        # Group by 'date' and aggregate relevant metrics
-        daily_summary = df.groupby('date').agg({
+        daily_summary = weather_df.groupby('date').agg({
             'average_wind_speed': 'mean',
             'precipitation': 'sum',
             'snowfall': 'sum',
@@ -206,46 +199,51 @@ def create_daily_summary(df: pd.DataFrame) -> pd.DataFrame:
         }).reset_index()
 
         # Add 'day_name' by merging with original DataFrame
-        day_names = df[['date', 'day_name']].drop_duplicates()
+        day_names = weather_df[['date', 'day_name']].drop_duplicates()
         daily_summary = daily_summary.merge(day_names, on='date', how='left')
 
         print("Daily summary created successfully.")
         return daily_summary
-    except KeyError as e:
-        print(f"Error: Missing expected column {e} in DataFrame.")
+    except KeyError as error:
+        print(f"Error: Missing expected column {error} in DataFrame.")
         raise
 
 
-def create_monthly_poor_weather_summary(df: pd.DataFrame) -> pd.DataFrame:
+def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFrame:
     """
     Create a monthly summary of poor weather days categorized by day type.
 
     Args:
-        df (pd.DataFrame): The processed weather DataFrame with 'poor_weather' and 'day_of_week' columns.
+        weather_df (pd.DataFrame): DataFrame with 'poor_weather' and 'day_of_week' columns.
 
     Returns:
-        pd.DataFrame: Monthly summary DataFrame with counts of poor weather days per day type.
+        pd.DataFrame: Monthly summary with counts of poor weather days per day type.
     """
     try:
-        # Define day types
         def categorize_day(day_num):
             if day_num < 5:
                 return 'Weekday'
-            elif day_num == 5:
+            if day_num == 5:
                 return 'Saturday'
-            else:
-                return 'Sunday'
+            return 'Sunday'
 
-        df['day_type'] = df['day_of_week'].apply(categorize_day)
+        weather_df['day_type'] = weather_df['day_of_week'].apply(categorize_day)
 
         # Filter poor weather days
-        poor_weather_df = df[df['poor_weather']]
+        poor_weather_df = weather_df[weather_df['poor_weather']]
 
-        # Group by year_month and day_type and count poor weather days
-        monthly_summary = poor_weather_df.groupby(['year_month', 'day_type']).size().reset_index(name='poor_weather_days')
+        # Group by year_month and day_type, count poor weather days
+        monthly_summary = poor_weather_df.groupby(
+            ['year_month', 'day_type']
+        ).size().reset_index(name='poor_weather_days')
 
-        # Pivot the table to have day types as columns
-        monthly_summary_pivot = monthly_summary.pivot(index='year_month', columns='day_type', values='poor_weather_days').fillna(0).reset_index()
+        # Pivot to have day types as columns
+        monthly_summary_pivot = (
+            monthly_summary
+            .pivot(index='year_month', columns='day_type', values='poor_weather_days')
+            .fillna(0)
+            .reset_index()
+        )
 
         # Ensure all day types are present
         for day_type in ['Weekday', 'Saturday', 'Sunday']:
@@ -257,28 +255,27 @@ def create_monthly_poor_weather_summary(df: pd.DataFrame) -> pd.DataFrame:
 
         print("Monthly poor weather summary created successfully.")
         return monthly_summary_pivot
-    except KeyError as e:
-        print(f"Error: Missing expected column {e} in DataFrame.")
+    except KeyError as error:
+        print(f"Error: Missing expected column {error} in DataFrame.")
         raise
 
 
-def save_dataframe(df: pd.DataFrame, output_path: Path, filename: str):
+def save_dataframe(weather_df: pd.DataFrame, output_path: Path, filename: str):
     """
     Save a DataFrame to a CSV file in the specified output path.
 
     Args:
-        df (pd.DataFrame): The DataFrame to save.
-        output_path (Path): The directory where the file will be saved.
+        weather_df (pd.DataFrame): The DataFrame to save.
+        output_path (Path): Directory where the file will be saved.
         filename (str): The name of the output CSV file.
     """
     try:
-        # Ensure the output directory exists
         output_path.mkdir(parents=True, exist_ok=True)
         file_full_path = output_path / filename
-        df.to_csv(file_full_path, index=False)
+        weather_df.to_csv(file_full_path, index=False)
         print(f"Data saved to {file_full_path}")
-    except Exception as e:
-        print(f"Error saving file {filename}: {e}")
+    except Exception as error:
+        print(f"Error saving file {filename}: {error}")
         raise
 
 
@@ -287,35 +284,36 @@ def main():
     Main function to load, process, summarize, and save NOAA weather data.
     """
     # Load the data
-    weather_df = load_weather_data(FILE_PATH)
+    weather_data = load_weather_data(FILE_PATH)
 
     # Rename the columns
-    weather_df = rename_columns(weather_df, COLUMN_MAPPING)
+    weather_data = rename_columns(weather_data, COLUMN_MAPPING)
 
     # Process date columns
-    weather_df = process_date_columns(weather_df)
+    weather_data = process_date_columns(weather_data)
 
     # Classify poor weather days
-    weather_df = classify_poor_weather(weather_df, POOR_WEATHER_CRITERIA)
+    weather_data = classify_poor_weather(weather_data, POOR_WEATHER_CRITERIA)
 
     # Create daily summary
-    daily_summary_df = create_daily_summary(weather_df)
+    daily_summary_df = create_daily_summary(weather_data)
 
     # Create monthly poor weather summary
-    monthly_poor_weather_summary_df = create_monthly_poor_weather_summary(weather_df)
+    monthly_poor_weather_summary_df = create_monthly_poor_weather_summary(weather_data)
 
     # Save processed data
-    save_dataframe(weather_df, OUTPUT_FOLDER, 'processed_weather_data.csv')
+    save_dataframe(weather_data, OUTPUT_FOLDER, 'processed_weather_data.csv')
 
     # Save daily summary
     save_dataframe(daily_summary_df, OUTPUT_FOLDER, 'daily_summary.csv')
 
     # Save monthly poor weather summary
-    save_dataframe(monthly_poor_weather_summary_df, OUTPUT_FOLDER, 'monthly_poor_weather_summary.csv')
+    save_dataframe(monthly_poor_weather_summary_df, OUTPUT_FOLDER,
+                   'monthly_poor_weather_summary.csv')
 
     # Display the first few rows of the processed DataFrame
     print("\nProcessed Weather Data:")
-    print(weather_df.head())
+    print(weather_data.head())
 
     # Display the first few rows of the daily summary
     print("\nDaily Summary:")
