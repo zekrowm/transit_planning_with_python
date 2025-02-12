@@ -25,7 +25,16 @@ HEADER_ROWS = [1, 2]  # rows to use as header (0-indexed)
 
 # Define the MultiIndex tuples for columns of interest.
 DATE_COLUMN = ('Sourcekey', 'Date')
-PRICE_COLUMN = ('EMM_EPMR_PTE_R1Y_DPG', 'Weekly Central Atlantic (PADD 1B) Regular All Formulations Retail Gasoline Prices  (Dollars per Gallon)')
+PRICE_COLUMN = (
+    'EMM_EPMRU_PTE_R1Y_DPG', 
+    'Weekly Central Atlantic (PADD 1B) Regular Conventional Retail Gasoline Prices  (Dollars per Gallon)'
+)
+
+# --------------------------------------------------------------------
+# NOTE TO USERS:
+# If you're interested in retrieving gasoline price data for a different region,
+# you will need to update the PRICE_COLUMN tuple to match the corresponding
+# column header in the Excel sheet.
 
 # Date filter configuration (inclusive)
 DATE_FILTER_START = "2020-01-01"
