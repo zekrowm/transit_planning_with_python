@@ -83,7 +83,9 @@ def check_capitalization(stop_name):
         return 'ALL_UPPERCASE'
 
     # Check for proper title case with exceptions for small words
-    exceptions = {"and", "or", "the", "in", "at", "by", "to", "for", "of", "on", "as", "a", "an", "but"}
+    exceptions = {"and", "or", "the", "in", "at", "by", "to", "for", "of",
+                  "on", "as", "a", "an", "but"
+    }
     title_case_words = stop_name.title().split()
     for i in range(1, len(title_case_words)):
         if title_case_words[i].lower() in exceptions:
