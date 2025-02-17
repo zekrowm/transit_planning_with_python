@@ -1,12 +1,10 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 """
 gtfs_to_system_shp_checker.py
 
 This script compares GTFS route data with a transit system's shapefile to identify discrepancies.
-It calculates similarity scores for route names and identifies stops that are not within a specified
-distance allowance from their serving routes. The results are exported as CSV and Shapefile for further analysis.
+It calculates similarity scores for route names and identifies stops that are not within
+a specified distance allowance from their serving routes.
+The results are exported as CSV and Shapefile for further analysis.
 """
 
 import os
