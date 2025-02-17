@@ -46,7 +46,7 @@ SIMILARITY_THRESHOLD_NAMES = 70  # For included stops with different names (0-10
 
 # CRS for distance calculations (Projected CRS).
 # NOTE:
-#  - Choose a CRS that is appropriate for your city or region to ensure accurate distance calculations.
+#  - Choose a CRS appropriate for your city/region for accurate distance calculations.
 #  - Avoid using Web Mercator (EPSG:3857). Example used here: NAD83 / Metro DC area (feet).
 DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 
