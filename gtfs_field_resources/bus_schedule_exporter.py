@@ -422,8 +422,8 @@ def export_to_excel_multiple_sheets(df_dict, out_file):
                 col_letter = get_column_letter(col_num)
                 header_cell = worksheet[f'{col_letter}1']
                 header_cell.alignment = Alignment(
-                    horizontal='left', 
-                    vertical='top', 
+                    horizontal='left',
+                    vertical='top',
                     wrap_text=True
                 )
                 for row_num in range(2, worksheet.max_row + 1):
