@@ -1,21 +1,24 @@
 """
-Combined GTFS and Demographics Analysis Script with INCLUSION/EXCLUSION Filters and Variable Buffer Distances
+Combined GTFS and Demographics Analysis Script with INCLUSION/EXCLUSION Filters 
+for Routes and Stops, Variable Buffer Distances, and Three Analysis Modes:
+- network
+- route
+- stop
 
 This script processes GTFS data and a demographic shapefile to produce
 buffers around transit stops and compute estimated demographic measures.
 
-It supports two modes:
-1) "network": Dissolves buffers for all (final) included routes combined.
+Analysis modes:
+1) "network": Dissolves buffers for all (final) included routes and stops combined.
 2) "route": Performs a separate buffer-and-clip analysis per route.
+3) "stop": Performs a separate buffer-and-clip analysis per individual stop.
 
-Additionally, it supports two route-filter lists:
-- ROUTES_TO_INCLUDE: If non-empty, only these routes are considered.
-- ROUTES_TO_EXCLUDE: If non-empty, these routes are removed from consideration.
+Inclusion/Exclusion:
+- ROUTES_TO_INCLUDE / ROUTES_TO_EXCLUDE: filters routes by route_short_name.
+- STOP_IDS_TO_INCLUDE / STOP_IDS_TO_EXCLUDE: further filter stops after route filtering.
 
-Moreover, it allows specifying a list of `stop_id`s that should have a larger buffer distance
-(e.g., for Park & Ride lots).
-
-If both inclusion and exclusion lists are empty, all routes are analyzed.
+If both route lists are empty, all routes are analyzed.
+If both stop lists are empty, all stops for the final set of routes are analyzed.
 
 Usage:
     - Adjust the CONFIGURATION variables below.
@@ -34,8 +37,8 @@ from shapely.geometry import Point
 # CONFIGURATION SECTION - CUSTOMIZE HERE
 # =============================================================================
 
-# Select analysis mode: "network" or "route"
-ANALYSIS_MODE = "network"  # Options: "network" or "route"
+# Select analysis mode: "network", "route", or "stop"
+ANALYSIS_MODE = "network"  # Options: "network", "route", "stop"
 
 # Paths
 GTFS_DATA_PATH = r"C:\Path\To\GTFS_data_folder"
@@ -49,8 +52,15 @@ OUTPUT_DIRECTORY = r"C:\Path\To\Output"
 ROUTES_TO_INCLUDE = ["101", "102"]  # e.g. [] for no include filter
 ROUTES_TO_EXCLUDE = ["104"]         # e.g. [] for no exclude filter
 
+# Stop filters:
+# 1) STOP_IDS_TO_INCLUDE: If non-empty, only these stops are considered (after route filter).
+# 2) STOP_IDS_TO_EXCLUDE: If non-empty, these stops are removed (after route filter).
+# If both are empty, all stops belonging to final routes are used.
+STOP_IDS_TO_INCLUDE = []  # e.g. [] for no include filter or [1005, 1007] for include filter
+STOP_IDS_TO_EXCLUDE = []  # e.g. [] for no include filter or [1010, 1011] for exclude filter
+
 # Buffer distances in miles
-BUFFER_DISTANCE = 0.25  # Standard buffer distance
+BUFFER_DISTANCE = 0.25     # Standard buffer distance
 LARGE_BUFFER_DISTANCE = 2.0  # Larger buffer distance for specified stops
 
 # If a stop_id is in this list, use LARGE_BUFFER_DISTANCE instead.
@@ -61,7 +71,7 @@ STOP_IDS_LARGE_BUFFER = [
 ]
 
 # Optional FIPS filter (list of codes). Empty list = no filter.
-FIPS_FILTER = ["11001"]
+FIPS_FILTER = ["11001"] # Replace with FIPS code(s) for desired jurisdictions
 
 # Fields in demographics shapefile to multiply by area ratio
 SYNTHETIC_FIELDS = [
@@ -93,7 +103,8 @@ def load_gtfs_data(gtfs_path: str) -> tuple[
     :return: (trips, stop_times, routes_df, stops_df, calendar) DataFrames.
     """
     for filename in REQUIRED_GTFS_FILES:
-        if not os.path.isfile(os.path.join(gtfs_path, filename)):
+        full_path = os.path.join(gtfs_path, filename)
+        if not os.path.isfile(full_path):
             raise FileNotFoundError(f"Missing file: {filename} in {gtfs_path}")
 
     trips = pd.read_csv(os.path.join(gtfs_path, "trips.txt"))
@@ -182,6 +193,48 @@ def get_included_routes(
     return filtered
 
 
+def get_included_stops(
+    stops_df: pd.DataFrame,
+    stop_ids_to_include: list[str],
+    stop_ids_to_exclude: list[str]
+) -> pd.DataFrame:
+    """
+    Determine which stops to keep by applying inclusion/exclusion lists.
+
+    1) Start with all stops in stops_df.
+    2) If stop_ids_to_include is non-empty, keep only those IDs.
+    3) If stop_ids_to_exclude is non-empty, remove those from the result.
+
+    :param stops_df: DataFrame from stops.txt (or an already merged subset).
+    :param stop_ids_to_include: List of stop_ids to include (strings or ints).
+    :param stop_ids_to_exclude: List of stop_ids to exclude (strings or ints).
+    :return: DataFrame containing only the final included stops.
+    """
+    filtered = stops_df.copy()
+
+    # Convert to string if necessary, or ensure consistent type
+    # if original GTFS has them as strings. Adjust as needed.
+    if stops_df["stop_id"].dtype == "O":
+        # If it's a string/object type, make sure our lists are also strings
+        stop_ids_to_include = [str(s) for s in stop_ids_to_include]
+        stop_ids_to_exclude = [str(s) for s in stop_ids_to_exclude]
+    else:
+        # Otherwise, cast the DataFrame column to int if they are numeric
+        filtered["stop_id"] = filtered["stop_id"].astype(int)
+        stop_ids_to_include = [int(s) for s in stop_ids_to_include]
+        stop_ids_to_exclude = [int(s) for s in stop_ids_to_exclude]
+
+    if stop_ids_to_include:
+        filtered = filtered[filtered["stop_id"].isin(stop_ids_to_include)]
+
+    if stop_ids_to_exclude:
+        filtered = filtered[~filtered["stop_id"].isin(stop_ids_to_exclude)]
+
+    final_count = len(filtered)
+    print(f"Including {final_count} stops after applying stop include/exclude lists.")
+    return filtered
+
+
 def pick_buffer_distance(stop_id: str, normal_buffer: float, large_buffer: float, large_buffer_ids: list[str]) -> float:
     """
     Determine the buffer distance for a given stop_id.
@@ -192,7 +245,12 @@ def pick_buffer_distance(stop_id: str, normal_buffer: float, large_buffer: float
     :param large_buffer_ids: List of stop_ids that require the larger buffer.
     :return: Buffer distance in miles.
     """
-    if stop_id in large_buffer_ids:
+    # Convert as needed to match what large_buffer_ids contain
+    # for consistent comparison
+    str_stop_id = str(stop_id)
+    large_buffer_str_ids = [str(s) for s in large_buffer_ids]
+
+    if str_stop_id in large_buffer_str_ids:
         return large_buffer
     else:
         return normal_buffer
@@ -210,7 +268,9 @@ def clip_and_calculate_synthetic_fields(
 
     # Step 1: Ensure we have an "original area" column
     if "area_ac_og" not in demographics_gdf.columns:
-        demographics_gdf["area_ac_og"] = demographics_gdf.geometry.area / 4046.86  # Convert to acres
+        demographics_gdf["area_ac_og"] = (
+            demographics_gdf.geometry.area / 4046.86
+        )  # Convert to acres
 
     # Step 2: Clip the demographics GeoDataFrame with the buffer GeoDataFrame
     clipped_gdf = gpd.clip(demographics_gdf, buffer_gdf)
@@ -241,6 +301,8 @@ def do_network_analysis(
     demographics_gdf: gpd.GeoDataFrame,
     routes_to_include: list[str],
     routes_to_exclude: list[str],
+    stop_ids_to_include: list[str],
+    stop_ids_to_exclude: list[str],
     buffer_distance_mi: float,
     large_buffer_distance_mi: float,
     stop_ids_large_buffer: list[str],
@@ -248,8 +310,8 @@ def do_network_analysis(
     synthetic_fields: list[str]
 ) -> None:
     """
-    Perform a single "network-wide" buffer analysis across the final included routes,
-    applying variable buffer distances for specified stops.
+    Perform a single "network-wide" buffer analysis across the final included routes
+    and final included stops, applying variable buffer distances for specified stops.
 
     :param trips: DataFrame from trips.txt (filtered to relevant service IDs).
     :param stop_times: DataFrame from stop_times.txt.
@@ -258,6 +320,8 @@ def do_network_analysis(
     :param demographics_gdf: GeoDataFrame of demographic data (projected & FIPS-filtered).
     :param routes_to_include: List of route_short_names to include (if any).
     :param routes_to_exclude: List of route_short_names to exclude (if any).
+    :param stop_ids_to_include: List of stop_ids to include (if any).
+    :param stop_ids_to_exclude: List of stop_ids to exclude (if any).
     :param buffer_distance_mi: Standard buffer distance in miles.
     :param large_buffer_distance_mi: Larger buffer distance in miles for specified stops.
     :param stop_ids_large_buffer: List of stop_ids that require the larger buffer.
@@ -266,30 +330,46 @@ def do_network_analysis(
     """
     print("\n=== Network-wide Analysis ===")
 
+    # 1) Filter routes
     final_routes_df = get_included_routes(
         routes_df, routes_to_include, routes_to_exclude
     )
     if final_routes_df.empty:
-        print("No routes remain after filters. Aborting network analysis.")
+        print("No routes remain after route filters. Aborting network analysis.")
         return
 
+    # 2) Subset trips to only final routes
     trips_merged = pd.merge(
         trips,
         final_routes_df[["route_id", "route_short_name"]],
         on="route_id"
     )
+    # 3) Merge trips with stop_times
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
+    # 4) Merge with stops
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
-    merged_data["geometry"] = merged_data.apply(
+    # 5) Filter final stops
+    #   (Now that we've merged, we only keep stops that occur on final routes,
+    #    then apply the user’s stop ID filters.)
+    final_stops_df = get_included_stops(
+        merged_data,
+        stop_ids_to_include,
+        stop_ids_to_exclude
+    )
+    if final_stops_df.empty:
+        print("No stops remain after stop filters. Aborting network analysis.")
+        return
+
+    # 6) Convert to GeoDataFrame in projected CRS
+    final_stops_df["geometry"] = final_stops_df.apply(
         lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
     )
     stops_gdf = gpd.GeoDataFrame(
-        merged_data, geometry="geometry", crs="EPSG:4326"
+        final_stops_df, geometry="geometry", crs="EPSG:4326"
     ).to_crs(epsg=CRS_EPSG_CODE)
 
-    # --- VARIABLE BUFFER LOGIC ---
-    # Apply buffer distance based on whether stop_id is in STOP_IDS_LARGE_BUFFER
+    # 7) Compute variable buffer distances
     stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
         lambda sid: pick_buffer_distance(
             sid,
@@ -298,16 +378,14 @@ def do_network_analysis(
             large_buffer_ids=stop_ids_large_buffer
         ) * 1609.34  # Convert miles to meters
     )
-
-    # Apply buffering with variable distances
     stops_gdf["geometry"] = stops_gdf.apply(
         lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
     )
 
-    # Dissolve all buffers to create a single “network” buffer
+    # 8) Dissolve all buffers to create a single “network” buffer
     network_buffer_gdf = stops_gdf.dissolve().reset_index(drop=True)
 
-    # Proceed with clipping and exporting
+    # 9) Clip and export
     clipped_result = clip_and_calculate_synthetic_fields(
         demographics_gdf, network_buffer_gdf, synthetic_fields
     )
@@ -344,6 +422,8 @@ def do_route_by_route_analysis(
     demographics_gdf: gpd.GeoDataFrame,
     routes_to_include: list[str],
     routes_to_exclude: list[str],
+    stop_ids_to_include: list[str],
+    stop_ids_to_exclude: list[str],
     buffer_distance_mi: float,
     large_buffer_distance_mi: float,
     stop_ids_large_buffer: list[str],
@@ -352,7 +432,7 @@ def do_route_by_route_analysis(
 ) -> None:
     """
     Perform a buffer/clip analysis separately for each route in the final route set,
-    applying variable buffer distances for specified stops.
+    applying variable buffer distances for specified stops and also filtering stops.
 
     :param trips: DataFrame from trips.txt (filtered to relevant service IDs).
     :param stop_times: DataFrame from stop_times.txt.
@@ -361,6 +441,8 @@ def do_route_by_route_analysis(
     :param demographics_gdf: GeoDataFrame of demographic data (projected & FIPS-filtered).
     :param routes_to_include: List of route_short_names to include (if any).
     :param routes_to_exclude: List of route_short_names to exclude (if any).
+    :param stop_ids_to_include: List of stop_ids to include (if any).
+    :param stop_ids_to_exclude: List of stop_ids to exclude (if any).
     :param buffer_distance_mi: Standard buffer distance in miles.
     :param large_buffer_distance_mi: Larger buffer distance in miles for specified stops.
     :param stop_ids_large_buffer: List of stop_ids that require the larger buffer.
@@ -373,9 +455,10 @@ def do_route_by_route_analysis(
         routes_df, routes_to_include, routes_to_exclude
     )
     if final_routes_df.empty:
-        print("No routes remain after filters. Aborting route-by-route analysis.")
+        print("No routes remain after route filters. Aborting route-by-route analysis.")
         return
 
+    # Merge the relevant GTFS data
     trips_merged = pd.merge(
         trips,
         final_routes_df[["route_id", "route_short_name"]],
@@ -384,25 +467,33 @@ def do_route_by_route_analysis(
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
-    merged_data["geometry"] = merged_data.apply(
+    # Filter stops per user-specified ID filters
+    final_stops_df = get_included_stops(
+        merged_data,
+        stop_ids_to_include,
+        stop_ids_to_exclude
+    )
+    if final_stops_df.empty:
+        print("No stops remain after stop filters. Aborting route-by-route analysis.")
+        return
+
+    # Convert to GeoDataFrame in projected CRS
+    final_stops_df["geometry"] = final_stops_df.apply(
         lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
     )
     stops_gdf = gpd.GeoDataFrame(
-        merged_data, geometry="geometry", crs="EPSG:4326"
+        final_stops_df, geometry="geometry", crs="EPSG:4326"
     ).to_crs(epsg=CRS_EPSG_CODE)
 
-    # --- VARIABLE BUFFER LOGIC ---
-    # Apply buffer distance based on whether stop_id is in STOP_IDS_LARGE_BUFFER
+    # Apply variable buffer logic
     stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
         lambda sid: pick_buffer_distance(
             sid,
             normal_buffer=buffer_distance_mi,
             large_buffer=large_buffer_distance_mi,
             large_buffer_ids=stop_ids_large_buffer
-        ) * 1609.34  # Convert miles to meters
+        ) * 1609.34
     )
-
-    # Apply buffering with variable distances
     stops_gdf["geometry"] = stops_gdf.apply(
         lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
     )
@@ -452,10 +543,143 @@ def do_route_by_route_analysis(
         plt.show()
 
 
+def do_stop_by_stop_analysis(
+    trips: pd.DataFrame,
+    stop_times: pd.DataFrame,
+    routes_df: pd.DataFrame,
+    stops_df: pd.DataFrame,
+    demographics_gdf: gpd.GeoDataFrame,
+    routes_to_include: list[str],
+    routes_to_exclude: list[str],
+    stop_ids_to_include: list[str],
+    stop_ids_to_exclude: list[str],
+    buffer_distance_mi: float,
+    large_buffer_distance_mi: float,
+    stop_ids_large_buffer: list[str],
+    output_dir: str,
+    synthetic_fields: list[str]
+) -> None:
+    """
+    Perform a buffer/clip analysis for each individual stop in the final set,
+    applying variable buffer distances for specified stops.
+
+    The final set of stops is determined by:
+      1) route filters
+      2) GTFS merges (only stops actually used by the final routes)
+      3) stop include/exclude lists
+
+    :param trips: DataFrame from trips.txt (filtered to relevant service IDs).
+    :param stop_times: DataFrame from stop_times.txt.
+    :param routes_df: DataFrame from routes.txt.
+    :param stops_df: DataFrame from stops.txt.
+    :param demographics_gdf: GeoDataFrame of demographic data (projected & FIPS-filtered).
+    :param routes_to_include: List of route_short_names to include (if any).
+    :param routes_to_exclude: List of route_short_names to exclude (if any).
+    :param stop_ids_to_include: List of stop_ids to include (if any).
+    :param stop_ids_to_exclude: List of stop_ids to exclude (if any).
+    :param buffer_distance_mi: Standard buffer distance in miles.
+    :param large_buffer_distance_mi: Larger buffer distance in miles for specified stops.
+    :param stop_ids_large_buffer: List of stop_ids that require the larger buffer.
+    :param output_dir: Destination folder for output shapefiles.
+    :param synthetic_fields: Columns to compute synthetic values for.
+    """
+    print("\n=== Stop-by-Stop Analysis ===")
+
+    final_routes_df = get_included_routes(
+        routes_df, routes_to_include, routes_to_exclude
+    )
+    if final_routes_df.empty:
+        print("No routes remain after route filters. Aborting stop-by-stop analysis.")
+        return
+
+    # Merge the relevant GTFS data
+    trips_merged = pd.merge(
+        trips,
+        final_routes_df[["route_id", "route_short_name"]],
+        on="route_id"
+    )
+    merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
+    merged_data = pd.merge(merged_data, stops_df, on="stop_id")
+
+    # Filter stops per user-specified ID filters
+    final_stops_df = get_included_stops(
+        merged_data,
+        stop_ids_to_include,
+        stop_ids_to_exclude
+    )
+    if final_stops_df.empty:
+        print("No stops remain after stop filters. Aborting stop-by-stop analysis.")
+        return
+
+    # Convert to GeoDataFrame in projected CRS
+    final_stops_df["geometry"] = final_stops_df.apply(
+        lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
+    )
+    stops_gdf = gpd.GeoDataFrame(
+        final_stops_df, geometry="geometry", crs="EPSG:4326"
+    ).to_crs(epsg=CRS_EPSG_CODE)
+
+    # Apply variable buffer logic
+    stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
+        lambda sid: pick_buffer_distance(
+            sid,
+            normal_buffer=buffer_distance_mi,
+            large_buffer=large_buffer_distance_mi,
+            large_buffer_ids=stop_ids_large_buffer
+        ) * 1609.34
+    )
+
+    # For each stop, create a buffer, clip, and store results
+    unique_stops = stops_gdf["stop_id"].unique()
+    os.makedirs(output_dir, exist_ok=True)
+
+    for sid in unique_stops:
+        single_stop_gdf = stops_gdf[stops_gdf["stop_id"] == sid]
+        if single_stop_gdf.empty:
+            continue
+
+        stop_id_str = str(sid)
+        # Buffer
+        single_stop_gdf["geometry"] = single_stop_gdf.apply(
+            lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
+        )
+        # Dissolve to combine a stop's geometry if duplicated across multiple trips
+        single_stop_buffer = single_stop_gdf.dissolve().reset_index(drop=True)
+
+        # Clip
+        clipped_result = clip_and_calculate_synthetic_fields(
+            demographics_gdf, single_stop_buffer, synthetic_fields
+        )
+        synthetic_cols = [f"synthetic_{f}" for f in synthetic_fields]
+        totals = clipped_result[synthetic_cols].sum().round(0)
+
+        print(f"\nStop {stop_id_str} totals:")
+        for col, val in totals.items():
+            display_col = col.replace("synthetic_", "").replace("_", " ").title()
+            print(f"  Total Synthetic {display_col}: {int(val)}")
+
+        # Export shapefile
+        out_path = os.path.join(
+            output_dir, f"stop_{stop_id_str}_service_buffer_data.shp"
+        )
+        clipped_result.to_file(out_path)
+        print(f"Exported shapefile for stop {stop_id_str}: {out_path}")
+
+        # Optional plot
+        fig, ax = plt.subplots(figsize=(8, 8))
+        single_stop_buffer.plot(
+            ax=ax, color="green", alpha=0.5, label=f"Stop {stop_id_str} Buffer"
+        )
+        plt.title(f"Stop {stop_id_str} Buffer Overlay")
+        plt.legend()
+        plt.show()
+
+
 def main():
     """
-    Main driver function. Adjust ANALYSIS_MODE and route filter variables
-    (ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE) in the configuration section.
+    Main driver function. Adjust ANALYSIS_MODE, route filter variables
+    (ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE), and stop filter variables
+    (STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE) in the configuration section.
     """
     try:
         trips, stop_times, routes_df, stops_df, calendar = load_gtfs_data(
@@ -472,7 +696,8 @@ def main():
         demographics_gdf = apply_fips_filter(demographics_gdf, FIPS_FILTER)
         demographics_gdf = demographics_gdf.to_crs(epsg=CRS_EPSG_CODE)
 
-        if ANALYSIS_MODE.lower() == "network":
+        mode = ANALYSIS_MODE.lower()
+        if mode == "network":
             do_network_analysis(
                 trips=trips,
                 stop_times=stop_times,
@@ -481,13 +706,15 @@ def main():
                 demographics_gdf=demographics_gdf,
                 routes_to_include=ROUTES_TO_INCLUDE,
                 routes_to_exclude=ROUTES_TO_EXCLUDE,
+                stop_ids_to_include=STOP_IDS_TO_INCLUDE,
+                stop_ids_to_exclude=STOP_IDS_TO_EXCLUDE,
                 buffer_distance_mi=BUFFER_DISTANCE,
                 large_buffer_distance_mi=LARGE_BUFFER_DISTANCE,
                 stop_ids_large_buffer=STOP_IDS_LARGE_BUFFER,
                 output_dir=OUTPUT_DIRECTORY,
                 synthetic_fields=SYNTHETIC_FIELDS
             )
-        elif ANALYSIS_MODE.lower() == "route":
+        elif mode == "route":
             do_route_by_route_analysis(
                 trips=trips,
                 stop_times=stop_times,
@@ -496,6 +723,25 @@ def main():
                 demographics_gdf=demographics_gdf,
                 routes_to_include=ROUTES_TO_INCLUDE,
                 routes_to_exclude=ROUTES_TO_EXCLUDE,
+                stop_ids_to_include=STOP_IDS_TO_INCLUDE,
+                stop_ids_to_exclude=STOP_IDS_TO_EXCLUDE,
+                buffer_distance_mi=BUFFER_DISTANCE,
+                large_buffer_distance_mi=LARGE_BUFFER_DISTANCE,
+                stop_ids_large_buffer=STOP_IDS_LARGE_BUFFER,
+                output_dir=OUTPUT_DIRECTORY,
+                synthetic_fields=SYNTHETIC_FIELDS
+            )
+        elif mode == "stop":
+            do_stop_by_stop_analysis(
+                trips=trips,
+                stop_times=stop_times,
+                routes_df=routes_df,
+                stops_df=stops_df,
+                demographics_gdf=demographics_gdf,
+                routes_to_include=ROUTES_TO_INCLUDE,
+                routes_to_exclude=ROUTES_TO_EXCLUDE,
+                stop_ids_to_include=STOP_IDS_TO_INCLUDE,
+                stop_ids_to_exclude=STOP_IDS_TO_EXCLUDE,
                 buffer_distance_mi=BUFFER_DISTANCE,
                 large_buffer_distance_mi=LARGE_BUFFER_DISTANCE,
                 stop_ids_large_buffer=STOP_IDS_LARGE_BUFFER,
