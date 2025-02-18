@@ -1,5 +1,5 @@
 """
-Combined GTFS and Demographics Analysis Script with INCLUSION/EXCLUSION Filters 
+Combined GTFS and Demographics Analysis Script with INCLUSION/EXCLUSION Filters
 for Routes and Stops, Variable Buffer Distances, and Three Analysis Modes:
 - network
 - route
