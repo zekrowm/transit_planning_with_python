@@ -1,8 +1,8 @@
 """
-    This script processes bus stop data by performing a spatial join with census blocks,
-    merging with ridership data from an Excel file, and filtering out bus stops that do
-    not have corresponding ridership data. The final outputs include updated shapefiles
-    with ridership information and aggregated data by census block.
+This script processes bus stop data by performing a spatial join with census blocks,
+merging with ridership data from an Excel file, and filtering out bus stops that do
+not have corresponding ridership data. The final outputs include updated shapefiles
+with ridership information and aggregated data by census block.
 """
 
 import csv
