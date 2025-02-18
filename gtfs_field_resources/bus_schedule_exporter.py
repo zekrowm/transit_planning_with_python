@@ -23,12 +23,6 @@ Features:
 - Handles various schedule types based on service days, including weekdays, weekends,
   and special schedules.
 - Provides informative warnings and confirmations to assist in data verification.
-
-Usage:
-------
-1. **Configure the Settings**: Update the configuration section with appropriate
-   input and output paths, route selections, and time format.
-2. **Run the Script**: Execute the script using a Python interpreter.
 """
 
 import os
