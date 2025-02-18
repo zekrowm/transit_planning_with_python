@@ -76,13 +76,13 @@ def process_data(df: pd.DataFrame, bus_capacity: int) -> pd.DataFrame:
     """Process the DataFrame to calculate load factor and determine service periods and violations."""
     # Assign service period
     df['SERVICE_PERIOD'] = df['TRIP_START_TIME'].apply(assign_service_period)
-    
+
     # Calculate LOAD_FACTOR using the BUS_CAPACITY
     df['LOAD_FACTOR'] = df['MAX_LOAD'] / bus_capacity
-    
+
     # Create LOAD_FACTOR_VIOLATION column
     df['LOAD_FACTOR_VIOLATION'] = df.apply(check_load_factor_violation, axis=1)
-    
+
     # Sort by 'LOAD_FACTOR' in descending order
     return df.sort_values(by='LOAD_FACTOR', ascending=False)
 
@@ -91,7 +91,7 @@ def export_to_excel(df: pd.DataFrame, output_file: str) -> None:
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Sheet1')
         worksheet = writer.sheets['Sheet1']
-        
+
         # Adjust column widths based on the maximum length of the content in each column
         for idx, col in enumerate(df.columns, 1):
             series = df[col].astype(str)
@@ -114,13 +114,13 @@ def main():
     # Load and process data
     df = load_data(INPUT_FILE)
     processed_df = process_data(df, BUS_CAPACITY)
-    
+
     # Export processed data to Excel
     export_to_excel(processed_df, OUTPUT_FILE)
-    
+
     # Print high load trips
     print_high_load_trips(processed_df)
-    
+
     print(f"Processed file saved to: {OUTPUT_FILE}")
 
 if __name__ == "__main__":
