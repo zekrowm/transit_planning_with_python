@@ -1,24 +1,14 @@
 """
-Script to extract unique stop patterns from GTFS data and export them using openpyxl.
-For each route, an Excel workbook is created. Within that workbook, each unique stop pattern
-appears as a separate worksheet. In each worksheet:
-  - The first column ("Route") contains the route name.
-  - The second column ("Direction") contains the route direction (from direction_id).
-  - The third column ("Distance") contains the total distance (sum of all per-stop distances, in miles).
-  - The remaining columns contain the stops, with headers formatted as "StopName (StopID)"
-    and the corresponding distance values (in miles).
-
-The script allows you to choose the unit in which shape_dist_traveled values are provided
-("feet" or "meters") and, if enabled, converts the distances into miles.
-
-Optional filtering by route_short_name is supported.
-An optional signup name can also be provided so that it will be appended to the output file names.
+This module extracts unique stop patterns from GTFS data and exports them as Excel workbooks.
+It supports route-based filtering, distance conversions, timepoint-only exports, and optional
+distance validation (comparing total trip distance to timepoint segments).
 """
 
-import os
-import pandas as pd
-import numpy as np
 import logging
+import os
+
+import numpy as np
+import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
@@ -59,6 +49,16 @@ INPUT_DISTANCE_UNIT = "meters"  # Change to "meters" if your GTFS uses meters.
 
 # Set to True to convert distances to miles.
 CONVERT_TO_MILES = True
+
+# ============================================================
+# TIMEPOINT CONFIGURATION
+# ============================================================
+# NEW: Set to True if you only want to export stops with timepoint=1.
+EXPORT_TIMEPOINTS_ONLY = True
+
+# OPTIONAL: If True, we'll compare the total distance from the first to last stop
+# with the sum of segment distances for timepoints only, and log a warning if they differ.
+VALIDATE_TIMEPOINT_DISTANCE = True
 
 # ------------------------------------------------------------
 # HELPER FUNCTIONS
@@ -105,8 +105,12 @@ def filter_trips_by_route(trips_df, routes_df):
     Returns a filtered DataFrame of trips.
     """
     try:
-        trips_routes = pd.merge(trips_df, routes_df[['route_id', 'route_short_name']],
-                                on='route_id', how='left')
+        trips_routes = pd.merge(
+            trips_df, 
+            routes_df[['route_id', 'route_short_name']],
+            on='route_id', 
+            how='left'
+        )
     except Exception as e:
         raise Exception(f"Error merging trips and routes: {e}")
 
@@ -125,9 +129,12 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
     For each trip, merge with stop_times and stops; sort by stop_sequence;
     and build a pattern as an ordered tuple of stops.
 
-    Each stop is represented as a tuple: (stop_name, stop_id, distance)
-    where distance is computed as the difference in shape_dist_traveled
-    from the previous stop (first stop gets "-").
+    If EXPORT_TIMEPOINTS_ONLY=True, only keep stops where timepoint=1.
+
+    Each stop in the final pattern is represented as a tuple:
+        (stop_name, stop_id, distance)
+    where 'distance' is the difference in shape_dist_traveled from the previous
+    (included) stop. For the first stop, distance is "-".
 
     Returns:
         A dictionary keyed by (route_id, direction_id, pattern) containing:
@@ -137,43 +144,94 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
             - trip_count (number of trips with that pattern)
     """
     try:
+        # Merge filtered trips with stop_times
         trips_stop_times = pd.merge(
             stop_times_df, 
             filtered_trips_df[['trip_id', 'route_id', 'direction_id']],
-            on='trip_id', how='inner'
+            on='trip_id', 
+            how='inner'
         )
     except Exception as e:
         raise Exception(f"Error merging stop_times with filtered trips: {e}")
 
+    # Add a shape_dist_traveled column if missing
     if 'shape_dist_traveled' not in trips_stop_times.columns:
         trips_stop_times['shape_dist_traveled'] = np.nan
 
+    # Merge in stop names
     try:
         trips_stop_times = pd.merge(
             trips_stop_times,
             stops_df[['stop_id', 'stop_name']],
-            on='stop_id', how='left'
+            on='stop_id', 
+            how='left'
         )
     except Exception as e:
         raise Exception(f"Error merging stop_times with stops: {e}")
 
+    # Sort by trip_id then stop_sequence
     trips_stop_times.sort_values(by=['trip_id', 'stop_sequence'], inplace=True)
+
+    # CHANGED/NEW: We'll store original total distance (first to last stop) 
+    # so we can compare if we are exporting timepoints only.
+    # This dict will map trip_id -> (original_distance, first_shape_dist, last_shape_dist)
+    # We'll use it only if VALIDATE_TIMEPOINT_DISTANCE=True
+    original_trip_distances = {}
+
+    # We can compute each trip’s total distance from the first to the last stop
+    # (no matter if timepoints or not).
+    if VALIDATE_TIMEPOINT_DISTANCE and EXPORT_TIMEPOINTS_ONLY:
+        # For each trip, find first and last shape_dist_traveled (non-null).
+        # This is the "straight" total distance from the trip, without timepoint filtering.
+        # We'll compare to the sum of segments between timepoint stops below.
+        for trip_id, grp in trips_stop_times.groupby('trip_id'):
+            # Filter out any rows that have no shape_dist_traveled
+            grp = grp.dropna(subset=['shape_dist_traveled'])
+            if grp.empty:
+                original_trip_distances[trip_id] = None
+                continue
+            first_val = grp.iloc[0]['shape_dist_traveled']
+            last_val = grp.iloc[-1]['shape_dist_traveled']
+            dist = last_val - first_val
+            # We'll convert to miles if user wants
+            if pd.notnull(dist) and CONVERT_TO_MILES:
+                if INPUT_DISTANCE_UNIT.lower() == "feet":
+                    conv_factor = 5280.0
+                elif INPUT_DISTANCE_UNIT.lower() == "meters":
+                    conv_factor = 1609.34
+                else:
+                    conv_factor = 1.0
+                dist = dist / conv_factor
+            original_trip_distances[trip_id] = dist
 
     trip_patterns = []
     for trip_id, group in trips_stop_times.groupby('trip_id'):
         group = group.sort_values('stop_sequence')
+
+        # NEW: If user wants only timepoint stops, filter them now
+        if EXPORT_TIMEPOINTS_ONLY:
+            group = group[group['timepoint'] == 1]
+
+        if group.empty:
+            # No stops to process for this trip after filtering
+            continue
+
         stops_list = []
-        prev_dist = None
-        for _, row in group.iterrows():
+        prev_dist_val = None
+        for idx, row in group.iterrows():
             stop_name = row.get('stop_name', 'Unknown')
             stop_id = row.get('stop_id', 'Unknown')
             current_dist = row.get('shape_dist_traveled', np.nan)
-            if prev_dist is None:
-                distance = "-"
+
+            if prev_dist_val is None:
+                # First stop in pattern
+                distance_str = "-"
             else:
-                if pd.notnull(current_dist) and pd.notnull(prev_dist):
+                # Compute difference in shape_dist from the last included stop
+                if pd.notnull(current_dist) and pd.notnull(prev_dist_val):
                     try:
-                        diff = float(current_dist) - float(prev_dist)
+                        diff = float(current_dist) - float(prev_dist_val)
+                        # Convert to miles if needed
                         if CONVERT_TO_MILES:
                             if INPUT_DISTANCE_UNIT.lower() == "feet":
                                 conv_factor = 5280.0
@@ -183,19 +241,21 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
                                 logging.warning(f"Unknown input distance unit '{INPUT_DISTANCE_UNIT}'. No conversion applied.")
                                 conv_factor = 1.0
                             diff = diff / conv_factor
-                        distance = f"{diff:.2f}"
+                        distance_str = f"{diff:.2f}"
                     except (ValueError, TypeError) as e:
                         logging.error(f"Error calculating distance difference for trip {trip_id}: {e}")
-                        distance = ""
+                        distance_str = ""
                 else:
-                    distance = ""
-            stops_list.append((stop_name, stop_id, distance))
+                    distance_str = ""
+
+            stops_list.append((stop_name, stop_id, distance_str))
+
+            # Update prev_dist_val to this row’s shape_dist_traveled (if not null)
             if pd.notnull(current_dist):
-                prev_dist = current_dist
+                prev_dist_val = current_dist
             else:
-                prev_dist = None
-        if group.empty:
-            continue
+                prev_dist_val = None
+
         first_row = group.iloc[0]
         trip_patterns.append({
             'trip_id': trip_id,
@@ -204,6 +264,25 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
             'pattern': tuple(stops_list)
         })
 
+        # OPTIONAL: Check total distance for timepoints vs. original first-to-last stop
+        if VALIDATE_TIMEPOINT_DISTANCE and EXPORT_TIMEPOINTS_ONLY:
+            # Sum of segment distances in stops_list
+            sum_of_segments = 0.0
+            for (_, _, dist_str) in stops_list:
+                if dist_str not in ("-", "", None) and is_number(dist_str):
+                    sum_of_segments += float(dist_str)
+
+            orig_dist = original_trip_distances.get(trip_id, None)
+            if orig_dist is not None:
+                # If they differ more than a small epsilon, log a warning
+                # (You can adjust 0.01 to your tolerance)
+                if abs(sum_of_segments - orig_dist) > 0.01:
+                    logging.warning(
+                        f"Trip {trip_id}: sum of timepoint distances {sum_of_segments:.2f} "
+                        f"differs from full trip distance {orig_dist:.2f} by more than 0.01."
+                    )
+
+    # Build a dictionary to track unique patterns and trip counts
     patterns_dict = {}
     for rec in trip_patterns:
         key = (rec['route_id'], rec['direction_id'], rec['pattern'])
