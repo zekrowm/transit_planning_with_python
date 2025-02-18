@@ -2,9 +2,8 @@
 GTFS Headway Span Calculator
 
 This script processes General Transit Feed Specification (GTFS) data to calculate
-headways for different routes and schedules. It reads GTFS files, assigns trips to
-defined time blocks, calculates headway, span, and trip counts, and exports the results
-to Excel files.
+headways for different routes and schedules. It also checks the GTFS block_id to
+determine interlined routes and lists them in an additional column.
 
 Configuration:
     - Define input and output paths.
@@ -70,13 +69,6 @@ schedule_types = {
 def check_input_files(base_path, files):
     """
     Verify that the input directory and all required GTFS files exist.
-
-    Args:
-        base_path (str): The path to the input directory containing GTFS files.
-        files (list): A list of GTFS file names to check for existence.
-
-    Raises:
-        FileNotFoundError: If the input directory or any of the required files are missing.
     """
     if not os.path.exists(base_path):
         raise FileNotFoundError(f"The input directory {base_path} does not exist.")
@@ -91,16 +83,6 @@ def check_input_files(base_path, files):
 def load_gtfs_data(base_path, files):
     """
     Load GTFS data from specified files into a dictionary of pandas DataFrames.
-
-    Args:
-        base_path (str): The path to the input directory containing GTFS files.
-        files (list): A list of GTFS file names to load.
-
-    Returns:
-        dict: A dictionary where keys are data names (without .txt) and values are DataFrames.
-
-    Raises:
-        Exception: If there is an error loading any of the GTFS files.
     """
     data = {}
     for file_name in files:
@@ -118,25 +100,13 @@ def load_gtfs_data(base_path, files):
 def parse_time_blocks(time_blocks_str):
     """
     Convert time block definitions from string format to timedelta objects.
-
-    Args:
-        time_blocks_str (dict): A dictionary with time block names as keys and
-                                tuples of start and end times as values.
-
-    Returns:
-        dict: A dictionary with time block names as keys and tuples of start and end
-              times as timedelta objects.
     """
     parsed_blocks = {}
     for block_name, (start_str, end_str) in time_blocks_str.items():
         start_parts = start_str.split(':')
         end_parts = end_str.split(':')
-        start_time_delta = timedelta(
-            hours=int(start_parts[0]), minutes=int(start_parts[1])
-        )
-        end_time_delta = timedelta(
-            hours=int(end_parts[0]), minutes=int(end_parts[1])
-        )
+        start_time_delta = timedelta(hours=int(start_parts[0]), minutes=int(start_parts[1]))
+        end_time_delta = timedelta(hours=int(end_parts[0]), minutes=int(end_parts[1]))
         parsed_blocks[block_name] = (start_time_delta, end_time_delta)
     return parsed_blocks
 
@@ -144,14 +114,6 @@ def parse_time_blocks(time_blocks_str):
 def assign_time_block(time_delta, blocks):
     """
     Assign a given time to the appropriate time block.
-
-    Args:
-        time_delta (timedelta): The time to assign.
-        blocks (dict): A dictionary with time block names as keys and tuples of
-                       start and end times as timedelta objects.
-
-    Returns:
-        str: The name of the time block the time falls into, or 'other' if it doesn't fit any.
     """
     for block_name, (start, end) in blocks.items():
         if start <= time_delta < end:
@@ -162,12 +124,6 @@ def assign_time_block(time_delta, blocks):
 def format_timedelta(time_delta):
     """
     Format a timedelta object into a string 'HH:MM'.
-
-    Args:
-        time_delta (timedelta): The timedelta to format.
-
-    Returns:
-        str or None: The formatted time string, or None if time_delta is NaN.
     """
     if pd.isna(time_delta):
         return None
@@ -180,12 +136,6 @@ def format_timedelta(time_delta):
 def find_large_break(trip_times):
     """
     Determine if there is a large break (over 3 hours) between trips during midday.
-
-    Args:
-        trip_times (pd.Series): A series of departure times as timedeltas.
-
-    Returns:
-        bool: True if a large break is found, False otherwise.
     """
     late_morning = pd.Timedelta(hours=10)
     early_afternoon = pd.Timedelta(hours=14)
@@ -203,13 +153,6 @@ def calculate_trip_times(group):
     """
     Calculate first/last trip times, AM/PM trip times, and the number of trips
     based on trip schedule.
-
-    Args:
-        group (pd.DataFrame): A DataFrame group containing departure times for
-                              a route and direction.
-
-    Returns:
-        pd.Series: A series with calculated trip times and trip count.
     """
     trip_times = group['departure_time'].sort_values()
     first_trip = trip_times.min()
@@ -258,12 +201,6 @@ def calculate_trip_times(group):
 def calculate_headways(departure_times):
     """
     Calculate the mode of headways (in minutes) between consecutive departure times.
-
-    Args:
-        departure_times (pd.Series): A series of departure times as timedeltas.
-
-    Returns:
-        float or None: The most common headway in minutes, or None if no headways are found.
     """
     sorted_times = departure_times.sort_values()
     headways = sorted_times.diff().dropna().apply(lambda x: x.total_seconds() / 60)
@@ -275,16 +212,13 @@ def calculate_headways(departure_times):
 def process_headways(merged_data):
     """
     Process merged data to calculate headways for each route, direction, and time block.
-
-    Args:
-        merged_data (pd.DataFrame): The merged GTFS data containing departure times and other info.
-
-    Returns:
-        dict: A dictionary containing headway information categorized by schedule and time block.
     """
-    headways = merged_data.groupby(
-        ['route_short_name', 'route_long_name', 'direction_id', 'time_block']
-    )['departure_time'].apply(calculate_headways).reset_index()
+    headways = (
+        merged_data
+        .groupby(['route_short_name', 'route_long_name', 'direction_id', 'time_block'])['departure_time']
+        .apply(calculate_headways)
+        .reset_index()
+    )
 
     headway_dict = {
         'weekday_am_headway': {},
@@ -295,14 +229,17 @@ def process_headways(merged_data):
 
     for _, row in headways.iterrows():
         route_key = (row['route_short_name'], row['route_long_name'], row['direction_id'])
-        if row['time_block'] == 'am':
-            headway_dict['weekday_am_headway'][route_key] = row['departure_time']
-        elif row['time_block'] == 'midday':
-            headway_dict['weekday_midday_headway'][route_key] = row['departure_time']
-        elif row['time_block'] == 'pm':
-            headway_dict['weekday_pm_headway'][route_key] = row['departure_time']
-        elif row['time_block'] == 'night':
-            headway_dict['weekday_night_headway'][route_key] = row['departure_time']
+        block = row['time_block']
+        hw_value = row['departure_time']
+
+        if block == 'am':
+            headway_dict['weekday_am_headway'][route_key] = hw_value
+        elif block == 'midday':
+            headway_dict['weekday_midday_headway'][route_key] = hw_value
+        elif block == 'pm':
+            headway_dict['weekday_pm_headway'][route_key] = hw_value
+        elif block == 'night':
+            headway_dict['weekday_night_headway'][route_key] = hw_value
 
     return headway_dict
 
@@ -310,13 +247,6 @@ def process_headways(merged_data):
 def merge_headways(trip_times_df, headway_dict):
     """
     Merge calculated headways into the trip times DataFrame.
-
-    Args:
-        trip_times_df (pd.DataFrame): DataFrame containing trip times for each route and direction.
-        headway_dict (dict): Dictionary containing headway information.
-
-    Returns:
-        pd.DataFrame: Updated trip_times_df with headway columns added.
     """
     trip_times_df['weekday_am_headway'] = trip_times_df.apply(
         lambda row: headway_dict['weekday_am_headway'].get(
@@ -348,14 +278,6 @@ def merge_headways(trip_times_df, headway_dict):
 def save_to_excel(final_data, output_dir, output_file):
     """
     Save the final DataFrame to an Excel file with formatted columns.
-
-    Args:
-        final_data (pd.DataFrame): The DataFrame containing all final data to save.
-        output_dir (str): The directory path where the Excel file will be saved.
-        output_file (str): The name of the Excel file.
-
-    Returns:
-        None
     """
     workbook = Workbook()
     worksheet = workbook.active
@@ -383,12 +305,6 @@ def save_to_excel(final_data, output_dir, output_file):
 def process_schedule_type(schedule_type, days, data):
     """
     Process a single schedule type (e.g., Weekday, Saturday, Sunday).
-    Separated from main() to reduce complexity and local variables there.
-
-    Args:
-        schedule_type (str): The name of the schedule (e.g. "Weekday").
-        days (list): List of day columns to look for in the calendar.
-        data (dict): Dictionary of GTFS DataFrames (calendar, trips, routes, stop_times).
     """
     calendar_df = data['calendar']
     trips_df = data['trips']
@@ -397,7 +313,7 @@ def process_schedule_type(schedule_type, days, data):
 
     print(f"Processing schedule: {schedule_type}")
 
-    # Create a mask for services that run on all the specified days
+    # 1. Create a mask for services that run on all the specified days
     mask = pd.Series([True] * len(calendar_df))
     for day in days:
         mask &= (calendar_df[day] == 1)
@@ -407,23 +323,27 @@ def process_schedule_type(schedule_type, days, data):
         print(f"No services found for {schedule_type}. Skipping.\n")
         return
 
-    # Filter trips
+    # 2. Filter trips
     trips_filtered = trips_df[trips_df['service_id'].isin(relevant_service_ids)]
     if trips_filtered.empty:
         print(f"No trips found for {schedule_type}. Skipping.\n")
         return
 
-    # Merge routes and trip info
-    trip_info = trips_filtered[['trip_id', 'route_id', 'service_id', 'direction_id']].merge(
-        routes_df[['route_id', 'route_short_name', 'route_long_name']],
-        on='route_id'
+    # 3. Merge routes and trip info
+    trip_info = (
+        trips_filtered[['trip_id', 'route_id', 'service_id', 'direction_id', 'block_id']]
+        .merge(
+            routes_df[['route_id', 'route_short_name', 'route_long_name']],
+            on='route_id',
+            how='left'
+        )
     )
     print(
         "Merged trip information has "
         f"{len(trip_info)} records for {schedule_type}.\n"
     )
 
-    # Merge trip info with stop_times
+    # 4. Merge trip info with stop_times
     merged_data = stop_times_df[['trip_id', 'departure_time', 'stop_sequence']].merge(
         trip_info, on='trip_id'
     )
@@ -432,7 +352,7 @@ def process_schedule_type(schedule_type, days, data):
         f"{len(merged_data)} records for {schedule_type}.\n"
     )
 
-    # Filter to include only starting stops
+    # 5. Filter to only starting stops
     merged_data = merged_data[merged_data['stop_sequence'] == 1]
     print(
         f"Filtered starting trips count: {len(merged_data)} for {schedule_type}\n"
@@ -442,7 +362,7 @@ def process_schedule_type(schedule_type, days, data):
         print(f"No starting trips for {schedule_type}. Skipping.\n")
         return
 
-    # Convert departure_time to timedelta
+    # 6. Convert departure_time to timedelta and drop invalid
     merged_data['departure_time'] = pd.to_timedelta(
         merged_data['departure_time'], errors='coerce'
     )
@@ -451,7 +371,7 @@ def process_schedule_type(schedule_type, days, data):
         print(f"All departure_times invalid for {schedule_type}. Skipping.\n")
         return
 
-    # Assign time blocks
+    # 7. Assign time blocks
     time_blocks = parse_time_blocks(time_blocks_config)
     merged_data['time_block'] = merged_data['departure_time'].apply(
         lambda x: assign_time_block(x, time_blocks)
@@ -466,24 +386,52 @@ def process_schedule_type(schedule_type, days, data):
         print(f"No trips left after filtering 'other' time blocks for {schedule_type}. Skipping.\n")
         return
 
-    # Group by route and direction, calculate trip times
+    # -------------------------------------------------------------------------
+    #         NEW SECTION: Determine Interlined Routes Using block_id
+    # -------------------------------------------------------------------------
+    # block_id -> set of route_short_names
+    block_to_routes = (
+        trip_info
+        .groupby('block_id')['route_short_name']
+        .apply(lambda routes: set(routes.dropna()))
+        .to_dict()
+    )
+
+    # route_short_name -> set of other short names it interlines with
+    interlined_routes_map = {}
+    for block_id, route_set in block_to_routes.items():
+        for rt in route_set:
+            interlined_routes_map.setdefault(rt, set()).update(route_set - {rt})
+
+    # -------------------------------------------------------------------------
+    # 8. Group by route and direction, calculate trip times
     print("Calculating trip times...")
-    trip_times = merged_data.groupby(
-        ['route_short_name', 'route_long_name', 'direction_id']
-    ).apply(calculate_trip_times).reset_index()
+    trip_times = (
+        merged_data
+        .groupby(['route_short_name', 'route_long_name', 'direction_id'])
+        .apply(calculate_trip_times)
+        .reset_index()
+    )
     print("Trip times calculated.\n")
 
-    # Calculate headways
+    # 9. Calculate headways
     print("Calculating headways...")
     headway_dict = process_headways(merged_data)
     print("Headways calculated.\n")
 
-    # Merge headways with trip times
+    # 10. Merge headways with trip times
     print("Merging headways with trip times...")
     final_data = merge_headways(trip_times, headway_dict)
     print("Headways merged.\n")
 
-    # Save to Excel with schedule_type in filename
+    # 11. Add interlined_routes column
+    ## For each row, look up which route_short_name it has,
+    ## and pull all routes it is interlined with. Join them in a string.
+    final_data['interlined_routes'] = final_data['route_short_name'].apply(
+        lambda rt: ", ".join(sorted(interlined_routes_map.get(rt, [])))
+    )
+
+    # 12. Save to Excel with schedule_type in filename
     output_file_for_schedule = f"{schedule_type}_{OUTPUT_EXCEL}"
     print(f"Saving data for {schedule_type} to Excel...")
     save_to_excel(final_data, OUTPUT_PATH, output_file_for_schedule)
@@ -492,14 +440,7 @@ def process_schedule_type(schedule_type, days, data):
 
 def main():
     """
-    Main function to execute the GTFS headway span calculation process.
-
-    Steps:
-        1. Check for the existence of input files.
-        2. Load GTFS data into DataFrames.
-        3. For each schedule type:
-           a. Process that schedule (filter, merge, calculate, and save).
-        4. Handle any exceptions that occur during processing.
+    Main function to execute the GTFS headway span calculation and interlining check.
     """
     try:
         print("Checking input files...")
