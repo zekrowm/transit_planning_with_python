@@ -66,6 +66,7 @@ schedule_types = {
 # END OF CONFIGURATION SECTION
 # ==============================
 
+
 def check_input_files(base_path, files):
     """
     Verify that the input directory and all required GTFS files exist.
@@ -85,6 +86,7 @@ def check_input_files(base_path, files):
             raise FileNotFoundError(
                 f"The required GTFS file {file_name} does not exist in {base_path}."
             )
+
 
 def load_gtfs_data(base_path, files):
     """
@@ -107,9 +109,11 @@ def load_gtfs_data(base_path, files):
         try:
             data[data_name] = pd.read_csv(file_path)
             print(f"Loaded {file_name} with {len(data[data_name])} records.")
-        except Exception as e:
-            raise Exception(f"Error loading {file_name}: {e}")
+        except Exception as error:
+            # Raise from the original error to preserve traceback
+            raise Exception(f"Error loading {file_name}: {error}") from error
     return data
+
 
 def parse_time_blocks(time_blocks_str):
     """
@@ -127,19 +131,22 @@ def parse_time_blocks(time_blocks_str):
     for block_name, (start_str, end_str) in time_blocks_str.items():
         start_parts = start_str.split(':')
         end_parts = end_str.split(':')
-        start_td = timedelta(
+        start_time_delta = timedelta(
             hours=int(start_parts[0]), minutes=int(start_parts[1])
         )
-        end_td = timedelta(hours=int(end_parts[0]), minutes=int(end_parts[1]))
-        parsed_blocks[block_name] = (start_td, end_td)
+        end_time_delta = timedelta(
+            hours=int(end_parts[0]), minutes=int(end_parts[1])
+        )
+        parsed_blocks[block_name] = (start_time_delta, end_time_delta)
     return parsed_blocks
 
-def assign_time_block(time, blocks):
+
+def assign_time_block(time_delta, blocks):
     """
     Assign a given time to the appropriate time block.
 
     Args:
-        time (timedelta): The time to assign.
+        time_delta (timedelta): The time to assign.
         blocks (dict): A dictionary with time block names as keys and tuples of
                        start and end times as timedelta objects.
 
@@ -147,26 +154,28 @@ def assign_time_block(time, blocks):
         str: The name of the time block the time falls into, or 'other' if it doesn't fit any.
     """
     for block_name, (start, end) in blocks.items():
-        if start <= time < end:
+        if start <= time_delta < end:
             return block_name
     return 'other'
 
-def format_timedelta(td):
+
+def format_timedelta(time_delta):
     """
     Format a timedelta object into a string 'HH:MM'.
 
     Args:
-        td (timedelta): The timedelta to format.
+        time_delta (timedelta): The timedelta to format.
 
     Returns:
-        str or None: The formatted time string, or None if td is NaN.
+        str or None: The formatted time string, or None if time_delta is NaN.
     """
-    if pd.isna(td):
+    if pd.isna(time_delta):
         return None
-    total_seconds = int(td.total_seconds())
+    total_seconds = int(time_delta.total_seconds())
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
     return f"{hours:02}:{minutes:02}"
+
 
 def find_large_break(trip_times):
     """
@@ -180,9 +189,7 @@ def find_large_break(trip_times):
     """
     late_morning = pd.Timedelta(hours=10)
     early_afternoon = pd.Timedelta(hours=14)
-    midday_trips = trip_times[
-        (trip_times >= late_morning) & (trip_times <= early_afternoon)
-    ]
+    midday_trips = trip_times[(trip_times >= late_morning) & (trip_times <= early_afternoon)]
     midday_trips = midday_trips.reset_index(drop=True)
     if len(midday_trips) < 2:
         return False
@@ -191,14 +198,15 @@ def find_large_break(trip_times):
             return True
     return False
 
+
 def calculate_trip_times(group):
     """
-    Calculate first and last trip times, AM/PM trip times, and the number of trips
+    Calculate first/last trip times, AM/PM trip times, and the number of trips
     based on trip schedule.
 
     Args:
         group (pd.DataFrame): A DataFrame group containing departure times for
-        a route and direction.
+                              a route and direction.
 
     Returns:
         pd.Series: A series with calculated trip times and trip count.
@@ -206,28 +214,28 @@ def calculate_trip_times(group):
     trip_times = group['departure_time'].sort_values()
     first_trip = trip_times.min()
     last_trip = trip_times.max()
-    trips_count = len(trip_times)  # Count the number of trips
+    trips_count = len(trip_times)
 
+    # Use sequential if-statements (pylint R1705)
     if first_trip >= pd.Timedelta(hours=15):
-        # PM-only route
         return pd.Series({
             'first_trip_time': format_timedelta(first_trip),
             'last_trip_time': format_timedelta(last_trip),
             'am_last_trip_time': None,
             'pm_first_trip_time': format_timedelta(first_trip),
-            'trips': trips_count  # Add trips count
+            'trips': trips_count
         })
-    elif last_trip <= pd.Timedelta(hours=10):
-        # AM-only route
+
+    if last_trip <= pd.Timedelta(hours=10):
         return pd.Series({
             'first_trip_time': format_timedelta(first_trip),
             'last_trip_time': format_timedelta(last_trip),
             'am_last_trip_time': format_timedelta(last_trip),
             'pm_first_trip_time': None,
-            'trips': trips_count  # Add trips count
+            'trips': trips_count
         })
-    elif find_large_break(trip_times):
-        # Normal route with midday break
+
+    if find_large_break(trip_times):
         am_last_trip = trip_times[trip_times < pd.Timedelta(hours=10)].max()
         pm_first_trip = trip_times[trip_times > pd.Timedelta(hours=14)].min()
         return pd.Series({
@@ -235,17 +243,17 @@ def calculate_trip_times(group):
             'last_trip_time': format_timedelta(last_trip),
             'am_last_trip_time': format_timedelta(am_last_trip),
             'pm_first_trip_time': format_timedelta(pm_first_trip),
-            'trips': trips_count  # Add trips count
+            'trips': trips_count
         })
-    else:
-        # Normal all-day route
-        return pd.Series({
-            'first_trip_time': format_timedelta(first_trip),
-            'last_trip_time': format_timedelta(last_trip),
-            'am_last_trip_time': None,
-            'pm_first_trip_time': None,
-            'trips': trips_count  # Add trips count
-        })
+
+    return pd.Series({
+        'first_trip_time': format_timedelta(first_trip),
+        'last_trip_time': format_timedelta(last_trip),
+        'am_last_trip_time': None,
+        'pm_first_trip_time': None,
+        'trips': trips_count
+    })
+
 
 def calculate_headways(departure_times):
     """
@@ -263,6 +271,7 @@ def calculate_headways(departure_times):
         return None
     return headways.mode()[0]
 
+
 def process_headways(merged_data):
     """
     Process merged data to calculate headways for each route, direction, and time block.
@@ -276,96 +285,210 @@ def process_headways(merged_data):
     headways = merged_data.groupby(
         ['route_short_name', 'route_long_name', 'direction_id', 'time_block']
     )['departure_time'].apply(calculate_headways).reset_index()
+
     headway_dict = {
         'weekday_am_headway': {},
         'weekday_midday_headway': {},
         'weekday_pm_headway': {},
         'weekday_night_headway': {}
     }
+
     for _, row in headways.iterrows():
-        route = (row['route_short_name'], row['route_long_name'], row['direction_id'])
+        route_key = (row['route_short_name'], row['route_long_name'], row['direction_id'])
         if row['time_block'] == 'am':
-            headway_dict['weekday_am_headway'][route] = row['departure_time']
+            headway_dict['weekday_am_headway'][route_key] = row['departure_time']
         elif row['time_block'] == 'midday':
-            headway_dict['weekday_midday_headway'][route] = row['departure_time']
+            headway_dict['weekday_midday_headway'][route_key] = row['departure_time']
         elif row['time_block'] == 'pm':
-            headway_dict['weekday_pm_headway'][route] = row['departure_time']
+            headway_dict['weekday_pm_headway'][route_key] = row['departure_time']
         elif row['time_block'] == 'night':
-            headway_dict['weekday_night_headway'][route] = row['departure_time']
+            headway_dict['weekday_night_headway'][route_key] = row['departure_time']
+
     return headway_dict
 
-def merge_headways(trip_times, headway_dict):
+
+def merge_headways(trip_times_df, headway_dict):
     """
     Merge calculated headways into the trip times DataFrame.
 
     Args:
-        trip_times (pd.DataFrame): DataFrame containing trip times for each route and direction.
+        trip_times_df (pd.DataFrame): DataFrame containing trip times for each route and direction.
         headway_dict (dict): Dictionary containing headway information.
 
     Returns:
-        pd.DataFrame: Updated trip_times DataFrame with headway columns added.
+        pd.DataFrame: Updated trip_times_df with headway columns added.
     """
-    trip_times['weekday_am_headway'] = trip_times.apply(
+    trip_times_df['weekday_am_headway'] = trip_times_df.apply(
         lambda row: headway_dict['weekday_am_headway'].get(
             (row['route_short_name'], row['route_long_name'], row['direction_id']), None
         ),
         axis=1
     )
-    trip_times['weekday_midday_headway'] = trip_times.apply(
+    trip_times_df['weekday_midday_headway'] = trip_times_df.apply(
         lambda row: headway_dict['weekday_midday_headway'].get(
             (row['route_short_name'], row['route_long_name'], row['direction_id']), None
         ),
         axis=1
     )
-    trip_times['weekday_pm_headway'] = trip_times.apply(
+    trip_times_df['weekday_pm_headway'] = trip_times_df.apply(
         lambda row: headway_dict['weekday_pm_headway'].get(
             (row['route_short_name'], row['route_long_name'], row['direction_id']), None
         ),
         axis=1
     )
-    trip_times['weekday_night_headway'] = trip_times.apply(
+    trip_times_df['weekday_night_headway'] = trip_times_df.apply(
         lambda row: headway_dict['weekday_night_headway'].get(
             (row['route_short_name'], row['route_long_name'], row['direction_id']), None
         ),
         axis=1
     )
-    return trip_times
+    return trip_times_df
 
-def save_to_excel(final_data, OUTPUT_PATH, output_file):
+
+def save_to_excel(final_data, output_dir, output_file):
     """
     Save the final DataFrame to an Excel file with formatted columns.
 
     Args:
         final_data (pd.DataFrame): The DataFrame containing all final data to save.
-        OUTPUT_PATH (str): The directory path where the Excel file will be saved.
+        output_dir (str): The directory path where the Excel file will be saved.
         output_file (str): The name of the Excel file.
 
     Returns:
         None
     """
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Route_Schedule_Headway"
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Route_Schedule_Headway"
 
     headers = final_data.columns.tolist()
-    ws.append(headers)
+    worksheet.append(headers)
 
     for row in final_data.itertuples(index=False, name=None):
-        ws.append(row)
+        worksheet.append(row)
 
-    for col in ws.columns:
-        max_length = max(
-            len(str(cell.value)) if cell.value is not None else 0 for cell in col
-        ) + 2
+    for col in worksheet.columns:
+        max_length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in col) + 2
         col_letter = get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max_length
+        worksheet.column_dimensions[col_letter].width = max_length
         for cell in col:
             cell.alignment = Alignment(horizontal='center')
 
-    os.makedirs(OUTPUT_PATH, exist_ok=True)
-    output_file_path = os.path.join(OUTPUT_PATH, output_file)
-    wb.save(output_file_path)
+    os.makedirs(output_dir, exist_ok=True)
+    output_file_path = os.path.join(output_dir, output_file)
+    workbook.save(output_file_path)
     print(f"Final data successfully saved to {output_file_path}")
+
+
+def process_schedule_type(schedule_type, days, data):
+    """
+    Process a single schedule type (e.g., Weekday, Saturday, Sunday).
+    Separated from main() to reduce complexity and local variables there.
+
+    Args:
+        schedule_type (str): The name of the schedule (e.g. "Weekday").
+        days (list): List of day columns to look for in the calendar.
+        data (dict): Dictionary of GTFS DataFrames (calendar, trips, routes, stop_times).
+    """
+    calendar_df = data['calendar']
+    trips_df = data['trips']
+    routes_df = data['routes']
+    stop_times_df = data['stop_times']
+
+    print(f"Processing schedule: {schedule_type}")
+
+    # Create a mask for services that run on all the specified days
+    mask = pd.Series([True] * len(calendar_df))
+    for day in days:
+        mask &= (calendar_df[day] == 1)
+    relevant_service_ids = calendar_df[mask]['service_id']
+
+    if relevant_service_ids.empty:
+        print(f"No services found for {schedule_type}. Skipping.\n")
+        return
+
+    # Filter trips
+    trips_filtered = trips_df[trips_df['service_id'].isin(relevant_service_ids)]
+    if trips_filtered.empty:
+        print(f"No trips found for {schedule_type}. Skipping.\n")
+        return
+
+    # Merge routes and trip info
+    trip_info = trips_filtered[['trip_id', 'route_id', 'service_id', 'direction_id']].merge(
+        routes_df[['route_id', 'route_short_name', 'route_long_name']],
+        on='route_id'
+    )
+    print(
+        "Merged trip information has "
+        f"{len(trip_info)} records for {schedule_type}.\n"
+    )
+
+    # Merge trip info with stop_times
+    merged_data = stop_times_df[['trip_id', 'departure_time', 'stop_sequence']].merge(
+        trip_info, on='trip_id'
+    )
+    print(
+        "Merged data has "
+        f"{len(merged_data)} records for {schedule_type}.\n"
+    )
+
+    # Filter to include only starting stops
+    merged_data = merged_data[merged_data['stop_sequence'] == 1]
+    print(
+        f"Filtered starting trips count: {len(merged_data)} for {schedule_type}\n"
+    )
+
+    if merged_data.empty:
+        print(f"No starting trips for {schedule_type}. Skipping.\n")
+        return
+
+    # Convert departure_time to timedelta
+    merged_data['departure_time'] = pd.to_timedelta(
+        merged_data['departure_time'], errors='coerce'
+    )
+    merged_data = merged_data.dropna(subset=['departure_time'])
+    if merged_data.empty:
+        print(f"All departure_times invalid for {schedule_type}. Skipping.\n")
+        return
+
+    # Assign time blocks
+    time_blocks = parse_time_blocks(time_blocks_config)
+    merged_data['time_block'] = merged_data['departure_time'].apply(
+        lambda x: assign_time_block(x, time_blocks)
+    )
+    merged_data = merged_data[merged_data['time_block'] != 'other']
+    print(
+        f"Trips after filtering 'other' time blocks: {len(merged_data)} "
+        f"for {schedule_type}\n"
+    )
+
+    if merged_data.empty:
+        print(f"No trips left after filtering 'other' time blocks for {schedule_type}. Skipping.\n")
+        return
+
+    # Group by route and direction, calculate trip times
+    print("Calculating trip times...")
+    trip_times = merged_data.groupby(
+        ['route_short_name', 'route_long_name', 'direction_id']
+    ).apply(calculate_trip_times).reset_index()
+    print("Trip times calculated.\n")
+
+    # Calculate headways
+    print("Calculating headways...")
+    headway_dict = process_headways(merged_data)
+    print("Headways calculated.\n")
+
+    # Merge headways with trip times
+    print("Merging headways with trip times...")
+    final_data = merge_headways(trip_times, headway_dict)
+    print("Headways merged.\n")
+
+    # Save to Excel with schedule_type in filename
+    output_file_for_schedule = f"{schedule_type}_{OUTPUT_EXCEL}"
+    print(f"Saving data for {schedule_type} to Excel...")
+    save_to_excel(final_data, OUTPUT_PATH, output_file_for_schedule)
+    print(f"Data for {schedule_type} saved.\n")
+
 
 def main():
     """
@@ -374,17 +497,9 @@ def main():
     Steps:
         1. Check for the existence of input files.
         2. Load GTFS data into DataFrames.
-        3. Parse time block configurations.
-        4. Iterate over each schedule type to process trips.
-            a. Filter services based on schedule type.
-            b. Merge trip and route information.
-            c. Assign trips to time blocks.
-            d. Calculate trip times and headways.
-            e. Save the results to Excel.
-        5. Handle any exceptions that occur during processing.
-
-    Returns:
-        None
+        3. For each schedule type:
+           a. Process that schedule (filter, merge, calculate, and save).
+        4. Handle any exceptions that occur during processing.
     """
     try:
         print("Checking input files...")
@@ -395,122 +510,15 @@ def main():
         data = load_gtfs_data(GTFS_INPUT_PATH, gtfs_files)
         print("GTFS data loaded successfully.\n")
 
-        print("Parsing time block definitions...")
-        time_blocks = parse_time_blocks(time_blocks_config)
-        print("Time block definitions parsed.\n")
-
-        # We now loop over each schedule type defined in schedule_types
-        calendar = data['calendar']
-        trips = data['trips']
-        routes = data['routes']
-        stop_times = data['stop_times']
-
+        # Process each schedule type separately
         for schedule_type, days in schedule_types.items():
-            print(f"Processing schedule: {schedule_type}")
-
-            # Create a mask for services that run on all the specified days
-            mask = pd.Series([True]*len(calendar))
-            for day in days:
-                mask &= (calendar[day] == 1)
-            relevant_service_ids = calendar[mask]['service_id']
-
-            if relevant_service_ids.empty:
-                print(f"No services found for {schedule_type}. Skipping.\n")
-                continue
-
-            # Filter trips
-            trips_filtered = trips[trips['service_id'].isin(relevant_service_ids)]
-            if trips_filtered.empty:
-                print(f"No trips found for {schedule_type}. Skipping.\n")
-                continue
-
-            # Merge routes and trip info
-            trip_info = trips_filtered[
-                ['trip_id', 'route_id', 'service_id', 'direction_id']
-            ].merge(
-                routes[['route_id', 'route_short_name', 'route_long_name']],
-                on='route_id'
-            )
-            print(
-                f"Merged trip information has {len(trip_info)} records for {schedule_type}.\n"
-            )
-
-            # Merge trip info with stop_times
-            merged_data = stop_times[['trip_id', 'departure_time', 'stop_sequence']].merge(
-                trip_info, on='trip_id'
-            )
-            print(
-                f"Merged data has {len(merged_data)} records for {schedule_type}.\n"
-            )
-
-            # Filter to include only starting stops
-            merged_data = merged_data[merged_data['stop_sequence'] == 1]
-            print(
-                f"Filtered starting trips count: {len(merged_data)} for {schedule_type}\n"
-            )
-
-            if merged_data.empty:
-                print(
-                    f"No starting trips for {schedule_type}. Skipping.\n"
-                )
-                continue
-
-            # Convert departure_time to timedelta
-            merged_data['departure_time'] = pd.to_timedelta(
-                merged_data['departure_time'], errors='coerce'
-            )
-            merged_data = merged_data.dropna(subset=['departure_time'])
-            if merged_data.empty:
-                print(
-                    f"All departure_times invalid for {schedule_type}. Skipping.\n"
-                )
-                continue
-
-            print("Assigning time blocks...")
-            merged_data['time_block'] = merged_data['departure_time'].apply(
-                lambda x: assign_time_block(x, time_blocks)
-            )
-            print("Time blocks assigned.\n")
-
-            # Filter out 'other' time blocks
-            merged_data = merged_data[merged_data['time_block'] != 'other']
-            print(
-                f"Trips after filtering 'other' time blocks: {len(merged_data)} for {schedule_type}\n"
-            )
-
-            if merged_data.empty:
-                print(
-                    f"No trips left after filtering 'other' time blocks for {schedule_type}. Skipping.\n"
-                )
-                continue
-
-            # Group by route and direction, calculate trip times
-            print("Calculating trip times...")
-            trip_times = merged_data.groupby(
-                ['route_short_name', 'route_long_name', 'direction_id']
-            ).apply(calculate_trip_times).reset_index()
-            print("Trip times calculated.\n")
-
-            # Calculate headways
-            print("Calculating headways...")
-            headway_dict = process_headways(merged_data)
-            print("Headways calculated.\n")
-
-            # Merge headways with trip times
-            print("Merging headways with trip times...")
-            final_data = merge_headways(trip_times, headway_dict)
-            print("Headways merged.\n")
-
-            # Save to Excel with schedule_type in filename
-            output_file_for_schedule = f"{schedule_type}_{OUTPUT_EXCEL}"
-            print(f"Saving data for {schedule_type} to Excel...")
-            save_to_excel(final_data, OUTPUT_PATH, output_file_for_schedule)
-            print(f"Data for {schedule_type} saved.\n")
+            process_schedule_type(schedule_type, days, data)
 
         print("All schedule types processed successfully!")
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    except Exception as error:
+        print(f"An error occurred: {error}")
+
 
 if __name__ == "__main__":
     main()
