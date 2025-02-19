@@ -670,7 +670,6 @@ def compare_signups_detailed(labels_in_order, all_signups_data):
       - Other change
       - No change
     """
-    import pandas as pd
 
     # Gather all routes from all signups
     all_routes = set()
