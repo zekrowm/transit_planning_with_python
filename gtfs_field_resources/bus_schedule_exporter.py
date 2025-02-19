@@ -447,145 +447,172 @@ def export_to_excel_multiple_sheets(df_dict, out_file):
 
     print(f"Data exported to {out_file}")
 
+
 # ==============================
-# MAIN SCRIPT LOGIC
+# MAIN FUNCTION
 # ==============================
+def main():
+    """
+    Main entry point for the GTFS Schedule Processor.
+    Reads GTFS data, filters by route and schedule type, and exports to Excel.
+    """
+    # Load GTFS files
+    try:
+        global trips, stop_times, routes, stops, calendar, timepoints  # for clarity
+        trips = pd.read_csv(trips_file, dtype=str)
+        stop_times = pd.read_csv(stop_times_file, dtype=str)
+        routes = pd.read_csv(routes_file, dtype=str)
+        stops = pd.read_csv(stops_file, dtype=str)
+        calendar = pd.read_csv(calendar_file, dtype=str)
+        print("Successfully loaded all GTFS files.")
+    except FileNotFoundError as err:
+        print(f"Error: {err}")
+        print("Please check your input file paths in the configuration section.")
+        sys.exit(1)
+    except Exception as err:
+        print(f"An unexpected error occurred while reading GTFS files: {err}")
+        sys.exit(1)
 
-try:
-    trips = pd.read_csv(trips_file, dtype=str)
-    stop_times = pd.read_csv(stop_times_file, dtype=str)
-    routes = pd.read_csv(routes_file, dtype=str)
-    stops = pd.read_csv(stops_file, dtype=str)
-    calendar = pd.read_csv(calendar_file, dtype=str)
-    print("Successfully loaded all GTFS files.")
-except FileNotFoundError as err:
-    print(f"Error: {err}")
-    print("Please check your input file paths in the configuration section.")
-    sys.exit(1)
-except Exception as err:
-    print(f"An unexpected error occurred while reading GTFS files: {err}")
-    sys.exit(1)
-
-stop_times['stop_sequence'] = pd.to_numeric(
-    stop_times['stop_sequence'],
-    errors='coerce'
-)
-if stop_times['stop_sequence'].isnull().any():
-    print("Warning: Some 'stop_sequence' values could not be converted to numeric.")
-
-if isinstance(route_short_names_input, str):
-    if route_short_names_input.lower() == 'all':
-        route_short_names = routes['route_short_name'].dropna().unique().tolist()
-        print(f"Selected all routes: {route_short_names}")
-    else:
-        route_short_names = [
-            name.strip() for name in route_short_names_input.split(',')
-        ]
-        print(f"Selected routes: {route_short_names}")
-elif isinstance(route_short_names_input, list):
-    if 'all' in [name.lower() for name in route_short_names_input]:
-        route_short_names = routes['route_short_name'].dropna().unique().tolist()
-        print(f"Selected all routes: {route_short_names}")
-    else:
-        route_short_names = route_short_names_input
-        print(f"Selected routes: {route_short_names}")
-else:
-    print(
-        "Error: 'route_short_names_input' must be either 'all', "
-        "a comma-separated string, or a list of route short names."
+    # Convert stop_sequence to numeric
+    stop_times['stop_sequence'] = pd.to_numeric(
+        stop_times['stop_sequence'],
+        errors='coerce'
     )
-    sys.exit(1)
+    if stop_times['stop_sequence'].isnull().any():
+        print("Warning: Some 'stop_sequence' values could not be converted to numeric.")
 
-if 'timepoint' in stop_times.columns:
-    timepoints = stop_times[stop_times['timepoint'] == '1']
-    print("Filtered stop_times based on 'timepoint' column.")
-else:
-    print("Warning: 'timepoint' column not found. Using all stops as timepoints.")
-    timepoints = stop_times.copy()
+    # Determine which routes to process
+    if isinstance(route_short_names_input, str):
+        if route_short_names_input.lower() == 'all':
+            route_short_names = routes['route_short_name'].dropna().unique().tolist()
+            print(f"Selected all routes: {route_short_names}")
+        else:
+            route_short_names = [
+                name.strip() for name in route_short_names_input.split(',')
+            ]
+            print(f"Selected routes: {route_short_names}")
+    elif isinstance(route_short_names_input, list):
+        if 'all' in [name.lower() for name in route_short_names_input]:
+            route_short_names = routes['route_short_name'].dropna().unique().tolist()
+            print(f"Selected all routes: {route_short_names}")
+        else:
+            route_short_names = route_short_names_input
+            print(f"Selected routes: {route_short_names}")
+    else:
+        print(
+            "Error: 'route_short_names_input' must be either 'all', "
+            "a comma-separated string, or a list of route short names."
+        )
+        sys.exit(1)
 
-service_id_schedule_map = {}
-schedule_types_set = set()
-for _, service_row_local in calendar.iterrows():
-    service_id_val = service_row_local['service_id']
-    service_type_var = map_service_id_to_schedule(service_row_local)
-    service_id_schedule_map[service_id_val] = service_type_var
-    schedule_types_set.add(service_type_var)
+    # Filter stop_times by timepoint, if available
+    if 'timepoint' in stop_times.columns:
+        timepoints = stop_times[stop_times['timepoint'] == '1']
+        print("Filtered stop_times based on 'timepoint' column.")
+    else:
+        print("Warning: 'timepoint' column not found. Using all stops as timepoints.")
+        timepoints = stop_times.copy()
 
-print(f"Identified schedule types: {schedule_types_set}")
+    # Map calendar service_ids to schedule types
+    service_id_schedule_map = {}
+    schedule_types_set = set()
+    for _, service_row_local in calendar.iterrows():
+        service_id_val = service_row_local['service_id']
+        service_type_var = map_service_id_to_schedule(service_row_local)
+        service_id_schedule_map[service_id_val] = service_type_var
+        schedule_types_set.add(service_type_var)
 
-for route_short_name in route_short_names:
-    print(f"\nProcessing route '{route_short_name}'...")
+    print(f"Identified schedule types: {schedule_types_set}")
 
-    route_ids = routes[routes['route_short_name'] == route_short_name]['route_id']
-    if route_ids.empty:
-        print(f"Error: Route '{route_short_name}' not found in routes.txt.")
-        continue
+    # Process each route
+    for route_short_name in route_short_names:
+        print(f"\nProcessing route '{route_short_name}'...")
 
-    for schedule_type in schedule_types_set:
-        print(f"  Processing schedule type '{schedule_type}'...")
-        relevant_service_ids = [
-            sid for sid, stype_ in service_id_schedule_map.items()
-            if stype_ == schedule_type
-        ]
-        if not relevant_service_ids:
-            print(f"    No services found for schedule type '{schedule_type}'.")
+        route_ids = routes[routes['route_short_name'] == route_short_name]['route_id']
+        if route_ids.empty:
+            print(f"Error: Route '{route_short_name}' not found in routes.txt.")
             continue
 
-        relevant_trips = trips[
-            (trips['route_id'].isin(route_ids))
-            & (trips['service_id'].isin(relevant_service_ids))
-        ]
-        if relevant_trips.empty:
-            print(
-                f"    No trips found for route '{route_short_name}' "
-                f"with schedule type '{schedule_type}'."
-            )
-            continue
+        # Process each schedule type (Weekday, Weekend, etc.)
+        for schedule_type in schedule_types_set:
+            print(f"  Processing schedule type '{schedule_type}'...")
+            relevant_service_ids = [
+                sid for sid, stype_ in service_id_schedule_map.items()
+                if stype_ == schedule_type
+            ]
+            if not relevant_service_ids:
+                print(f"    No services found for schedule type '{schedule_type}'.")
+                continue
 
-        direction_ids_local = relevant_trips['direction_id'].unique()
-        df_sheets = {}
-
-        for dir_id in direction_ids_local:
-            print(f"    Processing direction_id '{dir_id}'...")
-            trips_direction = relevant_trips[relevant_trips['direction_id'] == dir_id]
-            stop_names_ordered, stops_unique = get_ordered_stops(dir_id, relevant_trips)
-
-            if not stop_names_ordered:
+            # Filter trips by route_id and service_id
+            relevant_trips = trips[
+                (trips['route_id'].isin(route_ids))
+                & (trips['service_id'].isin(relevant_service_ids))
+            ]
+            if relevant_trips.empty:
                 print(
-                    f"      No stops found for direction_id '{dir_id}'. Skipping..."
+                    f"    No trips found for route '{route_short_name}' "
+                    f"with schedule type '{schedule_type}'."
                 )
                 continue
 
-            params_dict = {
-                "trips_dir": trips_direction,
-                "stop_names_ordered": stop_names_ordered,
-                "stops_unique": stops_unique,
-                "time_fmt": TIME_FORMAT_OPTION,
-                "route_short": route_short_name,
-                "sched_type": schedule_type,
-                "dir_id": dir_id
-            }
-            output_df = process_trips_for_direction(params_dict)
-            if output_df.empty:
-                print(f"      No data to export for direction_id '{dir_id}'.")
+            direction_ids_local = relevant_trips['direction_id'].unique()
+            df_sheets = {}
+
+            # Process each direction within this schedule type
+            for dir_id in direction_ids_local:
+                print(f"    Processing direction_id '{dir_id}'...")
+                trips_direction = relevant_trips[
+                    relevant_trips['direction_id'] == dir_id
+                ]
+                stop_names_ordered, stops_unique = get_ordered_stops(
+                    dir_id, relevant_trips
+                )
+
+                if not stop_names_ordered:
+                    print(
+                        f"      No stops found for direction_id '{dir_id}'. Skipping..."
+                    )
+                    continue
+
+                params_dict = {
+                    "trips_dir": trips_direction,
+                    "stop_names_ordered": stop_names_ordered,
+                    "stops_unique": stops_unique,
+                    "time_fmt": TIME_FORMAT_OPTION,
+                    "route_short": route_short_name,
+                    "sched_type": schedule_type,
+                    "dir_id": dir_id
+                }
+                output_df = process_trips_for_direction(params_dict)
+                if output_df.empty:
+                    print(f"      No data to export for direction_id '{dir_id}'.")
+                    continue
+
+                sheet_name_var = f"Direction_{dir_id}"
+                df_sheets[sheet_name_var] = output_df
+
+            if not df_sheets:
+                print(
+                    f"    No data to export for route '{route_short_name}' "
+                    f"with schedule '{schedule_type}'."
+                )
                 continue
 
-            sheet_name_var = f"Direction_{dir_id}"
-            df_sheets[sheet_name_var] = output_df
-
-        if not df_sheets:
-            print(
-                f"    No data to export for route '{route_short_name}' "
-                f"with schedule '{schedule_type}'."
+            # Build a safe filename and export DataFrames to Excel
+            schedule_type_safe = (schedule_type
+                                  .replace(' ', '_')
+                                  .replace('-', '_')
+                                  .replace('/', '_'))
+            output_file_path = os.path.join(
+                BASE_OUTPUT_PATH,
+                f"route_{route_short_name}_schedule_{schedule_type_safe}.xlsx"
             )
-            continue
+            export_to_excel_multiple_sheets(df_sheets, output_file_path)
 
-        schedule_type_safe = (schedule_type
-                              .replace(' ', '_')
-                              .replace('-', '_')
-                              .replace('/', '_'))
-        output_file_path = os.path.join(
-            BASE_OUTPUT_PATH,
-            f"route_{route_short_name}_schedule_{schedule_type_safe}.xlsx"
-        )
-        export_to_excel_multiple_sheets(df_sheets, output_file_path)
+
+# ==============================
+# ENTRY POINT
+# ==============================
+if __name__ == "__main__":
+    main()
