@@ -36,6 +36,7 @@ transit_planning_with_python/
 ├── service_analysis/
 │   ├── gtfs_headway_span_trips_calculator.py
 │   ├── gtfs_nearby_routes_finder.py
+│   ├── gtfs_service_change_tracker.py
 │   └── gtfs_trip_counts_reporter.py
 ├── service_population_tools/
 │   ├── census_processing_csv_shp.py
