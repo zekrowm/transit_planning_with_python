@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 """
 gtfs_stop_roadway_shp_intersection_check.py
 
@@ -17,7 +14,7 @@ import pandas as pd
 from shapely.geometry import Point
 
 # ==============================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
+# CONFIGURATION SECTION - DO NOT MODIFY
 # ==============================
 
 # Paths to input files
@@ -47,47 +44,64 @@ OUTPUT_CSV_NAME = 'intersecting_stops.csv'
 # END OF CONFIGURATION SECTION
 # ==============================
 
-# Create output directory if it doesn't exist
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
 
-# Verify that stops.txt exists in the provided GTFS folder
-if not os.path.isfile(STOPS_PATH):
-    raise FileNotFoundError(
-        f"'stops.txt' not found in the GTFS folder: {GTFS_FOLDER}"
-    )
+def create_output_directory(output_dir):
+    """
+    Creates the output directory if it doesn't exist.
+    """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-# Read roadways shapefile
-roadways_gdf = gpd.read_file(ROADWAYS_PATH)
 
-# Read GTFS stops.txt into DataFrame
-stops_df = pd.read_csv(STOPS_PATH)
+def validate_stops_file_exists(stops_path):
+    """
+    Raises a FileNotFoundError if the stops.txt file is missing.
+    """
+    if not os.path.isfile(stops_path):
+        raise FileNotFoundError(f"'stops.txt' not found at: {stops_path}")
 
-# Create GeoDataFrame from stops_df
-geometry = [Point(xy) for xy in zip(stops_df.stop_lon, stops_df.stop_lat)]
-stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry)
 
-# Set CRS for stops_gdf
-stops_gdf.set_crs(STOPS_CRS, inplace=True)
+def load_roadways(roadways_path):
+    """
+    Reads and returns the roadway shapefile as a GeoDataFrame.
+    """
+    return gpd.read_file(roadways_path)
 
-# Reproject both datasets to the target CRS
-roadways_gdf = roadways_gdf.to_crs(TARGET_CRS)
-stops_gdf = stops_gdf.to_crs(TARGET_CRS)
 
-# Perform spatial join to find stops that intersect roadways
-intersecting_stops = gpd.sjoin(
-    stops_gdf,
-    roadways_gdf,
-    how='inner',
-    predicate='intersects'
-)
+def load_stops(stops_path):
+    """
+    Reads the stops.txt file into a DataFrame and converts it into a GeoDataFrame.
+    """
+    stops_df = pd.read_csv(stops_path)
+    geometry = [Point(xy) for xy in zip(stops_df.stop_lon, stops_df.stop_lat)]
+    stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry)
+    return stops_gdf
 
-# Optional: keep only columns from stops_gdf
-intersecting_stops = intersecting_stops[stops_gdf.columns]
 
-# Add 'x' and 'y' columns for coordinate reference
-intersecting_stops['x'] = intersecting_stops.geometry.x
-intersecting_stops['y'] = intersecting_stops.geometry.y
+def reproject_data(gdf, target_crs):
+    """
+    Reprojects a GeoDataFrame to the specified target CRS.
+    """
+    return gdf.to_crs(target_crs)
+
+
+def find_intersecting_stops(stops_gdf, roadways_gdf):
+    """
+    Performs a spatial join to find stops that intersect with roadways.
+    Returns only columns from stops_gdf.
+    """
+    intersecting = gpd.sjoin(stops_gdf, roadways_gdf, how='inner', predicate='intersects')
+    return intersecting[stops_gdf.columns]
+
+
+def add_xy_columns(gdf):
+    """
+    Adds 'x' and 'y' columns to a GeoDataFrame from its geometry.
+    """
+    gdf['x'] = gdf.geometry.x
+    gdf['y'] = gdf.geometry.y
+    return gdf
+
 
 def determine_conflict_depth(stops_gdf, roadways_gdf, buffer_distances):
     """
@@ -125,28 +139,70 @@ def determine_conflict_depth(stops_gdf, roadways_gdf, buffer_distances):
         # Create a column to indicate whether the stop intersects the buffered roadways
         column_name = f'conflict_{-buffer_distance}ft'
         stops_gdf[column_name] = ~buffered_join['index_right'].isnull()
+
     return stops_gdf
 
-# Determine depth of conflict and update intersecting_stops
-intersecting_stops = determine_conflict_depth(
-    intersecting_stops,
-    roadways_gdf,
-    BUFFER_DISTANCES
-)
 
-# Sort by conflict depth columns in descending order
-conflict_columns = [f'conflict_{-bd}ft' for bd in BUFFER_DISTANCES]
-intersecting_stops = intersecting_stops.sort_values(
-    by=conflict_columns,
-    ascending=[False]*len(conflict_columns)
-)
+def sort_stops_by_conflict_depth(stops_gdf, buffer_distances):
+    """
+    Sorts the stops by conflict depth columns in descending order.
+    """
+    conflict_columns = [f'conflict_{-bd}ft' for bd in buffer_distances]
+    return stops_gdf.sort_values(by=conflict_columns, ascending=[False]*len(conflict_columns))
 
-# Save to shapefile
-output_shp_path = os.path.join(OUTPUT_DIR, OUTPUT_SHP_NAME)
-intersecting_stops.to_file(output_shp_path)
 
-# Save to CSV
-output_csv_path = os.path.join(OUTPUT_DIR, OUTPUT_CSV_NAME)
-intersecting_stops.to_csv(output_csv_path, index=False)
+def save_shapefile(gdf, output_dir, shp_name):
+    """
+    Saves the GeoDataFrame to a shapefile in the specified output directory.
+    """
+    output_shp_path = os.path.join(output_dir, shp_name)
+    gdf.to_file(output_shp_path)
 
-print("Processing complete. Output saved to:", OUTPUT_DIR)
+
+def save_csv(gdf, output_dir, csv_name):
+    """
+    Saves the GeoDataFrame to a CSV file in the specified output directory.
+    """
+    output_csv_path = os.path.join(output_dir, csv_name)
+    gdf.to_csv(output_csv_path, index=False)
+
+
+def main():
+    # Create output directory if it doesn't exist
+    create_output_directory(OUTPUT_DIR)
+
+    # Validate stops.txt file existence
+    validate_stops_file_exists(STOPS_PATH)
+
+    # Read roadways shapefile
+    roadways_gdf = load_roadways(ROADWAYS_PATH)
+
+    # Read GTFS stops and create GeoDataFrame
+    stops_gdf = load_stops(STOPS_PATH)
+    stops_gdf.set_crs(STOPS_CRS, inplace=True)
+
+    # Reproject both datasets to the target CRS
+    roadways_gdf = reproject_data(roadways_gdf, TARGET_CRS)
+    stops_gdf = reproject_data(stops_gdf, TARGET_CRS)
+
+    # Find intersecting stops
+    intersecting_stops = find_intersecting_stops(stops_gdf, roadways_gdf)
+
+    # Add X and Y columns
+    intersecting_stops = add_xy_columns(intersecting_stops)
+
+    # Determine depth of conflict
+    intersecting_stops = determine_conflict_depth(intersecting_stops, roadways_gdf, BUFFER_DISTANCES)
+
+    # Sort by conflict depth
+    intersecting_stops = sort_stops_by_conflict_depth(intersecting_stops, BUFFER_DISTANCES)
+
+    # Save outputs
+    save_shapefile(intersecting_stops, OUTPUT_DIR, OUTPUT_SHP_NAME)
+    save_csv(intersecting_stops, OUTPUT_DIR, OUTPUT_CSV_NAME)
+
+    print("Processing complete. Output saved to:", OUTPUT_DIR)
+
+
+if __name__ == '__main__':
+    main()
