@@ -10,8 +10,9 @@ Usage:
 3. For each route, an Excel file is created in the specified output directory.
 """
 
-import pandas as pd
 import os
+
+import pandas as pd
 
 # ------------------------------------------------------------------------------
 # CONFIGURATION SECTION
