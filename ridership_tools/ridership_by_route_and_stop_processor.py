@@ -18,7 +18,7 @@ from openpyxl.styles import Font
 # ==========================
 
 # Input and Output File Paths
-INPUT_FILE_PATH = r'\\Your\File\Path\to\ridership_by_route_and_stop_all_time_periods.xlsx'
+INPUT_FILE_PATH = r'\\Your\File\Path\to\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX'
 OUTPUT_FILE_SUFFIX = '_processed'
 OUTPUT_FILE_EXTENSION = '.xlsx'
 
