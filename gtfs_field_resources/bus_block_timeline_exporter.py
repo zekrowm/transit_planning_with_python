@@ -22,7 +22,6 @@ parameters as needed. Run the script to generate detailed block timelines in the
 
 import math
 import os
-import shutil
 
 import pandas as pd
 
