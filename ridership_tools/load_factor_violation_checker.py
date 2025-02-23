@@ -111,6 +111,7 @@ def print_high_load_trips(df: pd.DataFrame) -> None:
 # Main Routine
 # =======================
 def main():
+    """Main routine to load, process, and export bus load data."""
     # Load and process data
     df = load_data(INPUT_FILE)
     processed_df = process_data(df, BUS_CAPACITY)
