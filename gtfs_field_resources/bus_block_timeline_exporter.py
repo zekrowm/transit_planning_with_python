@@ -52,6 +52,7 @@ STOPS_OF_INTEREST = ['1001', '1002']  # e.g. ['1001', '1002'] or []
 # HELPER FUNCTIONS
 # ================================
 def validate_paths(input_path, output_path):
+    """Validate that the input directory exists and create the output directory if needed."""
     if not os.path.isdir(input_path):
         raise NotADirectoryError(f"Input path does not exist or is not a directory: {input_path}")
     if not os.path.isdir(output_path):
@@ -446,6 +447,7 @@ def generate_block_spreadsheets(
 # MAIN EXECUTION
 # ================================
 def main():
+    """Main execution function to process GTFS data and generate block timelines."""
     # Validate input and output paths
     try:
         validate_paths(BASE_INPUT_PATH, BASE_OUTPUT_PATH)
