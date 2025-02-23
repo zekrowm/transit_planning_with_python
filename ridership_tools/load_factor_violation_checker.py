@@ -45,7 +45,7 @@ def load_data(input_file: str) -> pd.DataFrame:
 def assign_service_period(trip_start_time: str) -> str:
     """
     Assign a service period based on TRIP_START_TIME.
-    
+
     Returns:
         A string representing the service period.
     """
@@ -69,7 +69,7 @@ def assign_service_period(trip_start_time: str) -> str:
 def get_route_load_limit(route_name: str) -> float:
     """
     Get the appropriate load factor limit based on the route.
-    
+
     If the route is in LOWER_LIMIT_ROUTES, returns the lower limit;
     otherwise, returns the higher limit.
     """
@@ -86,7 +86,7 @@ def check_load_factor_violation(row: pd.Series) -> str:
 
 def process_data(data_frame: pd.DataFrame, bus_capacity: int) -> pd.DataFrame:
     """
-    Process the DataFrame to calculate load factor and determine service periods 
+    Process the DataFrame to calculate load factor and determine service periods
     and violations.
     """
     # Assign service period
