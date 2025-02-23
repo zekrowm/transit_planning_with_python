@@ -9,7 +9,7 @@ reports of trips for selected routes based on a specified time interval and expo
 the results to Excel workbooks.
 """
 
-from datetime
+from datetime import time
 import os
 
 import pandas as pd
