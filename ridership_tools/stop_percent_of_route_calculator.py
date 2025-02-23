@@ -38,12 +38,12 @@ use_alightings = True
 def load_data(excel_path):
     """
     Reads the Excel file into a pandas DataFrame.
-    
+
     Parameters
     ----------
     excel_path : str
         Path to the Excel (.xlsx) file.
-        
+
     Returns
     -------
     df : pandas.DataFrame
@@ -56,14 +56,14 @@ def filter_by_stops(df, stop_ids):
     """
     Filters the DataFrame by a list of stop_ids if the list is not empty.
     If stop_ids is empty, the unfiltered DataFrame is returned.
-    
+
     Parameters
     ----------
     df : pandas.DataFrame
         The DataFrame containing ridership data.
     stop_ids : list of int
         The list of stop IDs to filter on.
-        
+
     Returns
     -------
     filtered_df : pandas.DataFrame
@@ -77,12 +77,12 @@ def filter_by_stops(df, stop_ids):
 def get_route_names(df):
     """
     Returns a list of unique route names in the given DataFrame.
-    
+
     Parameters
     ----------
     df : pandas.DataFrame
         The DataFrame containing ridership data.
-        
+
     Returns
     -------
     routes : numpy.ndarray
@@ -97,7 +97,7 @@ def aggregate_route_data(df, route_name, use_boardings, use_alightings):
     and alightings are selected, also calculate a 'PCT_TOTAL' column which
     measures the sum of boardings+alightings at each stop as a fraction of
     the route total.
-    
+
     Parameters
     ----------
     df : pandas.DataFrame
@@ -108,7 +108,7 @@ def aggregate_route_data(df, route_name, use_boardings, use_alightings):
         Whether to include boardings (XBOARDINGS) in the output.
     use_alightings : bool
         Whether to include alightings (XALIGHTINGS) in the output.
-        
+
     Returns
     -------
     grouped : pandas.DataFrame or None
@@ -170,7 +170,7 @@ def aggregate_route_data(df, route_name, use_boardings, use_alightings):
 def save_route_data(route_data, route_name, output_dir):
     """
     Saves the route_data DataFrame to an .xlsx file named after the route.
-    
+
     Parameters
     ----------
     route_data : pandas.DataFrame
