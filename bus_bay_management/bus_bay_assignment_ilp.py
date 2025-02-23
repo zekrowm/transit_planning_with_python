@@ -15,6 +15,7 @@ import os
 import re
 from collections import defaultdict
 
+from openpyxl import Workbook
 import pandas as pd
 import pulp  # Required for ILP
 from pulp import LpVariable, LpProblem, LpMinimize, lpSum, LpBinary, LpInteger, LpStatus, value
@@ -553,7 +554,6 @@ def export_comparison_results(
     optimized_schedules = rebuild_bay_schedules(occupancy_dict, optimized_assignments, bay_labels)
 
     # Write out to Excel
-    from openpyxl import Workbook
     output_path = os.path.join(output_folder, output_filename)
 
     with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
