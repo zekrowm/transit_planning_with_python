@@ -412,6 +412,7 @@ def compute_and_export_shortest_paths(road_network, snapped_stops_gdf, output_fo
 # MAIN FUNCTION: Orchestrate processing steps
 # =============================================================================
 def main():
+    """Generates a route shapefile from GTFS, road network, and bus route data, segmented at stops."""
     # Ensure output folder is absolute and exists
     output_folder = os.path.abspath(OUTPUT_FOLDER)
     if not os.path.exists(output_folder):
