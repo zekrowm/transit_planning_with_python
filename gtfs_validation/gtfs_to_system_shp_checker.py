@@ -78,24 +78,24 @@ def load_gtfs_data(gtfs_dir):
     stops_txt_path = os.path.join(gtfs_dir, 'stops.txt')
     trips_txt_path = os.path.join(gtfs_dir, 'trips.txt')
     stop_times_txt_path = os.path.join(gtfs_dir, 'stop_times.txt')
-    
+
     # Verify required files exist
     for file_path in [routes_txt_path, stops_txt_path, trips_txt_path, stop_times_txt_path]:
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"Required GTFS file not found: {file_path}")
-    
+
     routes_df = pd.read_csv(routes_txt_path)
     stops_df = pd.read_csv(stops_txt_path)
     trips_df = pd.read_csv(trips_txt_path)
     stop_times_df = pd.read_csv(stop_times_txt_path)
-    
+
     return routes_df, stops_df, trips_df, stop_times_df
 
 def load_shapefile(shp_path, input_crs):
     """Load the shapefile and set its CRS if needed."""
     if not os.path.isfile(shp_path):
         raise FileNotFoundError(f"Shapefile not found: {shp_path}")
-    
+
     shp_df = gpd.read_file(shp_path)
     if shp_df.crs is None:
         shp_df.set_crs(input_crs, inplace=True)
@@ -124,7 +124,7 @@ def merge_and_score(routes_df, shp_df, route_number_col, route_name_col):
         how='outer',
         suffixes=('_gtfs', '_shp')
     )
-    
+
     merged_df['short_name_score'] = merged_df.apply(
         lambda x: fuzz.ratio(str(x['route_short_name_str']), str(x[route_number_col + '_str'])),
         axis=1
@@ -190,20 +190,20 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
     matched_stops = stops_df[stops_df['stop_id'].isin(matched_stop_times['stop_id'])].copy()
     matched_stops_gdf = convert_stops_to_gdf(matched_stops, input_crs)
     matched_stops_gdf, shp_df = prepare_geometries(matched_stops_gdf, shp_df, projected_crs)
-    
+
     # Merge matched_routes with route geometries
     matched_routes = matched_routes.merge(
         shp_df[[route_number_col + '_str', 'route_geometry']],
         on=route_number_col + '_str',
         how='left'
     )
-    
+
     matched_stop_times_trips = matched_stop_times.merge(
         matched_trips[['trip_id', 'route_id']],
         on='trip_id',
         how='left'
     )
-    
+
     stop_route_pairs = matched_stop_times_trips[['stop_id', 'route_id']].drop_duplicates()
     stop_route_pairs = stop_route_pairs.merge(
         matched_stops_gdf[['stop_id', 'geometry']],
@@ -215,7 +215,7 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
         on='route_id',
         how='left'
     )
-    
+
     stop_route_pairs['distance_to_route_meters'] = stop_route_pairs.apply(calculate_distance, axis=1)
     stop_route_pairs['distance_to_route_feet'] = stop_route_pairs['distance_to_route_meters'] * 3.28084
     stop_route_pairs['within_allowance'] = stop_route_pairs['distance_to_route_feet'] <= distance_allowance
@@ -226,7 +226,7 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
         how='left'
     )
     stops_not_within_allowance['reason'] = f'Not within {distance_allowance} feet'
-    
+
     # Process unmatched stops (stops without a matching route)
     all_route_ids = routes_df['route_id'].unique()
     matched_route_ids = matched_routes['route_id'].unique()
@@ -238,7 +238,7 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
     unmatched_stops_gdf = unmatched_stops_gdf.to_crs(projected_crs)
     unmatched_stops_gdf['reason'] = 'No matching route'
     unmatched_stops_gdf['distance_to_route_feet'] = None  # No route to calculate distance
-    
+
     # Aggregate routes serving each stop
     stop_times_trips = stop_times_df[['stop_id', 'trip_id']].merge(
         trips_df[['trip_id', 'route_id']],
@@ -253,7 +253,7 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
     stop_routes_df = stop_times_trips_routes.groupby('stop_id')['route_short_name'].unique().reset_index()
     stop_routes_df['routes_serving_stop'] = stop_routes_df['route_short_name'].apply(lambda x: ', '.join(map(str, x)))
     stop_routes_df = stop_routes_df[['stop_id', 'routes_serving_stop']]
-    
+
     stops_not_within_allowance = stops_not_within_allowance.merge(
         stop_routes_df,
         on='stop_id',
@@ -264,7 +264,7 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
         on='stop_id',
         how='left'
     )
-    
+
     problem_stops_gdf = pd.concat(
         [
             stops_not_within_allowance[['stop_id', 'stop_name', 'geometry', 'reason',
@@ -274,7 +274,7 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
         ],
         ignore_index=True,
     )
-    
+
     problem_stops_gdf = problem_stops_gdf.drop_duplicates(subset='stop_id')
     problem_stops_gdf = gpd.GeoDataFrame(problem_stops_gdf, geometry='geometry', crs=projected_crs)
     problem_stops_gdf = problem_stops_gdf.to_crs(output_crs)
@@ -283,29 +283,29 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
 def main():
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+
     # Load data
     routes_df, stops_df, trips_df, stop_times_df = load_gtfs_data(GTFS_DIR)
     shp_df = load_shapefile(SHAPEFILE_PATH, INPUT_CRS)
-    
+
     # Preprocess for merging
     routes_df, shp_df = preprocess_data(routes_df, shp_df, ROUTE_NUMBER_COLUMN)
-    
+
     # Merge data and compute similarity scores
     merged_df = merge_and_score(routes_df, shp_df, ROUTE_NUMBER_COLUMN, ROUTE_NAME_COLUMN)
-    
+
     # Print percentages and export merged comparison
     merged_df = export_comparison(merged_df, OUTPUT_DIR)
-    
+
     # Filter matched routes based on exact short name match
     matched_routes = merged_df[merged_df['short_name_exact_match']].copy()
-    
+
     # Identify problem stops
     problem_stops_gdf = identify_problem_stops(
         routes_df, stops_df, trips_df, stop_times_df, matched_routes,
         shp_df, INPUT_CRS, PROJECTED_CRS, OUTPUT_CRS, DISTANCE_ALLOWANCE, ROUTE_NUMBER_COLUMN
     )
-    
+
     # Export problem stops to a shapefile
     output_shp_path = os.path.join(OUTPUT_DIR, 'problem_stops.shp')
     problem_stops_gdf.to_file(output_shp_path)
