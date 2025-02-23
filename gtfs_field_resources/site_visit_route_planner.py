@@ -25,7 +25,6 @@ import pulp
 
 import pyproj
 from shapely.geometry import Point, LineString
-from shapely.ops import transform
 
 # --------------------- CONFIGURATION ---------------------
 
