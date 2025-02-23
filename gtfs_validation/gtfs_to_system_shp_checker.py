@@ -281,6 +281,7 @@ def identify_problem_stops(routes_df, stops_df, trips_df, stop_times_df, matched
     return problem_stops_gdf
 
 def main():
+    """Load data, compare GTFS routes to the system shapefile, identify discrepancies, and export results."""
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
