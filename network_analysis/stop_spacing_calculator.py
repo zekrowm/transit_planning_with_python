@@ -18,7 +18,7 @@ GTFS_FOLDER = r'C:\Your\Folder\Path\For\GTFS'
 ROAD_NETWORK_FILE = r'C:\Your\File\Path\For\road_network.shp'
 ROUTE_SHAPE_FILE = r'C:\Your\File\Path\For\bus_system_network.shp'
 
-OUTPUT_FOLDER = r''
+OUTPUT_FOLDER = r'C:\Your\Folder\Path\To\Output'
 if not os.path.exists(OUTPUT_FOLDER):
     os.makedirs(OUTPUT_FOLDER)
 
