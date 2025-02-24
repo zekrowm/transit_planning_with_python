@@ -1,3 +1,23 @@
+"""
+Ridership Data Processing & Analysis
+
+This script consolidates transit ridership data from multiple Excel files, 
+exports a cleaned CSV, and optionally generates ridership trend plots. 
+It also identifies routes with declining ridership using a rolling 12-month 
+average and regression analysis.
+
+Configuration:
+- Set `ENABLE_PLOTTING = True` to generate plots, or `False` to skip.
+- Choose between `USE_DYNAMIC_SCALE` (adaptive y-axis) or static scaling.
+- Modify `BASE_INPUT_DIR`, `OUTPUT_DIR`, and `PLOTS_OUTPUT_FOLDER` as needed.
+- Exclude specific routes using `ROUTES_TO_EXCLUDE`.
+
+Usage:
+Run with:
+    python ridership_analysis.py
+
+Dependencies: pandas, matplotlib, numpy, openpyxl
+"""
 
 import os
 import sys
