@@ -29,11 +29,13 @@ transit_planning_with_python/
 ├── network_analysis/
 │   ├── park_and_ride_accessibility.py
 │   └── stop_spacing_calculator.py
+├── operations_tools/
+│   └── historical_otp_data_processor.py
 ├── ridership_tools/
 │   ├── data_request_by_stop_processor.py
 │   ├── gis_stops_ridership_joiner.py
+│   ├── historical_ntd_data_processor.py
 │   ├── load_factor_violation_checker.py
-│   ├── monthly_ntd_data_processor.py
 │   └── stop_percent_of_route_calculator.py
 ├── service_analysis/
 │   ├── gtfs_headway_span_trips_calculator.py
