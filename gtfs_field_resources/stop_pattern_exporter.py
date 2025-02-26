@@ -306,10 +306,10 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
 
             orig_dist = original_trip_distances.get(trip_id, None)
             if orig_dist is not None:
-                if abs(sum_of_segments - orig_dist) > 0.01:
+                if abs(sum_of_segments - orig_dist) > 0.02:
                     logging.warning(
                         "Trip %s: sum of timepoint distances %.2f differs from "
-                        "full trip distance %.2f by more than 0.01.",
+                        "full trip distance %.2f by more than 0.02.",
                         trip_id,
                         sum_of_segments,
                         orig_dist
