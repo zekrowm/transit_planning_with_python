@@ -1,7 +1,11 @@
 """
 This module extracts unique stop patterns from GTFS data and exports them as Excel workbooks.
-It supports route-based filtering, distance conversions, timepoint-only exports, and optional
-distance validation (comparing total trip distance to timepoint segments).
+It supports:
+ - Route-based filtering
+ - Calendar-based filtering (via service_id) with separate files per service_id
+ - Distance conversions
+ - Timepoint-only exports
+ - Optional distance validation for timepoint segments
 """
 
 import logging
@@ -37,6 +41,13 @@ ROUTES_FILE = 'routes.txt'
 FILTER_IN_ROUTE_SHORT_NAMES = []  # e.g., ['10', '20']
 FILTER_OUT_ROUTE_SHORT_NAMES = ['9999A', '9999B', '9999C']  # e.g., ['30']
 
+# ------------------------------------------------------------
+# NEW: Optional filtering by calendar_id (service_id)
+# Leave this blank to include all service_ids.
+# e.g., FILTER_IN_CALENDAR_IDS = ['WEEKDAY', 'SATURDAY'] or []
+# ------------------------------------------------------------
+FILTER_IN_CALENDAR_IDS = []
+
 # Optional signup name to append to output filenames.
 SIGNUP_NAME = "January2025Signup"  # e.g., "January2025Signup"
 
@@ -53,11 +64,11 @@ CONVERT_TO_MILES = True
 # ============================================================
 # TIMEPOINT CONFIGURATION
 # ============================================================
-# NEW: Set to True if you only want to export stops with timepoint=1.
+# Set to True if you only want to export stops with timepoint=1.
 EXPORT_TIMEPOINTS_ONLY = True
 
-# OPTIONAL: If True, we'll compare the total distance from the first to last stop
-# with the sum of segment distances for timepoint stops only, and log a warning if they differ.
+# If True, compare the total distance from first to last stop with the sum of
+# segment distances for timepoint stops, logging a warning if they differ.
 VALIDATE_TIMEPOINT_DISTANCE = True
 
 # ------------------------------------------------------------
@@ -110,10 +121,13 @@ def load_gtfs_files(input_dir):
         'routes': routes
     }
 
-def filter_trips_by_route(trips_df, routes_df):
+def filter_trips(trips_df, routes_df, calendar_ids=None):
     """
-    Filter trips based on FILTER_IN_ROUTE_SHORT_NAMES and FILTER_OUT_ROUTE_SHORT_NAMES.
-    Returns a filtered DataFrame of trips.
+    Filter trips based on:
+      - FILTER_IN_ROUTE_SHORT_NAMES
+      - FILTER_OUT_ROUTE_SHORT_NAMES
+      - (Optional) calendar_ids (service_id in GTFS)
+    Returns a filtered DataFrame of trips joined to route information.
     """
     try:
         trips_routes = pd.merge(
@@ -122,22 +136,32 @@ def filter_trips_by_route(trips_df, routes_df):
             on='route_id',
             how='left'
         )
-    except Exception as err:  # pylint: disable=broad-except
-        raise Exception(
-            f"Error merging trips and routes: {err}"
-        ) from err
+    except Exception as err:
+        raise Exception(f"Error merging trips and routes: {err}") from err
 
+    # 1) Filter IN route_short_names if provided
     if FILTER_IN_ROUTE_SHORT_NAMES:
         trips_routes = trips_routes[
             trips_routes['route_short_name'].isin(FILTER_IN_ROUTE_SHORT_NAMES)
         ]
+
+    # 2) Filter OUT route_short_names if provided
     if FILTER_OUT_ROUTE_SHORT_NAMES:
         trips_routes = trips_routes[
             ~trips_routes['route_short_name'].isin(FILTER_OUT_ROUTE_SHORT_NAMES)
         ]
 
+    # 3) Filter by calendar_ids (service_id) if provided
+    if calendar_ids and len(calendar_ids) > 0:
+        if 'service_id' not in trips_routes.columns:
+            logging.warning("service_id column not found in the trips data.")
+        else:
+            trips_routes = trips_routes[
+                trips_routes['service_id'].isin(calendar_ids)
+            ]
+
     if trips_routes.empty:
-        logging.warning("No trips remaining after filtering by route_short_name.")
+        logging.warning("No trips remaining after filtering.")
 
     return trips_routes
 
@@ -154,23 +178,25 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
     included stop. For the first stop, distance is "-".
 
     Returns:
-        A dictionary keyed by (route_id, direction_id, pattern) containing:
-            - route_id
-            - direction_id
-            - pattern (tuple of (stop_name, stop_id, distance))
-            - trip_count (number of trips with that pattern)
+        A dictionary keyed by (route_id, direction_id, service_id, pattern):
+            {
+              'route_id': ...,
+              'direction_id': ...,
+              'service_id': ...,
+              'pattern': tuple(...),
+              'trip_count': ...
+            }
     """
     try:
+        # Include service_id
         trips_stop_times = pd.merge(
             stop_times_df,
-            filtered_trips_df[['trip_id', 'route_id', 'direction_id']],
+            filtered_trips_df[['trip_id', 'route_id', 'direction_id', 'service_id']],
             on='trip_id',
             how='inner'
         )
-    except Exception as err:  # pylint: disable=broad-except
-        raise Exception(
-            f"Error merging stop_times with filtered trips: {err}"
-        ) from err
+    except Exception as err:
+        raise Exception(f"Error merging stop_times with filtered trips: {err}") from err
 
     # Add a shape_dist_traveled column if missing
     if 'shape_dist_traveled' not in trips_stop_times.columns:
@@ -184,13 +210,12 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
             on='stop_id',
             how='left'
         )
-    except Exception as err:  # pylint: disable=broad-except
-        raise Exception(
-            f"Error merging stop_times with stops: {err}"
-        ) from err
+    except Exception as err:
+        raise Exception(f"Error merging stop_times with stops: {err}") from err
 
     trips_stop_times.sort_values(by=['trip_id', 'stop_sequence'], inplace=True)
 
+    # For validation: if we only want timepoint stops, we'll compare sum-of-segments to the total
     original_trip_distances = {}
     if VALIDATE_TIMEPOINT_DISTANCE and EXPORT_TIMEPOINTS_ONLY:
         for trip_id, grp in trips_stop_times.groupby('trip_id'):
@@ -247,7 +272,7 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
                                 conv_factor = 1.0
                             diff = diff / conv_factor
                         distance_str = f"{diff:.2f}"
-                    except (ValueError, TypeError) as distance_err:  # pylint: disable=broad-except
+                    except (ValueError, TypeError) as distance_err:
                         logging.error(
                             "Error calculating distance difference for trip %s: %s",
                             trip_id,
@@ -268,9 +293,11 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
             'trip_id': trip_id,
             'route_id': first_row.get('route_id', 'Unknown'),
             'direction_id': first_row.get('direction_id', 'Unknown'),
+            'service_id': first_row.get('service_id', 'Unknown'),
             'pattern': tuple(stops_list)
         })
 
+        # Validate distance if needed
         if VALIDATE_TIMEPOINT_DISTANCE and EXPORT_TIMEPOINTS_ONLY:
             sum_of_segments = 0.0
             for (_, _, dist_str) in stops_list:
@@ -281,20 +308,22 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
             if orig_dist is not None:
                 if abs(sum_of_segments - orig_dist) > 0.01:
                     logging.warning(
-                        "Trip %s: sum of timepoint distances %.2f differs from full trip "
-                        "distance %.2f by more than 0.01.",
+                        "Trip %s: sum of timepoint distances %.2f differs from "
+                        "full trip distance %.2f by more than 0.01.",
                         trip_id,
                         sum_of_segments,
                         orig_dist
                     )
 
+    # Build a dictionary of unique patterns, keyed by (route_id, direction_id, service_id, pattern)
     patterns_dict = {}
     for rec in trip_patterns:
-        key = (rec['route_id'], rec['direction_id'], rec['pattern'])
+        key = (rec['route_id'], rec['direction_id'], rec['service_id'], rec['pattern'])
         if key not in patterns_dict:
             patterns_dict[key] = {
                 'route_id': rec['route_id'],
                 'direction_id': rec['direction_id'],
+                'service_id': rec['service_id'],
                 'pattern': rec['pattern'],
                 'trip_count': 0
             }
@@ -305,26 +334,30 @@ def generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df):
 
 def assign_pattern_ids(patterns_dict):
     """
-    Given a dictionary of patterns (keyed by (route_id, direction_id, pattern)),
-    assign a sequential pattern_id for each (route_id, direction_id) group.
+    Given a dictionary of patterns keyed by (route_id, direction_id, service_id, pattern),
+    assign a sequential pattern_id for each (route_id, service_id, direction_id) group.
 
     Returns a list of records, each with:
-      route_id, direction_id, pattern_id, trip_count, pattern
+      route_id, direction_id, service_id, pattern_id, trip_count, pattern
     """
-    patterns_by_route_dir = {}
+    patterns_by_rsd = {}  # route_id, service_id, direction_id
     for _, rec in patterns_dict.items():
         route_id = rec['route_id']
         direction_id = rec['direction_id']
-        patterns_by_route_dir.setdefault((route_id, direction_id), []).append(rec)
+        service_id = rec['service_id']
+        # Group by (route, service, direction)
+        patterns_by_rsd.setdefault((route_id, service_id, direction_id), []).append(rec)
 
     pattern_records = []
-    for (route_id, direction_id), recs in patterns_by_route_dir.items():
+    for (route_id, service_id, direction_id), recs in patterns_by_rsd.items():
+        # Sort the records by pattern (arbitrary stable sort to keep consistent order)
         recs = sorted(recs, key=lambda r: r['pattern'])
         for i, pattern_rec in enumerate(recs, start=1):
             pattern_rec['pattern_id'] = i
             pattern_records.append({
                 'route_id': route_id,
                 'direction_id': direction_id,
+                'service_id': service_id,
                 'pattern_id': i,
                 'trip_count': pattern_rec['trip_count'],
                 'pattern': pattern_rec['pattern']
@@ -335,18 +368,26 @@ def assign_pattern_ids(patterns_dict):
 
 def export_patterns_to_excel(pattern_records, routes_df):
     """
-    Export pattern records to Excel files, one file per route.
-    Each Excel file contains worksheets for each unique stop pattern.
-    Uses route_short_name for file names and the "Route" column values.
-    """
-    route_groups = {}
-    for rec in pattern_records:
-        route_groups.setdefault(rec['route_id'], []).append(rec)
+    Export pattern records into separate Excel files for each (route_id, service_id).
+    Within each file, create worksheets for each unique (direction_id, pattern_id).
 
-    for route_id, records in route_groups.items():
+    File naming convention:
+      {route_short_name}_{service_id}_{SIGNUP_NAME}.xlsx
+    Sheet naming convention:
+      Dir{direction_id}_Pat{pattern_id}
+    """
+    # Group the pattern records by (route_id, service_id)
+    file_groups = {}
+    for rec in pattern_records:
+        route_id = rec['route_id']
+        service_id = rec['service_id']
+        file_groups.setdefault((route_id, service_id), []).append(rec)
+
+    for (route_id, service_id), group_records in file_groups.items():
+        # Attempt to get route_short_name
         try:
             route_info = routes_df[routes_df['route_id'] == route_id]
-        except Exception as err:  # pylint: disable=broad-except
+        except Exception as err:
             logging.error(
                 "Error retrieving route info for route_id %s: %s",
                 route_id,
@@ -359,88 +400,116 @@ def export_patterns_to_excel(pattern_records, routes_df):
         else:
             route_short_name = f"Route_{route_id}"
 
+        # Create a new workbook for each (route_id, service_id)
         workbook = Workbook()
         default_sheet = workbook.active
         workbook.remove(default_sheet)
 
-        for record in records:
+        # Sort records by direction_id and then pattern_id for consistent sheet order
+        group_records = sorted(group_records, key=lambda r: (r['direction_id'], r['pattern_id']))
+
+        for record in group_records:
             direction_id = record.get('direction_id', 'Unknown')
             pattern_id = record.get('pattern_id', 'Unknown')
+            stops = record.get('pattern', [])
+
+            # Worksheet name: Dir{direction_id}_Pat{pattern_id}
             worksheet_title = f"Dir{direction_id}_Pat{pattern_id}"
+
             try:
                 worksheet = workbook.create_sheet(title=worksheet_title)
-            except Exception as err:  # pylint: disable=broad-except
+            except Exception as err:
                 logging.error(
-                    "Error creating worksheet '%s' for route %s: %s",
+                    "Error creating worksheet '%s' for route %s (service_id=%s): %s",
                     worksheet_title,
                     route_id,
+                    service_id,
                     err
                 )
                 continue
 
-            header = ["Route", "Direction", "Distance"]
-            stops = record.get('pattern', [])
+            # Write header
+            header = [
+                "Route",
+                "Direction",
+                "Calendar (service_id)",
+                "Distance"
+            ]
             stop_headers = [f"{stop_name} ({stop_id})" for stop_name, stop_id, _ in stops]
             header.extend(stop_headers)
 
             try:
                 worksheet.append(header)
-            except Exception as err:  # pylint: disable=broad-except
+            except Exception as err:
                 logging.error(
-                    "Error writing header in worksheet '%s' for route %s: %s",
+                    "Error writing header in worksheet '%s' for route %s (service_id=%s): %s",
                     worksheet_title,
                     route_id,
+                    service_id,
                     err
                 )
                 continue
 
+            # Compute total distance
             total_distance = 0.0
             for stop in stops:
                 dist_str = stop[2]
                 if dist_str not in ("-", "", None) and is_number(dist_str):
                     try:
                         total_distance += float(dist_str)
-                    except Exception as dist_err:  # pylint: disable=broad-except
+                    except Exception as dist_err:
                         logging.error(
-                            "Error converting stop distance '%s' in route %s: %s",
+                            "Error converting stop distance '%s' in route %s (service_id=%s): %s",
                             dist_str,
                             route_id,
+                            service_id,
                             dist_err
                         )
 
             total_distance_str = f"{total_distance:.2f}"
-            row = [route_short_name, direction_id, total_distance_str]
-            row.extend([stop[2] for stop in stops])
+
+            # Write data row
+            row = [
+                route_short_name,
+                direction_id,
+                service_id,
+                total_distance_str
+            ]
+            row.extend([stop[2] for stop in stops])  # each segment distance
 
             try:
                 worksheet.append(row)
-            except Exception as err:  # pylint: disable=broad-except
+            except Exception as err:
                 logging.error(
-                    "Error writing data row in worksheet '%s' for route %s: %s",
+                    "Error writing data row in worksheet '%s' for route %s (service_id=%s): %s",
                     worksheet_title,
                     route_id,
+                    service_id,
                     err
                 )
 
+            # Set column widths
             for i, _ in enumerate(header, start=1):
                 col_letter = get_column_letter(i)
                 worksheet.column_dimensions[col_letter].width = 20
 
-        output_filename = f"{route_short_name}_{SIGNUP_NAME}.xlsx"
+        # Save the workbook for this (route_id, service_id) combo
+        output_filename = f"{route_short_name}_{service_id}_{SIGNUP_NAME}.xlsx"
         output_path = os.path.join(OUTPUT_DIR, output_filename)
         try:
             workbook.save(output_path)
             logging.info("Workbook saved: %s", output_path)
-        except Exception as err:  # pylint: disable=broad-except
+        except Exception as err:
             logging.error("Error saving workbook '%s': %s", output_filename, err)
 
 def main():
     """Main function to load GTFS data, filter, generate patterns, and export to Excel."""
+    # Create output directory if it doesn't exist
     if not os.path.exists(OUTPUT_DIR):
         try:
             os.makedirs(OUTPUT_DIR)
             logging.info("Created output directory: %s", OUTPUT_DIR)
-        except Exception as err:  # pylint: disable=broad-except
+        except Exception as err:
             logging.error(
                 "Unable to create output directory '%s': %s",
                 OUTPUT_DIR,
@@ -448,19 +517,21 @@ def main():
             )
             return
 
+    # Load GTFS files
     try:
         gtfs_data = load_gtfs_files(INPUT_DIR)
         stops_df = gtfs_data['stops']
         trips_df = gtfs_data['trips']
         stop_times_df = gtfs_data['stop_times']
         routes_df = gtfs_data['routes']
-    except Exception as err:  # pylint: disable=broad-except
+    except Exception as err:
         logging.error(err)
         return
 
+    # Filter trips by route & calendar
     try:
-        filtered_trips_df = filter_trips_by_route(trips_df, routes_df)
-    except Exception as err:  # pylint: disable=broad-except
+        filtered_trips_df = filter_trips(trips_df, routes_df, calendar_ids=FILTER_IN_CALENDAR_IDS)
+    except Exception as err:
         logging.error(err)
         return
 
@@ -468,10 +539,11 @@ def main():
         logging.error("No trips to process after filtering. Exiting.")
         return
 
+    # Generate unique patterns
     try:
         patterns_dict = generate_unique_patterns(filtered_trips_df, stop_times_df, stops_df)
         pattern_records = assign_pattern_ids(patterns_dict)
-    except Exception as err:  # pylint: disable=broad-except
+    except Exception as err:
         logging.error("Error generating patterns: %s", err)
         return
 
@@ -479,9 +551,10 @@ def main():
         logging.warning("No unique patterns found. Exiting.")
         return
 
+    # Export patterns to Excel
     try:
         export_patterns_to_excel(pattern_records, routes_df)
-    except Exception as err:  # pylint: disable=broad-except
+    except Exception as err:
         logging.error("Error exporting patterns to Excel: %s", err)
 
 if __name__ == "__main__":
