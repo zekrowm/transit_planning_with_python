@@ -4,10 +4,8 @@ split into route/direction sheets, highlight and calculate key stats,
 and optionally produce bar charts.
 
 Additional features:
-- Rounds PASSENGERS_ON to 1 decimal.
 - Computes percent_of_route_ridership (lowercase) as the percentage of route ridership,
   rounding to one decimal on the percentage scale.
-- Formats TRIP_START_TIME to display as HH:MM.
 - Allows a combined configuration for columns: if a colon is used,
   the left-hand side is the column to retain and the right-hand side is
   the custom header to display.
