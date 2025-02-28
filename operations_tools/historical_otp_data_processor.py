@@ -24,7 +24,7 @@ from datetime import datetime
 #  1) Running Time Data
 # =========================
 INPUT_FILE = r"\\Path\To\Your\Runtime and OTP Trip Level Data.csv"
-OUTPUT_DIR = r"\\Path\To\Your\Processed\Data\Output
+OUTPUT_DIR = r"\\Path\To\Your\Processed\Data\Output"
 
 # Route Filter Configuration
 # Set to a list of routes to include (e.g., ['101', '202']) or an empty list [] for all routes.
