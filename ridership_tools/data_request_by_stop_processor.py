@@ -33,7 +33,7 @@ ROUTES = []  # e.g. [] means skip route filter
 STOP_IDS = [
     1067, 1069, 2122, 2174, 3208, 3220
 ]  # e.g. [] means skip stop filter
-TIME_PERIODS = []  # e.g. [] means skip time-period breakdown
+TIME_PERIODS = ['AM EARLY', 'AM PEAK', 'MIDDAY', 'PM PEAK', 'PM LATE', 'PM NITE']  # e.g. [] means skip time-period breakdown
 
 # If True, ridership columns in the "Original" data are rounded to 1 decimal place.
 # Also, if AGGREGATE_BIN_RANGES = False, aggregated totals get rounded instead of binned.
