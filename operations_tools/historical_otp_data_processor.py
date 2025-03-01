@@ -11,10 +11,10 @@ Notes:
 
 import os
 import sys
+from datetime import datetime
 
 import pandas as pd
 import matplotlib.pyplot as plt
-from datetime import datetime
 
 # ------------------------------------------------------------------------------
 #                             CONFIGURATION SECTION
