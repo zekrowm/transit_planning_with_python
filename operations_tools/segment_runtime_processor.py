@@ -50,12 +50,12 @@ OUTPUT_DIR = (
 def load_data(csv_path: str) -> pd.DataFrame:
     """
     Reads the CSV file into a pandas DataFrame.
-    
+
     :param csv_path: Path to the CSV file.
     :return: DataFrame containing the CSV data.
     """
     df = pd.read_csv(csv_path)
-    
+
     # Drop duplicate columns if any
     df = df.loc[:, ~df.columns.duplicated()]
     return df
@@ -67,7 +67,7 @@ def filter_routes(df: pd.DataFrame,
     """
     Filters out routes if specified in 'routes_to_exclude', or keeps only
     routes listed in 'routes_to_include'.
-    
+
     :param df: The original DataFrame.
     :param routes_to_exclude: A list of route IDs/Branches to exclude.
     :param routes_to_include: A list of route IDs/Branches to include exclusively.
@@ -75,22 +75,22 @@ def filter_routes(df: pd.DataFrame,
     """
     routes_to_exclude = routes_to_exclude or []
     routes_to_include = routes_to_include or []
-    
+
     # Exclude certain routes
     if routes_to_exclude:
         df = df[~df['Branch'].isin(routes_to_exclude)]
-    
+
     # Include only certain routes
     if routes_to_include:
         df = df[df['Branch'].isin(routes_to_include)]
-    
+
     return df
 
 
 def convert_time_columns(df: pd.DataFrame, time_columns=None) -> None:
     """
     Converts specified time columns from seconds to minutes (in-place).
-    
+
     :param df: The DataFrame containing time columns.
     :param time_columns: A dict or list of column names to convert.
     """
@@ -99,7 +99,7 @@ def convert_time_columns(df: pd.DataFrame, time_columns=None) -> None:
         cols = list(time_columns.keys())
     else:
         cols = time_columns or []
-        
+
     for col in cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')  # handle non-numeric
@@ -213,7 +213,7 @@ def check_route_validity(segments, variation_values):
         is_valid = False
 
     return is_valid
-    
+
 
 def sort_route_segments(segments):
     """
@@ -222,7 +222,7 @@ def sort_route_segments(segments):
     to the start of the next.
 
     Assumes there is exactly one continuous chain without branching.
-    
+
     :param segments: list of strings, e.g. ['FHSH - WAPO', 'MVES - VVBU', ...]
     :return: list of strings in the correct travel sequence.
     """
@@ -231,35 +231,35 @@ def sort_route_segments(segments):
     for seg in segments:
         start, end = seg.split(" - ")
         edges.append((start.strip(), end.strip()))
-        
+
     # 2) Build a lookup from start -> end
     next_lookup = {}
     for start, end in edges:
         next_lookup[start] = end  # assumes each start appears only once
-    
+
     # 3) Identify the unique "first" stop:
     all_starts = [start for (start, _) in edges]
     all_ends = [end for (_, end) in edges]
     possible_starts = set(all_starts) - set(all_ends)
-    
+
     if len(possible_starts) != 1:
         # If we can't find a single unique start, return segments unsorted or raise error
         return segments  # or raise ValueError, depending on preference
-    
+
     first_stop = possible_starts.pop()
-    
+
     # 4) Walk the chain from the first stop until we can’t continue
     chain_stops = [first_stop]
     while chain_stops[-1] in next_lookup:
         chain_stops.append(next_lookup[chain_stops[-1]])
-    
+
     # 5) Reconstruct segments in order
     sorted_segments = []
     for i in range(len(chain_stops) - 1):
         s = chain_stops[i]
         e = chain_stops[i + 1]
         sorted_segments.append(f"{s} - {e}")
-    
+
     return sorted_segments
 
 
@@ -270,40 +270,40 @@ def create_and_save_pivots(df: pd.DataFrame,
     For each unique Branch in df, create a separate Excel file. Inside each file:
     - Separate data by unique Direction
     - For each time column (if it exists), pivot and write to a separate sheet
-    
+
     Before pivoting, we:
       1) Check route validity (multiple Variation values, branching, loops, etc.).
       2) If valid, sort the segments. Then pivot in that sorted order if desired.
-    
+
     :param df: The DataFrame with all routes.
     :param output_dir: Directory to save Excel files.
     :param file_prefix: Prefix for the output Excel file names.
     """
     if output_dir and not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
+
     pivot_configs = TIME_COLUMNS
 
     for route in df['Branch'].unique():
         route_df = df[df['Branch'] == route].copy()
-        
+
         excel_file_name = f"{file_prefix}{route}.xlsx"
         if output_dir:
             excel_file_name = os.path.join(output_dir, excel_file_name)
-        
+ 
         route_wrote_sheets = False
 
         with pd.ExcelWriter(excel_file_name, engine='openpyxl') as writer:
             for direction in route_df['Direction'].unique():
                 direction_df = route_df[route_df['Direction'] == direction].copy()
-                
+
                 # 1) Check validity of this route slice
                 # We'll look at all the segment strings in 'SegmentName' plus Variation
                 segment_list = direction_df['SegmentName'].dropna().unique().tolist()
                 variation_list = direction_df['Variation'].dropna().unique().tolist()
-                
+
                 is_single_path = check_route_validity(segment_list, variation_list)
-                
+
                 # 2) If it looks valid, you can attempt to sort the segments
                 if is_single_path:
                     sorted_list = sort_route_segments(segment_list)
@@ -311,7 +311,7 @@ def create_and_save_pivots(df: pd.DataFrame,
                     # If not valid, we can either skip sorting or keep them as-is
                     sorted_list = segment_list
                     print(f"Segments for route={route}, direction={direction} left unsorted.")
-                
+
                 # 3) Pivot each time_col to a separate sheet
                 direction_wrote_sheets = False
                 for time_col, sheet_suffix in pivot_configs.items():
@@ -338,10 +338,10 @@ def create_and_save_pivots(df: pd.DataFrame,
                     sheet_name = f"{direction}_{sheet_suffix}"
                     pivot_table.to_excel(writer, sheet_name=sheet_name)
                     direction_wrote_sheets = True
-                
+
                 if direction_wrote_sheets:
                     route_wrote_sheets = True
-            
+
             # If no sheets got created for this route, make a "NoData" sheet
             if not route_wrote_sheets:
                 no_data_df = pd.DataFrame(
@@ -362,17 +362,17 @@ def main():
     """
     # Load the data
     df = load_data(CSV_PATH)
-    
+
     # Filter routes if needed
     df = filter_routes(
         df,
         routes_to_exclude=ROUTES_TO_EXCLUDE,
         routes_to_include=ROUTES_TO_INCLUDE
     )
-    
+
     # Convert time columns (from seconds to minutes)
     convert_time_columns(df, time_columns=TIME_COLUMNS)
-    
+
     # Create pivot tables and save to Excel
     create_and_save_pivots(df, output_dir=OUTPUT_DIR)
 
