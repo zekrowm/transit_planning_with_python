@@ -54,12 +54,7 @@ COLUMNS_TO_RETAIN = ['ROUTE_NAME', 'STOP', 'STOP_ID', 'BOARD_ALL', 'ALIGHT_ALL']
 
 def bin_ridership_value(value):
     """
-    Convert a numeric ridership value to a range string.
-
-    Ranges:
-        - < 5:         "0-4.9"
-        - 5 up to 25:  "5-24.9"
-        - >= 25:       "25 or more"
+    Categorize a ridership value into a range (e.g., "0-4.9", "5-24.9", "25 or more").
     """
     if value < 5:
         return "0-4.9"
@@ -70,6 +65,9 @@ def bin_ridership_value(value):
 
 
 def aggregate_by_stop(data_subset):
+    """
+    Summarize ridership by stop, totaling boardings and alightings, and listing unique routes.
+    """
     aggregated = data_subset.groupby(['STOP', 'STOP_ID'], as_index=False).agg({
         'BOARD_ALL': 'sum',
         'ALIGHT_ALL': 'sum',
@@ -84,6 +82,9 @@ def aggregate_by_stop(data_subset):
 
 
 def read_excel_file(input_file):
+    """
+    Load an Excel file into a DataFrame. Exits if the file is missing or unreadable.
+    """
     try:
         return pd.read_excel(input_file)
     except FileNotFoundError:
@@ -95,6 +96,9 @@ def read_excel_file(input_file):
 
 
 def verify_required_columns(data_frame, required_columns):
+    """
+    Check if all required columns exist in the DataFrame. Exits if any are missing.
+    """
     missing_columns = [col for col in required_columns if col not in data_frame.columns]
     if missing_columns:
         print(f"Error: Missing columns: {missing_columns}")
@@ -102,6 +106,9 @@ def verify_required_columns(data_frame, required_columns):
 
 
 def filter_data(data_frame, routes, stop_ids):
+    """
+    Filter the data by route names and stop IDs. Returns the filtered DataFrame.
+    """
     filtered_df = data_frame.copy()
     if routes:
         filtered_df = filtered_df[filtered_df['ROUTE_NAME'].isin(routes)]
@@ -111,6 +118,9 @@ def filter_data(data_frame, routes, stop_ids):
 
 
 def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggregated):
+    """
+    Save processed ridership data to an Excel file with multiple sheets.
+    """
     try:
         with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
             filtered_data.to_excel(writer, sheet_name='Original', index=False)
@@ -132,6 +142,9 @@ def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggreg
 
 
 def adjust_excel_formatting(output_file):
+    """
+    Format an Excel file by bolding headers and adjusting column widths.
+    """
     try:
         workbook = load_workbook(output_file)
         for sheet_name in workbook.sheetnames:
@@ -154,6 +167,9 @@ def adjust_excel_formatting(output_file):
 
 
 def main():
+    """
+    Process ridership data: read, filter, aggregate, apply formatting, and save to Excel.
+    """
     input_file = INPUT_FILE_PATH
     base, ext = os.path.splitext(input_file)
     ext = ext.lower()
