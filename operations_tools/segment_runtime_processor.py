@@ -290,7 +290,7 @@ def create_and_save_pivots(df: pd.DataFrame,
         excel_file_name = f"{file_prefix}{route}.xlsx"
         if output_dir:
             excel_file_name = os.path.join(output_dir, excel_file_name)
- 
+
         route_wrote_sheets = False
 
         with pd.ExcelWriter(excel_file_name, engine='openpyxl') as writer:
