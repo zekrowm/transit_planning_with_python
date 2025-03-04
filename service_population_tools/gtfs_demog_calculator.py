@@ -293,6 +293,27 @@ def clip_and_calculate_synthetic_fields(
     return clipped_gdf
 
 
+def export_summary_to_excel(
+    totals_dict: dict,
+    output_path: str,
+    label_prefix: str = ""
+) -> None:
+    """
+    Write a dictionary of aggregated synthetic fields to a single-row Excel file.
+
+    :param totals_dict: A dictionary of {synthetic_field_name: numeric_total}.
+    :param output_path: File path for the .xlsx output.
+    :param label_prefix: An optional prefix to apply in column naming or titles.
+    """
+    # Convert the dictionary to a single-row DataFrame
+    summary_data = {k: [v] for k, v in totals_dict.items()}
+    summary_df = pd.DataFrame(summary_data)
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    summary_df.to_excel(output_path, index=False)
+    print(f"Exported Excel summary: {output_path}")
+
+
 def do_network_analysis(
     trips: pd.DataFrame,
     stop_times: pd.DataFrame,
@@ -313,20 +334,9 @@ def do_network_analysis(
     Perform a single "network-wide" buffer analysis across the final included routes
     and final included stops, applying variable buffer distances for specified stops.
 
-    :param trips: DataFrame from trips.txt (filtered to relevant service IDs).
-    :param stop_times: DataFrame from stop_times.txt.
-    :param routes_df: DataFrame from routes.txt.
-    :param stops_df: DataFrame from stops.txt.
-    :param demographics_gdf: GeoDataFrame of demographic data (projected & FIPS-filtered).
-    :param routes_to_include: List of route_short_names to include (if any).
-    :param routes_to_exclude: List of route_short_names to exclude (if any).
-    :param stop_ids_to_include: List of stop_ids to include (if any).
-    :param stop_ids_to_exclude: List of stop_ids to exclude (if any).
-    :param buffer_distance_mi: Standard buffer distance in miles.
-    :param large_buffer_distance_mi: Larger buffer distance in miles for specified stops.
-    :param stop_ids_large_buffer: List of stop_ids that require the larger buffer.
-    :param output_dir: Destination folder for output shapefile.
-    :param synthetic_fields: Columns to compute synthetic values for.
+    Exports:
+      - A single shapefile (all_routes_service_buffer_data.shp)
+      - A single Excel summary (all_routes_service_buffer_data.xlsx)
     """
     print("\n=== Network-wide Analysis ===")
 
@@ -350,8 +360,6 @@ def do_network_analysis(
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
     # 5) Filter final stops
-    #   (Now that we've merged, we only keep stops that occur on final routes,
-    #    then apply the user’s stop ID filters.)
     final_stops_df = get_included_stops(
         merged_data,
         stop_ids_to_include,
@@ -376,7 +384,7 @@ def do_network_analysis(
             normal_buffer=buffer_distance_mi,
             large_buffer=large_buffer_distance_mi,
             large_buffer_ids=stop_ids_large_buffer
-        ) * 1609.34  # Convert miles to meters
+        ) * 1609.34
     )
     stops_gdf["geometry"] = stops_gdf.apply(
         lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
@@ -389,7 +397,6 @@ def do_network_analysis(
     clipped_result = clip_and_calculate_synthetic_fields(
         demographics_gdf, network_buffer_gdf, synthetic_fields
     )
-
     synthetic_cols = [f"synthetic_{fld}" for fld in synthetic_fields]
     totals = clipped_result[synthetic_cols].sum().round(0)
 
@@ -399,16 +406,19 @@ def do_network_analysis(
         print(f"  Total Synthetic {display_col}: {int(value)}")
 
     os.makedirs(output_dir, exist_ok=True)
-    out_path = os.path.join(
-        output_dir, "all_routes_service_buffer_data.shp"
-    )
-    clipped_result.to_file(out_path)
-    print(f"Exported network shapefile: {out_path}")
+    shp_path = os.path.join(output_dir, "all_routes_service_buffer_data.shp")
+    clipped_result.to_file(shp_path)
+    print(f"Exported network shapefile: {shp_path}")
+
+    # Also export the summary to Excel
+    xlsx_path = os.path.join(output_dir, "all_routes_service_buffer_data.xlsx")
+    final_dict = {col: int(val) for col, val in totals.items()}
+    export_summary_to_excel(final_dict, xlsx_path)
 
     # Optional plot
     fig, ax = plt.subplots(figsize=(10, 10))
-    network_buffer_gdf.plot(ax=ax, color="blue", alpha=0.5, label="Network Buffer")
-    stops_gdf.boundary.plot(ax=ax, color="red", linewidth=0.5, label="Stop Buffers")
+    network_buffer_gdf.plot(ax=ax, alpha=0.5, label="Network Buffer")
+    stops_gdf.boundary.plot(ax=ax, linewidth=0.5, label="Stop Buffers")
     plt.title("Network Buffer")
     plt.legend()
     plt.show()
@@ -434,20 +444,9 @@ def do_route_by_route_analysis(
     Perform a buffer/clip analysis separately for each route in the final route set,
     applying variable buffer distances for specified stops and also filtering stops.
 
-    :param trips: DataFrame from trips.txt (filtered to relevant service IDs).
-    :param stop_times: DataFrame from stop_times.txt.
-    :param routes_df: DataFrame from routes.txt.
-    :param stops_df: DataFrame from stops.txt.
-    :param demographics_gdf: GeoDataFrame of demographic data (projected & FIPS-filtered).
-    :param routes_to_include: List of route_short_names to include (if any).
-    :param routes_to_exclude: List of route_short_names to exclude (if any).
-    :param stop_ids_to_include: List of stop_ids to include (if any).
-    :param stop_ids_to_exclude: List of stop_ids to exclude (if any).
-    :param buffer_distance_mi: Standard buffer distance in miles.
-    :param large_buffer_distance_mi: Larger buffer distance in miles for specified stops.
-    :param stop_ids_large_buffer: List of stop_ids that require the larger buffer.
-    :param output_dir: Destination folder for output shapefiles.
-    :param synthetic_fields: Columns to compute synthetic values for.
+    Exports, for each route_short_name R:
+      - A shapefile named R_service_buffer_data.shp
+      - A summary Excel named R_service_buffer_data.xlsx
     """
     print("\n=== Route-by-Route Analysis ===")
 
@@ -526,17 +525,23 @@ def do_route_by_route_analysis(
             display_col = col.replace("synthetic_", "").replace("_", " ").title()
             print(f"  Total Synthetic {display_col} for route {route_name}: {int(val)}")
 
+        # Shapefile export
         os.makedirs(output_dir, exist_ok=True)
-        out_path = os.path.join(
+        shp_path = os.path.join(
             output_dir, f"{route_name}_service_buffer_data.shp"
         )
-        clipped_result.to_file(out_path)
-        print(f"Exported shapefile for route {route_name}: {out_path}")
+        clipped_result.to_file(shp_path)
+        print(f"Exported shapefile for route {route_name}: {shp_path}")
+
+        # Export summary to Excel
+        xlsx_path = os.path.join(output_dir, f"{route_name}_service_buffer_data.xlsx")
+        final_dict = {col: int(val) for col, val in totals.items()}
+        export_summary_to_excel(final_dict, xlsx_path)
 
         # Optional plot
         fig, ax = plt.subplots(figsize=(10, 10))
         route_buffer_gdf.plot(
-            ax=ax, color="blue", alpha=0.5, label=f"Route {route_name} Buffer"
+            ax=ax, alpha=0.5, label=f"Route {route_name} Buffer"
         )
         plt.title(f"Route {route_name} Buffer Overlay")
         plt.legend()
@@ -568,20 +573,9 @@ def do_stop_by_stop_analysis(
       2) GTFS merges (only stops actually used by the final routes)
       3) stop include/exclude lists
 
-    :param trips: DataFrame from trips.txt (filtered to relevant service IDs).
-    :param stop_times: DataFrame from stop_times.txt.
-    :param routes_df: DataFrame from routes.txt.
-    :param stops_df: DataFrame from stops.txt.
-    :param demographics_gdf: GeoDataFrame of demographic data (projected & FIPS-filtered).
-    :param routes_to_include: List of route_short_names to include (if any).
-    :param routes_to_exclude: List of route_short_names to exclude (if any).
-    :param stop_ids_to_include: List of stop_ids to include (if any).
-    :param stop_ids_to_exclude: List of stop_ids to exclude (if any).
-    :param buffer_distance_mi: Standard buffer distance in miles.
-    :param large_buffer_distance_mi: Larger buffer distance in miles for specified stops.
-    :param stop_ids_large_buffer: List of stop_ids that require the larger buffer.
-    :param output_dir: Destination folder for output shapefiles.
-    :param synthetic_fields: Columns to compute synthetic values for.
+    Exports, for each stop_id S:
+      - A shapefile named stop_S_service_buffer_data.shp
+      - A summary Excel named stop_S_service_buffer_data.xlsx
     """
     print("\n=== Stop-by-Stop Analysis ===")
 
@@ -643,7 +637,7 @@ def do_stop_by_stop_analysis(
         single_stop_gdf["geometry"] = single_stop_gdf.apply(
             lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
         )
-        # Dissolve to combine a stop's geometry if duplicated across multiple trips
+        # Dissolve in case stop appears in multiple trips
         single_stop_buffer = single_stop_gdf.dissolve().reset_index(drop=True)
 
         # Clip
@@ -659,16 +653,21 @@ def do_stop_by_stop_analysis(
             print(f"  Total Synthetic {display_col}: {int(val)}")
 
         # Export shapefile
-        out_path = os.path.join(
+        shp_path = os.path.join(
             output_dir, f"stop_{stop_id_str}_service_buffer_data.shp"
         )
-        clipped_result.to_file(out_path)
-        print(f"Exported shapefile for stop {stop_id_str}: {out_path}")
+        clipped_result.to_file(shp_path)
+        print(f"Exported shapefile for stop {stop_id_str}: {shp_path}")
+
+        # Export summary to Excel
+        xlsx_path = os.path.join(output_dir, f"stop_{stop_id_str}_service_buffer_data.xlsx")
+        final_dict = {col: int(val) for col, val in totals.items()}
+        export_summary_to_excel(final_dict, xlsx_path)
 
         # Optional plot
         fig, ax = plt.subplots(figsize=(8, 8))
         single_stop_buffer.plot(
-            ax=ax, color="green", alpha=0.5, label=f"Stop {stop_id_str} Buffer"
+            ax=ax, alpha=0.5, label=f"Stop {stop_id_str} Buffer"
         )
         plt.title(f"Stop {stop_id_str} Buffer Overlay")
         plt.legend()
@@ -680,6 +679,7 @@ def main():
     Main driver function. Adjust ANALYSIS_MODE, route filter variables
     (ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE), and stop filter variables
     (STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE) in the configuration section.
+    Now also exports .xlsx summaries corresponding to each .shp.
     """
     try:
         trips, stop_times, routes_df, stops_df, calendar = load_gtfs_data(
