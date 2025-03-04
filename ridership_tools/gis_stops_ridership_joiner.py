@@ -18,22 +18,22 @@ import pandas as pd
 
 # INPUTS --------------------------------------------------------------------
 # Bus stops can be either a .shp or GTFS stops.txt
-BUS_STOPS_INPUT = r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_01_13\stops.txt"  # Replace as needed
+BUS_STOPS_INPUT = r"Your\File\Path\To\stops.txt"  # Replace as needed
 
 # Path to Excel with ridership data.
-EXCEL_FILE = r"\\S40SHAREPGC01\DOTWorking\zkrohm\reports_recurring\Monthly_Directors_Report\2025_01\ridership_by_location\STOP_USAGE_(BY_STOP_ID)_2025_02_26.XLSX"
+EXCEL_FILE = r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).XLSX"
 
 # Optional: Filter your Excel data for certain routes. If empty, no filter.
 # Example: ROUTE_FILTER_LIST = ["101", "202"]
 ROUTE_FILTER_LIST = []
 
 # OUTPUTS -------------------------------------------------------------------
-OUTPUT_FOLDER = r"\\S40SHAREPGC01\DOTWorking\zkrohm\reports_recurring\Monthly_Directors_Report\2025_01\ridership_by_location\output"
+OUTPUT_FOLDER = r"Your\Folder\Path\To\Output"
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # Optional: Polygon features to join ridership data to.
 # If empty, the spatial-join and aggregation steps will be skipped.
-POLYGON_LAYER = r"\\S40SHAREPGC01\DOTWorking\zkrohm\reports_recurring\Monthly_Directors_Report\2025_01\ridership_by_location\tl_2023_51_place_clip\tl_2023_51_place_clip.shp"
+POLYGON_LAYER = r"Your\File\Path\To\census_blocks.shp"
 
 # File paths for intermediate & final outputs:
 GTFS_STOPS_FC = os.path.join(OUTPUT_FOLDER, "bus_stops_generated.shp")
