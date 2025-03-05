@@ -2,9 +2,13 @@
 This script processes bus stop data by optionally performing a spatial join
 with a polygon layer (e.g., Census Blocks, Tracts, Places, etc.), merging
 with ridership data from an Excel file, and filtering out bus stops that
-do not have corresponding ridership data. The final outputs include updated
-shapefiles with ridership information and (optionally) aggregated data by
+do not have corresponding ridership data. The final outputs include stops
+shapefile(s) with ridership information and (optionally) aggregated data by
 the polygon layer.
+
+It has two modes:
+  1) SPLIT_BY_ROUTE = False  --> Create one stops shapefile for the entire network.
+  2) SPLIT_BY_ROUTE = True   --> Create one stops shapefile per route.
 """
 
 import os
@@ -26,6 +30,10 @@ EXCEL_FILE = r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).XLSX"
 # Optional: Filter your Excel data for certain routes. If empty, no filter.
 # Example: ROUTE_FILTER_LIST = ["101", "202"]
 ROUTE_FILTER_LIST = []
+
+# Set to False to create one shapefile for all stops,
+# or True to create a separate shapefile per unique route.
+SPLIT_BY_ROUTE = False
 
 # OUTPUTS -------------------------------------------------------------------
 OUTPUT_FOLDER = r"Your\Folder\Path\To\Output"
@@ -52,11 +60,12 @@ GTFS_SECONDARY_ID_FIELD = "stop_id"   # For reference, e.g. "stop_id" in stops.t
 SHAPE_SECONDARY_ID_FIELD = "StopNum"  # For reference, e.g. "StopNum" in shapefile
 
 # 3. Polygon fields to export (and optional join field):
-#    - POLYGON_JOIN_FIELD: The field in the polygon data for grouping/aggregating ridership.
-#    - POLYGON_FIELDS_TO_KEEP: Any additional polygon fields you want to bring over.
-POLYGON_JOIN_FIELD = "GEOID"           # e.g., Census GEOID
-POLYGON_FIELDS_TO_KEEP = ["NAME", "GEOID", "GEOIDFQ"     # Must include the join field
-                          ]   # Example: a second polygon attribute
+POLYGON_JOIN_FIELD = "GEOID"    # e.g., Census GEOID
+POLYGON_FIELDS_TO_KEEP = [
+    "NAME",
+    "GEOID",
+    "GEOIDFQ"
+]   # Must include the join field
 
 # ENVIRONMENT & FLAGS ------------------------------------------------------
 IS_GTFS_INPUT = BUS_STOPS_INPUT.lower().endswith(".txt")
@@ -75,6 +84,11 @@ def create_bus_stops_feature_class():
       - bus_stops_fc: path to the resulting feature class
       - fields_to_export: list of fields to export (including the polygon fields)
     """
+    if POLYGON_LAYER.strip():
+        extra_fields = POLYGON_FIELDS_TO_KEEP
+    else:
+        extra_fields = []
+
     if IS_GTFS_INPUT:
         # Convert GTFS stops.txt to point feature class
         arcpy.management.XYTableToPoint(
@@ -92,7 +106,7 @@ def create_bus_stops_feature_class():
             GTFS_KEY_FIELD,
             GTFS_SECONDARY_ID_FIELD,
             "stop_name"
-        ] + POLYGON_FIELDS_TO_KEEP
+        ] + extra_fields
 
     else:
         # Using an existing shapefile of bus stops directly
@@ -103,7 +117,7 @@ def create_bus_stops_feature_class():
         fields_to_export = [
             SHAPE_KEY_FIELD,
             SHAPE_SECONDARY_ID_FIELD,
-        ] + POLYGON_FIELDS_TO_KEEP
+        ] + extra_fields
 
     return bus_stops_fc, fields_to_export
 
@@ -138,6 +152,14 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export):
         current_fc = JOINED_FC
     else:
         print("POLYGON_LAYER is empty. Skipping spatial join.")
+        # Export the bus stops feature class to CSV so that merge can still work.
+        with arcpy.da.SearchCursor(bus_stops_fc, fields_to_export) as cursor, \
+             open(OUTPUT_CSV, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(fields_to_export)
+            for row in cursor:
+                writer.writerow(row)
+        print(f"CSV export completed. CSV file created at:\n{OUTPUT_CSV}")
         current_fc = bus_stops_fc
 
     return current_fc
@@ -172,10 +194,8 @@ def merge_ridership_and_csv(df_excel, fields_to_export):
       - df_joined: merged DataFrame
       - key_field: which field was used as the merge key (GTFS_KEY_FIELD or SHAPE_KEY_FIELD)
     """
-    if POLYGON_LAYER.strip():
-        df_csv = pd.read_csv(OUTPUT_CSV)
-    else:
-        raise ValueError("No polygon layer provided; define how to handle bus stops for ridership merge.")
+    # Read from the CSV we created in the spatial join (or direct bus stops).
+    df_csv = pd.read_csv(OUTPUT_CSV)
 
     # Merge on appropriate key (GTFS vs. shapefile)
     if IS_GTFS_INPUT:
@@ -226,7 +246,6 @@ def filter_matched_bus_stops(current_fc, df_joined, key_field):
 
     # Prepare values for WHERE clause based on field type
     if field_type in ['String', 'Guid', 'Date']:
-        # Avoid using backslashes in f-string
         formatted_keys = []
         for k in matched_keys:
             escaped = k.replace("'", "''")
@@ -321,7 +340,7 @@ def aggregate_ridership(df_joined):
         print("POLYGON_LAYER is empty, so aggregation steps have been skipped.")
         return
 
-    # Group by the designated polygon join field, e.g. "GEOID20"
+    # Group by the designated polygon join field, e.g. "GEOID"
     df_agg = df_joined.groupby(POLYGON_JOIN_FIELD, as_index=False).agg({
         'XBOARDINGS': 'sum',
         'XALIGHTINGS': 'sum',
@@ -372,10 +391,15 @@ def aggregate_ridership(df_joined):
           f"{POLYGON_WITH_RIDERSHIP_SHP}")
 
 
-def main():
+# ---------------------------------------------------------
+# >>>> CHANGED SECTION: NEW/UPDATED MAIN FUNCTION <<<<
+# ---------------------------------------------------------
+
+def process_stops_for_single_run():
     """
-    Main entry point for the script. Executes the bus stop processing,
-    optional spatial join, ridership merge, filtering, and optional aggregation.
+    (Helper) Original single-run flow (no splitting by route).
+    This replicates the original script's approach of creating
+    one shapefile for the entire network of bus stops.
     """
     # Step 1: Create or identify the bus stops feature class
     bus_stops_fc, fields_to_export = create_bus_stops_feature_class()
@@ -398,7 +422,98 @@ def main():
     # Steps 6 & 7: Aggregate ridership (Optional)
     aggregate_ridership(df_joined)
 
-    print("Process complete.")
+    print("Single-run process complete.")
+
+
+def main():
+    """
+    Main entry point for the script. Either processes all routes at once
+    (creating a single shapefile) or splits by route (creating multiple
+    shapefiles), depending on SPLIT_BY_ROUTE.
+    """
+    # >>>>> NEW BRANCHING LOGIC <<<<<
+    if not SPLIT_BY_ROUTE:
+        # ---- Original single-run approach ----
+        print("SPLIT_BY_ROUTE = False. Running single shapefile process.")
+        process_stops_for_single_run()
+
+    else:
+        # ---- Per-route approach (from the second script) ----
+        print("SPLIT_BY_ROUTE = True. Creating one shapefile per route.")
+
+        # Step 1: Create or identify the bus stops feature class
+        bus_stops_fc, fields_to_export = create_bus_stops_feature_class()
+
+        # Step 2: Spatial Join (Optional) -> also exports CSV
+        current_fc = spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export)
+
+        # Step 3: Read ridership data from Excel & optionally filter by routes
+        df_excel = read_and_filter_ridership_data()
+
+        # Identify unique routes
+        unique_routes = df_excel['ROUTE_NAME'].unique()
+        print(f"Found the following unique routes: {unique_routes}")
+
+        # For each route, merge, filter, and export a shapefile
+        for route in unique_routes:
+            print(f"\n=== Processing route: {route} ===")
+            df_route = df_excel[df_excel['ROUTE_NAME'] == route].copy()
+            if df_route.empty:
+                print(f"No ridership data for route {route}. Skipping.")
+                continue
+
+            # Merge data
+            df_joined, key_field = merge_ridership_and_csv(df_route, fields_to_export)
+            if df_joined.empty:
+                print(f"No matched bus stops found for route {route}. Skipping.")
+                continue
+
+            # Create a route-specific feature class path
+            route_output_fc = os.path.join(OUTPUT_FOLDER, f"BusStops_{route}.shp")
+
+            # We'll replicate the filtering logic from the second script
+            # in a more direct manner. We do not re-use filter_matched_bus_stops
+            # with the single "MATCHED_JOINED_FC" because we need distinct outputs.
+            # Instead, we do a partial version:
+            matched_keys = df_joined[key_field].dropna().unique().tolist()
+            if not matched_keys:
+                print("No matched bus stops found. Skipping this route.")
+                continue
+
+            arcpy.MakeFeatureLayer_management(current_fc, "joined_lyr_route")
+            field_delimited = arcpy.AddFieldDelimiters(current_fc, key_field)
+
+            # We have to chunk keys to avoid 'IN' clause limit
+            chunk_size = 999
+            where_clauses = []
+            for i in range(0, len(matched_keys), chunk_size):
+                chunk = matched_keys[i:i + chunk_size]
+                # Quote or not quote based on field type if needed.
+                # Here we'll assume string type for simplicity:
+                chunk_str = ', '.join(f"'{k}'" for k in chunk)
+                where_clauses.append(f"{field_delimited} IN ({chunk_str})")
+
+            route_where_clause = " OR ".join(where_clauses)
+            arcpy.SelectLayerByAttribute_management("joined_lyr_route", "NEW_SELECTION", route_where_clause)
+
+            selected_count = int(arcpy.GetCount_management("joined_lyr_route").getOutput(0))
+            if selected_count == 0:
+                print(f"No bus stops found in FC for route {route}. Skipping.")
+                continue
+
+            arcpy.CopyFeatures_management("joined_lyr_route", route_output_fc)
+            print(f"Route-specific shapefile created at: {route_output_fc}")
+
+            # Now update ridership fields
+            update_bus_stops_ridership(route_output_fc, df_joined, key_field)
+
+        # After all routes are processed, optionally aggregate if you want
+        # aggregated polygon results across *all* stops (regardless of route).
+        # If you only want polygons by route, you'd do a per-route polygon join.
+        # For simplicity, we show it once for the entire dataset:
+        aggregate_ridership(df_excel)
+
+        print("Per-route process complete.")
 
 
 if __name__ == "__main__":
