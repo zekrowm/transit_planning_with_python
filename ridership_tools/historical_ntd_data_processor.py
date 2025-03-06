@@ -1,9 +1,9 @@
 """
 Ridership Data Processing & Analysis
 
-This script consolidates transit ridership data from multiple Excel files, 
-exports a cleaned CSV, and optionally generates ridership trend plots. 
-It also identifies routes with declining ridership using a rolling 12-month 
+This script consolidates transit ridership data from multiple Excel files,
+exports a cleaned CSV, and optionally generates ridership trend plots.
+It also identifies routes with declining ridership using a rolling 12-month
 average and regression analysis.
 
 Configuration:
