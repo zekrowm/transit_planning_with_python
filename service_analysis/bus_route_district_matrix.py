@@ -58,7 +58,7 @@ def load_gtfs_data(gtfs_dir):
     stops_path = os.path.join(gtfs_dir, STOPS_FILE)
     trips_path = os.path.join(gtfs_dir, TRIPS_FILE)
     stop_times_path = os.path.join(gtfs_dir, STOP_TIMES_FILE)
-    
+
     if not os.path.exists(routes_path):
         raise FileNotFoundError(f"Could not find {routes_path}")
     if not os.path.exists(stops_path):
@@ -122,10 +122,10 @@ def intersect_districts_gdf(stops_buffer_gdf, districts_gdf):
 def build_route_district_matrix(gtfs_data, intersect_gdf, district_field="DISTRICT"):
     """
     Build a DataFrame that shows route_short_name vs. district coverage (y/n).
-    
+
     We rely on the 'stop_id' being in `intersect_gdf` from the stops layer,
     and the `district_field` coming from the District shapefile.
-    
+
     Steps:
       1) Build route->trip->stop relationships from GTFS
       2) For each stop_id, see which districts it intersects
