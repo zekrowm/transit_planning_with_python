@@ -6,24 +6,24 @@ long format spreadsheet for defined bus stop clusters of interest.
 import os
 import pandas as pd
 
-
 # ------------------------------------------------------------------------------
 # Configuration
 # ------------------------------------------------------------------------------
-GTFS_FOLDER = (
-    r"Path\To\Your\GTFS_Folder"
-)  # Folder containing trips.txt, stop_times.txt, stops.txt, blocks.txt (optional)
-OUTPUT_FOLDER = (
-    r"Path\To\Your\Output_Folder"
-)
+GTFS_FOLDER = r"Path\To\Your\GTFS_Folder"  # Folder containing trips.txt, stop_times.txt, stops.txt, blocks.txt (optional)
+OUTPUT_FOLDER = r"Path\To\Your\Output_Folder"
+
 DEFAULT_HOURS = 26  # Generate minute-by-minute for 26 hours by default
 TIME_INTERVAL_MINUTES = 1  # Granularity: 1 minute
 
-DWELL_THRESHOLD = 3  # Set desired maximum time, in minutes, for DWELL
+DWELL_THRESHOLD = 3   # Set desired maximum time, in minutes, for DWELL
 LAYOVER_THRESHOLD = 20  # Set desired maximum time, in minutes, for LAYOVER
 
 # Configurable limit on the number of trips in a block
 MAX_TRIPS_PER_BLOCK = 150
+
+# New: Filter trips by these service_id(s)
+# By default, keep only service_id == "3" (typical for 'weekday' in some feeds)
+CALENDAR_SERVICE_IDS = ["3"]
 
 BUS_STOP_CLUSTERS = [
     {
@@ -33,7 +33,6 @@ BUS_STOP_CLUSTERS = [
     {"name": "Bus Transfer Station", "stops": ["2001", "2002"]},
 ]
 # If you don't want cluster logic, simply set BUS_STOP_CLUSTERS = []
-
 
 # ------------------------------------------------------------------------------
 # Helper Functions
@@ -85,13 +84,13 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
     Determine the bus status at a given minute by examining stop_times_sequence.
     Each element is a tuple:
         (arrival_min, departure_min, stop_id, stop_name, trip_id,
-         is_first_stop, is_last_stop, stop_sequence).
+         is_first_stop, is_last_stop, stop_sequence, timepoint_value).
 
-    Returns:
-        (status, stop_id, stop_name, arr_str, dep_str, trip_id_for_status, stop_seq)
+    Returns a tuple:
+        (status, stop_id, stop_name, arr_str, dep_str, trip_id_for_status, stop_seq, timepoint_value)
     """
     if not stop_times_sequence:
-        return ("EMPTY", None, None, None, None, None, None)
+        return ("EMPTY", None, None, None, None, None, None, 0)
 
     for i in range(len(stop_times_sequence)):
         (
@@ -103,6 +102,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
             is_first,
             is_last,
             stop_seq,
+            t_val
         ) = stop_times_sequence[i]
 
         # 1) Exact arrival or departure times
@@ -115,6 +115,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                 minutes_to_hhmm(dep),
                 trip_id,
                 stop_seq,
+                t_val
             )
         if minute == dep and is_first:
             return (
@@ -125,6 +126,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                 minutes_to_hhmm(dep),
                 trip_id,
                 stop_seq,
+                t_val
             )
 
         # Arrival == departure
@@ -137,6 +139,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                 minutes_to_hhmm(dep),
                 trip_id,
                 stop_seq,
+                t_val
             )
 
         # Normal arrive/depart for intermediate stops
@@ -149,6 +152,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                 minutes_to_hhmm(dep),
                 trip_id,
                 stop_seq,
+                t_val
             )
         if minute == dep:
             return (
@@ -159,6 +163,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                 minutes_to_hhmm(dep),
                 trip_id,
                 stop_seq,
+                t_val
             )
 
         # 2) Dwell at a stop (arr < minute < dep)
@@ -171,6 +176,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                 minutes_to_hhmm(dep),
                 trip_id,
                 stop_seq,
+                t_val
             )
 
         # 3) Between stops within the same trip
@@ -184,6 +190,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                 next_is_first,
                 next_is_last,
                 next_stop_seq,
+                next_t_val
             ) = stop_times_sequence[i + 1]
 
             if dep < minute < next_arr:
@@ -197,6 +204,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                         None,
                         trip_id,
                         None,
+                        0
                     )
                 else:
                     # Different trip => check dwell or deadhead/layover logic
@@ -222,6 +230,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                                 minutes_to_hhmm(dep),
                                 next_trip_id,
                                 stop_seq,
+                                t_val
                             )
                         elif gap > LAYOVER_THRESHOLD:
                             return (
@@ -232,6 +241,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                                 minutes_to_hhmm(dep),
                                 next_trip_id,
                                 stop_seq,
+                                t_val
                             )
                         else:
                             return (
@@ -242,10 +252,11 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                                 minutes_to_hhmm(dep),
                                 next_trip_id,
                                 stop_seq,
+                                t_val
                             )
                     else:
                         if bus_stop_clusters:
-                            return ("DEADHEAD", None, None, None, None, next_trip_id, None)
+                            return ("DEADHEAD", None, None, None, None, next_trip_id, None, 0)
                         else:
                             return (
                                 "LAYOVER/DEADHEAD",
@@ -255,10 +266,11 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                                 None,
                                 next_trip_id,
                                 None,
+                                0
                             )
 
     # Before the first or after the last stop in the sequence
-    return ("EMPTY", None, None, None, None, None, None)
+    return ("EMPTY", None, None, None, None, None, None, 0)
 
 
 def process_block(block_subset, block_id, timeline, bus_stop_clusters):
@@ -270,7 +282,7 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
        - Collect *all* trips that are active at this minute.
        - Run get_status_for_minute for each trip.
        - If multiple trips return non-"EMPTY" statuses, pick the one with the
-         *lowest stop_sequence* (tie-break).
+         *lowest stop_sequence* but prefer timepoints (1 or 2) over non-timepoints (0).
        - If all are "EMPTY," treat as no active trip.
        - Apply your existing logic (DWELL vs. LAYOVER vs. LONG BREAK vs. INACTIVE)
          for minutes outside any trip.
@@ -283,9 +295,10 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
         trip_df = trip_df.sort_values("stop_sequence")
         start_time = trip_df["arrival_min"].min()
         end_time = trip_df["departure_min"].max()
-        # Build the stop_times_sequence for this trip
+        # Build the stop_times_sequence for this trip; include timepoint info
         stop_times_sequence = []
         for _, row in trip_df.iterrows():
+            t_val = row.get("timepoint", 0)  # can be 0,1,2
             stop_times_sequence.append(
                 (
                     row["arrival_min"],
@@ -296,6 +309,7 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
                     row["is_first_stop"],
                     row["is_last_stop"],
                     row["stop_sequence"],
+                    t_val,
                 )
             )
         route_id = trip_df.iloc[0]["route_id"]
@@ -329,7 +343,7 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
                     minute, t["stop_times_sequence"], bus_stop_clusters
                 )
                 # status_tuple is:
-                # (status, stop_id, stop_name, arr_str, dep_str, trip_id_for_status, stop_seq)
+                # (status, stop_id, stop_name, arr_str, dep_str, trip_id_for_status, stop_seq, timepoint_val)
                 candidate_info.append((t, status_tuple))
 
             # Filter out purely "EMPTY" statuses
@@ -338,22 +352,26 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
             if not valid_candidates:
                 # Everything was "EMPTY" => effectively no active trip
                 chosen_trip = None
-                chosen_status = ("EMPTY", None, None, None, None, None, None)
+                chosen_status = ("EMPTY", None, None, None, None, None, None, 0)
             elif len(valid_candidates) == 1:
                 chosen_trip, chosen_status = valid_candidates[0]
             else:
-                # Multiple valid statuses => tie-break by lowest stop_sequence
-                # s[6] is stop_seq. Some statuses (like traveling) may have None =>
-                # treat as large.
-                def stop_seq_or_large(st_tuple):
-                    return st_tuple[1][6] if st_tuple[1][6] is not None else 999999
+                # Multiple valid statuses => tie-break:
+                #  1) prefer any timepoint (1 or 2) over 0
+                #  2) among those, pick lowest stop_sequence
+                def candidate_sort_key(item):
+                    st = item[1]
+                    stop_seq = st[6] if st[6] is not None else 999999
+                    t_val = st[7] if st[7] is not None else 0
+                    is_timepoint = (t_val in [1, 2])
+                    return (not is_timepoint, stop_seq)
 
-                valid_candidates.sort(key=stop_seq_or_large)
+                valid_candidates.sort(key=candidate_sort_key)
                 chosen_trip, chosen_status = valid_candidates[0]
         else:
             # No active trips => chosen_trip is None
             chosen_trip = None
-            chosen_status = ("EMPTY", None, None, None, None, None, None)
+            chosen_status = ("EMPTY", None, None, None, None, None, None, 0)
 
         # -----------------------------------------------------------
         # 2) Build the row from chosen_trip / chosen_status
@@ -366,13 +384,12 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
             dep_str,
             trip_id_for_status,
             stop_seq,
+            t_val
         ) = chosen_status
 
         if chosen_trip:
             # We have an active trip. Possibly "EMPTY" if all were empty, but let's see:
             if status == "EMPTY":
-                # Means all active trips returned "EMPTY" from get_status_for_minute =>
-                # bus is between stops. We'll just treat it as "TRAVELING BETWEEN STOPS".
                 status = "TRAVELING BETWEEN STOPS"
 
             # If the current minute is DWELL or LAYOVER, check if next minute in the same
@@ -398,6 +415,7 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
                 "Arrival Time": arr_str if arr_str else "",
                 "Departure Time": dep_str if dep_str else "",
                 "Status": status,
+                "Timepoint": t_val
             }
         else:
             # No active trip => check gap logic
@@ -439,11 +457,38 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
                 "Arrival Time": "",
                 "Departure Time": "",
                 "Status": status,
+                "Timepoint": 0
             }
 
         rows.append(row)
 
     return pd.DataFrame(rows)
+
+
+def check_for_overlapping_trips(block_subset, block_id):
+    """
+    Check if any two trips within this block have overlapping start/end times.
+    If so, print a warning. Overlap means they share at least one minute in time.
+    """
+    # Gather trip start/end times
+    trip_times = []
+    for trip_id, grp in block_subset.groupby("trip_id"):
+        start = grp["arrival_min"].min()
+        end = grp["departure_min"].max()
+        trip_times.append((trip_id, start, end))
+
+    # Sort by start time
+    trip_times.sort(key=lambda x: x[1])
+
+    # Compare each trip to every trip after it
+    for i in range(len(trip_times) - 1):
+        t1, s1, e1 = trip_times[i]
+        for j in range(i + 1, len(trip_times)):
+            t2, s2, e2 = trip_times[j]
+            # Overlap if start2 <= end1 and start1 <= end2
+            if s2 <= e1 and s1 <= e2:
+                print(f"WARNING: Overlapping trips in block {block_id}:")
+                print(f"  Trip {t1} from {s1} to {e1} overlaps with Trip {t2} from {s2} to {e2}")
 
 
 # ------------------------------------------------------------------------------
@@ -470,10 +515,18 @@ def main():
         blocks_df = pd.DataFrame()
         print("No blocks file found; proceeding without it.")
 
-    # 2. Merge data to form a master schedule
+    # 2. Filter trips by service_id if desired
+    if CALENDAR_SERVICE_IDS:
+        print(f"Filtering trips to service_ids in {CALENDAR_SERVICE_IDS} ...")
+        trips_df = trips_df[trips_df["service_id"].isin(CALENDAR_SERVICE_IDS)]
+
+    # 3. Merge data to form a master schedule
     print("Merging data and converting times to minutes...")
     stop_times_df["arrival_min"] = stop_times_df["arrival_time"].apply(time_to_minutes)
     stop_times_df["departure_min"] = stop_times_df["departure_time"].apply(time_to_minutes)
+
+    # Because we've filtered trips_df, let's also remove stop_times that don't match
+    stop_times_df = stop_times_df[stop_times_df["trip_id"].isin(trips_df["trip_id"])]
 
     merged_df = pd.merge(
         stop_times_df,
@@ -482,9 +535,16 @@ def main():
         how="left",
         suffixes=("_st", "_trip"),
     )
+
+    # Include the "timepoint" column if available in stops.txt
+    if "timepoint" in stops_df.columns:
+        stops_merge_cols = ["stop_id", "stop_name", "timepoint"]
+    else:
+        stops_merge_cols = ["stop_id", "stop_name"]
+
     merged_df = pd.merge(
         merged_df,
-        stops_df[["stop_id", "stop_name"]],
+        stops_df[stops_merge_cols],
         on="stop_id",
         how="left",
     )
@@ -493,7 +553,18 @@ def main():
     print("Marking first and last stops for each trip...")
     merged_df = mark_first_and_last_stops(merged_df)
 
-    # 3. Identify unique blocks
+    # Ensure we have a numeric timepoint column
+    if "timepoint" not in merged_df.columns:
+        merged_df["timepoint"] = 0
+    else:
+        # If it exists but might be boolean or string, ensure it's numeric
+        merged_df["timepoint"] = pd.to_numeric(merged_df["timepoint"], errors="coerce").fillna(0).astype(int)
+
+    # Force first/last stops to timepoint=2 if they were 0
+    merged_df.loc[(merged_df["is_first_stop"]) & (merged_df["timepoint"] == 0), "timepoint"] = 2
+    merged_df.loc[(merged_df["is_last_stop"]) & (merged_df["timepoint"] == 0), "timepoint"] = 2
+
+    # 4. Identify unique blocks
     all_blocks = merged_df["block_id"].dropna().unique()
     print(f"Identified {len(all_blocks)} block(s) to process.")
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -502,13 +573,16 @@ def main():
     max_minutes = DEFAULT_HOURS * 60  # e.g., 1560 for 26 hours
     timeline = range(0, max_minutes, TIME_INTERVAL_MINUTES)
 
-    # For each block, process its timeline into one row per minute
+    # 5. For each block, process its timeline into one row per minute
     for block_id in all_blocks:
         print(f"\nProcessing block {block_id}...")
         block_subset = merged_df[merged_df["block_id"] == block_id].copy()
 
         trip_ids = block_subset["trip_id"].unique()
         print(f"Found {len(trip_ids)} trip(s) in block {block_id}.")
+
+        # Check for overlapping trips
+        check_for_overlapping_trips(block_subset, block_id)
 
         if len(trip_ids) > MAX_TRIPS_PER_BLOCK:
             print(
