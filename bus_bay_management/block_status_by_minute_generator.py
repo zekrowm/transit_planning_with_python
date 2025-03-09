@@ -491,6 +491,44 @@ def check_for_overlapping_trips(block_subset, block_id):
                 print(f"  Trip {t1} from {s1} to {e1} overlaps with Trip {t2} from {s2} to {e2}")
 
 
+def fill_stop_ids_for_dwell_layover_loading(df):
+    """
+    Forward-fill the last known Stop ID (and related columns) if the current row 
+    is DWELL, LAYOVER, or LOADING but has no Stop ID. 
+    We do NOT fill for statuses like TRAVELING BETWEEN STOPS, DEADHEAD, etc.
+    """
+    last_stop_id = None
+    last_stop_name = None
+    last_stop_seq = None
+    last_arr = None
+    last_dep = None
+    last_trip_id = None
+    
+    for idx in df.index:
+        status = df.at[idx, "Status"]
+        stop_id = df.at[idx, "Stop ID"]
+        
+        # If we have a new non-empty Stop ID, remember it
+        if stop_id not in (None, "", float("nan")):
+            last_stop_id = stop_id
+            last_stop_name = df.at[idx, "Stop Name"]
+            last_stop_seq = df.at[idx, "Stop Sequence"]
+            last_arr = df.at[idx, "Arrival Time"]
+            last_dep = df.at[idx, "Departure Time"]
+            last_trip_id = df.at[idx, "Trip ID"]
+        else:
+            # If status is one of the "fillable" statuses, copy from the last known
+            if status in ["DWELL", "LAYOVER", "LOADING"]:
+                df.at[idx, "Stop ID"] = last_stop_id if last_stop_id else ""
+                df.at[idx, "Stop Name"] = last_stop_name if last_stop_name else ""
+                df.at[idx, "Stop Sequence"] = last_stop_seq if last_stop_seq else ""
+                df.at[idx, "Arrival Time"] = last_arr if last_arr else ""
+                df.at[idx, "Departure Time"] = last_dep if last_dep else ""
+                df.at[idx, "Trip ID"] = last_trip_id if last_trip_id else ""
+            # If status is TRAVELING BETWEEN STOPS, DEADHEAD, INACTIVE, etc., do nothing
+    
+    return df
+
 # ------------------------------------------------------------------------------
 # Main Script
 # ------------------------------------------------------------------------------
@@ -594,7 +632,11 @@ def main():
         block_schedule_df = process_block(
             block_subset, block_id, timeline, BUS_STOP_CLUSTERS
         )
-        # The timeline is already in chronological order, but we'll sort to be sure:
+
+        # NEW: Fill Stop ID for DWELL / LAYOVER / LOADING
+        block_schedule_df = fill_stop_ids_for_dwell_layover_loading(block_schedule_df)
+
+        # Sort and save
         block_schedule_df.sort_values("Timestamp", inplace=True)
 
         block_route_ids = block_subset["route_id"].dropna().unique()
