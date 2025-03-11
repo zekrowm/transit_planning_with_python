@@ -17,6 +17,25 @@ Outputs:
 
 Configurations allow filtering routes for targeted analysis, and the script utilizes EPSG:26985 (NAD83 / Maryland) for spatial calculations by default.
 """
+"""
+GTFS Direction Classification Script
+
+This script analyzes General Transit Feed Specification (GTFS) data to classify transit routes according to their geographic direction (Northbound, Southbound, Eastbound, Westbound) or as loops (Clockwise, Counter-Clockwise, or general loops).
+
+Direction classification is based on comparing the start and end points of each route's shape geometry:
+
+- If the start and end points are within a specified threshold distance (default: 200 meters), the shape is considered a loop. The direction of loop shapes is determined by calculating the polygon's signed area to identify clockwise or counter-clockwise orientation.
+- For non-loop shapes, the script evaluates the greater absolute change in latitude versus longitude to assign a cardinal direction (NB, SB, EB, WB).
+
+Inputs:
+    - Standard GTFS files: routes.txt, trips.txt, stop_times.txt, shapes.txt, stops.txt
+
+Outputs:
+    - Excel summary file (Directions_Summary.xlsx) detailing the count of trips per route, direction, and shape.
+    - Individual Excel files per route and direction containing departure times and stop information.
+
+Configurations allow filtering routes for targeted analysis, and the script utilizes EPSG:26985 (NAD83 / Maryland) for spatial calculations by default.
+"""
 import os
 
 import matplotlib.pyplot as plt
@@ -39,9 +58,10 @@ ROUTE_FILTER_OUT = ['9999A', '9999B', '9999C']
 PROJECTED_CRS = 'EPSG:26985'
 LOOP_THRESHOLD = 200
 
-# New toggles
+# Toggles
 EXPORT_XLSX = True
 EXPORT_JPEG = True
+
 # --------------------------------------------------------------------------------
 
 
@@ -85,6 +105,8 @@ def classify_direction(
     else:
         lat_diff = end_lat - start_lat
         lon_diff = end_lon - start_lon
+        # NB if net distance is primarily north, SB if net distance is primarily south,
+        # EB if primarily east, WB if primarily west.
         return (
             "NB" if abs(lat_diff) > abs(lon_diff) and lat_diff > 0
             else "SB" if abs(lat_diff) > abs(lon_diff)
@@ -122,7 +144,6 @@ def plot_route_shape(gdf_shape, route, direction, output_path):
     ax.plot(end_lon, end_lat, 'ro', label="End")
 
     # Add a text label for orientation: "N" arrow in top-left corner
-    # This is a simplistic approach: we place the arrow text in axes coords
     ax.text(
         0.05, 0.95, 'N',
         transform=ax.transAxes,
@@ -130,11 +151,11 @@ def plot_route_shape(gdf_shape, route, direction, output_path):
         fontweight='bold',
         va='top',
         ha='center',
-        rotation=0  # You can rotate to point up if needed, e.g. 90
+        rotation=0
     )
-    # Optional: draw a small arrow or caret above the "N" text
     ax.annotate(
-        '', xy=(0.05, 0.94), xytext=(0.05, 0.90),
+        '',
+        xy=(0.05, 0.94), xytext=(0.05, 0.90),
         xycoords='axes fraction',
         arrowprops=dict(facecolor='black', width=1, headwidth=6),
     )
@@ -182,6 +203,7 @@ def main():
         on='route_id'
     )
 
+    # Create lines from shapes
     shapes_grouped = shapes.sort_values(
         ['shape_id', 'shape_pt_sequence']
     ).groupby('shape_id')
@@ -198,6 +220,7 @@ def main():
     )
     gdf_shapes_proj = gdf_shapes.to_crs(PROJECTED_CRS)
 
+    # Classify each shape's direction
     directions = []
     for i, row in gdf_shapes.iterrows():
         shape_id = row['shape_id']
@@ -272,9 +295,11 @@ def main():
 
     # Mark shape as 'dominant' for merging
     dominant_shapes['is_dominant'] = True
-    final_data = final_data.merge(dominant_shapes[['route_short_name', 'direction_id', 'shape_id','is_dominant']],
-                                  on=['route_short_name', 'direction_id', 'shape_id'],
-                                  how='left')
+    final_data = final_data.merge(
+        dominant_shapes[['route_short_name', 'direction_id', 'shape_id','is_dominant']],
+        on=['route_short_name', 'direction_id', 'shape_id'],
+        how='left'
+    )
 
     # Summaries
     summary = (
@@ -316,9 +341,7 @@ def main():
     # -------------------------------------------------------------------------
     if EXPORT_JPEG:
         # Create a subset GeoDataFrame of dominant shapes only
-        dominant_gdf = gdf_shapes.merge(dominant_shapes,
-                                        on='shape_id',
-                                        how='inner')
+        dominant_gdf = gdf_shapes.merge(dominant_shapes, on='shape_id', how='inner')
 
         # For each route + direction, export the shape plot
         for _, row in dominant_shapes.iterrows():
@@ -340,6 +363,64 @@ def main():
                 direction=direction,
                 output_path=output_path
             )
+
+    # -------------------------------------------------------------------------
+    # Flag suspicious data based on shape_direction vs direction_id
+    # -------------------------------------------------------------------------
+    # Basic examples of "suspicious" cases:
+    # 1) A route has multiple direction_ids but only one unique shape_direction
+    # 2) Within the same (route_short_name, direction_id), multiple cardinal directions appear
+    #
+    # You can extend this logic as needed.
+    # -------------------------------------------------------------------------
+    summary_simplified = summary[[
+        'route_short_name',
+        'direction_id',
+        'shape_direction'
+    ]].drop_duplicates()
+
+    # Collect flags in a list of dicts for easy assembly into a dataframe
+    flags = []
+
+    # 1) For each route, check how many direction_ids and shape_directions exist
+    route_groups = summary_simplified.groupby('route_short_name')
+    for route_name, grp in route_groups:
+        unique_dirs = grp['direction_id'].unique()
+        unique_shape_dirs = grp['shape_direction'].unique()
+
+        # If route has multiple direction_ids but only one shape_direction, it's suspicious
+        if len(unique_dirs) > 1 and len(unique_shape_dirs) == 1:
+            flags.append({
+                'route_short_name': route_name,
+                'direction_id': list(unique_dirs),
+                'problem': f"Multiple direction_ids {list(unique_dirs)} but only one shape_direction '{unique_shape_dirs[0]}'"
+            })
+
+    # 2) Check if a single (route_short_name, direction_id) group has multiple cardinal directions
+    #    (i.e. NB/EB, NB/WB, EB/SB, etc.). Loops (CW/CCW/LOOP) you might treat differently.
+    #    We'll define a small helper to see if there is more than one cardinal direction.
+    def is_cardinal_direction(d):
+        return d in ("NB", "SB", "EB", "WB")
+
+    rd_group = summary_simplified.groupby(['route_short_name', 'direction_id'])
+    for (rname, did), subgrp in rd_group:
+        cardinal_dirs = [d for d in subgrp['shape_direction'] if is_cardinal_direction(d)]
+        if len(set(cardinal_dirs)) > 1:
+            flags.append({
+                'route_short_name': rname,
+                'direction_id': did,
+                'problem': f"Conflicting cardinal directions {list(set(cardinal_dirs))}"
+            })
+
+    # Create a flagged dataframe for inspection
+    flagged_df = pd.DataFrame(flags)
+
+    if not flagged_df.empty:
+        flagged_df_path = os.path.join(OUTPUT_FOLDER, "Suspicious_RouteDirections.xlsx")
+        flagged_df.to_excel(flagged_df_path, index=False)
+        print(f"[INFO] Suspicious combinations flagged. See {flagged_df_path}.")
+    else:
+        print("[INFO] No suspicious route/direction combos found.")
 
     print("Script execution completed.")
 
