@@ -1,8 +1,8 @@
 """
 GTFS Block Timeline Generator
 
-This script processes General Transit Feed Specification (GTFS) data to create 
-minute-by-minute block-level spreadsheets (one file per block). It is designed 
+This script processes General Transit Feed Specification (GTFS) data to create
+minute-by-minute block-level spreadsheets (one file per block). It is designed
 as “Step 1” in a multi-step pipeline, but you can also run it independently.
 """
 
@@ -32,8 +32,8 @@ MAX_TRIPS_PER_BLOCK = 150
 # Only include trips whose service_id is in this list (if not empty)
 CALENDAR_SERVICE_IDS = [3]
 
-# For Step 1, cluster definitions can help decide whether bridging between two 
-# trip segments is "LAYOVER" vs. "DEADHEAD". If you don't want cluster logic, 
+# For Step 1, cluster definitions can help decide whether bridging between two
+# trip segments is "LAYOVER" vs. "DEADHEAD". If you don't want cluster logic,
 # you can simplify or remove CLUSTER_DEFINITIONS entirely.
 CLUSTER_DEFINITIONS = {
     "Metro": {
@@ -69,7 +69,7 @@ BUS_STOP_CLUSTERS_STEP1 = [
 
 def validate_folders(input_path, output_path):
     """
-    Check that the input folder exists, and ensure the output folder 
+    Check that the input folder exists, and ensure the output folder
     is created if it does not already exist.
     """
     if not os.path.isdir(input_path):
