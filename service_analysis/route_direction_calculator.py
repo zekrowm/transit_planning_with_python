@@ -17,7 +17,6 @@ Outputs:
 
 Configurations allow filtering routes for targeted analysis, and the script utilizes EPSG:26985 (NAD83 / Maryland) for spatial calculations by default.
 """
-
 import os
 
 import matplotlib.pyplot as plt
@@ -25,13 +24,11 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import LineString
 
+# --------------------------------------------------------------------------------
 # Configuration
-GTFS_FOLDER = (
-    r"/path/to/your/gtfs_folder"
-)
-OUTPUT_FOLDER = (
-    r"/path/to/your/output_folder"
-)
+# --------------------------------------------------------------------------------
+GTFS_FOLDER = r"/path/to/your/gtfs_folder"
+OUTPUT_FOLDER = r"/path/to/your/output_folder"
 
 # Optional: Include only these route_short_name values
 ROUTE_FILTER_IN = []
@@ -41,6 +38,11 @@ ROUTE_FILTER_OUT = ['9999A', '9999B', '9999C']
 # NAD83 / Maryland (meters)
 PROJECTED_CRS = 'EPSG:26985'
 LOOP_THRESHOLD = 200
+
+# New toggles
+EXPORT_XLSX = True
+EXPORT_JPEG = True
+# --------------------------------------------------------------------------------
 
 
 def classify_direction(
@@ -89,6 +91,61 @@ def classify_direction(
             else "EB" if lon_diff > 0
             else "WB"
         )
+
+
+def plot_route_shape(gdf_shape, route, direction, output_path):
+    """
+    Plot the given shape geometry and save as a .jpeg.
+
+    Highlights the start and end of the route shape, and includes a simple
+    'N' arrow for orientation in the top-left corner of the map.
+    """
+
+    # Convert to a GeoDataFrame (if just a single row, wrap it in a list)
+    if not isinstance(gdf_shape, gpd.GeoDataFrame):
+        gdf_shape = gpd.GeoDataFrame([gdf_shape], columns=gdf_shape.index, crs="EPSG:4326")
+
+    # Ensure we're using a 4326 (lat/lon) CRS for plotting
+    gdf_shape_4326 = gdf_shape.to_crs(epsg=4326)
+
+    # Extract start and end from the geometry
+    shape_line = gdf_shape_4326.iloc[0].geometry
+    start_lon, start_lat = shape_line.coords[0]
+    end_lon, end_lat = shape_line.coords[-1]
+
+    # Create a Matplotlib figure
+    fig, ax = plt.subplots(figsize=(6, 6))
+    gdf_shape_4326.plot(ax=ax, color='blue', linewidth=2, alpha=0.8)
+
+    # Plot start (green) and end (red) points
+    ax.plot(start_lon, start_lat, 'go', label="Start")
+    ax.plot(end_lon, end_lat, 'ro', label="End")
+
+    # Add a text label for orientation: "N" arrow in top-left corner
+    # This is a simplistic approach: we place the arrow text in axes coords
+    ax.text(
+        0.05, 0.95, 'N',
+        transform=ax.transAxes,
+        fontsize=14,
+        fontweight='bold',
+        va='top',
+        ha='center',
+        rotation=0  # You can rotate to point up if needed, e.g. 90
+    )
+    # Optional: draw a small arrow or caret above the "N" text
+    ax.annotate(
+        '', xy=(0.05, 0.94), xytext=(0.05, 0.90),
+        xycoords='axes fraction',
+        arrowprops=dict(facecolor='black', width=1, headwidth=6),
+    )
+
+    ax.set_title(f"Route {route}, Direction {direction} - Most Common Shape")
+    ax.legend()
+    plt.axis('equal')
+
+    # Save the figure
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 def main():
@@ -141,22 +198,19 @@ def main():
     )
     gdf_shapes_proj = gdf_shapes.to_crs(PROJECTED_CRS)
 
-    directions = [
-        (
-            row['shape_id'],
-            classify_direction(row['geometry'], gdf_shapes_proj.loc[i, 'geometry'])
-        )
-        for i, row in gdf_shapes.iterrows()
-    ]
+    directions = []
+    for i, row in gdf_shapes.iterrows():
+        shape_id = row['shape_id']
+        geom_4326 = row['geometry']
+        geom_proj = gdf_shapes_proj.loc[i, 'geometry']
+        directions.append((shape_id, classify_direction(geom_4326, geom_proj)))
 
-    trips_merged = trips_merged.merge(
-        pd.DataFrame(directions, columns=['shape_id', 'shape_direction']),
-        on='shape_id'
-    )
+    direction_df = pd.DataFrame(directions, columns=['shape_id', 'shape_direction'])
+
+    trips_merged = trips_merged.merge(direction_df, on='shape_id')
 
     # Identify first and last stops
     stop_times_sorted = stop_times.sort_values(['trip_id', 'stop_sequence'])
-
     first_stops = (
         stop_times_sorted
         .groupby('trip_id')
@@ -216,11 +270,13 @@ def main():
     )
     dominant_shapes = shape_counts.loc[idx_max]
 
-    final_data = final_data.merge(
-        dominant_shapes[['route_short_name', 'direction_id', 'shape_id']],
-        on=['route_short_name', 'direction_id', 'shape_id']
-    )
+    # Mark shape as 'dominant' for merging
+    dominant_shapes['is_dominant'] = True
+    final_data = final_data.merge(dominant_shapes[['route_short_name', 'direction_id', 'shape_id','is_dominant']],
+                                  on=['route_short_name', 'direction_id', 'shape_id'],
+                                  how='left')
 
+    # Summaries
     summary = (
         final_data
         .groupby([
@@ -235,21 +291,55 @@ def main():
         .reset_index(name='trip_count')
     )
 
-    summary.to_excel(
-        os.path.join(OUTPUT_FOLDER, "Directions_Summary.xlsx"),
-        index=False
-    )
-
-    # Export individual route-direction files
-    grouped_fd = final_data.groupby(['route_short_name', 'direction_id'])
-    for (route, direction), group in grouped_fd:
-        group.sort_values('departure_time').to_excel(
-            os.path.join(
-                OUTPUT_FOLDER,
-                f"Route_{route}_Dir_{direction}_departures.xlsx"
-            ),
+    # -------------------------------------------------------------------------
+    # Export to Excel if EXPORT_XLSX is True
+    # -------------------------------------------------------------------------
+    if EXPORT_XLSX:
+        summary.to_excel(
+            os.path.join(OUTPUT_FOLDER, "Directions_Summary.xlsx"),
             index=False
         )
+
+        # Export individual route-direction files
+        grouped_fd = final_data.groupby(['route_short_name', 'direction_id'])
+        for (route, direction), group in grouped_fd:
+            group.sort_values('departure_time').to_excel(
+                os.path.join(
+                    OUTPUT_FOLDER,
+                    f"Route_{route}_Dir_{direction}_departures.xlsx"
+                ),
+                index=False
+            )
+
+    # -------------------------------------------------------------------------
+    # Export JPEGs if EXPORT_JPEG is True (dominant shape per route/direction)
+    # -------------------------------------------------------------------------
+    if EXPORT_JPEG:
+        # Create a subset GeoDataFrame of dominant shapes only
+        dominant_gdf = gdf_shapes.merge(dominant_shapes,
+                                        on='shape_id',
+                                        how='inner')
+
+        # For each route + direction, export the shape plot
+        for _, row in dominant_shapes.iterrows():
+            route = row['route_short_name']
+            direction = row['direction_id']
+            shape_id = row['shape_id']
+
+            # Grab that shape from the GeoDataFrame
+            route_shape_gdf = dominant_gdf[dominant_gdf['shape_id'] == shape_id]
+
+            output_path = os.path.join(
+                OUTPUT_FOLDER,
+                f"Route_{route}_Dir_{direction}_DominantShape.jpeg"
+            )
+
+            plot_route_shape(
+                gdf_shape=route_shape_gdf,
+                route=route,
+                direction=direction,
+                output_path=output_path
+            )
 
     print("Script execution completed.")
 
