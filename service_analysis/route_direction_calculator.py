@@ -62,8 +62,9 @@ LOOP_THRESHOLD = 200
 EXPORT_XLSX = True
 EXPORT_JPEG = True
 
+# NEW CODE: Boolean to analyze only the most common (modal) shape
+ANALYZE_ONLY_DOMINANT_SHAPE = True
 # --------------------------------------------------------------------------------
-
 
 def classify_direction(
     line_4326: LineString,
@@ -105,8 +106,6 @@ def classify_direction(
     else:
         lat_diff = end_lat - start_lat
         lon_diff = end_lon - start_lon
-        # NB if net distance is primarily north, SB if net distance is primarily south,
-        # EB if primarily east, WB if primarily west.
         return (
             "NB" if abs(lat_diff) > abs(lon_diff) and lat_diff > 0
             else "SB" if abs(lat_diff) > abs(lon_diff)
@@ -114,36 +113,27 @@ def classify_direction(
             else "WB"
         )
 
-
 def plot_route_shape(gdf_shape, route, direction, output_path):
     """
     Plot the given shape geometry and save as a .jpeg.
-
     Highlights the start and end of the route shape, and includes a simple
     'N' arrow for orientation in the top-left corner of the map.
     """
 
-    # Convert to a GeoDataFrame (if just a single row, wrap it in a list)
     if not isinstance(gdf_shape, gpd.GeoDataFrame):
         gdf_shape = gpd.GeoDataFrame([gdf_shape], columns=gdf_shape.index, crs="EPSG:4326")
 
-    # Ensure we're using a 4326 (lat/lon) CRS for plotting
     gdf_shape_4326 = gdf_shape.to_crs(epsg=4326)
-
-    # Extract start and end from the geometry
     shape_line = gdf_shape_4326.iloc[0].geometry
     start_lon, start_lat = shape_line.coords[0]
     end_lon, end_lat = shape_line.coords[-1]
 
-    # Create a Matplotlib figure
     fig, ax = plt.subplots(figsize=(6, 6))
     gdf_shape_4326.plot(ax=ax, color='blue', linewidth=2, alpha=0.8)
 
-    # Plot start (green) and end (red) points
     ax.plot(start_lon, start_lat, 'go', label="Start")
     ax.plot(end_lon, end_lat, 'ro', label="End")
 
-    # Add a text label for orientation: "N" arrow in top-left corner
     ax.text(
         0.05, 0.95, 'N',
         transform=ax.transAxes,
@@ -164,15 +154,10 @@ def plot_route_shape(gdf_shape, route, direction, output_path):
     ax.legend()
     plt.axis('equal')
 
-    # Save the figure
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     plt.close()
 
-
 def main():
-    """
-    Main function to classify directions for GTFS data and export the results.
-    """
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     # Read GTFS files
@@ -229,7 +214,6 @@ def main():
         directions.append((shape_id, classify_direction(geom_4326, geom_proj)))
 
     direction_df = pd.DataFrame(directions, columns=['shape_id', 'shape_direction'])
-
     trips_merged = trips_merged.merge(direction_df, on='shape_id')
 
     # Identify first and last stops
@@ -259,15 +243,13 @@ def main():
         trips_merged
         .merge(
             stops[['stop_id', 'stop_name']].rename(
-                columns={'stop_id': 'first_stop_id',
-                         'stop_name': 'first_stop_name'}
+                columns={'stop_id': 'first_stop_id', 'stop_name': 'first_stop_name'}
             ),
             on='first_stop_id'
         )
         .merge(
             stops[['stop_id', 'stop_name']].rename(
-                columns={'stop_id': 'last_stop_id',
-                         'stop_name': 'last_stop_name'}
+                columns={'stop_id': 'last_stop_id', 'stop_name': 'last_stop_name'}
             ),
             on='last_stop_id'
         )
@@ -292,16 +274,19 @@ def main():
         .idxmax()
     )
     dominant_shapes = shape_counts.loc[idx_max]
-
-    # Mark shape as 'dominant' for merging
     dominant_shapes['is_dominant'] = True
+
     final_data = final_data.merge(
         dominant_shapes[['route_short_name', 'direction_id', 'shape_id','is_dominant']],
         on=['route_short_name', 'direction_id', 'shape_id'],
         how='left'
     )
 
-    # Summaries
+    # NEW CODE: If set to True, limit everything to only the dominant (modal) shape.
+    if ANALYZE_ONLY_DOMINANT_SHAPE:
+        final_data = final_data[final_data['is_dominant'] == True]
+
+    # Rebuild the summary based on the final_data, since we may have filtered
     summary = (
         final_data
         .groupby([
@@ -340,17 +325,24 @@ def main():
     # Export JPEGs if EXPORT_JPEG is True (dominant shape per route/direction)
     # -------------------------------------------------------------------------
     if EXPORT_JPEG:
-        # Create a subset GeoDataFrame of dominant shapes only
-        dominant_gdf = gdf_shapes.merge(dominant_shapes, on='shape_id', how='inner')
+        # Merge to get geometry
+        # Because final_data is now possibly filtered by is_dominant,
+        # we should figure out which shape_ids remain.
+        remaining_shape_ids = summary['shape_id'].unique().tolist()
+        # Filter only those shapes that appear in final_data
+        gdf_shapes_dominant = gdf_shapes[gdf_shapes['shape_id'].isin(remaining_shape_ids)]
 
-        # For each route + direction, export the shape plot
-        for _, row in dominant_shapes.iterrows():
+        # We also need the route_short_name and direction_id for labeling
+        # so let's build a small lookup from final_data or summary:
+        shape_info_lookup = summary[['shape_id', 'route_short_name', 'direction_id']].drop_duplicates()
+
+        # For each shape, plot the geometry
+        for shape_id in remaining_shape_ids:
+            row = shape_info_lookup[shape_info_lookup['shape_id'] == shape_id].iloc[0]
             route = row['route_short_name']
             direction = row['direction_id']
-            shape_id = row['shape_id']
 
-            # Grab that shape from the GeoDataFrame
-            route_shape_gdf = dominant_gdf[dominant_gdf['shape_id'] == shape_id]
+            route_shape_gdf = gdf_shapes_dominant[gdf_shapes_dominant['shape_id'] == shape_id]
 
             output_path = os.path.join(
                 OUTPUT_FOLDER,
@@ -367,19 +359,12 @@ def main():
     # -------------------------------------------------------------------------
     # Flag suspicious data based on shape_direction vs direction_id
     # -------------------------------------------------------------------------
-    # Basic examples of "suspicious" cases:
-    # 1) A route has multiple direction_ids but only one unique shape_direction
-    # 2) Within the same (route_short_name, direction_id), multiple cardinal directions appear
-    #
-    # You can extend this logic as needed.
-    # -------------------------------------------------------------------------
     summary_simplified = summary[[
         'route_short_name',
         'direction_id',
         'shape_direction'
     ]].drop_duplicates()
 
-    # Collect flags in a list of dicts for easy assembly into a dataframe
     flags = []
 
     # 1) For each route, check how many direction_ids and shape_directions exist
@@ -388,7 +373,6 @@ def main():
         unique_dirs = grp['direction_id'].unique()
         unique_shape_dirs = grp['shape_direction'].unique()
 
-        # If route has multiple direction_ids but only one shape_direction, it's suspicious
         if len(unique_dirs) > 1 and len(unique_shape_dirs) == 1:
             flags.append({
                 'route_short_name': route_name,
@@ -396,9 +380,7 @@ def main():
                 'problem': f"Multiple direction_ids {list(unique_dirs)} but only one shape_direction '{unique_shape_dirs[0]}'"
             })
 
-    # 2) Check if a single (route_short_name, direction_id) group has multiple cardinal directions
-    #    (i.e. NB/EB, NB/WB, EB/SB, etc.). Loops (CW/CCW/LOOP) you might treat differently.
-    #    We'll define a small helper to see if there is more than one cardinal direction.
+    # 2) Within the same (route_short_name, direction_id), multiple cardinal directions
     def is_cardinal_direction(d):
         return d in ("NB", "SB", "EB", "WB")
 
@@ -412,7 +394,6 @@ def main():
                 'problem': f"Conflicting cardinal directions {list(set(cardinal_dirs))}"
             })
 
-    # Create a flagged dataframe for inspection
     flagged_df = pd.DataFrame(flags)
 
     if not flagged_df.empty:
@@ -423,7 +404,6 @@ def main():
         print("[INFO] No suspicious route/direction combos found.")
 
     print("Script execution completed.")
-
 
 if __name__ == '__main__':
     main()
