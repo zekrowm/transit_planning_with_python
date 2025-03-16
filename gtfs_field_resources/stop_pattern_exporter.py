@@ -60,7 +60,7 @@ def is_number(value):
 
 def convert_dist_to_miles(distance, input_unit):
     """
-    Convert distance to miles if CONVERT_TO_MILES is True. 
+    Convert distance to miles if CONVERT_TO_MILES is True.
     Otherwise, return the original distance.
     """
     if not CONVERT_TO_MILES or pd.isna(distance):
@@ -182,7 +182,7 @@ def add_stop_names(merged_stop_times, stops_df):
 
 def compute_original_distances(stop_times_w_names):
     """
-    For each trip, compute the original full-trip distance (if needed) 
+    For each trip, compute the original full-trip distance (if needed)
     for distance validation. Returns a dict {trip_id: distance_in_miles_or_none}.
     """
     original_trip_distances = {}
@@ -205,7 +205,7 @@ def compute_original_distances(stop_times_w_names):
 
 def build_trip_pattern(trip_id, group):
     """
-    Build the ordered list of stops (timepoint-only if configured) 
+    Build the ordered list of stops (timepoint-only if configured)
     with distance differences between consecutive stops.
     """
     if EXPORT_TIMEPOINTS_ONLY:
@@ -240,7 +240,7 @@ def build_trip_pattern(trip_id, group):
 
 def validate_timepoint_distance(trip_id, stops_list, original_trip_distances):
     """
-    If configured, check that the sum of timepoint segment distances 
+    If configured, check that the sum of timepoint segment distances
     is close to the original full-trip distance.
     """
     orig_dist = original_trip_distances.get(trip_id, None)
