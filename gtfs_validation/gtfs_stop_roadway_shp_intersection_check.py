@@ -168,6 +168,9 @@ def save_csv(gdf, output_dir, csv_name):
 
 
 def main():
+    """
+    Main entry point for running the GTFS stop–roadway shapefile intersection checks.
+    """
     # Create output directory if it doesn't exist
     create_output_directory(OUTPUT_DIR)
 
@@ -192,7 +195,9 @@ def main():
     intersecting_stops = add_xy_columns(intersecting_stops)
 
     # Determine depth of conflict
-    intersecting_stops = determine_conflict_depth(intersecting_stops, roadways_gdf, BUFFER_DISTANCES)
+    intersecting_stops = determine_conflict_depth(
+        intersecting_stops, roadways_gdf, BUFFER_DISTANCES
+    )
 
     # Sort by conflict depth
     intersecting_stops = sort_stops_by_conflict_depth(intersecting_stops, BUFFER_DISTANCES)
