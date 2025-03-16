@@ -1,16 +1,18 @@
 """
 Ridership by Route and Stop Processor
 
-This script processes ridership data from an input Excel file by filtering specific routes and stop IDs,
-aggregating the data for defined time periods, and exporting the results to a new Excel file with multiple
-formatted sheets. It supports two main "formatting" controls:
+This script processes ridership data from an input Excel file by filtering specific routes
+and stop IDs, aggregating the data for defined time periods, and exporting the results to
+a new Excel file with multiple formatted sheets.
+
+It supports two main "formatting" controls:
 
 1. APPLY_ROUNDING = True/False
     - Whether we round BOARD_ALL and ALIGHT_ALL to 1 decimal place in the "Original" tab
     - If AGGREGATE_BIN_RANGES is False, also round the aggregated totals to 1 decimal place
 2. AGGREGATE_BIN_RANGES = True/False
-    - Whether we convert the aggregated totals (BOARD_ALL_TOTAL, ALIGHT_ALL_TOTAL)
-      into text ranges ("0-4.9", "5-24.9", "25 or more") in each aggregated sheet
+    - Whether we convert the aggregated totals (BOARD_ALL_TOTAL, ALIGHT_ALL_TOTAL) into
+      text ranges ("0-4.9", "5-24.9", "25 or more") in each aggregated sheet
 """
 
 import os
@@ -23,17 +25,24 @@ from openpyxl.styles import Font
 # Configuration Section
 # ==========================
 
-INPUT_FILE_PATH = r'\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX'
+INPUT_FILE_PATH = (
+    r'\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX'
+)
 OUTPUT_FILE_SUFFIX = '_processed'
 OUTPUT_FILE_EXTENSION = '.xlsx'
 
 # ROUTES, STOP_IDS, and TIME_PERIODS can be left empty
 # If empty, the script will skip filtering or time-period breakdown for these lists.
 ROUTES = []  # e.g. [] means skip route filter
-STOP_IDS = [
-    1067, 1069, 2122, 2174, 3208, 3220
-]  # e.g. [] means skip stop filter
-TIME_PERIODS = ['AM EARLY', 'AM PEAK', 'MIDDAY', 'PM PEAK', 'PM LATE', 'PM NITE']  # e.g. [] means skip time-period breakdown
+STOP_IDS = [1001, 2002, 3003]  # e.g. [] means skip stop filter
+TIME_PERIODS = [
+    'AM EARLY',
+    'AM PEAK',
+    'MIDDAY',
+    'PM PEAK',
+    'PM LATE',
+    'PM NITE'
+]  # e.g. [] means skip time-period breakdown
 
 # If True, ridership columns in the "Original" data are rounded to 1 decimal place.
 # Also, if AGGREGATE_BIN_RANGES = False, aggregated totals get rounded instead of binned.
@@ -42,10 +51,23 @@ APPLY_ROUNDING = True
 # If True, aggregated totals (BOARD_ALL_TOTAL, ALIGHT_ALL_TOTAL) are converted to
 # "0-4.9", "5-24.9", or "25 or more". If False, they remain numeric and
 # get rounded to 1 decimal place only if APPLY_ROUNDING = True.
-AGGREGATE_BIN_RANGES = True
+AGGREGATE_BIN_RANGES = False
 
-REQUIRED_COLUMNS = ['TIME_PERIOD', 'ROUTE_NAME', 'STOP', 'STOP_ID', 'BOARD_ALL', 'ALIGHT_ALL']
-COLUMNS_TO_RETAIN = ['ROUTE_NAME', 'STOP', 'STOP_ID', 'BOARD_ALL', 'ALIGHT_ALL']
+REQUIRED_COLUMNS = [
+    'TIME_PERIOD',
+    'ROUTE_NAME',
+    'STOP',
+    'STOP_ID',
+    'BOARD_ALL',
+    'ALIGHT_ALL'
+]
+COLUMNS_TO_RETAIN = [
+    'ROUTE_NAME',
+    'STOP',
+    'STOP_ID',
+    'BOARD_ALL',
+    'ALIGHT_ALL'
+]
 
 # ==========================
 # End of Configuration
@@ -58,10 +80,9 @@ def bin_ridership_value(value):
     """
     if value < 5:
         return "0-4.9"
-    elif value < 25:
+    if value < 25:
         return "5-24.9"
-    else:
-        return "25 or more"
+    return "25 or more"  # Removed unnecessary `elif` and final `else` per no-else-return.
 
 
 def aggregate_by_stop(data_subset):
@@ -73,11 +94,14 @@ def aggregate_by_stop(data_subset):
         'ALIGHT_ALL': 'sum',
         'ROUTE_NAME': lambda x: ', '.join(sorted(x.unique()))
     })
-    aggregated.rename(columns={
-        'BOARD_ALL': 'BOARD_ALL_TOTAL',
-        'ALIGHT_ALL': 'ALIGHT_ALL_TOTAL',
-        'ROUTE_NAME': 'ROUTES'
-    }, inplace=True)
+    aggregated.rename(
+        columns={
+            'BOARD_ALL': 'BOARD_ALL_TOTAL',
+            'ALIGHT_ALL': 'ALIGHT_ALL_TOTAL',
+            'ROUTE_NAME': 'ROUTES'
+        },
+        inplace=True
+    )
     return aggregated
 
 
@@ -90,7 +114,7 @@ def read_excel_file(input_file):
     except FileNotFoundError:
         print(f"Error: The file '{input_file}' does not exist.")
         sys.exit(1)
-    except pd.errors.ExcelFileError as error:
+    except ValueError as error:  # Replaced pd.errors.ExcelFileError with ValueError
         print(f"Error reading the Excel file: {error}")
         sys.exit(1)
 
@@ -122,7 +146,8 @@ def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggreg
     Save processed ridership data to an Excel file with multiple sheets.
     """
     try:
-        with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+        # Remove 'engine="openpyxl"' to avoid abstract-class-instantiated warnings
+        with pd.ExcelWriter(output_file) as writer:
             filtered_data.to_excel(writer, sheet_name='Original', index=False)
 
             # Write each time period's aggregated data
@@ -136,7 +161,7 @@ def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggreg
 
         adjust_excel_formatting(output_file)
         print(f"Success: The processed file has been saved as '{output_file}'.")
-    except Exception as error:
+    except (OSError, PermissionError) as error:
         print(f"Error writing the processed Excel file: {error}")
         sys.exit(1)
 
@@ -161,42 +186,25 @@ def adjust_excel_formatting(output_file):
                     max_length = max(max_length, len(cell_val))
                 sheet.column_dimensions[col_letter].width = max_length + 2
         workbook.save(output_file)
-    except Exception as error:
+    except (OSError, PermissionError) as error:
         print(f"Error adjusting Excel formatting: {error}")
         sys.exit(1)
 
 
-def main():
+def process_aggregations(filtered_data):
     """
-    Process ridership data: read, filter, aggregate, apply formatting, and save to Excel.
+    Handle rounding/bins for original and aggregated data. Returns the
+    final versions of the filtered data, the aggregated peaks, and the
+    all-time aggregated DataFrame.
     """
-    input_file = INPUT_FILE_PATH
-    base, ext = os.path.splitext(input_file)
-    ext = ext.lower()
-    if ext != OUTPUT_FILE_EXTENSION:
-        print(f"Warning: The input file has extension '{ext}'. Using '{OUTPUT_FILE_EXTENSION}' for output.")
-        ext = OUTPUT_FILE_EXTENSION
-    output_file = f"{base}{OUTPUT_FILE_SUFFIX}{ext}"
 
-    # Read and verify the Excel data
-    ridership_df = read_excel_file(input_file)
-    verify_required_columns(ridership_df, REQUIRED_COLUMNS)
-
-    # Apply optional filters
-    filtered_data = filter_data(ridership_df, ROUTES, STOP_IDS)
-
-    # Standardize 'TIME_PERIOD' values
-    filtered_data['TIME_PERIOD'] = filtered_data['TIME_PERIOD'].astype(str).str.strip().str.upper()
-
-    # Only build time-period sheets if TIME_PERIODS is non-empty
+    # Build time-period subsets if TIME_PERIODS is non-empty
     peak_data_dict = {}
     if TIME_PERIODS:
         for period in TIME_PERIODS:
             period_upper = period.upper()
             subset = filtered_data[filtered_data['TIME_PERIOD'] == period_upper]
             peak_data_dict[period] = subset[COLUMNS_TO_RETAIN]
-    else:
-        peak_data_dict = {}
 
     # Aggregate data for all rows (regardless of time period)
     all_time_aggregated = aggregate_by_stop(filtered_data)
@@ -214,27 +222,55 @@ def main():
                 filtered_data[col] = filtered_data[col].round(1)
 
     # 2) Format aggregated columns
-    for df_agg in [all_time_aggregated] + list(aggregated_peaks.values()):
-
-        # If we want to bin the aggregated columns into categories:
+    all_dfs = [all_time_aggregated] + list(aggregated_peaks.values())
+    for df_agg in all_dfs:
         if AGGREGATE_BIN_RANGES:
             # Convert numeric aggregated totals into bins
             for col in ['BOARD_ALL_TOTAL', 'ALIGHT_ALL_TOTAL']:
                 if col in df_agg.columns:
                     df_agg[col] = df_agg[col].apply(bin_ridership_value)
-
         else:
             # If not binning, but rounding is desired, do decimal rounding
             if APPLY_ROUNDING:
                 for col in ['BOARD_ALL_TOTAL', 'ALIGHT_ALL_TOTAL']:
                     if col in df_agg.columns:
                         df_agg[col] = df_agg[col].round(1)
-            else:
-                # If neither binning nor rounding, do nothing to aggregated columns
-                pass
+
+    return filtered_data, aggregated_peaks, all_time_aggregated
+
+
+def main():
+    """
+    Process ridership data: read, filter, aggregate, apply formatting, and save to Excel.
+    """
+    input_file = INPUT_FILE_PATH
+    base, ext = os.path.splitext(input_file)
+    ext = ext.lower()
+    if ext != OUTPUT_FILE_EXTENSION:
+        print(f"Warning: The input file has extension '{ext}'. "
+              f"Using '{OUTPUT_FILE_EXTENSION}' for output.")
+        ext = OUTPUT_FILE_EXTENSION
+    output_file = f"{base}{OUTPUT_FILE_SUFFIX}{ext}"
+
+    # Read and verify the Excel data
+    ridership_df = read_excel_file(input_file)
+    verify_required_columns(ridership_df, REQUIRED_COLUMNS)
+
+    # Apply optional filters
+    filtered_data = filter_data(ridership_df, ROUTES, STOP_IDS)
+
+    # Standardize 'TIME_PERIOD' values
+    filtered_data['TIME_PERIOD'] = (
+        filtered_data['TIME_PERIOD'].astype(str).str.strip().str.upper()
+    )
+
+    # Process and retrieve final aggregated data
+    final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(
+        filtered_data
+    )
 
     # Write the data to Excel
-    write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggregated)
+    write_to_excel(output_file, final_filtered, aggregated_peaks, all_time_aggregated)
 
 
 if __name__ == "__main__":
