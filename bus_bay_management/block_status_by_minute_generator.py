@@ -8,7 +8,7 @@ as "Step 1" in a multi-step pipeline, but you can also run it independently.
 CHANGE NOTE:
   - The optional filter logic has been revised so that an entire block is kept
     if it has at least one row matching the filter criteria. All rows for that
-    block are retained. 
+    block are retained.
 """
 
 import os
@@ -36,7 +36,7 @@ MAX_TRIPS_PER_BLOCK = 150
 CALENDAR_SERVICE_IDS = [3]
 
 # ------------------------------------------------------------------------------
-# Optional filter lists. 
+# Optional filter lists.
 # If any of these lists are non-empty, we only keep blocks (in their entirety)
 # for which the block has at least one row matching the filter criteria.
 # ------------------------------------------------------------------------------
@@ -619,9 +619,9 @@ def run_step1_gtfs_to_blocks():
         # We assume standard GTFS with 'route_id' and 'route_short_name'
         # Merge route_short_name into trips_df
         trips_df = pd.merge(
-            trips_df, 
-            routes_df[["route_id", "route_short_name"]], 
-            on="route_id", 
+            trips_df,
+            routes_df[["route_id", "route_short_name"]],
+            on="route_id",
             how="left"
         )
     else:
