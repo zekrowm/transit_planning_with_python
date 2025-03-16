@@ -17,25 +17,6 @@ Outputs:
 
 Configurations allow filtering routes for targeted analysis, and the script utilizes EPSG:26985 (NAD83 / Maryland) for spatial calculations by default.
 """
-"""
-GTFS Direction Classification Script
-
-This script analyzes General Transit Feed Specification (GTFS) data to classify transit routes according to their geographic direction (Northbound, Southbound, Eastbound, Westbound) or as loops (Clockwise, Counter-Clockwise, or general loops).
-
-Direction classification is based on comparing the start and end points of each route's shape geometry:
-
-- If the start and end points are within a specified threshold distance (default: 200 meters), the shape is considered a loop. The direction of loop shapes is determined by calculating the polygon's signed area to identify clockwise or counter-clockwise orientation.
-- For non-loop shapes, the script evaluates the greater absolute change in latitude versus longitude to assign a cardinal direction (NB, SB, EB, WB).
-
-Inputs:
-    - Standard GTFS files: routes.txt, trips.txt, stop_times.txt, shapes.txt, stops.txt
-
-Outputs:
-    - Excel summary file (Directions_Summary.xlsx) detailing the count of trips per route, direction, and shape.
-    - Individual Excel files per route and direction containing departure times and stop information.
-
-Configurations allow filtering routes for targeted analysis, and the script utilizes EPSG:26985 (NAD83 / Maryland) for spatial calculations by default.
-"""
 import os
 
 import matplotlib.pyplot as plt
