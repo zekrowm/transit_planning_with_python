@@ -16,7 +16,6 @@ transit_planning_with_python/
 │   └── noaa_weather_processor.py
 ├── gtfs_field_resources/
 │   ├── bus_block_stop_exporter.py
-│   ├── bus_block_timeline_exporter.py
 │   ├── bus_schedule_exporter.py
 │   ├── gtfs_bus_arrivals_checklist_printable.py
 │   ├── site_visit_route_planner.py
@@ -34,8 +33,8 @@ transit_planning_with_python/
 │   ├── segment_runtime_processor.py
 │   └── trip_otp_processor.py
 ├── ridership_tools/
+│   ├── arcpy_stops_ridership_joiner.py
 │   ├── data_request_by_stop_processor.py
-│   ├── gis_stops_ridership_joiner.py
 │   ├── historical_ntd_data_processor.py
 │   ├── load_factor_violation_checker.py
 │   ├── ridership_per_stop_processor.py
@@ -45,7 +44,8 @@ transit_planning_with_python/
 │   ├── gtfs_headway_span_trips_calculator.py
 │   ├── gtfs_nearby_routes_finder.py
 │   ├── gtfs_service_change_tracker.py
-│   └── gtfs_trip_counts_reporter.py
+│   ├── gtfs_service_change_tracker.py
+│   └── route_direction_calculator.py
 ├── service_population_tools/
 │   ├── census_processing_csv_shp.py
 │   └── gtfs_demog_calculator.py
