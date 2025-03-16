@@ -104,7 +104,7 @@ def export_to_excel(data_frame, output_file):
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     # Pylint warns about abstract-class-instantiated for ExcelWriter.
-    # Typically, pd.ExcelWriter with 'openpyxl' is fine for most uses. 
+    # Typically, pd.ExcelWriter with 'openpyxl' is fine for most uses.
     # If you prefer, you can suppress the warning or switch to a specific writer.
     # pylint: disable=abstract-class-instantiated
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
