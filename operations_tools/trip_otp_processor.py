@@ -226,6 +226,12 @@ def export_individual_files(agg_df: pd.DataFrame, group_by_direction: bool, outp
 # Main Execution
 # -----------------------------------------------------------------------------
 def main():
+    """
+    Orchestrates the end-to-end processing of runtime and OTP data.
+    This function consolidates all necessary steps for data filtering,
+    processing, and output generation. Adjust the configuration section
+    at the top of the script to modify behavior.
+    """
     # 1. Read the CSV
     df = pd.read_csv(INPUT_FILE)
 
