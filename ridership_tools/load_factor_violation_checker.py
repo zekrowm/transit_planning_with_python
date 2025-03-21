@@ -42,28 +42,23 @@ def load_data(input_file: str) -> pd.DataFrame:
     return data_frame[selected_columns]
 
 
-def assign_service_period(trip_start_time: str) -> str:
-    """
-    Assign a service period based on TRIP_START_TIME.
-
-    Returns:
-        A string representing the service period.
-    """
-    if '04:00' <= trip_start_time < '06:00':
-        service_period = 'AM Early'
-    elif '06:00' <= trip_start_time < '09:00':
-        service_period = 'AM Peak'
-    elif '09:00' <= trip_start_time < '15:00':
-        service_period = 'Midday'
-    elif '15:00' <= trip_start_time < '18:00':
-        service_period = 'PM Peak'
-    elif '18:00' <= trip_start_time < '21:00':
-        service_period = 'PM Late'
-    elif '21:00' <= trip_start_time < '24:00':
-        service_period = 'PM Nite'
+def assign_service_period(ts):
+    """ts is assumed to be a datetime or time object."""
+    hour = ts.hour
+    if 4 <= hour < 6:
+        return 'AM Early'
+    elif 6 <= hour < 9:
+        return 'AM Peak'
+    elif 9 <= hour < 15:
+        return 'Midday'
+    elif 15 <= hour < 18:
+        return 'PM Peak'
+    elif 18 <= hour < 21:
+        return 'PM Late'
+    elif 21 <= hour < 24:
+        return 'PM Nite'
     else:
-        service_period = 'Other'
-    return service_period
+        return 'Other'
 
 
 def get_route_load_limit(route_name: str) -> float:
