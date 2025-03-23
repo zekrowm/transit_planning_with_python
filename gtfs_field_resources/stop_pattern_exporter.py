@@ -152,8 +152,8 @@ def load_gtfs_files(input_dir):
 def filter_trips(trips_df, routes_df, cal_ids):
     # Merge to get route_short_name
     merged = pd.merge(
-        trips_df, 
-        routes_df[['route_id','route_short_name']], 
+        trips_df,
+        routes_df[['route_id','route_short_name']],
         on='route_id', how='left'
     )
     # Filter in
@@ -461,9 +461,9 @@ def fill_worksheet_for_direction(
         ws.column_dimensions[col_letter].width = 30
 
 def export_patterns_to_excel(
-    pattern_records, 
-    routes_df, 
-    stop_times_df, 
+    pattern_records,
+    routes_df,
+    stop_times_df,
     stops_df,
     calendar_df=None
 ):
@@ -574,7 +574,7 @@ def main():
 
     # 4) Filter trips if desired
     filtered_trips = filter_trips(
-        trips_df, 
+        trips_df,
         routes_df,
         cal_ids=FILTER_IN_CALENDAR_IDS
     )
@@ -598,9 +598,9 @@ def main():
 
     # 7) Export patterns to Excel (with subfolders for each service_id)
     export_patterns_to_excel(
-        pattern_records, 
-        routes_df, 
-        stop_times_df, 
+        pattern_records,
+        routes_df,
+        stop_times_df,
         stops_df,
         calendar_df=calendar_df
     )
