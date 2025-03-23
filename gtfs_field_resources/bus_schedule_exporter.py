@@ -1,8 +1,8 @@
 """
 GTFS Schedule Exporter Module.
 
-Processes GTFS (General Transit Feed Specification) files to generate clearly formatted 
-Excel schedules per route and direction, grouped by service ID. Allows filtering of routes 
+Processes GTFS (General Transit Feed Specification) files to generate clearly formatted
+Excel schedules per route and direction, grouped by service ID. Allows filtering of routes
 and service IDs through configurable lists, improving flexibility for targeted analysis.
 
 Key Features:
