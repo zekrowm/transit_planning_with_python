@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 """
 Module for identifying and analyzing GTFS routes in proximity to specified manual locations.
 """
