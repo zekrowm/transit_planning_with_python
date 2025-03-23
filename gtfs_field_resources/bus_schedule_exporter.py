@@ -1,31 +1,19 @@
 """
-GTFS Schedule Processor
-=======================
+GTFS Schedule Exporter Module.
 
-This script processes General Transit Feed Specification (GTFS) data to generate
-Excel schedules for transit routes. It reads GTFS files (routes, trips, stops,
-stop times, and calendar), and creates structured Excel reports resembling
-public transit timetables.
+Processes GTFS (General Transit Feed Specification) files to generate clearly formatted 
+Excel schedules per route and direction, grouped by service ID. Allows filtering of routes 
+and service IDs through configurable lists, improving flexibility for targeted analysis.
 
-Key Features
-------------
-- Filters transit routes using configurable inclusion (`FILTER_IN_ROUTES`) and
-  exclusion (`FILTER_OUT_ROUTES`) lists.
-- Generates separate Excel sheets by route direction and schedule type
-  (e.g., Weekday, Weekend, Daily).
-- Formats schedule times in either 12-hour or 24-hour mode.
-- Uses a "forward-only" matching algorithm to handle loop routes and repeated stops,
-  simplifying logic and improving reliability.
-- Includes robust error handling and validation checks to ensure schedule times are
-  consistently ordered within trips and across stops.
+Key Features:
+- Filters routes using `FILTER_IN_ROUTES` and `FILTER_OUT_ROUTES`.
+- Filters services using `FILTER_SERVICE_IDS`. When non-empty, only these service IDs are processed.
+- Dynamically generates descriptive output folders based on `service_id` and active days of week (e.g., "calendar_2_sat").
+- Supports configurable time formatting (`12-hour` or `24-hour`) for schedule readability.
+- Provides data validation checks on schedule times to detect ordering issues.
+- Handles GTFS files robustly with error checking and clear messaging.
 
-Configuration
--------------
-- `BASE_INPUT_PATH`: Directory containing GTFS data files.
-- `BASE_OUTPUT_PATH`: Output directory for Excel reports.
-- `FILTER_IN_ROUTES`: List of specific route short names to process. Leave empty to process all routes.
-- `FILTER_OUT_ROUTES`: List of route short names to exclude from processing.
-- `TIME_FORMAT_OPTION`: '12' or '24' hour time formatting.
+Configuration adjustments are made within the CONFIGURATION SECTION at the top of the module.
 """
 import os
 import re
@@ -45,11 +33,9 @@ BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output_Folder"
 if not os.path.exists(BASE_OUTPUT_PATH):
     os.makedirs(BASE_OUTPUT_PATH)
 
-# ----------------------------
-# The only route-related filters we now have:
-# ----------------------------
+FILTER_SERVICE_IDS = []  # e.g. ['1','2'] => only process these. Empty => process all
 FILTER_IN_ROUTES = []   # If non-empty, only process these route short names
-FILTER_OUT_ROUTES = []  # If non-empty, exclude these route short names
+FILTER_OUT_ROUTES = []  # Exclude these route short names if non-empty
 
 TIME_FORMAT_OPTION = '24'  # '12' or '24'
 MISSING_TIME = "---"
@@ -253,7 +239,8 @@ def safe_check_schedule_order(input_df, ordered_stop_names, route_short_name, sc
 
 def map_service_id_to_schedule(service_row_local):
     """
-    Maps a service_id row to a schedule type based on the days it serves.
+    Maps a service_id row to a 'type' label based on the days it serves.
+    (This can still be used for naming Excel files or logging.)
     """
     days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     served_days = [day for day in days if service_row_local.get(day, '0') == '1']
@@ -289,16 +276,18 @@ def map_service_id_to_schedule(service_row_local):
 def build_service_id_schedule_map():
     """
     Creates a dict: service_id -> schedule_type from CALENDAR,
-    plus a set of all schedule types found.
+    plus a set of all service_ids encountered.
     """
     service_id_schedule_map = {}
-    schedule_types_set = set()
+    all_service_ids = set()
+
     for _, service_row_local in CALENDAR.iterrows():
         sid_val = service_row_local['service_id']
         stype_var = map_service_id_to_schedule(service_row_local)
         service_id_schedule_map[sid_val] = stype_var
-        schedule_types_set.add(stype_var)
-    return service_id_schedule_map, schedule_types_set
+        all_service_ids.add(sid_val)
+
+    return service_id_schedule_map, all_service_ids
 
 
 def get_all_route_short_names():
@@ -313,30 +302,25 @@ def apply_in_out_filters(route_list):
     Takes the list of all route short names.
     If FILTER_IN_ROUTES is non-empty, keep only those in that list.
     If FILTER_OUT_ROUTES is non-empty, remove those in that list.
-    If both are empty, we end up keeping everything.
+    If both are empty, we keep everything.
     """
     global FILTER_IN_ROUTES, FILTER_OUT_ROUTES
 
-    # Convert to sets for easier filtering
     route_set = set(route_list)
 
     if FILTER_IN_ROUTES:
-        # Keep only those in FILTER_IN_ROUTES
         route_set = route_set.intersection(set(FILTER_IN_ROUTES))
 
     if FILTER_OUT_ROUTES:
-        # Remove anything in FILTER_OUT_ROUTES
         route_set = route_set.difference(set(FILTER_OUT_ROUTES))
 
-    # Return sorted list
     return sorted(route_set)
 
 
 def get_master_trip_stops(dir_id, relevant_trips_dir):
     """
     Among all trips in 'relevant_trips_dir' for direction=dir_id, pick the trip with
-    the largest number of timepoints. Return a DataFrame of that trip's stops:
-        Columns: [stop_id, occurrence, stop_sequence, base_stop_name, final_stop_name]
+    the largest number of timepoints. Return a DataFrame of that trip's stops.
     """
     global TIMEPOINTS, STOPS
 
@@ -403,8 +387,7 @@ def get_master_trip_stops(dir_id, relevant_trips_dir):
 
 def process_single_trip(trip_id, trip_stop_times, master_trip_stops, master_dict, time_fmt):
     """
-    For each trip, produce a single schedule row. Uses "forward-only" approach to
-    match each real stop to the earliest master occurrence whose master_seq >= real_seq.
+    For each trip, produce a single schedule row. Uses "forward-only" approach.
     """
     global TRIPS, ROUTES
 
@@ -577,6 +560,35 @@ def export_to_excel_multiple_sheets(df_dict, out_file):
     print(f"Data exported to {out_file}")
 
 
+def format_service_id_folder_name(service_row):
+    """
+    Builds a subfolder name like "calendar_3_mon_tue_wed_thu_fri" based on:
+    - service_id in the row
+    - which days are marked '1'
+    """
+    service_id = service_row['service_id']
+    day_map = [
+        ('monday', 'mon'),
+        ('tuesday', 'tue'),
+        ('wednesday', 'wed'),
+        ('thursday', 'thu'),
+        ('friday', 'fri'),
+        ('saturday', 'sat'),
+        ('sunday', 'sun'),
+    ]
+    included_days = []
+    for col, short_day in day_map:
+        if service_row.get(col, '0') == '1':
+            included_days.append(short_day)
+
+    if included_days:
+        day_str = "_".join(included_days)
+    else:
+        day_str = "none"  # or "holiday"
+
+    return f"calendar_{service_id}_{day_str}"
+
+
 def main():
     # 1. Load GTFS Files
     load_gtfs_files()
@@ -584,81 +596,86 @@ def main():
     # 2. Prepare Timepoints
     prepare_timepoints()
 
-    # 3. Map service IDs to schedule types
-    service_id_schedule_map, schedule_types_set = build_service_id_schedule_map()
-    print(f"Identified schedule types: {schedule_types_set}")
+    # 3. Build (service_id -> schedule_type) map
+    service_id_schedule_map, all_service_ids = build_service_id_schedule_map()
 
-    # 4. Get all route short names, then apply in/out filters
+    # 4. If FILTER_SERVICE_IDS is non-empty, filter CALENDAR to only those service IDs
+    global CALENDAR
+    if FILTER_SERVICE_IDS:
+        CALENDAR = CALENDAR[CALENDAR['service_id'].isin(FILTER_SERVICE_IDS)]
+
+    # Edge case: if no rows remain in CALENDAR, there's nothing to do
+    if CALENDAR.empty:
+        print("No service_ids found after applying FILTER_SERVICE_IDS. Exiting.")
+        return
+
+    # 5. Get routes (post route-filters)
     all_routes = get_all_route_short_names()
     final_routes = apply_in_out_filters(all_routes)
     print(f"Final route selection after filters: {final_routes}")
 
-    # 5. Process each route
+    # 6. For each route, iterate over the *remaining* service_ids in CALENDAR
     for route_short_name in final_routes:
         print(f"\nProcessing route '{route_short_name}'...")
-
         route_ids = ROUTES[ROUTES['route_short_name'] == route_short_name]['route_id']
         if route_ids.empty:
             print(f"Error: Route '{route_short_name}' not found in routes.txt.")
             continue
 
-        for schedule_type in schedule_types_set:
-            print(f"  Processing schedule type '{schedule_type}'...")
-            relevant_service_ids = [
-                sid for sid, stype in service_id_schedule_map.items()
-                if stype == schedule_type
-            ]
-            if not relevant_service_ids:
-                print(f"    No services for schedule type '{schedule_type}'.")
-                continue
+        # Iterate over each service_id row in CALENDAR
+        for _, service_row in CALENDAR.iterrows():
+            service_id = service_row['service_id']
+            # Create a dynamic folder name like "calendar_2_sat"
+            folder_name = format_service_id_folder_name(service_row)
+            service_output_path = os.path.join(BASE_OUTPUT_PATH, folder_name)
+            if not os.path.exists(service_output_path):
+                os.makedirs(service_output_path)
 
+            # We'll use the "mapped" schedule type for labeling sheets/files if desired
+            schedule_type = service_id_schedule_map.get(service_id, "Unknown")
+
+            # Filter trips for this route + this service_id
             relevant_trips = TRIPS[
                 (TRIPS['route_id'].isin(route_ids)) &
-                (TRIPS['service_id'].isin(relevant_service_ids))
+                (TRIPS['service_id'] == service_id)
             ]
             if relevant_trips.empty:
-                print(f"    No trips found for route '{route_short_name}' with schedule '{schedule_type}'.")
+                print(f"  No trips for route='{route_short_name}' and service_id='{service_id}'.")
                 continue
 
+            # For each direction in these trips, build a schedule sheet
             direction_ids_local = relevant_trips['direction_id'].unique()
             df_sheets = {}
-
             for dir_id in direction_ids_local:
-                print(f"    Processing direction_id '{dir_id}'...")
+                print(f"    Building direction_id '{dir_id}' for service_id='{service_id}'...")
 
                 master_trip_stops = get_master_trip_stops(dir_id, relevant_trips)
                 if master_trip_stops.empty:
-                    print(f"      No stops found for direction '{dir_id}'. Skipping.")
                     continue
 
-                trips_direction = relevant_trips[relevant_trips['direction_id'] == dir_id]
-
                 params_dict = {
-                    "trips_dir": trips_direction,
+                    "trips_dir": relevant_trips[relevant_trips['direction_id'] == dir_id],
                     "master_trip_stops": master_trip_stops,
                     "time_fmt": TIME_FORMAT_OPTION,
                     "route_short": route_short_name,
                     "sched_type": schedule_type,
                     "dir_id": dir_id
                 }
-
                 output_df = process_trips_for_direction(params_dict)
-                if output_df.empty:
-                    print(f"      No data to export for direction_id '{dir_id}'.")
-                    continue
+                if not output_df.empty:
+                    sheet_name = f"Direction_{dir_id}"
+                    df_sheets[sheet_name] = output_df
 
-                sheet_name = f"Direction_{dir_id}"
-                df_sheets[sheet_name] = output_df
-
+            # Export each direction in a single Excel file, if we have data
             if df_sheets:
                 schedule_type_safe = schedule_type.replace(' ', '_').replace('-', '_').replace('/', '_')
                 out_file = os.path.join(
-                    BASE_OUTPUT_PATH,
+                    service_output_path,
                     f"route_{route_short_name}_schedule_{schedule_type_safe}.xlsx"
                 )
                 export_to_excel_multiple_sheets(df_sheets, out_file)
             else:
-                print(f"    No data to export for route '{route_short_name}' with schedule '{schedule_type}'.")
+                print(f"  No data to export for service_id '{service_id}' on route '{route_short_name}'.")
 
 
 if __name__ == "__main__":
