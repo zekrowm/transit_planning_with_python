@@ -1,5 +1,5 @@
 """
-GTFS Service Change Tracker
+GTFS Service Change History
 
 Highlights:
   1) Processes multiple GTFS signups in chronological order.
