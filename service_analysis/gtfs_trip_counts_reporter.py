@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 """
 gtfs_trips_hourly_reporter.py
 
