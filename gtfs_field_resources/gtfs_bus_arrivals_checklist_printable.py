@@ -135,7 +135,6 @@ def apply_stop_identifier_mode(stops_df, stop_identifier_field):
         if 'stop_code' not in stops_df.columns:
             raise ValueError("No 'stop_code' column found in stops data.")
         # Overwrite stops['stop_id'] with the values from stop_code
-        # so that everything references 'stop_id' consistently later.
         stops_df['stop_id'] = stops_df['stop_code']
 
 
@@ -259,7 +258,7 @@ def process_cluster_data(
         for time_window_name, time_range in time_windows[schedule_name].items():
             start_time_str, end_time_str = time_range
 
-            # Parse the start and end times in HH:MM format
+            # Parse the start and end times
             start_dt = pd.to_datetime(start_time_str, format='%H:%M').time()
             end_dt = pd.to_datetime(end_time_str, format='%H:%M').time()
 
@@ -287,7 +286,7 @@ def process_cluster_data(
 
 def generate_gtfs_checklists():
     """
-    Main function to generate GTFS checklists in Excel format by schedule and cluster.
+    Generates GTFS checklists in Excel format by schedule and cluster.
     Allows for filtering by either stop_id or stop_code, based on STOP_IDENTIFIER_FIELD.
     """
     # 1) Validate input directory
@@ -328,7 +327,7 @@ def generate_gtfs_checklists():
             on='route_id'
         )
 
-        # Ensure stop_id is string in merged_data (especially relevant if we replaced columns)
+        # Ensure stop_id is string in merged_data
         merged_data['stop_id'] = merged_data['stop_id'].astype(str)
 
         # Create sequence_long column
@@ -364,5 +363,12 @@ def generate_gtfs_checklists():
     print("All clusters and schedules have been processed and exported.")
 
 
-if __name__ == '__main__':
+def main():
+    """
+    Main entry point of the script.
+    """
     generate_gtfs_checklists()
+
+
+if __name__ == '__main__':
+    main()
