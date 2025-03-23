@@ -1,11 +1,14 @@
 """
-This module extracts unique stop patterns from GTFS data and exports them to Excel workbooks,
-organized by route, direction, and service ID (including subfolders per service_id).
+This module extracts unique stop patterns from GTFS data and exports them to Excel workbooks, organized by route, direction, and service ID.
+It optionally loads calendar data to create structured subfolders based on days of service.
 
-Key changes:
-- Load `calendar.txt` (if present) to identify which days a service runs.
-- Create subfolders named like `calendar_123_mon_tue` for each service_id, then save Excel files there.
-- Everything else is the same logic as before (unique patterns, earliest times, etc.).
+Key features:
+- Route-based, direction-based, and service-based (calendar) filtering.
+- Distance unit conversions (meters or feet to miles).
+- Export of timepoint-only stop patterns with optional validation of distances.
+- Computation and inclusion of earliest departure times for each pattern.
+- Excel outputs organized into subfolders by service_id, labeled clearly with service days (e.g., calendar_123_mon_tue).
+- Clear master-trip structure for visualizing stop patterns across different trips.
 """
 import logging
 import os
