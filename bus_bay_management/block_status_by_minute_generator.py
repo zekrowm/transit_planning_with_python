@@ -1,16 +1,9 @@
 """
 GTFS Block Timeline Generator
 
-This script processes General Transit Feed Specification (GTFS) data to create
-minute-by-minute block-level spreadsheets (one file per block). It is designed
-as "Step 1" in a multi-step pipeline, but you can also run it independently.
-
-CHANGE NOTE:
-  - The optional filter logic has been revised so that an entire block is kept
-    if it has at least one row matching the filter criteria. All rows for that
-    block are retained.
+This script processes General Transit Feed Specification (GTFS) data to create minute-by-minute block-level spreadsheets
+(one file per block). It is designed as "Step 1" in a multi-step pipeline, but you can also run it independently.
 """
-
 import os
 import pandas as pd
 
@@ -34,6 +27,7 @@ ROUTE_SHORTNAME_FILTER = []
 STOP_ID_FILTER = []
 STOP_CODE_FILTER = []
 
+# Original cluster definitions from "old script"
 CLUSTER_DEFINITIONS = {
     "Metro": {
         "stops": ["2956", "2955", "65", "3295", "2957", "66", "3296", "64", "63"],
@@ -132,6 +126,10 @@ def find_cluster(stop_id, bus_stop_clusters):
     return None
 
 
+###############################################################################
+#               UPDATED BRIDGING LOGIC FUNCTIONS (Key Changes)
+###############################################################################
+
 def _status_for_same_trip(minute, arr, dep, stop_id, stop_name, trip_id,
                           is_first, is_last, stop_seq, t_val):
     """
@@ -161,31 +159,47 @@ def _status_for_same_trip(minute, arr, dep, stop_id, stop_name, trip_id,
     return None
 
 
-def _status_for_different_trip(minute, dep, next_arr, current_stop_id,
-                               current_stop_name, next_trip_id,
-                               bus_stop_clusters):
+def _status_for_different_trip(
+    minute,
+    dep,
+    next_arr,
+    current_stop_id,
+    current_stop_name,
+    next_trip_id,
+    next_stop_id,         # <-- NEW parameter
+    next_stop_name,       # <-- NEW parameter
+    bus_stop_clusters
+):
     """
-    Sub-logic extracted from get_status_for_minute: determines whether bridging
-    time is traveling, dwell, layover, or deadhead.
+    Sub-logic for bridging between two different trips. 
+    Now includes cluster checks to differentiate DEADHEAD vs. LAYOVER/DWELL.
     """
     gap = next_arr - dep
-    same_stop = False  # We won't keep the next stop's name if it's never used
 
-    # If cluster logic is defined, see if the stops share a cluster
-    # or if it's physically the same stop, etc.
+    # Determine if current_stop_id and next_stop_id are in the same cluster or the same stop.
     same_cluster = False
     if bus_stop_clusters:
-        # If needed, retrieve "next_stop_id" from parameters
-        # but you can also pass it in if you want to refine logic
-        pass
+        current_cluster = find_cluster(current_stop_id, bus_stop_clusters)
+        next_cluster = find_cluster(next_stop_id, bus_stop_clusters)
+        same_cluster = (
+            current_cluster 
+            and next_cluster 
+            and current_cluster == next_cluster
+        )
 
-    # If the gap <= DWELL_THRESHOLD
-    if gap <= DWELL_THRESHOLD:
-        return "DWELL", current_stop_id, current_stop_name
-    if gap > LAYOVER_THRESHOLD:
-        return "LONG BREAK", current_stop_id, current_stop_name
-    # Otherwise
-    return "LAYOVER", current_stop_id, current_stop_name
+    # If physically the same stop_id, treat that the same as same cluster
+    same_stop = (current_stop_id == next_stop_id)
+
+    if same_stop or same_cluster:
+        # Use the old threshold-based logic for dwell/layover/break
+        if gap <= DWELL_THRESHOLD:
+            return ("DWELL", current_stop_id, current_stop_name)
+        if gap > LAYOVER_THRESHOLD:
+            return ("LONG BREAK", current_stop_id, current_stop_name)
+        return ("LAYOVER", current_stop_id, current_stop_name)
+    else:
+        # Different cluster => label as "DEADHEAD"
+        return ("DEADHEAD", current_stop_id, current_stop_name)
 
 
 def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
@@ -214,27 +228,53 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
 
         # Check for traveling between stops
         if i < len(stop_times_sequence) - 1:
+            # Unpack next item for bridging logic
             next_item = stop_times_sequence[i + 1]
             next_arr = next_item[0]
-            next_trip_id = next_item[4]  # We only need next_trip_id
+            next_dep = next_item[1]
+            next_stop_id = next_item[2]
+            next_stop_name = next_item[3]
+            next_trip_id = next_item[4]
+
             # If dep < minute < next_arr => traveling or bridging
             if dep < minute < next_arr:
                 if trip_id == next_trip_id:
                     # Same trip => traveling
-                    return ("TRAVELING BETWEEN STOPS", None, None, None, None, trip_id, None, 0)
+                    return (
+                        "TRAVELING BETWEEN STOPS", 
+                        None, None, None, None,
+                        trip_id, None, 0
+                    )
                 # Different trip => dwell / layover / deadhead
                 new_status, fill_stop_id, fill_stop_name = _status_for_different_trip(
-                    minute, dep, next_arr, s_id, s_name, next_trip_id, bus_stop_clusters
+                    minute,
+                    dep,
+                    next_arr,
+                    current_stop_id=s_id,
+                    current_stop_name=s_name,
+                    next_trip_id=next_trip_id,
+                    next_stop_id=next_stop_id,       # pass forward
+                    next_stop_name=next_stop_name,   # pass forward
+                    bus_stop_clusters=bus_stop_clusters
                 )
                 return (
-                    new_status, fill_stop_id, fill_stop_name,
-                    minutes_to_hhmm(arr), minutes_to_hhmm(dep),
-                    next_trip_id, stop_seq, t_val
+                    new_status, 
+                    fill_stop_id, 
+                    fill_stop_name,
+                    minutes_to_hhmm(arr), 
+                    minutes_to_hhmm(dep),
+                    next_trip_id, 
+                    stop_seq, 
+                    t_val
                 )
 
     # If no condition matches, treat as "EMPTY"
     return ("EMPTY", None, None, None, None, None, None, 0)
 
+
+###############################################################################
+#                       MAIN BLOCK PROCESSING LOGIC
+###############################################################################
 
 def process_block(block_subset, block_id, timeline, bus_stop_clusters):
     """
@@ -509,7 +549,7 @@ def run_step1_gtfs_to_blocks():
         trips_df["route_short_name"] = None
 
     if os.path.exists(blocks_path):
-        # blocks_df = pd.read_csv(blocks_path)  # <— UNCOMMENT if you really need it
+        # blocks_df = pd.read_csv(blocks_path)  # <— UNCOMMENT if you need block data
         print("Blocks file found (unused).")
     else:
         print("No blocks file found; proceeding without it.")
