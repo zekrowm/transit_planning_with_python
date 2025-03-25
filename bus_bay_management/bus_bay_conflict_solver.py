@@ -458,10 +458,13 @@ def main():
 
         df_exploded = pd.DataFrame(rows_exploded)
 
-        grouped = df_exploded.groupby(["Route","Direction","StatusBucket"])["AssignedStop"].agg(
-            lambda g: sorted(set(g) - {""})
-        ).reset_index()
-
+        grouped = (
+            df_exploded
+            .groupby(["Route", "Direction", "StatusBucket"])["AssignedStop"]
+            .agg(lambda g: sorted(x for x in set(g) if x not in (None, "")))
+            .reset_index()
+        )
+        
         pivoted = grouped.pivot_table(
             index=["Route","Direction"],
             columns="StatusBucket",
