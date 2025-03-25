@@ -1,4 +1,25 @@
-#!/usr/bin/env python3
+"""
+Transit Ridership Analysis and Visualization Module
+
+This script processes and analyzes transit ridership data sourced from monthly Excel files,
+organized by configured periods. It standardizes and classifies route data by service type
+and corridor, computes key performance metrics (e.g., passengers per hour, per trip, per mile),
+and generates aggregated summaries at both service-type and route levels.
+
+Main features include:
+- Automated data loading, cleaning, and preprocessing from Excel sheets.
+- Route classification by configurable service types and corridors.
+- Calculation of derived transit performance metrics and aggregations.
+- Exporting of comprehensive and monthly aggregated summaries to Excel.
+- Generation of time-series plots for selected performance metrics.
+
+Configurations for file paths, service categories, and plotting options are customizable via
+dictionaries defined at the start of the module.
+
+Output:
+- Excel files summarizing detailed, aggregated, and route-level ridership statistics.
+- Plots visualizing transit performance metrics over time.
+"""
 import os
 import re
 import pandas as pd
