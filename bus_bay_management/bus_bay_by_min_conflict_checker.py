@@ -3,6 +3,7 @@ HOLD
 """
 import os
 import pandas as pd
+from openpyxl.styles import Font
 
 ###############################################################################
 #                                CONFIGURATION
@@ -233,13 +234,17 @@ def gather_block_spreadsheets(block_folder):
     print(f"Loaded {len(df_combined)} total rows from Step 1 block XLSX files.")
     return df_combined
 
+import os
+import pandas as pd
+from openpyxl.styles import Font  # <-- Add this import
+
+# [existing code above omitted for brevity]
+
 def run_step2_conflict_detection():
     """
     1) Read block-level spreadsheets (Step 1 output).
-    2) Normalize data, assign clusters, find conflicts with multi-bay logic.
-    3) For each cluster, create an output Excel file:
-       - "AllStops" sheet with all cluster events
-       - One sheet per official stop or overflow bay, listing only that stop's events
+    2) Normalize data, assign clusters, find conflicts.
+    3) For each cluster, create an output Excel file with multiple sheets.
     """
     print("=== Step 2: Conflict detection and per-cluster output (multi-bay) ===")
     os.makedirs(CLUSTER_CONFLICT_OUTPUT_FOLDER, exist_ok=True)
@@ -247,20 +252,7 @@ def run_step2_conflict_detection():
     # 1) Gather Step 1 data
     df = gather_block_spreadsheets(BLOCK_OUTPUT_FOLDER)
 
-    # Basic checks/cleanup
-    required_cols = [
-        "Timestamp", "Trip ID", "Block", "Route", "Direction",
-        "Stop ID", "Stop Name", "Stop Sequence",
-        "Arrival Time", "Departure Time", "Status",
-    ]
-    missing_cols = [c for c in required_cols if c not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Missing columns in block-level data: {missing_cols}")
-
-    # Normalize Stop ID text
-    df["Stop ID"] = df["Stop ID"].apply(normalize_stop_id)
-    # Ensure string Timestamps
-    df["Timestamp"] = df["Timestamp"].astype(str).str.strip()
+    # [existing validation & normalization code omitted]
 
     # 2) Assign cluster, detect conflicts, annotate
     df = assign_cluster_name(df)
@@ -287,34 +279,50 @@ def run_step2_conflict_detection():
         )
         print(f"Building conflict output for cluster '{cname}' => {out_path}")
 
-        # Sort by timestamp, then by block or stop ID
         sub.sort_values(["Timestamp", "Block", "Stop ID"], inplace=True)
 
         with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
             # 3a) "AllStops" sheet
             sub.to_excel(writer, sheet_name="AllStops", index=False)
 
+            # After writing, apply bold to conflict rows
+            workbook = writer.book
+            all_stops_ws = writer.sheets["AllStops"]
+            for row_idx, row_data in sub.iterrows():
+                if row_data["ConflictType"] != "NONE":
+                    # row_idx is zero-based; Excel rows are 1-based + header row
+                    excel_row = row_idx + 2
+                    for cell in all_stops_ws[excel_row]:
+                        cell.font = Font(bold=True)
+
             # 3b) One sheet per stop
             for stop_id in all_cluster_stops:
                 sid_str = str(stop_id)
                 stop_df = sub[sub["Stop ID"] == sid_str].copy()
                 if stop_df.empty:
-                    # no usage => skip or write empty sheet
                     continue
 
-                # Make a sheet name that is safe in Excel (<=31 chars)
                 sheet_name = f"Stop_{sid_str}"
                 if len(sheet_name) > 31:
                     sheet_name = sheet_name[:31]
 
                 stop_df.to_excel(writer, sheet_name=sheet_name, index=False)
 
+                # Bold the conflict rows in this stop’s sheet
+                stop_ws = writer.sheets[sheet_name]
+                for row_idx, row_data in stop_df.iterrows():
+                    if row_data["ConflictType"] != "NONE":
+                        excel_row = row_idx + 2
+                        for cell in stop_ws[excel_row]:
+                            cell.font = Font(bold=True)
+
         print(f" -> Completed writing {out_path}")
 
-    # Final conflict summary stats
+    # Final summary stats
     print(f"\nDistinct cluster-conflict points: {len(cluster_conflicts)}")
     print(f"Distinct stop-conflict points: {len(stop_conflicts)}")
     print("Step 2 complete.")
+
 
 ###############################################################################
 #                                 MAIN
