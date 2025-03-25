@@ -30,13 +30,17 @@ and direction.
 """
 import os
 import sys
+
 import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.styles import Font
 
 try:
     import pulp
     PULP_AVAILABLE = True
 except ImportError:
     PULP_AVAILABLE = False
+
 
 ###############################################################################
 #                           CONFIGURATION
@@ -48,7 +52,6 @@ OUTPUT_DIR = r"ath\To\Your\Output_Folder"
 USE_PULP = False
 USE_GREEDY = True
 
-# Same cluster definitions as before
 CLUSTER_DEFINITIONS = {
     "Metro": {
         "single_bay_stops": ["2373"],
@@ -58,21 +61,13 @@ CLUSTER_DEFINITIONS = {
     },
 }
 
-###############################################################################
-#          OPTIONAL ROUTE/BAY CONSTRAINTS & STATUS DEFINITIONS
-###############################################################################
 ALLOW_ROUTE_DIRECTION_SPLIT = False
 ROUTE_TO_SPECIFIC_STOPS = {}
 ROUTE_PAIRS_TOGETHER = {}
 ROUTE_TO_LAYOVER_BAYS = {}
 ALLOW_LAYOVER_AT_REAL_STOPS = False
 
-# Bus statuses that require capacity
 PASSENGER_SERVICE_STATUSES = {"ARRIVE", "DEPART", "ARRIVE/DEPART", "LOADING"}
-
-# If your data uses ARRIVE/DEPART to mean “arrives & departs simultaneously,”
-# and you want that row’s stop to appear in BOTH columns, just include
-# "ARRIVE/DEPART" in both sets below:
 ARRIVE_STATUSES = {"ARRIVE", "ARRIVE/DEPART"}
 DEPART_STATUSES = {"DEPART", "ARRIVE/DEPART"}
 LAYOVER_STATUSES = {"LAYOVER", "DWELL", "LONG BREAK", "LOADING"}
@@ -106,7 +101,7 @@ def recompute_conflict_types(df_in, cluster_info):
     double_ct = len(cluster_info.get("double_bay_stops", []))
     triple_ct = len(cluster_info.get("triple_bay_stops", []))
     overflow_ct = len(cluster_info.get("overflow_bays", []))
-    cluster_capacity = single_ct + (2*double_ct) + (3*triple_ct) + overflow_ct
+    cluster_capacity = single_ct + (2 * double_ct) + (3 * triple_ct) + overflow_ct
 
     # Timestamps that exceed cluster capacity
     presence_df = df[~df["Status"].isna()]
@@ -115,7 +110,7 @@ def recompute_conflict_types(df_in, cluster_info):
 
     # Stop-level conflicts for passenger-service statuses
     pass_df = df[df["Status"].str.upper().isin(PASSENGER_SERVICE_STATUSES)]
-    group_stop = pass_df.groupby(["AssignedStop","Timestamp"])
+    group_stop = pass_df.groupby(["AssignedStop", "Timestamp"])
     stop_conf_set = set()
     for (sid, ts), grp in group_stop:
         cap = stop_caps.get(str(sid), 1)
@@ -149,9 +144,9 @@ def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
     Summarize each route+direction's total 'conflict minutes'.
     """
     tmp = df.copy()
-    tmp["HasConflict"] = tmp[conflict_col].isin(["STOP","CLUSTER","BOTH"])
-    grp = tmp.groupby(["Route","Direction"])["HasConflict"].sum().reset_index()
-    grp.rename(columns={"HasConflict":"ConflictMinutes"}, inplace=True)
+    tmp["HasConflict"] = tmp[conflict_col].isin(["STOP", "CLUSTER", "BOTH"])
+    grp = tmp.groupby(["Route", "Direction"])["HasConflict"].sum().reset_index()
+    grp.rename(columns={"HasConflict": "ConflictMinutes"}, inplace=True)
     return grp
 
 ###############################################################################
@@ -165,7 +160,7 @@ def solve_bus_assignment_greedy(df, cluster_info):
     occupancy = {}
 
     out_df = df.copy()
-    out_df.sort_values(["Timestamp","Block","Trip ID"], inplace=True)
+    out_df.sort_values(["Timestamp", "Block", "Trip ID"], inplace=True)
     out_df.reset_index(drop=True, inplace=True)
 
     assigned_list = []
@@ -201,8 +196,8 @@ def solve_bus_assignment_greedy(df, cluster_info):
 
         chosen = None
         for s in candidates:
-            cap = stop_caps.get(s,1)
-            occ = occupancy.get((s,t),0)
+            cap = stop_caps.get(s, 1)
+            occ = occupancy.get((s, t), 0)
             if occ < cap:
                 chosen = s
                 break
@@ -210,7 +205,7 @@ def solve_bus_assignment_greedy(df, cluster_info):
         if chosen is None:
             chosen = primary_stop_id
 
-        occupancy[(chosen,t)] = occupancy.get((chosen,t),0) + 1
+        occupancy[(chosen, t)] = occupancy.get((chosen, t), 0) + 1
         used_stops_by_bus[bus_key].add(chosen)
         assigned_list.append(chosen)
 
@@ -251,9 +246,9 @@ def solve_bus_assignment_pulp(df, cluster_info):
         bus_info[b] = bdict
 
     model = LpProblem("BusBayAssignment", LpMinimize)
-    X = LpVariable.dicts("X", (bus_keys,times,all_stops), cat=LpBinary)
+    X = LpVariable.dicts("X", (bus_keys, times, all_stops), cat=LpBinary)
 
-    # capacity
+    # capacity constraints
     for s in all_stops:
         cap = stop_caps[s]
         for t in times:
@@ -262,7 +257,7 @@ def solve_bus_assignment_pulp(df, cluster_info):
                 f"Cap_{s}_{t}"
             )
 
-    # presence
+    # presence constraints
     for b in bus_keys:
         for t in times:
             present = (t in bus_info[b])
@@ -273,24 +268,24 @@ def solve_bus_assignment_pulp(df, cluster_info):
                 for s in all_stops:
                     model += (X[b][t][s] == 0, f"NoPres_{b}_{t}_{s}")
 
-    # at most 3 stops
-    Y = LpVariable.dicts("Y",(bus_keys,all_stops), cat=LpBinary)
+    # each bus uses at most 3 stops in total
+    Y = LpVariable.dicts("Y", (bus_keys, all_stops), cat=LpBinary)
     for b in bus_keys:
         for s in all_stops:
             for t in times:
                 model += (X[b][t][s] <= Y[b][s], f"Link_{b}_{s}_{t}")
         model += (lpSum(Y[b][s] for s in all_stops) <= 3, f"Max3_{b}")
 
-    # must depart from primary
+    # must depart from primary stop
     for b in bus_keys:
-        for t,inf in bus_info[b].items():
+        for t, inf in bus_info[b].items():
             if inf["status"] == "DEPART":
                 must = inf["primary_stop_id"]
                 if must and (must in all_stops):
                     model += (X[b][t][must] == 1, f"Depart_{b}_{t}")
 
-    # OverCap for objective
-    OverCap = LpVariable.dicts("OverCap",(all_stops,times), lowBound=0, cat=LpInteger)
+    # OverCap variables for objective
+    OverCap = LpVariable.dicts("OverCap", (all_stops, times), lowBound=0, cat=LpInteger)
     for s in all_stops:
         cap = stop_caps[s]
         for t in times:
@@ -299,6 +294,7 @@ def solve_bus_assignment_pulp(df, cluster_info):
                 f"OC_{s}_{t}"
             )
 
+    # Minimize total over-capacity across all stops/times
     model += lpSum(OverCap[s][t] for s in all_stops for t in times)
 
     print("\nSolving bus assignment via PuLP...")
@@ -401,7 +397,32 @@ def main():
             df_before_annot.to_excel(writer, sheet_name="BeforeAssignment", index=False)
             df_after_merge.to_excel(writer, sheet_name="AfterAssignment", index=False)
 
-        print(f" -> Wrote row-level detail file: {os.path.basename(detail_out)}")
+        # NEW/UPDATED: BOLD ROWS WITH CONFLICTS (AfterAssignment sheet).
+        # If you want to bold in the "BeforeAssignment" sheet as well,
+        # just repeat the same logic but check "ConflictType_Recalc" there.
+        wb = load_workbook(detail_out)
+        ws = wb["AfterAssignment"]
+
+        # Find the column index where "ConflictType_RecalcAfter" is located
+        conflict_col_index = None
+        header_row = 1  # by default, row 1 is the header in to_excel
+        for cell in ws[header_row]:
+            if cell.value == "ConflictType_RecalcAfter":
+                conflict_col_index = cell.column  # 1-based index
+                break
+
+        if conflict_col_index is not None:
+            # Iterate through rows below the header (start at row=2)
+            for row_idx in range(header_row + 1, ws.max_row + 1):
+                conflict_val = ws.cell(row=row_idx, column=conflict_col_index).value
+                # Bold the entire row if conflict is not NONE (i.e., STOP, CLUSTER, BOTH)
+                if conflict_val and conflict_val != "NONE":
+                    for col_idx in range(1, ws.max_column + 1):
+                        cell_to_bold = ws.cell(row=row_idx, column=col_idx)
+                        cell_to_bold.font = Font(bold=True)
+
+        wb.save(detail_out)
+        print(f" -> Wrote row-level detail file (with bold conflicts): {os.path.basename(detail_out)}")
 
         # 4) Build a route+direction conflict summary
         conf_before = count_conflicts_by_routedir(df_before_annot, "ConflictType_Recalc")
@@ -415,47 +436,32 @@ def main():
         df_conf["ConflictBefore"] = df_conf["ConflictBefore"].astype(int)
         df_conf["ConflictAfter"] = df_conf["ConflictAfter"].astype(int)
 
-        # 5) Multi-bucket approach for ARRIVE/DEPART
-        #    Instead of assigning each row to exactly one bucket,
-        #    we handle ARRIVE/DEPART as both "ARRIVE" and "DEPART".
-        #    We'll "explode" rows accordingly.
-
+        # 5) Multi-bucket approach for ARRIVE/DEPART in the final assignment
         def classify_buckets(status_str):
-            """
-            Return a set of categories for the row's status:
-              - If it's in ARRIVE_STATUSES => add "ARRIVE"
-              - If it's in DEPART_STATUSES => add "DEPART"
-              - If neither => "LAYOVER"
-              If a row is "ARRIVE/DEPART", we end up with {ARRIVE,DEPART}.
-            """
             result = set()
             s_up = status_str.upper()
             if s_up in ARRIVE_STATUSES:
                 result.add("ARRIVE")
             if s_up in DEPART_STATUSES:
                 result.add("DEPART")
-            if not result:  # e.g. layover, loading, etc.
+            if not result:
                 result.add("LAYOVER")
             return result
 
         rows_exploded = []
         for i, row in df_after_annot.iterrows():
-            # This row can belong to multiple categories if "ARRIVE/DEPART"
             cats = classify_buckets(str(row["Status"]))
             for c in cats:
-                # copy the row, set a new "StatusBucket" col
                 new_row = row.copy()
                 new_row["StatusBucket"] = c
                 rows_exploded.append(new_row)
 
         df_exploded = pd.DataFrame(rows_exploded)
 
-        # Now group by route+direction+bucket, gather assigned stops
         grouped = df_exploded.groupby(["Route","Direction","StatusBucket"])["AssignedStop"].agg(
-            lambda g: sorted(set(g) - {""})  # remove any empty string
+            lambda g: sorted(set(g) - {""})
         ).reset_index()
 
-        # Pivot to get columns => ArriveStops, DepartStops, LayoverStops
         pivoted = grouped.pivot_table(
             index=["Route","Direction"],
             columns="StatusBucket",
@@ -471,18 +477,13 @@ def main():
         }
         pivoted.rename(columns=col_map, inplace=True)
 
-        # Turn the lists into comma-separated text
         for c in ["ArriveStops","DepartStops","LayoverStops"]:
             if c in pivoted.columns:
                 pivoted[c] = pivoted[c].apply(
                     lambda lst: ",".join(lst) if isinstance(lst, list) else ""
                 )
 
-        # 6) Merge with the conflict summary
         df_summary = pd.merge(df_conf, pivoted, on=["Route","Direction"], how="outer").fillna("")
-
-        # Final columns => [Route, Direction, ConflictBefore, ConflictAfter,
-        #                   ArriveStops, DepartStops, LayoverStops]
 
         summary_out = os.path.join(OUTPUT_DIR, f"{safe_name}_Summary.xlsx")
         with pd.ExcelWriter(summary_out, engine="openpyxl") as writer:
@@ -490,7 +491,6 @@ def main():
 
         print(f" -> Wrote route-level summary file: {os.path.basename(summary_out)}")
         print("====================================================")
-
 
 if __name__ == "__main__":
     main()
