@@ -261,6 +261,7 @@ def run_step2_conflict_detection():
     3) For each cluster, create an output Excel file:
        - "AllStops" sheet with all cluster events
        - One sheet per official stop or overflow bay, listing only that stop's events
+       - Rows with conflicts are bolded.
     """
     print("=== Step 2: Conflict detection and per-cluster output (multi-bay) ===")
     os.makedirs(CLUSTER_CONFLICT_OUTPUT_FOLDER, exist_ok=True)
@@ -315,6 +316,17 @@ def run_step2_conflict_detection():
             # 3a) "AllStops" sheet
             sub.to_excel(writer, sheet_name="AllStops", index=False)
 
+            # Bold the conflict rows in "AllStops"
+            conflict_col_index = sub.columns.get_loc("ConflictType") + 1  # +1 for 1-based indexing
+            worksheet_all = writer.sheets["AllStops"]
+            for row_idx in range(2, len(sub) + 2):  # data starts on row 2
+                conflict_val = worksheet_all.cell(row=row_idx, column=conflict_col_index).value
+                if conflict_val != "NONE":
+                    # Bold entire row
+                    for col_idx in range(1, len(sub.columns) + 1):
+                        cell = worksheet_all.cell(row=row_idx, column=col_idx)
+                        cell.font = Font(bold=True)
+
             # 3b) One sheet per stop
             for stop_id in all_cluster_stops:
                 sid_str = str(stop_id)
@@ -330,12 +342,23 @@ def run_step2_conflict_detection():
 
                 stop_df.to_excel(writer, sheet_name=sheet_name, index=False)
 
+                # Bold the conflict rows in each stop’s sheet
+                conflict_col_index_stop = stop_df.columns.get_loc("ConflictType") + 1
+                worksheet_stop = writer.sheets[sheet_name]
+                for row_idx in range(2, len(stop_df) + 2):
+                    conflict_val = worksheet_stop.cell(row=row_idx, column=conflict_col_index_stop).value
+                    if conflict_val != "NONE":
+                        for col_idx in range(1, len(stop_df.columns) + 1):
+                            cell = worksheet_stop.cell(row=row_idx, column=col_idx)
+                            cell.font = Font(bold=True)
+
         print(f" -> Completed writing {out_path}")
 
     # Final conflict summary stats
     print(f"\nDistinct cluster-conflict points: {len(cluster_conflicts)}")
     print(f"Distinct stop-conflict points: {len(stop_conflicts)}")
     print("Step 2 complete.")
+
 
 ###############################################################################
 #                                 MAIN
