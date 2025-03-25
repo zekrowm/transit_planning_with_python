@@ -6,18 +6,19 @@ transit_planning_with_python/
 │   └── workflows/
 │       └── pylint.yml
 ├── bus_bay_management/
-│   ├── bus_bay_assignment_ilp.py
+│   ├── block_status_by_minute_generator.py
+│   ├── bus_bay_by_min_conflict_checker.py
 │   ├── bus_bay_cluster_validation.py
-│   └── gtfs_bus_bay_conflict_checker.py
+│   └── bus_bay_conflict_solver.py
 ├── external_variables/
 │   ├── bikeshare_ridership_processor.py
 │   ├── eia_gas_price_processor.py
 │   ├── fred_unemployment_processor.py
 │   └── noaa_weather_processor.py
 ├── gtfs_field_resources/
-│   ├── bus_block_stop_exporter.py
+│   ├── bus_block_stop_sequence_printable.py
+│   ├── bus_cluster_arrivals_checklist_printable.py
 │   ├── bus_schedule_exporter.py
-│   ├── gtfs_bus_arrivals_checklist_printable.py
 │   ├── site_visit_route_planner.py
 │   └── stop_pattern_exporter.py
 ├── gtfs_validation/
@@ -37,14 +38,15 @@ transit_planning_with_python/
 │   ├── data_request_by_stop_processor.py
 │   ├── historical_ntd_data_processor.py
 │   ├── load_factor_violation_checker.py
+│   ├── monthly_ntd_report_generator.py
 │   ├── ridership_per_stop_processor.py
 │   └── ridership_per_trip_processor.py
 ├── service_analysis/
 │   ├── bus_route_district_matrix.py
 │   ├── gtfs_headway_span_trips_calculator.py
 │   ├── gtfs_nearby_routes_finder.py
-│   ├── gtfs_service_change_tracker.py
-│   ├── gtfs_service_change_tracker.py
+│   ├── gtfs_service_change_history.py
+│   ├── gtfs_trip_counts_reporter.py
 │   └── route_direction_calculator.py
 ├── service_population_tools/
 │   ├── census_processing_csv_shp.py
