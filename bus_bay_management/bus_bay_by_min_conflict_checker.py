@@ -1,5 +1,25 @@
 """
-HOLD
+Module for detecting and reporting bus bay conflicts within transit clusters.
+
+This script processes block-level bus transit data (from block_status_by_minute_generator.py,
+Step 1 XLSX files), identifies scheduling conflicts based on bay occupancy at defined transit
+stop clusters, and outputs detailed Excel reports.
+
+Key Features:
+- Supports single-bay, double-bay, triple-bay, and overflow bay configurations.
+- Identifies two types of conflicts:
+    - Cluster conflicts: Too many buses present simultaneously at a transit cluster.
+    - Stop conflicts: Too many buses simultaneously occupying an individual bus bay.
+- Produces annotated output files summarizing detected conflicts per transit cluster, including:
+    - An 'AllStops' sheet listing all events.
+    - Individual sheets per bus stop within each cluster.
+
+Configuration Parameters:
+- BLOCK_OUTPUT_FOLDER: Directory containing input spreadsheets from Step 1.
+- CLUSTER_CONFLICT_OUTPUT_FOLDER: Directory to save conflict analysis output.
+- CLUSTER_DEFINITIONS: Dictionary specifying transit clusters and bay capacities.
+- PRESENCE_STATUSES: Statuses indicating bus presence within a cluster.
+- PASSENGER_SERVICE_STATUSES: Statuses indicating active bus bay occupancy.
 """
 import os
 import pandas as pd
