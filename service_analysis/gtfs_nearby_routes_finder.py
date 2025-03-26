@@ -1,7 +1,16 @@
 """
-Module for identifying and analyzing GTFS routes in proximity to specified manual locations.
-"""
+Module for identifying GTFS routes near specified manual locations and determining the nearest stop for each unique
+route-direction pair within a given buffer radius.
 
+This module:
+- Loads GTFS data (stops, trips, routes, stop_times).
+- Creates GeoDataFrames from manual locations and GTFS stops.
+- Reprojects spatial data to a specified projected coordinate reference system.
+- Identifies nearby GTFS routes and the closest stops for each route-direction combination.
+- Outputs results including both route identifiers and associated nearest stop IDs to a CSV file for further analysis.
+
+The script is customizable via a configuration section for paths, buffer size, and spatial references.
+"""
 import os
 
 import pandas as pd
@@ -28,14 +37,13 @@ GTFS_FILES = {
 
 # Define manual locations
 MANUAL_LOCATIONS = [
-    {"name": "Ballston", "latitude": 38.881724, "longitude": -77.111615},
     {"name": "Braddock", "latitude": 38.813545, "longitude": -77.053864},
     {"name": "Crystal City", "latitude": 38.85835, "longitude": -77.051232}
 ]
 
 # Buffer radius configuration
 # Specify the buffer distance and its unit ('miles' or 'feet')
-BUFFER_DISTANCE = 0.5  # e.g., 0.5
+BUFFER_DISTANCE = 0.25 # Replace with your desired buffer distance
 BUFFER_UNIT = 'miles'  # options: 'miles', 'feet'
 
 # Projected CRS (NAD83 / DC State Plane (US Feet))
@@ -122,39 +130,79 @@ def reproject_geodataframes(gdf_locations, stops_gdf, target_crs):
     return gdf_locations_proj, stops_gdf_proj
 
 
-def find_nearby_routes(gdf_locations, stops_gdf, stop_times_trips_routes, buffer_distance_feet):
+def find_nearby_routes_with_nearest_stops(gdf_locations, stops_gdf, stop_times_trips_routes, buffer_distance_feet):
     """
-    For each location, find unique routes within the buffer distance.
+    For each location, identify all unique (route_short_name + direction_id) pairs
+    within the buffer, then find the single nearest stop to the location for each pair.
+    Finally, return both the list of routes (e.g., '598, 599') and the list of
+    associated nearest stop IDs (e.g., '1056, 2869').
     """
     results = []
     for _, location in gdf_locations.iterrows():
         # Create a buffer around the location
         location_buffer = location.geometry.buffer(buffer_distance_feet)
 
-        # Find stops within the buffer
+        # Filter stops to only those within the buffer
         nearby_stops = stops_gdf[stops_gdf.geometry.within(location_buffer)]
+        if nearby_stops.empty:
+            # No stops at all in this location's buffer
+            results.append({
+                'Location': location['name'],
+                'Routes': 'No routes',
+                'Stops': 'No stops'
+            })
+            continue
 
-        # Get stop_ids of nearby stops
+        # Subset stop_times_trips_routes to only those with stop_ids in nearby_stops
         nearby_stop_ids = nearby_stops['stop_id'].unique()
-
-        # Find the routes associated with these stops
-        nearby_routes = stop_times_trips_routes[
+        df_nearby_routes = stop_times_trips_routes[
             stop_times_trips_routes['stop_id'].isin(nearby_stop_ids)
         ]
 
-        # Get unique route short names
-        unique_routes = nearby_routes['route_short_name'].unique()
+        if df_nearby_routes.empty:
+            # No routes found
+            results.append({
+                'Location': location['name'],
+                'Routes': 'No routes',
+                'Stops': 'No stops'
+            })
+            continue
 
-        # Prepare the result
-        if unique_routes.size > 0:
-            routes_str = ', '.join(unique_routes)
+        # Merge the subset of stops to get geometry for distance calculations
+        merged_stops = pd.merge(
+            nearby_stops[['stop_id', 'geometry']],
+            df_nearby_routes[['stop_id', 'route_short_name', 'direction_id']],
+            on='stop_id'
+        ).drop_duplicates()
+
+        # Compute distance from this location's geometry to each stop
+        merged_stops['distance'] = merged_stops['geometry'].distance(location.geometry)
+
+        # Group by route_short_name + direction_id, pick the stop with minimum distance
+        # for each (route, direction).
+        # As an example, we handle direction_id to ensure we get unique route+direction pairs.
+        grouped = merged_stops.groupby(['route_short_name', 'direction_id'], as_index=False)
+        nearest_stops = grouped.apply(lambda x: x.loc[x['distance'].idxmin()])
+
+        # Build final lists for routes and stops
+        # (One stop ID per route+direction pair)
+        route_list = nearest_stops['route_short_name'].astype(str).unique().tolist()
+        stop_list = nearest_stops['stop_id'].astype(str).unique().tolist()
+
+        # Prepare string output (or you could store as lists, etc.)
+        if len(route_list) > 0:
+            routes_str = ', '.join(route_list)
+            stops_str = ', '.join(stop_list)
         else:
             routes_str = 'No routes'
+            stops_str = 'No stops'
 
         results.append({
             'Location': location['name'],
-            'Routes': routes_str
+            'Routes': routes_str,
+            'Stops': stops_str
         })
+
     return results
 
 
@@ -197,7 +245,8 @@ def main():
         # Convert buffer distance to feet
         buffer_distance_feet = convert_buffer_distance(BUFFER_DISTANCE, BUFFER_UNIT)
         print(
-            f"Buffer distance set to {buffer_distance_feet} feet ({BUFFER_DISTANCE} {BUFFER_UNIT}).\n"
+            f"Buffer distance set to {buffer_distance_feet} feet "
+            f"({BUFFER_DISTANCE} {BUFFER_UNIT}).\n"
         )
 
         print("Merging stop_times with trips...")
@@ -212,14 +261,18 @@ def main():
         )
         print(f"Merged with routes: {len(stop_times_trips_routes)} records.\n")
 
-        print("Finding nearby routes for each location...")
-        results = find_nearby_routes(
+        print("Finding nearby routes and nearest stops for each location...")
+        results = find_nearby_routes_with_nearest_stops(
             gdf_locations_proj,
             stops_gdf_proj,
             stop_times_trips_routes,
             buffer_distance_feet
         )
         print("Nearby routes found for all locations.\n")
+
+        # Convert to DataFrame and display or save
+        df_results = pd.DataFrame(results)
+        print(df_results)
 
         # Define output file path
         output_file = os.path.join(OUTPUT_PATH, "nearby_routes.csv")
