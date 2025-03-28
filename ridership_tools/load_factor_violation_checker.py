@@ -158,10 +158,10 @@ def main():
 
     # Process data with filtering and limit checks
     processed_data = process_data(
-        data_frame, 
-        BUS_CAPACITY, 
-        FILTER_IN_ROUTES, 
-        FILTER_OUT_ROUTES, 
+        data_frame,
+        BUS_CAPACITY,
+        FILTER_IN_ROUTES,
+        FILTER_OUT_ROUTES,
         DECIMAL_PLACES
     )
 
