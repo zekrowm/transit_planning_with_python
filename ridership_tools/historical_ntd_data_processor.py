@@ -1,22 +1,26 @@
 """
-Ridership Data Processing & Analysis
+This module consolidates ridership data across multiple Excel workbooks,
+specifically handling separate worksheets for different day types (Weekday,
+Saturday, Sunday). For each month, the script extracts route-level totals,
+day counts, and averages for each day type, then sums them to produce a
+monthly total.
 
-This script consolidates transit ridership data from multiple Excel files,
-exports a cleaned CSV, and optionally generates ridership trend plots.
-It also identifies routes with declining ridership using a rolling 12-month
-average and regression analysis.
+Key Features:
+1. Automated Day-Type Detection: Searches workbook sheets for names
+   matching "Weekday(s)", "Saturday(s)", "Sunday(s)" (in any case).
+2. Consolidated Outputs: Each month generates columns such as
+   Jan-24_WeekdayTotal, Jan-24_WeekdayDays, Jan-24_WeekdayAverage, and
+   Jan-24_MonthlyTotal.
+3. Route Exclusions: Configurable list of routes to exclude from final
+   outputs; excluded routes are logged separately for reference.
+4. Plotting Enhancements: Each day-type variable (WeekdayTotal,
+   SaturdayAverage, etc.) is plotted on its own chart, allowing clearer
+   visualization of each metric over time.
+5. Easy Configuration: Centralized settings control the input directory,
+   output paths, route exclusions, plotting behavior, and more.
 
-Configuration:
-- Set `ENABLE_PLOTTING = True` to generate plots, or `False` to skip.
-- Choose between `USE_DYNAMIC_SCALE` (adaptive y-axis) or static scaling.
-- Modify `BASE_INPUT_DIR`, `OUTPUT_DIR`, and `PLOTS_OUTPUT_FOLDER` as needed.
-- Exclude specific routes using `ROUTES_TO_EXCLUDE`.
-
-Usage:
-Run with:
-    python ridership_analysis.py
-
-Dependencies: pandas, matplotlib, numpy, openpyxl
+The script first consolidates data into a single CSV, then optionally
+generates per-route line charts for each day-type variable across all months.
 """
 
 import os
@@ -30,621 +34,455 @@ import matplotlib.pyplot as plt
 # Configuration Section
 ###############################################################################
 
-# === Part 1: Consolidation Config ===
-BASE_INPUT_DIR = r"C:\Your\Folder\Path\NTD_files"
-OUTPUT_DIR = r"C:\Your\Folder\Path\Output"
+# --- Part 1: Consolidation Config ---
 
-# Create output directory if it doesn't exist
+BASE_INPUT_DIR = r"\\S40SHAREPGC01\DOTWorking\zkrohm\_data_archive\ntd_ridership"
+OUTPUT_DIR = r"\\S40SHAREPGC01\DOTWorking\zkrohm\analysis_requests\route_622_722_investigation\output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# List of routes to exclude from the final consolidated file
-ROUTES_TO_EXCLUDE = [
-    '101', '202', '303'
-]
-# This may include discontinued or non-standard routes
-# Leave empty if you want no exclusions (e.g. [])
-
+# Each key is a "Month String", each value is the Excel filename for that month
 FILE_SHEET_MAPPING = {
-    'September-23': {
-        'file_name': 'NTD RIDERSHIP BY ROUTE SEP 2023.xlsx',
-        'sheet_name': 'System Sep2023'
-    },
-    'October-23': {
-        'file_name': 'OCTOBER 2023  NTD RIDERSHIP_BY_ROUTE.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'November-23': {
-        'file_name': 'November 2023 NTD RIDERSHIP BY ROUTE.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'December-23': {
-        'file_name': 'NTD RIDERSHIP BY ROUTE DECEMBER 2023.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'January-24': {
-        'file_name': 'NTD RIDERSHIP BY ROUTE JANUARY 2024 FINAL 22824.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'February-24': {
-        'file_name': 'NTD RIDERSHIP BY ROUTE FEBRUARY 2024.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'March-24': {
-        'file_name': 'MARCH 2024 NTD RIDERSHIP BY ROUTE AND LOCATION.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'April-24': {
-        'file_name': 'APRIL 2024 NTD RIDERSHIP BY ROUTE (002).xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'May-24': {
-        'file_name': 'NTD RIDERSHIP BY ROUTE MAY 2024.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'June-24': {
-        'file_name': 'NTD RIDERSHIP BY ROUTE JUNE 2024.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'July-24': {
-        'file_name': 'JULY 2024 NTD RIDERSHIP BY ROUTE.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'August-24': {
-        'file_name': 'AUGUST 2024  NTD RIDERSHIP REPORT BY ROUTE.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'September-24': {
-        'file_name': 'SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.xlsx',
-        'sheet_name': 'Sep.2024 Finals'
-    },
-    'October-24': {
-        'file_name': 'NTD RIDERSHIP BY ROUTE _ OCTOBER _2024.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'November-24': {
-        'file_name': 'NTD RIDERSHIP BY ROUTE-NOVEMBER 2024.xlsx',
-        'sheet_name': 'Temporary_Query_N'
-    },
-    'December-24': {
-        'file_name': 'NTD RIDERSHIP BY MONTH_DECEMBER 2024.xlsx',
-        'sheet_name': 'Dec. 2024'
-    }
+    'September-23':  'NTD RIDERSHIP BY ROUTE SEP 2023.xlsx',
+    'October-23':    'OCTOBER 2023  NTD RIDERSHIP_BY_ROUTE.xlsx',
+    'November-23':   'November 2023 NTD RIDERSHIP BY ROUTE.xlsx',
+    'December-23':   'NTD RIDERSHIP BY ROUTE DECEMBER 2023.xlsx',
+    'January-24':    'NTD RIDERSHIP BY ROUTE JANUARY 2024 FINAL 22824.xlsx',
+    'February-24':   'NTD RIDERSHIP BY ROUTE FEBRUARY 2024.xlsx',
+    'March-24':      'MARCH 2024 NTD RIDERSHIP BY ROUTE AND LOCATION.xlsx',
+    'April-24':      'APRIL 2024 NTD RIDERSHIP BY ROUTE (002).xlsx',
+    'May-24':        'NTD RIDERSHIP BY ROUTE MAY 2024.xlsx',
+    'June-24':       'NTD RIDERSHIP BY ROUTE JUNE 2024.xlsx',
+    'July-24':       'JULY 2024 NTD RIDERSHIP BY ROUTE.xlsx',
+    'August-24':     'AUGUST 2024  NTD RIDERSHIP REPORT BY ROUTE.xlsx',
+    'September-24':  'SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.xlsx',
+    'October-24':    'NTD RIDERSHIP BY ROUTE _ OCTOBER _2024.xlsx',
+    'November-24':   'NTD RIDERSHIP BY ROUTE-NOVEMBER 2024.xlsx',
+    'December-24':   'NTD RIDERSHIP BY MONTH_DECEMBER 2024.xlsx',
+    'January-25': 'NTD RIDERSHIP BY MONTH-JANUARY 2025',
+    'February-25': 'NTD RIDERSHIP BY MONTH-FEBRUARY 2025'
 }
 
+# We want to exclude certain routes from the final data
+ROUTES_TO_EXCLUDE = ['101', '202', '303']
+
+# Which columns do we expect in each sheet for routes + ridership + days
 ROUTE_COLUMN_NAME = 'ROUTE_NAME'
 RIDERSHIP_COLUMN_NAME = 'MTH_BOARD'
+DAYS_COLUMN_NAME = 'DAYS'
 
-# === Part 2: Plotting & Analysis Config ===
-INPUT_CSV_PATH = os.path.join(OUTPUT_DIR, 'Consolidated_Ridership_Data.csv')
+# Regex patterns to identify each day-type sheet (match singular/plural, any case)
+DAYTYPE_PATTERNS = {
+    "WEEKDAYS":   re.compile(r'(?i)^weekday(s)?$'),
+    "SATURDAYS":  re.compile(r'(?i)^saturday(s)?$'),
+    "SUNDAYS":    re.compile(r'(?i)^sunday(s)?$')
+}
 
-# Set this to False if you do NOT want to create plots.
+
+# --- Part 2: Plotting & Analysis Config ---
+
 ENABLE_PLOTTING = True
 
-# Which routes to plot/analyze? If empty, includes all
+# Which routes to plot? If empty, will plot all. If you only want 622, 722, etc.:
 ROUTES_OF_INTEREST = []
 
-# Where to save the plots
-PLOTS_OUTPUT_FOLDER = r"C:\Your\Folder\Path\Plots"
+# Folder to store plot images
+PLOTS_OUTPUT_FOLDER = os.path.join(OUTPUT_DIR, "Plots")
 os.makedirs(PLOTS_OUTPUT_FOLDER, exist_ok=True)
 
-# Plot appearance settings
-PLOT_TITLE_PREFIX = "Ridership Over Time for Route"
+# Plot appearance
 FIG_SIZE = (10, 6)
 MARKER_STYLE = 'o'
 LINE_STYLE = '-'
-OUTPUT_FORMAT = 'jpeg'  # e.g., 'jpeg' or 'png'
+LINE_WIDTH = 2.0
 
-# Choose between dynamic or static y-axis scale
-USE_DYNAMIC_SCALE = True  # Set to False for static y-axis scale
-STATIC_Y_MIN = 0
-STATIC_Y_MAX = 100000
+# If you only want to plot certain lines (day types) in each chart, set them here:
+# e.g., ["WeekdayTotal", "SaturdayTotal", "SundayTotal", "MonthlyTotal"]
+DAYTYPES_TO_PLOT = ["WeekdayTotal", "SaturdayTotal", "SundayTotal", "MonthlyTotal",
+                    "WeekdayAverage", "SaturdayAverage", "SundayAverage"]
+
 
 ###############################################################################
-# Part 1: Consolidation Functions
+# Part 1: Consolidation Function
 ###############################################################################
 
-
-def extract_route_ridership(df, route_column='ROUTE_NAME',
-                            ridership_column='MTH_BOARD'):
+def extract_route_ridership(df, route_col, ridership_col, days_col):
     """
-    Extract the route and ridership data from the DataFrame. Cleans the
-    route names by removing spaces, converting to uppercase, and ensuring
-    numeric columns are properly handled.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The source DataFrame to extract data from.
-    route_column : str, optional
-        The name of the column containing route identifiers.
-    ridership_column : str, optional
-        The name of the column containing ridership values.
-
-    Returns
-    -------
-    pd.DataFrame
-        A DataFrame with just the relevant route and ridership columns.
+    Extract minimal columns (route, ridership, days), handle missing or invalid values,
+    and clean the route names to uppercase without spaces.
     """
-    missing_columns = []
-    for col in [route_column, ridership_column]:
+    missing = []
+    for col in [route_col, ridership_col, days_col]:
         if col not in df.columns:
-            missing_columns.append(col)
-    if missing_columns:
-        raise ValueError(
-            f"Missing columns in the data: {', '.join(missing_columns)}"
-        )
+            missing.append(col)
 
-    df = df[[route_column, ridership_column]].copy()
-    df.dropna(subset=[route_column, ridership_column], inplace=True)
+    # We'll allow DAYS to be missing, just fill with NaN
+    if days_col in missing:
+        missing.remove(days_col)
+        df[days_col] = np.nan
 
-    # Clean the route name
-    df[route_column] = (
-        df[route_column]
-        .astype(str)
-        .str.strip()
-        .str.upper()
-        .str.replace(' ', '', regex=False)
-    )
-    # Remove any trailing ".0" if present
-    df[route_column] = df[route_column].apply(
-        lambda x: re.sub(r'\.0$', '', x)
-    )
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
 
-    # Convert ridership to numeric, replace non-convertible with 0
-    df[ridership_column] = pd.to_numeric(df[ridership_column],
-                                         errors='coerce').fillna(0)
+    # Keep only these 3 columns
+    df = df[[route_col, ridership_col, days_col]].copy()
+
+    # Drop rows missing route or ridership
+    df.dropna(subset=[route_col, ridership_col], inplace=True)
+
+    # Clean route
+    df[route_col] = (df[route_col]
+                     .astype(str)
+                     .str.strip()
+                     .str.upper()
+                     .str.replace(' ', '', regex=False))
+    df[route_col] = df[route_col].apply(lambda x: re.sub(r'\.0$', '', x))
+
+    # Convert ridership, days to numeric
+    df[ridership_col] = pd.to_numeric(df[ridership_col], errors='coerce').fillna(0)
+    df[days_col]      = pd.to_numeric(df[days_col], errors='coerce').fillna(0)
 
     return df
 
 
 def consolidate_ridership_data():
     """
-    Consolidate ridership data from multiple Excel files and sheets into a
-    single CSV file. The consolidated CSV file will be saved to
-    `Consolidated_Ridership_Data.csv` in the specified OUTPUT_DIR.
-
-    Returns
-    -------
-    str
-        Path to the generated CSV file of consolidated data, or None if
-        no data was processed.
+    Reads all Excel files from FILE_SHEET_MAPPING, merges day types, outputs one CSV.
+    Creates columns for each month+daytype: e.g. 'Jan-24_WeekdayTotal', 'Jan-24_WeekdayDays',
+    'Jan-24_WeekdayAverage', etc., plus 'Jan-24_MonthlyTotal'.
     """
     consolidated_df = pd.DataFrame()
     excluded_routes_list = []
-    total_excluded_routes = 0
+    total_excluded_count = 0
 
-    for month, info in FILE_SHEET_MAPPING.items():
-        file_path = os.path.join(BASE_INPUT_DIR, info['file_name'])
+    for month_str, file_name in FILE_SHEET_MAPPING.items():
+        file_path = os.path.join(BASE_INPUT_DIR, file_name)
 
         if not os.path.exists(file_path):
-            print(f"Warning: File {file_path} does not exist. Skipping {month}.")
+            print(f"Warning: File {file_path} not found. Skipping {month_str}.")
             continue
 
+        # Identify all sheets in the workbook
         try:
-            df = pd.read_excel(file_path, sheet_name=info['sheet_name'])
-            print(f"Processing {month}: {info['file_name']} - Sheet: "
-                  f"{info['sheet_name']}")
+            xls = pd.ExcelFile(file_path)
+            all_sheets = xls.sheet_names
         except Exception as exc:
-            print(f"Error reading {file_path} - Sheet: {info['sheet_name']}: "
-                  f"{exc}")
+            print(f"Warning: Could not read {file_path}: {exc}")
             continue
 
-        try:
-            df_extracted = extract_route_ridership(
-                df,
-                route_column=ROUTE_COLUMN_NAME,
-                ridership_column=RIDERSHIP_COLUMN_NAME
-            )
-            print(f"Extracted {df_extracted.shape[0]} records for {month}.")
-        except ValueError as ve:
-            print(f"Data extraction error for {month}: {ve}")
+        daytype_dfs = {}
+        # Attempt to find Weekday, Saturday, Sunday sheets
+        for canonical_daytype, pattern in DAYTYPE_PATTERNS.items():
+            matched = [s for s in all_sheets if pattern.match(str(s).strip())]
+            if not matched:
+                print(f"Warning: No sheet for {canonical_daytype} in {file_name}.")
+                continue
+            sheet_name = matched[0]  # If multiple, pick first or do your own logic
+
+            try:
+                df_raw = pd.read_excel(file_path, sheet_name=sheet_name)
+                df_ext = extract_route_ridership(
+                    df_raw,
+                    route_col=ROUTE_COLUMN_NAME,
+                    ridership_col=RIDERSHIP_COLUMN_NAME,
+                    days_col=DAYS_COLUMN_NAME
+                )
+                daytype_dfs[canonical_daytype] = df_ext
+                print(f"Read '{sheet_name}' → {canonical_daytype} for {month_str} ({len(df_ext)} rows).")
+            except Exception as e:
+                print(f"Warning: Error reading {sheet_name} in {file_name}: {e}")
+
+        if not daytype_dfs:
+            print(f"No day-type sheets found for {month_str}. Skipping.")
             continue
 
-        # Exclude specified routes if any
-        if ROUTES_TO_EXCLUDE:
-            df_excluded = df_extracted[
-                df_extracted[ROUTE_COLUMN_NAME].isin(ROUTES_TO_EXCLUDE)
-            ].copy()
-            if not df_excluded.empty:
-                df_excluded['Month'] = month
-                excluded_routes_list.append(df_excluded)
+        # Merge them on ROUTE_NAME
+        merged = None
+        for dt_name, df_temp in daytype_dfs.items():
+            # Exclude routes
+            routes_ex = df_temp[df_temp[ROUTE_COLUMN_NAME].isin(ROUTES_TO_EXCLUDE)]
+            if not routes_ex.empty:
+                routes_ex['Month'] = month_str
+                excluded_routes_list.append(routes_ex)
+                total_excluded_count += len(routes_ex)
 
-                excluded_count = df_excluded.shape[0]
-                total_excluded_routes += excluded_count
-                print(f"Excluded {excluded_count} routes for {month}.")
+            # Keep the rest
+            df_temp = df_temp[~df_temp[ROUTE_COLUMN_NAME].isin(ROUTES_TO_EXCLUDE)]
+            if df_temp.empty:
+                continue
+
+            # Rename columns (temporary) to something like 'RIDERSHIP_WEEKDAYS', 'DAYS_WEEKDAYS'
+            ridership_col_new = f"RIDERSHIP_{dt_name}"
+            days_col_new      = f"DAYS_{dt_name}"
+            df_temp = df_temp.rename(columns={
+                RIDERSHIP_COLUMN_NAME: ridership_col_new,
+                DAYS_COLUMN_NAME: days_col_new
+            })
+
+            if merged is None:
+                merged = df_temp
             else:
-                excluded_count = 0
-                print(f"No routes excluded for {month}.")
+                merged = pd.merge(
+                    merged,
+                    df_temp[[ROUTE_COLUMN_NAME, ridership_col_new, days_col_new]],
+                    on=ROUTE_COLUMN_NAME,
+                    how='outer'
+                )
 
-            # Perform the exclusion
-            df_extracted = df_extracted[
-                ~df_extracted[ROUTE_COLUMN_NAME].isin(ROUTES_TO_EXCLUDE)
-            ]
-
-        if df_extracted.empty:
-            print(f"No data left after excluding routes for {month}. Skipping.")
+        if merged is None or merged.empty:
+            print(f"No data left for {month_str}. Skipping.")
             continue
 
-        # Aggregate ridership by route
-        df_grouped = df_extracted.groupby(ROUTE_COLUMN_NAME)[
-            RIDERSHIP_COLUMN_NAME
-        ].sum().reset_index()
+        merged.fillna(0, inplace=True)
 
-        # Convert the month text like 'July-25' to 'Jul-25' if possible
+        # For each daytype, create an 'AVERAGE_' column
+        for dt in ["WEEKDAYS", "SATURDAYS", "SUNDAYS"]:
+            rcol = f"RIDERSHIP_{dt}"
+            dcol = f"DAYS_{dt}"
+            acol = f"AVERAGE_{dt}"
+            merged[acol] = np.where(merged[dcol] > 0, merged[rcol] / merged[dcol], 0)
+
+        # Create a single 'RIDERSHIP_MONTHLY_TOTAL' = sum of the three day types
+        merged["RIDERSHIP_MONTHLY_TOTAL"] = (
+            merged.get("RIDERSHIP_WEEKDAYS", 0) +
+            merged.get("RIDERSHIP_SATURDAYS", 0) +
+            merged.get("RIDERSHIP_SUNDAYS", 0)
+        )
+
+        # Convert e.g. 'January-24' → 'Jan-24'
         try:
-            month_datetime = pd.to_datetime(month, format='%B-%y')
-            month_abbr = month_datetime.strftime('%b-%y')
+            dt_val = pd.to_datetime(month_str, format='%B-%y')
+            month_abbr = dt_val.strftime('%b-%y')
         except ValueError:
-            month_abbr = month
-            print(f"Warning: Could not parse month '{month}'. Using original.")
+            month_abbr = month_str
 
-        df_grouped = df_grouped.rename(columns={
-            RIDERSHIP_COLUMN_NAME: month_abbr
-        })
+        # Rename to final columns: 'Jan-24_WeekdayTotal', etc.
+        rename_map = {}
+        for c in merged.columns:
+            if c == ROUTE_COLUMN_NAME:
+                continue
+            if c == "RIDERSHIP_WEEKDAYS":
+                rename_map[c] = f"{month_abbr}_WeekdayTotal"
+            elif c == "DAYS_WEEKDAYS":
+                rename_map[c] = f"{month_abbr}_WeekdayDays"
+            elif c == "AVERAGE_WEEKDAYS":
+                rename_map[c] = f"{month_abbr}_WeekdayAverage"
 
+            elif c == "RIDERSHIP_SATURDAYS":
+                rename_map[c] = f"{month_abbr}_SaturdayTotal"
+            elif c == "DAYS_SATURDAYS":
+                rename_map[c] = f"{month_abbr}_SaturdayDays"
+            elif c == "AVERAGE_SATURDAYS":
+                rename_map[c] = f"{month_abbr}_SaturdayAverage"
+
+            elif c == "RIDERSHIP_SUNDAYS":
+                rename_map[c] = f"{month_abbr}_SundayTotal"
+            elif c == "DAYS_SUNDAYS":
+                rename_map[c] = f"{month_abbr}_SundayDays"
+            elif c == "AVERAGE_SUNDAYS":
+                rename_map[c] = f"{month_abbr}_SundayAverage"
+
+            elif c == "RIDERSHIP_MONTHLY_TOTAL":
+                rename_map[c] = f"{month_abbr}_MonthlyTotal"
+
+        merged.rename(columns=rename_map, inplace=True)
+
+        # Add to final consolidated
         if consolidated_df.empty:
-            consolidated_df = df_grouped
-            print(f"Initialized consolidated DataFrame with "
-                  f"{df_grouped.shape[0]} routes.")
+            consolidated_df = merged
         else:
             consolidated_df = pd.merge(
-                consolidated_df, df_grouped,
+                consolidated_df,
+                merged,
                 on=ROUTE_COLUMN_NAME,
                 how='outer'
             )
-            print(f"Merged data for {month}. Consolidated DataFrame now has "
-                  f"{consolidated_df.shape[0]} routes.")
 
     if consolidated_df.empty:
-        print("No data was processed. Please check the input files.")
+        print("No data was processed at all.")
         return None
 
-    # Fill NaN with 0
-    consolidated_df.fillna(0, inplace=True)
-
-    # Sort by route name (attempt numeric sort if possible)
-    try:
-        consolidated_df['ROUTE_SORT'] = consolidated_df[
-            ROUTE_COLUMN_NAME
-        ].astype(int)
-    except ValueError:
-        consolidated_df['ROUTE_SORT'] = consolidated_df[ROUTE_COLUMN_NAME]
-
-    consolidated_df.sort_values('ROUTE_SORT', inplace=True)
-    consolidated_df.drop('ROUTE_SORT', axis=1, inplace=True)
-
-    # Reorder columns: route first, then sorted months
-    month_cols = [
-        col for col in consolidated_df.columns
-        if re.match(r'^[A-Za-z]{3}-\d{2}$', col)
-    ]
-    # Sort month columns by date
-    month_cols_sorted = sorted(
-        month_cols, key=lambda x: pd.to_datetime(x, format='%b-%y')
-    )
-    # Final reordering
-    consolidated_df = consolidated_df[[ROUTE_COLUMN_NAME] + month_cols_sorted]
-
-    # Export
-    output_file = os.path.join(OUTPUT_DIR, 'Consolidated_Ridership_Data.csv')
-    consolidated_df.to_csv(output_file, index=False)
-
-    print(f"\nConsolidated data exported to {output_file}")
-
-    # Export excluded routes if any
-    if ROUTES_TO_EXCLUDE and excluded_routes_list:
-        excluded_routes_df = pd.concat(excluded_routes_list, ignore_index=True)
-        excluded_routes_df = excluded_routes_df[
-            ['Month', ROUTE_COLUMN_NAME, RIDERSHIP_COLUMN_NAME]
-        ]
-        excluded_file = os.path.join(OUTPUT_DIR, 'Excluded_Routes.xlsx')
+    # Save the excluded routes info if any
+    if excluded_routes_list:
+        excluded_all = pd.concat(excluded_routes_list, ignore_index=True)
+        excl_file = os.path.join(OUTPUT_DIR, "Excluded_Routes.xlsx")
         try:
-            excluded_routes_df.to_excel(excluded_file, index=False)
-            print(f"Excluded routes exported to {excluded_file}")
+            excluded_all.to_excel(excl_file, index=False)
+            print(f"Excluded routes saved to {excl_file} (Count={total_excluded_count}).")
         except Exception as exc:
-            print(f"Error exporting excluded routes: {exc}")
-    else:
-        print("No excluded routes or none specified.")
+            print(f"Error saving excluded routes: {exc}")
 
-    if ROUTES_TO_EXCLUDE:
-        print(f"Total routes excluded across all months: {total_excluded_routes}")
+    # Sort by route
+    try:
+        consolidated_df["ROUTE_SORT"] = consolidated_df[ROUTE_COLUMN_NAME].astype(int)
+    except ValueError:
+        consolidated_df["ROUTE_SORT"] = consolidated_df[ROUTE_COLUMN_NAME]
 
-    return output_file
+    consolidated_df.sort_values("ROUTE_SORT", inplace=True)
+    consolidated_df.drop(columns="ROUTE_SORT", inplace=True)
+
+    # Export final CSV
+    out_csv = os.path.join(OUTPUT_DIR, "Consolidated_Ridership_Data.csv")
+    consolidated_df.to_csv(out_csv, index=False)
+    print(f"Consolidated CSV saved to {out_csv}")
+    return out_csv
 
 
 ###############################################################################
-# Part 2: Plotting & Analysis Functions
+# Part 2: Load & Filter
 ###############################################################################
-
 
 def load_data(csv_path):
     """
-    Load the CSV data into a pandas DataFrame, normalizing column names.
-
-    Parameters
-    ----------
-    csv_path : str
-        File path to the consolidated ridership data CSV.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with normalized column names.
+    Simple CSV loader with error handling
     """
     try:
         df = pd.read_csv(csv_path)
-        # Normalize column names
-        df.columns = df.columns.str.strip().str.upper()
-        print(f"Successfully loaded data from {csv_path}")
+        # Clean up column names (strip whitespace)
+        df.columns = df.columns.str.strip()
+        print(f"Loaded data from {csv_path} with {df.shape[0]} rows.")
         return df
-    except FileNotFoundError:
-        print(f"Error: The file {csv_path} was not found.")
-        sys.exit(1)
-    except pd.errors.EmptyDataError:
-        print(f"Error: The file {csv_path} is empty.")
-        sys.exit(1)
     except Exception as exc:
-        print(f"Unexpected error loading data: {exc}")
+        print(f"Error loading {csv_path}: {exc}")
         sys.exit(1)
 
 
-def filter_routes(df, route_column, routes_of_interest):
+def filter_routes(df, route_col="ROUTE_NAME", routes_of_interest=None):
     """
-    Filter the DataFrame for the specified routes. Returns all
-    routes if the list is empty.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The original DataFrame.
-    route_column : str
-        The name of the route column.
-    routes_of_interest : list of str
-        Routes to include; if empty, includes all.
-
-    Returns
-    -------
-    pd.DataFrame
-        Filtered (or unfiltered) DataFrame.
+    Return either the entire df if routes_of_interest is empty,
+    or only the routes specified.
     """
     if not routes_of_interest:
-        print("No specific routes specified. Plotting/analyzing all routes.")
-        return df.copy()
-
-    df_filtered = df[df[route_column].astype(str).isin(routes_of_interest)]
-    if df_filtered.empty:
-        print(f"No data found for routes: {routes_of_interest}")
-        sys.exit(1)
-    else:
-        print(f"Filtered data has {df_filtered.shape[0]} rows for routes: "
-              f"{routes_of_interest}")
-    return df_filtered
+        return df
+    fdf = df[df[route_col].isin(routes_of_interest)].copy()
+    print(f"Filtered down to {fdf.shape[0]} rows for routes: {routes_of_interest}")
+    return fdf
 
 
-def parse_month_columns(df, route_column):
+###############################################################################
+# Part 3: Plotting (Revised to separate each variable into its own chart)
+###############################################################################
+
+def plot_ridership(df, route_col="ROUTE_NAME"):
     """
-    Identify and sort month columns in the DataFrame.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The DataFrame containing ridership data.
-    route_column : str
-        Name of the route column.
-
-    Returns
-    -------
-    list
-        Chronologically sorted month column names.
+    For each route in df, we:
+       1) Identify columns that match the pattern of time-series ridership
+          e.g. "Jan-24_WeekdayTotal", "Feb-24_WeekdayAverage", etc.
+       2) Parse out the month and the type (WeekdayTotal, SaturdayTotal, etc.).
+       3) For each distinct variable in DAYTYPES_TO_PLOT (e.g. 'WeekdayTotal'),
+          plot it on a *separate* figure for that route.
     """
-    month_cols = [c for c in df.columns if c != route_column]
-    try:
-        month_dates = pd.to_datetime(month_cols, format='%b-%y', errors='coerce')
-        if month_dates.isnull().any():
-            fail_cols = [col for col, d in zip(month_cols, month_dates)
-                         if pd.isnull(d)]
-            raise ValueError(f"Unable to parse columns: {fail_cols}")
-    except Exception as exc:
-        print(f"Error parsing month columns: {exc}")
-        sys.exit(1)
+    pattern = re.compile(r'^([A-Za-z]{3}-\d{2})_(Weekday|Saturday|Sunday|Monthly)(Total|Days|Average)$')
 
-    # Pair up the parsed dates with the column names
-    month_pairs = list(zip(month_dates, month_cols))
-    # Filter out anything that didn't parse
-    month_pairs = [mp for mp in month_pairs if not pd.isnull(mp[0])]
-    # Sort by the datetime
-    sorted_months = [col for _, col in sorted(month_pairs, key=lambda x: x[0])]
-    return sorted_months
+    # Identify the columns that match the day-type pattern
+    matched_cols = []
+    for col in df.columns:
+        if col == route_col:
+            continue
+        m = pattern.match(col)
+        if m:
+            base_month = m.group(1)   # e.g. "Jan-24"
+            daytype    = m.group(2)   # e.g. "Weekday"
+            suffix     = m.group(3)   # e.g. "Total" or "Average" or "Days"
+            matched_cols.append((col, base_month, daytype, suffix))
 
+    if not matched_cols:
+        print("No recognized columns matching the day-type pattern. Nothing to plot.")
+        return
 
-def plot_ridership(df, route_column, sorted_months, output_folder):
-    """
-    Create and save ridership plots for each route in the DataFrame.
+    # Convert base_month to a datetime for sorting, store for convenience
+    matched_with_dates = []
+    for (col, bm, dt_str, sx) in matched_cols:
+        try:
+            dt_val = pd.to_datetime(bm, format='%b-%y')
+        except ValueError:
+            dt_val = None
+        # Combine dt_str + sx => e.g. "WeekdayTotal", "MonthlyTotal"
+        full_tag = dt_str + sx  # e.g. "WeekdayTotal" or "MonthlyTotal"
+        matched_with_dates.append((dt_val, col, bm, full_tag))
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Filtered DataFrame with ridership data.
-    route_column : str
-        Name of the route column.
-    sorted_months : list
-        Chronologically sorted month columns.
-    output_folder : str
-        Directory where plots are saved.
-    """
-    for _, row in df.iterrows():
-        route = row[route_column]
-        ridership = row[sorted_months].values.astype(float)
+    routes = df[route_col].unique()
 
-        if len(ridership) == 0:
-            print(f"No ridership data for Route {route}. Skipping.")
+    for route in routes:
+        row = df[df[route_col] == route].squeeze()
+        if row.empty:
             continue
 
-        plt.figure(figsize=FIG_SIZE)
-        plt.plot(sorted_months, ridership,
-                 marker=MARKER_STYLE,
-                 linestyle=LINE_STYLE,
-                 label=f'Route {route}')
-        plt.title(f"{PLOT_TITLE_PREFIX} {route}")
-        plt.xlabel("Month")
-        plt.ylabel("Ridership")
-        plt.xticks(rotation=45, ha='right')
-        plt.grid(True)
+        # Build up a dictionary: { "WeekdayTotal": [(dt, "Jan-24", val), ...], ... }
+        var_dict = {}
+        for (dt_val, col, base_month, full_tag) in matched_with_dates:
+            if dt_val is not None and full_tag in DAYTYPES_TO_PLOT:
+                if full_tag not in var_dict:
+                    var_dict[full_tag] = []
+                # numeric value from the row
+                val = float(row[col]) if pd.notnull(row[col]) else 0
+                var_dict[full_tag].append((dt_val, base_month, val))
 
-        if USE_DYNAMIC_SCALE:
-            # Dynamic scale based on route's ridership
-            if ridership.max() > 0:
-                plt.ylim(0, ridership.max() * 1.1)
-            else:
-                plt.ylim(0, 1)
-        else:
-            # Static (fixed) scale
-            plt.ylim(STATIC_Y_MIN, STATIC_Y_MAX)
+        # For each variable in var_dict, create a *separate* figure
+        for variable_label, items in var_dict.items():
+            # Sort by datetime
+            items.sort(key=lambda x: x[0])
+            x_vals = [i[1] for i in items]  # e.g. "Jan-24", "Feb-24" ...
+            y_vals = [i[2] for i in items]
 
-        plt.tight_layout()
-        out_file = os.path.join(output_folder, f"Route_{route}.{OUTPUT_FORMAT}")
-        try:
-            plt.savefig(out_file, format=OUTPUT_FORMAT)
-            print(f"Saved plot for Route {route} to {out_file}")
-        except Exception as exc:
-            print(f"Error saving plot for Route {route}: {exc}")
-        finally:
-            plt.close()
+            # Skip if there's no data
+            if len(x_vals) == 0:
+                continue
 
+            plt.figure(figsize=FIG_SIZE)
+            plt.plot(x_vals, y_vals, marker=MARKER_STYLE, linestyle=LINE_STYLE,
+                     linewidth=LINE_WIDTH, label=variable_label)
 
-def identify_negative_trends(df, route_column, sorted_months,
-                             window=12, slope_threshold=0):
-    """
-    Identify routes with negative ridership trends using a rolling average
-    and a linear regression on that rolling average.
+            plt.title(f"{variable_label} Over Time (Route {route})")
+            plt.xlabel("Month")
+            plt.ylabel("Ridership")
+            plt.xticks(rotation=45, ha='right')
+            plt.grid(True)
+            plt.legend(loc='upper left')
+            plt.tight_layout()
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame of ridership data for each route.
-    route_column : str
-        Name of the route column.
-    sorted_months : list
-        Chronologically sorted month columns.
-    window : int, optional
-        Window size for rolling average (default 12).
-    slope_threshold : float, optional
-        If slope < slope_threshold, consider negative trend (default 0).
-
-    Returns
-    -------
-    list
-        Routes with negative ridership trends.
-    """
-    negative_routes = []
-    trend_details = []
-
-    for _, row in df.iterrows():
-        route = row[route_column]
-        ridership = row[sorted_months].astype(float).values
-
-        ts_df = pd.DataFrame({
-            'Month': pd.to_datetime(sorted_months, format='%b-%y'),
-            'Ridership': ridership
-        }).sort_values('Month')
-        ts_df.set_index('Month', inplace=True)
-
-        # Rolling average
-        ts_df['Rolling_Avg'] = ts_df['Ridership'].rolling(window=window).mean()
-        rolling_avg = ts_df['Rolling_Avg'].dropna()
-
-        if len(rolling_avg) < 2:
-            # Not enough data to judge slope
-            continue
-
-        initial_avg = rolling_avg.iloc[0]
-        final_avg = rolling_avg.iloc[-1]
-        avg_diff = final_avg - initial_avg
-
-        # Linear regression on the rolling average
-        x_vals = np.arange(len(rolling_avg))
-        y_vals = rolling_avg.values
-        slope, intercept = np.polyfit(x_vals, y_vals, 1)
-
-        if slope < slope_threshold:
-            negative_routes.append(route)
-            trend_details.append({
-                'Route': route,
-                'Initial_Rolling_Avg': initial_avg,
-                'Final_Rolling_Avg': final_avg,
-                'Average_Diff': avg_diff,
-                'Slope': slope
-            })
-
-    if negative_routes:
-        print("\nRoutes with Negative Ridership Trends:")
-        for r in negative_routes:
-            print(f" - Route {r}")
-
-        trend_df = pd.DataFrame(trend_details)
-        print("\nDetailed Trend Information:")
-        print(trend_df)
-
-        # Save to CSV
-        trend_path = os.path.join(
-            PLOTS_OUTPUT_FOLDER, "negative_ridership_trends.csv"
-        )
-        try:
-            trend_df.to_csv(trend_path, index=False)
-            print(f"Trend details saved to {trend_path}")
-        except Exception as exc:
-            print(f"Error saving trend details: {exc}")
-    else:
-        print("\nNo routes with negative ridership trends.")
-
-    return negative_routes
+            # Save figure
+            safe_var_label = re.sub(r'[^A-Za-z0-9]+', '_', variable_label)
+            out_path = os.path.join(
+                PLOTS_OUTPUT_FOLDER,
+                f"Route_{route}_{safe_var_label}.png"
+            )
+            try:
+                plt.savefig(out_path)
+                print(f"Saved plot for route {route}, variable='{variable_label}' → {out_path}")
+            except Exception as exc:
+                print(f"Error saving plot for route {route}, variable='{variable_label}': {exc}")
+            finally:
+                plt.close()
 
 
 ###############################################################################
 # Main
 ###############################################################################
 
-
 def main():
-    """
-    Run the entire pipeline:
-     1) Consolidate the data into a CSV.
-     2) Load the CSV, filter for routes, parse months.
-     3) (Optional) Plot ridership.
-     4) Identify negative trends (rolling 12-month).
-    """
-    # === Step 1: Consolidate data ===
+    # 1) Consolidate to CSV
     csv_path = consolidate_ridership_data()
-    if csv_path is None:
-        print("No data to plot or analyze. Exiting.")
+    if not csv_path:
+        print("No data to analyze or plot.")
         sys.exit(0)
 
-    # === Step 2: Load and filter data ===
+    # 2) Load data
     df = load_data(csv_path)
+    route_col = ROUTE_COLUMN_NAME  # e.g. "ROUTE_NAME"
 
-    # The route column will be 'ROUTE_NAME' after normalization => 'ROUTE_NAME'
-    route_col = 'ROUTE_NAME'
-    if route_col not in df.columns:
-        print(f"Error: '{route_col}' not found in consolidated data.")
-        print("Available columns:", df.columns.tolist())
-        sys.exit(1)
+    # 3) Filter routes
+    df_filt = filter_routes(df, route_col=route_col, routes_of_interest=ROUTES_OF_INTEREST)
+    if df_filt.empty:
+        print(f"No rows found for routes {ROUTES_OF_INTEREST}. Exiting.")
+        sys.exit(0)
 
-    df_filtered = filter_routes(df, route_col, ROUTES_OF_INTEREST)
-
-    # === Step 3: Identify and sort month columns ===
-    sorted_months = parse_month_columns(df_filtered, route_col)
-    print("Sorted month columns:", sorted_months)
-
-    # === Step 4 (Optional): Plot ridership ===
+    # 4) Plot if enabled
     if ENABLE_PLOTTING:
-        plot_ridership(df_filtered, route_col, sorted_months, PLOTS_OUTPUT_FOLDER)
+        plot_ridership(df_filt, route_col=route_col)
     else:
-        print("Plotting is disabled. Skipping plot generation.")
+        print("Plotting disabled.")
 
-    # === Step 5: Identify negative trends ===
-    identify_negative_trends(df_filtered, route_col, sorted_months)
-
-    print("\nPipeline completed successfully.")
+    print("\nDone.")
 
 
 if __name__ == "__main__":
