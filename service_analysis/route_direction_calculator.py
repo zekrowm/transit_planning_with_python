@@ -139,6 +139,28 @@ def plot_route_shape(gdf_shape, route, direction, output_path):
     plt.close()
 
 def main():
+    """
+    Primary entry point for GTFS direction classification.
+
+    1. Reads GTFS files (routes, trips, stop_times, shapes, stops) from the configured
+       GTFS_FOLDER path.
+    2. Filters the routes according to user-defined inclusion and exclusion lists.
+    3. Merges shape data (shapes.txt) with trip data (trips.txt) to create
+       LineString geometries and classifies them by:
+       - Loop detection (including CW, CCW, or general LOOP).
+       - Cardinal direction for non-loop shapes (NB, SB, EB, WB).
+    4. Determines first/last stops for each trip and merges stop names.
+    5. Identifies dominant shapes within each route/direction based on trip counts.
+       If ANALYZE_ONLY_DOMINANT_SHAPE is True, only dominant shapes are kept for final output.
+    6. Exports summarized results to Excel (Directions_Summary.xlsx) if EXPORT_XLSX is enabled.
+       Per-route/direction files with departure times are also produced.
+    7. Exports JPEG maps of dominant shapes (one per route/direction) if EXPORT_JPEG is enabled.
+    8. Flags suspicious data where shape_direction and direction_id seem inconsistent
+       and exports details to an Excel file (Suspicious_RouteDirections.xlsx), if any.
+
+    This function does not return any objects; rather, it saves outputs directly to the
+    specified OUTPUT_FOLDER location.
+    """
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     # Read GTFS files
