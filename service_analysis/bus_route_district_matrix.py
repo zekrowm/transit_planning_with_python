@@ -5,8 +5,6 @@ Script to process GTFS and district data to determine where routes operate.
 import os
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point
-from openpyxl import Workbook
 
 # ----------------------------------------------------------------------------
 # Configuration Section
