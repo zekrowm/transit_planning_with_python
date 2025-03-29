@@ -365,6 +365,24 @@ def run_step2_conflict_detection():
 ###############################################################################
 
 def main():
+    """
+    Main entry point for the conflict detection script.
+
+    1) Reads and combines block-level spreadsheets (the Step 1 outputs) 
+       from the configured BLOCK_OUTPUT_FOLDER.
+    2) Normalizes stop IDs, assigns each record to a transit cluster,
+       and identifies potential conflicts based on cluster- and stop-level bay capacities.
+    3) For each cluster, writes an Excel file containing:
+       - An "AllStops" sheet with every record for that cluster, highlighting conflict rows.
+       - Individual sheets for each official stop or overflow bay, also highlighting conflicts.
+    4) Prints a final summary of how many cluster-level and stop-level conflict points were detected.
+
+    This function relies on the global configuration variables (e.g., CLUSTER_DEFINITIONS,
+    BLOCK_OUTPUT_FOLDER, CLUSTER_CONFLICT_OUTPUT_FOLDER, PRESENCE_STATUSES, PASSENGER_SERVICE_STATUSES),
+    which define the transit clusters, their bay capacities, and file locations.
+
+    No arguments are accepted and nothing is returned; all results are saved directly to disk.
+    """
     run_step2_conflict_detection()
 
 if __name__ == "__main__":
