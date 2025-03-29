@@ -29,7 +29,6 @@ before and after solving.
 and direction.
 """
 import os
-import sys
 
 import pandas as pd
 from openpyxl import load_workbook
