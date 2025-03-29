@@ -494,7 +494,11 @@ def main():
                 where_clauses.append(f"{field_delimited} IN ({chunk_str})")
 
             route_where_clause = " OR ".join(where_clauses)
-            arcpy.SelectLayerByAttribute_management("joined_lyr_route", "NEW_SELECTION", route_where_clause)
+            arcpy.SelectLayerByAttribute_management(
+                "joined_lyr_route",
+                "NEW_SELECTION",
+                route_where_clause
+            )
 
             selected_count = int(arcpy.GetCount_management("joined_lyr_route").getOutput(0))
             if selected_count == 0:
