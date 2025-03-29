@@ -22,10 +22,11 @@ Output:
 """
 import os
 import re
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 from collections import defaultdict
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 ###############################################################################
 #                             CONFIGURATION                                   #
