@@ -460,6 +460,16 @@ def plot_ridership(df, route_col="ROUTE_NAME"):
 ###############################################################################
 
 def main():
+    """
+    Main entry point for consolidating ridership data and generating plots.
+
+    Steps:
+    1. Consolidates day-type data from multiple Excel files into one CSV.
+    2. Loads the resulting CSV into a DataFrame.
+    3. Filters the DataFrame for routes of interest (if specified).
+    4. Generates per-route line charts for each day-type metric (if plotting is enabled).
+    5. Saves final outputs and plots to the configured output directory.
+    """
     # 1) Consolidate to CSV
     csv_path = consolidate_ridership_data()
     if not csv_path:
