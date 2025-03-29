@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
+from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -285,7 +286,6 @@ def assign_pattern_ids(patterns_dict):
     """
     For each route/service/direction, assign pattern_id in ascending order.
     """
-    from collections import defaultdict
     group_map = defaultdict(list)
     for v in patterns_dict.values():
         route_id = v['route_id']
@@ -485,7 +485,6 @@ def export_patterns_to_excel(
     named for that service_id's days (if calendar.txt loaded), and save an Excel workbook
     with one sheet per direction.
     """
-    from collections import defaultdict
     group_map = defaultdict(list)
     for pr in pattern_records:
         rid = pr['route_id']
