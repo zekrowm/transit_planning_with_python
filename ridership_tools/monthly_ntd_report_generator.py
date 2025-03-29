@@ -637,6 +637,15 @@ def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict):
 ###############################################################################
 
 def main():
+    """
+    Main entry point for the monthly NTD report generator.
+
+    This function orchestrates the entire ETL and analysis process:
+    1. Reads Excel data from multiple periods.
+    2. Classifies routes, computes derived metrics.
+    3. Aggregates/exports data into various Excel outputs.
+    4. Optionally generates plots for visualizing metrics over time.
+    """
     # 1. Read all periods from config
     data_dict = read_excel_data(CONFIG)
 
