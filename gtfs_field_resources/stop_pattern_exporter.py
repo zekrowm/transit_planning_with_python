@@ -556,6 +556,18 @@ def export_patterns_to_excel(
 # Main
 # ------------------------------------------------------------
 def main():
+    """
+    Main entry point for generating and exporting unique GTFS stop patterns.
+
+    Steps:
+    1) Create the output directory if it doesn’t exist.
+    2) Optionally load calendar.txt for subfolder naming by service day.
+    3) Load the core GTFS tables (stops, trips, stop_times, routes).
+    4) Filter trips if necessary based on route short names and calendar IDs.
+    5) Build unique stop patterns for each trip group.
+    6) Compute earliest start times for each pattern.
+    7) Export the patterns to Excel, creating subfolders grouped by service_id.
+    """
     # 1) Ensure output dir
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
