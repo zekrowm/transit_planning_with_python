@@ -7,11 +7,15 @@ the results to Excel workbooks.
 """
 
 import os
+import logging
 
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
+
+# Configure logging (optional)
+logging.basicConfig(level=logging.INFO)
 
 # ==============================
 # CONFIGURATION SECTION - CUSTOMIZE HERE
@@ -24,27 +28,24 @@ BASE_INPUT_PATH = r'\\your_file_path\here\\'
 BASE_OUTPUT_PATH = r'\\your_file_path\here\\'
 
 # GTFS files to load
-gtfs_files = [
+GTFS_FILES = [
     'trips.txt',
     'stop_times.txt',
     'routes.txt',
-    'stops.txt',
     'calendar.txt'
+    # 'stops.txt',  # Uncomment if needed
 ]
 
 # Routes and directions to process
-route_directions = [
-    # Replace with your route name(s) and desired direction
-    # Can be filtered to direction 0, 1, or None for no filter
-    {'route_short_name': '310', 'direction_id': 0},   # Process only direction 0 for route 310
-    {'route_short_name': '101', 'direction_id': None} # Process all directions for route 101
+ROUTE_DIRECTIONS = [
+    {'route_short_name': '101', 'direction_id': 0},   # Process only direction 0 for route 101
+    {'route_short_name': '202', 'direction_id': None} # Process all directions for route 202
 ]
 
-# **New Configuration: Time Interval in Minutes**
+# New Configuration: Time Interval in Minutes
 TIME_INTERVAL_MINUTES = 60  # Users can change this to 30, 15, etc.
 
-# **New Configuration: Calendar Filter Days**
-# Specify the days to filter services. For example, to include only weekdays:
+# New Configuration: Calendar Filter Days
 CALENDAR_FILTER_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
 # To process all services separately, set it to an empty list:
 # CALENDAR_FILTER_DAYS = []
@@ -52,6 +53,7 @@ CALENDAR_FILTER_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
 # ==============================
 # END OF CONFIGURATION SECTION
 # ==============================
+
 
 def check_input_files(base_path, files):
     """Ensure all required GTFS files exist in the input directory."""
@@ -64,6 +66,7 @@ def check_input_files(base_path, files):
                 f"The required GTFS file {file_name} does not exist in {base_path}."
             )
 
+
 def load_gtfs_data(base_path, files):
     """Load GTFS files into Pandas DataFrames."""
     data = {}
@@ -72,6 +75,7 @@ def load_gtfs_data(base_path, files):
         data_name = file_name.replace('.txt', '')
         data[data_name] = pd.read_csv(file_path)
     return data
+
 
 def fix_time_format(time_str):
     """
@@ -93,6 +97,7 @@ def fix_time_format(time_str):
 
     return ":".join(parts)
 
+
 def get_time_bin(t, interval):
     """
     Assigns a time object to a specific time bin based on the interval.
@@ -102,7 +107,7 @@ def get_time_bin(t, interval):
         interval (int): The interval in minutes.
 
     Returns:
-        str: A string representing the time bin (e.g., "08:00-08:29").
+        str: A string representing the time bin (e.g., "08:00-08:59").
     """
     total_minutes = t.hour * 60 + t.minute
     bin_start = (total_minutes // interval) * interval
@@ -112,6 +117,7 @@ def get_time_bin(t, interval):
     start_hour, start_min = divmod(bin_start, 60)
     end_hour, end_min = divmod(bin_end, 60)
     return f"{str(start_hour).zfill(2)}:{str(start_min).zfill(2)}-{str(end_hour).zfill(2)}:{str(end_min).zfill(2)}"
+
 
 def process_and_export(data, route_dirs, output_path, interval_minutes, calendar_filter_days):
     """
@@ -134,17 +140,15 @@ def process_and_export(data, route_dirs, output_path, interval_minutes, calendar
             else:
                 mask &= calendar[day] == 0
         relevant_service_ids = calendar[mask]['service_id']
-        print("Relevant service IDs based on calendar filter:")
-        print(relevant_service_ids)
+        logging.info("Relevant service IDs based on calendar filter: %s", relevant_service_ids.tolist())
 
         # Filter trips to include only those with relevant service IDs
         trips_filtered = trips[trips['service_id'].isin(relevant_service_ids)]
-        print("Filtered trips based on calendar:")
-        print(trips_filtered.head())
+        logging.info("Filtered trips based on calendar (first rows):\n%s", trips_filtered.head())
     else:
-        # If no filter is applied, prepare to process all services separately
+        # If no filter is applied, process all services separately
         trips_filtered = trips.copy()
-        print("No calendar filter applied. Processing all services separately.")
+        logging.info("No calendar filter applied. Processing all services separately.")
 
     # Merge stop_times with trips and routes
     merged_data = pd.merge(stop_times, trips_filtered, on='trip_id')
@@ -160,14 +164,17 @@ def process_and_export(data, route_dirs, output_path, interval_minutes, calendar
 
     # Convert to datetime.time objects
     merged_data['arrival_time'] = pd.to_datetime(
-        merged_data['arrival_time'].str.strip(), format='%H:%M:%S', errors='coerce'
+        merged_data['arrival_time'].str.strip(),
+        format='%H:%M:%S',
+        errors='coerce'
     ).dt.time
     merged_data['departure_time'] = pd.to_datetime(
-        merged_data['departure_time'].str.strip(), format='%H:%M:%S', errors='coerce'
+        merged_data['departure_time'].str.strip(),
+        format='%H:%M:%S',
+        errors='coerce'
     ).dt.time
 
-    print("Merged data:")
-    print(merged_data.head())
+    logging.info("Merged data (first rows):\n%s", merged_data.head())
 
     # Generate all possible time bins
     time_bins = []
@@ -182,29 +189,28 @@ def process_and_export(data, route_dirs, output_path, interval_minutes, calendar
             bin_label = f"{str(start_hour).zfill(2)}:{str(start_min).zfill(2)}-{str(end_hour).zfill(2)}:{str(end_min).zfill(2)}"
             time_bins.append(bin_label)
 
-    print("Generated time bins:")
-    print(time_bins)
+    logging.info("Generated time bins: %s", time_bins)
 
     # Process each route and direction
-    for rd in route_dirs:
-        route_short = rd['route_short_name']
-        direction_id = rd['direction_id']
+    for route_def in route_dirs:
+        route_short = route_def['route_short_name']
+        direction_id = route_def['direction_id']
 
         if direction_id is not None:
             filtered = merged_data[
-                (merged_data['route_short_name'] == route_short) &
-                (merged_data['direction_id'] == direction_id)
+                (merged_data['route_short_name'] == route_short)
+                & (merged_data['direction_id'] == direction_id)
             ]
         else:
             filtered = merged_data[merged_data['route_short_name'] == route_short]
 
-        print(f"Filtered data for route {route_short} direction {direction_id}:")
-        print(filtered.head())
+        logging.info("Filtered data for route %s direction %s (first rows):\n%s",
+                     route_short, direction_id, filtered.head())
 
         # Further filter to starting stops (stop_sequence == 1)
         start_times = filtered[filtered['stop_sequence'] == 1]
-        print(f"Start times for route {route_short} direction {direction_id}:")
-        print(start_times.head())
+        logging.info("Start times for route %s direction %s:\n%s",
+                     route_short, direction_id, start_times.head())
 
         # Drop rows with invalid departure_time
         start_times = start_times.dropna(subset=['departure_time'])
@@ -215,127 +221,121 @@ def process_and_export(data, route_dirs, output_path, interval_minutes, calendar
                 lambda t: get_time_bin(t, interval_minutes)
             )
 
-            print(f"Time bins for route {route_short} direction {direction_id}:")
-            print(start_times[['departure_time', 'time_bin']].head())
-
-            # Count trips per time bin
-            trips_per_bin = start_times.groupby('time_bin').size().reset_index(
-                name='trip_count'
+            trips_per_bin = (
+                start_times
+                .groupby('time_bin')
+                .size()
+                .reset_index(name='trip_count')
             )
 
             # Ensure all time bins are included
-            trips_per_bin = pd.DataFrame({'time_bin': time_bins}).merge(
-                trips_per_bin, on='time_bin', how='left'
-            ).fillna(0)
+            trips_per_bin = (
+                pd.DataFrame({'time_bin': time_bins})
+                .merge(trips_per_bin, on='time_bin', how='left')
+                .fillna(0)
+            )
             trips_per_bin['trip_count'] = trips_per_bin['trip_count'].astype(int)
+            logging.info("Trips per time bin for route %s direction %s:\n%s",
+                         route_short, direction_id, trips_per_bin)
 
-            print(f"Trips per time bin for route {route_short} direction {direction_id}:")
-            print(trips_per_bin)
+            # Create one Excel sheet for each route/direction
+            _export_to_excel(trips_per_bin, output_path, interval_minutes,
+                             route_short, direction_id)
         else:
             # Process each service_id separately
             service_ids = filtered['service_id'].unique()
             for service_id in service_ids:
                 service_filtered = filtered[filtered['service_id'] == service_id]
-                service_start_times = service_filtered[service_filtered['stop_sequence'] == 1].dropna(subset=['departure_time'])
+                service_start_times = service_filtered[
+                    service_filtered['stop_sequence'] == 1
+                ].dropna(subset=['departure_time'])
 
-                # Assign each departure_time to a time bin
                 service_start_times['time_bin'] = service_start_times['departure_time'].apply(
                     lambda t: get_time_bin(t, interval_minutes)
                 )
 
-                print(f"Time bins for service {service_id}, route {route_short}, direction {direction_id}:")
-                print(service_start_times[['departure_time', 'time_bin']].head())
-
-                # Count trips per time bin
-                trips_per_bin = service_start_times.groupby('time_bin').size().reset_index(
-                    name='trip_count'
+                trips_per_bin = (
+                    service_start_times
+                    .groupby('time_bin')
+                    .size()
+                    .reset_index(name='trip_count')
                 )
 
-                # Ensure all time bins are included
-                trips_per_bin = pd.DataFrame({'time_bin': time_bins}).merge(
-                    trips_per_bin, on='time_bin', how='left'
-                ).fillna(0)
+                trips_per_bin = (
+                    pd.DataFrame({'time_bin': time_bins})
+                    .merge(trips_per_bin, on='time_bin', how='left')
+                    .fillna(0)
+                )
                 trips_per_bin['trip_count'] = trips_per_bin['trip_count'].astype(int)
-
-                print(f"Trips per time bin for service {service_id}, route {route_short}, direction {direction_id}:")
-                print(trips_per_bin)
-
-                # Create a new Excel workbook for the current service, route, and direction
-                wb = Workbook()
-                ws = wb.active
-                ws.title = f"Service_{service_id}_Route_{route_short}_Dir_{direction_id}" if direction_id is not None else f"Service_{service_id}_Route_{route_short}_All_Directions"
-
-                # Write headers
-                ws.append(trips_per_bin.columns.tolist())
-
-                # Write data rows
-                for row in trips_per_bin.itertuples(index=False, name=None):
-                    ws.append(row)
-
-                # Adjust column widths and alignments
-                for col in ws.columns:
-                    max_length = max(len(str(cell.value)) for cell in col) + 2
-                    col_letter = get_column_letter(col[0].column)
-                    ws.column_dimensions[col_letter].width = max_length
-                    for cell in col:
-                        cell.alignment = Alignment(horizontal='center')
-
-                # Ensure output directory exists
-                os.makedirs(output_path, exist_ok=True)
-
-                # Define the output filename
-                file_name = (
-                    f"Trips_Per_{interval_minutes}Min_Service_{service_id}_Route_{route_short}_Dir_{direction_id}.xlsx"
-                    if direction_id is not None
-                    else f"Trips_Per_{interval_minutes}Min_Service_{service_id}_Route_{route_short}_All_Directions.xlsx"
+                logging.info(
+                    "Trips per time bin for service %s, route %s, direction %s:\n%s",
+                    service_id, route_short, direction_id, trips_per_bin
                 )
-                output_file = os.path.join(output_path, file_name)
 
-                # Save the workbook
-                wb.save(output_file)
-                print(f"Trips per {interval_minutes} minutes for {file_name} successfully exported!")
+                # Export each service to its own file
+                _export_to_excel(trips_per_bin, output_path, interval_minutes,
+                                 route_short, direction_id, service_id=service_id)
 
-            # Continue to next route/direction
-            continue
 
-        # Create a new Excel workbook for the current route and direction
-        wb = Workbook()
-        ws = wb.active
-        ws.title = (
-            f"Route_{route_short}_Dir_{direction_id}"
-            if direction_id is not None
-            else f"Route_{route_short}_All_Directions"
-        )
+def _export_to_excel(df, output_path, interval_minutes, route_short,
+                     direction_id=None, service_id=None):
+    """
+    Helper function to export a given DataFrame to an Excel file.
+    """
+    wb = Workbook()
+    ws = wb.active
 
-        # Write headers
-        ws.append(trips_per_bin.columns.tolist())
+    # Create a title reflecting route/direction/service
+    if service_id:
+        if direction_id is not None:
+            ws.title = f"Service_{service_id}_Route_{route_short}_Dir_{direction_id}"
+            file_name = (
+                f"Trips_Per_{interval_minutes}Min_"
+                f"Service_{service_id}_Route_{route_short}_Dir_{direction_id}.xlsx"
+            )
+        else:
+            ws.title = f"Service_{service_id}_Route_{route_short}_All_Dirs"
+            file_name = (
+                f"Trips_Per_{interval_minutes}Min_"
+                f"Service_{service_id}_Route_{route_short}_All_Directions.xlsx"
+            )
+    else:
+        if direction_id is not None:
+            ws.title = f"Route_{route_short}_Dir_{direction_id}"
+            file_name = (
+                f"Trips_Per_{interval_minutes}Min_"
+                f"Route_{route_short}_Dir_{direction_id}.xlsx"
+            )
+        else:
+            ws.title = f"Route_{route_short}_All_Directions"
+            file_name = (
+                f"Trips_Per_{interval_minutes}Min_"
+                f"Route_{route_short}_All_Directions.xlsx"
+            )
 
-        # Write data rows
-        for row in trips_per_bin.itertuples(index=False, name=None):
-            ws.append(row)
+    # Write headers
+    ws.append(df.columns.tolist())
 
-        # Adjust column widths and alignments
-        for col in ws.columns:
-            max_length = max(len(str(cell.value)) for cell in col) + 2
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = max_length
-            for cell in col:
-                cell.alignment = Alignment(horizontal='center')
+    # Write data rows
+    for row in df.itertuples(index=False, name=None):
+        ws.append(row)
 
-        # Ensure output directory exists
-        os.makedirs(output_path, exist_ok=True)
+    # Adjust column widths and alignments
+    for col in ws.columns:
+        max_length = max(len(str(cell.value)) for cell in col) + 2
+        col_letter = get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max_length
+        for cell in col:
+            cell.alignment = Alignment(horizontal='center')
 
-        # Define the output filename
-        file_name = (
-            f"Trips_Per_{interval_minutes}Min_Route_{route_short}_Dir_{direction_id}.xlsx"
-            if direction_id is not None
-            else f"Trips_Per_{interval_minutes}Min_Route_{route_short}_All_Directions.xlsx"
-        )
-        output_file = os.path.join(output_path, file_name)
+    # Ensure output directory exists
+    os.makedirs(output_path, exist_ok=True)
 
-        # Save the workbook
-        wb.save(output_file)
-        print(f"Trips per {interval_minutes} minutes for {file_name} successfully exported!")
+    # Save the workbook
+    output_file = os.path.join(output_path, file_name)
+    wb.save(output_file)
+    logging.info("Trips per %d minutes for %s successfully exported!", interval_minutes, file_name)
+
 
 def main():
     """Main function to execute the script."""
@@ -344,31 +344,36 @@ def main():
         if not isinstance(TIME_INTERVAL_MINUTES, int) or TIME_INTERVAL_MINUTES <= 0:
             raise ValueError("TIME_INTERVAL_MINUTES must be a positive integer.")
         if 1440 % TIME_INTERVAL_MINUTES != 0:
-            print(f"Warning: {TIME_INTERVAL_MINUTES} does not evenly divide into 1440 minutes. Some time bins may overlap or miss.")
+            logging.warning(
+                "%d does not evenly divide into 1440 minutes. "
+                "Some time bins may overlap or be incomplete.",
+                TIME_INTERVAL_MINUTES
+            )
 
         # Check if all input files exist
-        check_input_files(BASE_INPUT_PATH, gtfs_files)
+        check_input_files(BASE_INPUT_PATH, GTFS_FILES)
 
         # Load GTFS data
-        data = load_gtfs_data(BASE_INPUT_PATH, gtfs_files)
+        data = load_gtfs_data(BASE_INPUT_PATH, GTFS_FILES)
 
         # Process data and export to Excel
         process_and_export(
             data,
-            route_directions,
+            ROUTE_DIRECTIONS,
             BASE_OUTPUT_PATH,
             TIME_INTERVAL_MINUTES,
             CALENDAR_FILTER_DAYS
         )
 
     except FileNotFoundError as fnf_error:
-        print(f"File not found error: {fnf_error}")
+        logging.error("File not found error: %s", fnf_error)
     except pd.errors.ParserError as parse_error:
-        print(f"Parsing error while reading GTFS files: {parse_error}")
+        logging.error("Parsing error while reading GTFS files: %s", parse_error)
     except PermissionError as perm_error:
-        print(f"Permission error: {perm_error}")
+        logging.error("Permission error: %s", perm_error)
     except ValueError as ve:
-        print(f"Value error: {ve}")
+        logging.error("Value error: %s", ve)
+
 
 if __name__ == "__main__":
     main()
