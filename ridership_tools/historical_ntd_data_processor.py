@@ -165,8 +165,14 @@ def consolidate_ridership_data():
         try:
             xls = pd.ExcelFile(file_path)
             all_sheets = xls.sheet_names
-        except Exception as exc:
-            print(f"Warning: Could not read {file_path}: {exc}")
+        except FileNotFoundError as exc:
+            print(f"Warning: File not found: {file_path} → {exc}")
+            continue
+        except PermissionError as exc:
+            print(f"Warning: Permission error reading {file_path} → {exc}")
+            continue
+        except ValueError as exc:
+            print(f"Warning: Not a valid Excel file {file_path} → {exc}")
             continue
 
         daytype_dfs = {}
@@ -176,6 +182,7 @@ def consolidate_ridership_data():
             if not matched:
                 print(f"Warning: No sheet for {canonical_daytype} in {file_name}.")
                 continue
+
             sheet_name = matched[0]  # If multiple, pick first or do your own logic
 
             try:
@@ -188,8 +195,15 @@ def consolidate_ridership_data():
                 )
                 daytype_dfs[canonical_daytype] = df_ext
                 print(f"Read '{sheet_name}' → {canonical_daytype} for {month_str} ({len(df_ext)} rows).")
-            except Exception as e:
-                print(f"Warning: Error reading {sheet_name} in {file_name}: {e}")
+
+            except PermissionError as exc:
+                print(f"Warning: Permission error reading sheet '{sheet_name}' in '{file_name}': {exc}")
+            except ValueError as exc:
+                # Typically raised if the sheet is invalid / format is off
+                print(f"Warning: Invalid data/format in sheet '{sheet_name}' of '{file_name}': {exc}")
+            # If you truly need a fallback, you can add a final broad except as last resort:
+            # except Exception as exc:
+            #     print(f"Warning: Unexpected error reading {sheet_name} in {file_name}: {exc}")
 
         if not daytype_dfs:
             print(f"No day-type sheets found for {month_str}. Skipping.")
@@ -210,9 +224,9 @@ def consolidate_ridership_data():
             if df_temp.empty:
                 continue
 
-            # Rename columns (temporary) to something like 'RIDERSHIP_WEEKDAYS', 'DAYS_WEEKDAYS'
+            # Rename columns to something like 'RIDERSHIP_WEEKDAYS', 'DAYS_WEEKDAYS'
             ridership_col_new = f"RIDERSHIP_{dt_name}"
-            days_col_new      = f"DAYS_{dt_name}"
+            days_col_new = f"DAYS_{dt_name}"
             df_temp = df_temp.rename(columns={
                 RIDERSHIP_COLUMN_NAME: ridership_col_new,
                 DAYS_COLUMN_NAME: days_col_new
@@ -309,6 +323,8 @@ def consolidate_ridership_data():
             excluded_all.to_excel(excl_file, index=False)
             print(f"Excluded routes saved to {excl_file} (Count={total_excluded_count}).")
         except Exception as exc:
+            # If you only ever expect PermissionError here, 
+            # you could narrow this down to that if you prefer.
             print(f"Error saving excluded routes: {exc}")
 
     # Sort by route
