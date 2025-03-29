@@ -171,7 +171,7 @@ def _status_for_different_trip(
     bus_stop_clusters
 ):
     """
-    Sub-logic for bridging between two different trips. 
+    Sub-logic for bridging between two different trips.
     Now includes cluster checks to differentiate DEADHEAD vs. LAYOVER/DWELL.
     """
     gap = next_arr - dep
@@ -182,8 +182,8 @@ def _status_for_different_trip(
         current_cluster = find_cluster(current_stop_id, bus_stop_clusters)
         next_cluster = find_cluster(next_stop_id, bus_stop_clusters)
         same_cluster = (
-            current_cluster 
-            and next_cluster 
+            current_cluster
+            and next_cluster
             and current_cluster == next_cluster
         )
 
@@ -241,7 +241,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                 if trip_id == next_trip_id:
                     # Same trip => traveling
                     return (
-                        "TRAVELING BETWEEN STOPS", 
+                        "TRAVELING BETWEEN STOPS",
                         None, None, None, None,
                         trip_id, None, 0
                     )
@@ -258,13 +258,13 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
                     bus_stop_clusters=bus_stop_clusters
                 )
                 return (
-                    new_status, 
-                    fill_stop_id, 
+                    new_status,
+                    fill_stop_id,
                     fill_stop_name,
-                    minutes_to_hhmm(arr), 
+                    minutes_to_hhmm(arr),
                     minutes_to_hhmm(dep),
-                    next_trip_id, 
-                    stop_seq, 
+                    next_trip_id,
+                    stop_seq,
                     t_val
                 )
 
