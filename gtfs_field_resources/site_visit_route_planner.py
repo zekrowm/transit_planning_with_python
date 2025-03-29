@@ -573,6 +573,24 @@ def plot_tsp_route(G, tsp_route):
 # --------------------- MAIN FUNCTION ---------------------
 
 def main():
+    """
+    Executes the entire workflow for exporting GTFS stops, building a directed road network,
+    snapping the stops to this network, solving the Traveling Salesman Problem (TSP) on
+    selected bus stops, and then exporting directions and the route as a shapefile.
+    
+    Steps performed by this function:
+        1. Reads GTFS stops from a CSV file in EPSG:4326 and reprojects them to EPSG:2283.
+        2. Filters for the selected stop IDs from the GTFS data.
+        3. Converts a user-provided Google Maps DMS string into decimal degrees, then reprojects it.
+        4. Builds a directed road network from a shapefile (EPSG:2283).
+        5. Snaps each selected stop (and the start) to the nearest node in the road network.
+        6. Constructs a complete graph of travel times (in seconds) between each stop.
+        7. Solves the TSP via either an ILP or a greedy approximation.
+        8. Rotates the resulting TSP cycle so it starts/ends at the user-specified 'start' node.
+        9. Generates step-by-step directions and exports them to Excel.
+       10. Outputs the final route as a shapefile.
+       11. (Optional) Plots the TSP route using a simple NetworkX plot of the “bus stops” graph.
+    """
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # 1. Export GTFS stops in EPSG:2283
