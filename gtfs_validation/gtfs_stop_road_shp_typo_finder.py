@@ -18,20 +18,20 @@ from pyproj import CRS
 # ==============================
 
 # Paths to input files
-GTFS_FOLDER = r'path\to\your\GTFS\folder'          # Replace with your GTFS folder path
+GTFS_FOLDER = r'path\to\your\GTFS\folder'  # Replace with your GTFS folder path
 STOPS_FILENAME = 'stops.txt'
 STOPS_PATH = os.path.join(GTFS_FOLDER, STOPS_FILENAME)
 
-ROADWAYS_PATH = r'path\to\your\roadways.shp'       # Replace with your roadways shapefile path
+ROADWAYS_PATH = r'path\to\your\roadways.shp'  # Replace with your roadways shapefile path
 
 # Output settings
-OUTPUT_DIR = r'path\to\output\directory'           # Replace with your desired output directory
+OUTPUT_DIR = r'path\to\output\directory'  # Replace with your desired output directory
 OUTPUT_CSV_NAME = 'potential_typos.csv'
 OUTPUT_CSV_PATH = os.path.join(OUTPUT_DIR, OUTPUT_CSV_NAME)
 
 # Coordinate Reference Systems
 STOPS_CRS = 'EPSG:4326'  # WGS84 Latitude/Longitude. Typically standard for GTFS stops.
-TARGET_CRS = 'EPSG:2248' # Projected CRS for spatial analysis (adjust as needed).
+TARGET_CRS = 'EPSG:2248'  # Projected CRS for spatial analysis (adjust as needed).
 
 # Processing parameters
 SIMILARITY_THRESHOLD = 80  # 0-100, higher number yields fewer results
@@ -81,7 +81,7 @@ def get_crs_unit(crs_code):
 
 def convert_buffer_distance(value, from_unit, to_unit):
     """
-    Convert buffer distance from `from_unit` to `to_unit` using a set of known conversion factors.
+    Convert buffer distance from `from_unit` to `to_unit` using known conversion factors.
     """
     conversion_factors = {
         ('feet', 'meters'): 0.3048,
@@ -112,7 +112,10 @@ def load_stops(stops_path):
     stops_df = pd.read_csv(stops_path, dtype=str)
     missing_cols = [col for col in required_columns_stops if col not in stops_df.columns]
     if missing_cols:
-        raise ValueError("The following required columns are missing in stops.txt: %s" % missing_cols)
+        raise ValueError(
+            "The following required columns are missing in stops.txt: %s"
+            % missing_cols
+        )
     stops_df['stop_lat'] = stops_df['stop_lat'].astype(float)
     stops_df['stop_lon'] = stops_df['stop_lon'].astype(float)
     stops_gdf = gpd.GeoDataFrame(
@@ -136,20 +139,33 @@ def load_roadways(roadways_path):
 
 def map_roadway_columns(roadways_gdf):
     """
-    Map the required roadway columns. Prompts the user to input the correct column names if missing.
+    Map the required roadway columns. Prompts the user to input the correct
+    column names if missing.
     """
     column_mapping = {}
     for col in REQUIRED_COLUMNS_ROADWAY:
         if col in roadways_gdf.columns:
             column_mapping[col] = col
         else:
-            logging.warning("The column '%s' is missing from the roadway shapefile.", col)
+            logging.warning(
+                "The column '%s' is missing from the roadway shapefile.", col
+            )
             logging.info("Description: %s", DESCRIPTIONS_ROADWAY[col])
             logging.info("Available columns: %s", roadways_gdf.columns.tolist())
-            new_col = input(f"Please enter the correct column name for '{col}' (or leave blank to skip): ").strip()
+            new_col = input(
+                f"Please enter the correct column name for '{col}' "
+                "(or leave blank to skip): "
+            ).strip()
             while new_col and new_col not in roadways_gdf.columns:
-                logging.warning("'%s' is not among the available columns: %s", new_col, roadways_gdf.columns.tolist())
-                new_col = input(f"Please enter the correct column name for '{col}' (or leave blank to skip): ").strip()
+                logging.warning(
+                    "'%s' is not among the available columns: %s",
+                    new_col,
+                    roadways_gdf.columns.tolist()
+                )
+                new_col = input(
+                    f"Please enter the correct column name for '{col}' "
+                    "(or leave blank to skip): "
+                ).strip()
             if new_col:
                 column_mapping[col] = new_col
                 logging.info("Mapped '%s' to '%s'", col, new_col)
@@ -160,7 +176,8 @@ def map_roadway_columns(roadways_gdf):
 
 def extract_modifiers(roadways_gdf, column_mapping_roadway):
     """
-    Extract unique modifier values (e.g., street types) from the roadway GeoDataFrame.
+    Extract unique modifier values (e.g., street types) from the roadway
+    GeoDataFrame.
     """
     modifiers_fields = ['RW_TYPE_US']
     modifiers = set()
@@ -178,7 +195,7 @@ def extract_modifiers(roadways_gdf, column_mapping_roadway):
 
 def normalize_street_name(name, modifiers_set):
     """
-    Normalize street name by removing known modifiers, punctuation, and extra spaces.
+    Normalize street name by removing known modifiers, punctuation, and spaces.
     """
     if pd.isnull(name) or not isinstance(name, str):
         return ''
@@ -218,10 +235,13 @@ def extract_street_names(stop_name, modifiers):
     separators = [' @ ', ' and ', ' & ', '/', ' intersection of ']
     pattern = '|'.join(map(re.escape, separators))
     streets = re.split(pattern, stop_name, flags=re.IGNORECASE)
-    return [normalize_street_name(street, modifiers) for street in streets if street]
+    return [
+        normalize_street_name(street, modifiers) for street in streets if street
+    ]
 
 
-def compare_stop_to_roads(stop_id, stop_name, stop_streets, road_names, roads_gdf, threshold):
+def compare_stop_to_roads(stop_id, stop_name, stop_streets, road_names,
+                          roads_gdf, threshold):
     """
     Compare each portion of the stop name to known road names via fuzzy matching.
     """
@@ -250,20 +270,32 @@ def compare_stop_to_roads(stop_id, stop_name, stop_streets, road_names, roads_gd
     return potential_typos_list
 
 
-def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshold):
+def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean,
+                  threshold):
     """
-    Process each stop, perform fuzzy matching to identify potential typos, and return a deduplicated DataFrame.
+    Process each stop, perform fuzzy matching to identify potential typos,
+    and return a deduplicated DataFrame.
     """
     potential_typos = []
     for _, stop in stops_gdf.iterrows():
         s_id = stop['stop_id']
         s_name = stop['stop_name']
         s_streets = extract_street_names(s_name, modifiers)
-        typos = compare_stop_to_roads(s_id, s_name, s_streets, road_names_clean, roadways_gdf, threshold)
+        typos = compare_stop_to_roads(
+            s_id, s_name, s_streets, road_names_clean, roadways_gdf, threshold
+        )
         potential_typos.extend(typos)
-    logging.info("Total potential typos found before deduplication: %d", len(potential_typos))
+
+    logging.info(
+        "Total potential typos found before deduplication: %d",
+        len(potential_typos)
+    )
     typos_df = pd.DataFrame(potential_typos)
-    typos_df_sorted = typos_df.sort_values(by='similarity_score', ascending=False).drop_duplicates()
+    typos_df_sorted = (
+        typos_df
+        .sort_values(by='similarity_score', ascending=False)
+        .drop_duplicates()
+    )
     return typos_df_sorted
 
 
@@ -273,21 +305,24 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshol
 
 def main():
     """
-    The main entry point of the GTFS stop/road shapefile typo-finding script.
+    Main entry point of the GTFS stop/road shapefile typo-finding script.
 
-    This function orchestrates the entire process:
+    Steps:
       1. Validates and loads the GTFS stops data from a CSV file.
       2. Loads and prepares the roadway shapefile data.
-      3. Converts both datasets to the specified target coordinate reference system (CRS).
-      4. Maps required columns in the roadways data, prompting for user input if necessary.
+      3. Converts both datasets to the specified target CRS.
+      4. Maps required columns in the roadways data, prompting for user input
+         if necessary.
       5. Extracts and normalizes modifiers (e.g., street type abbreviations).
-      6. Buffers the stops’ geometries in the target CRS and performs a spatial join with the roadway data.
-      7. Uses fuzzy matching to compare stop names to roadway names, identifying potential typos.
+      6. Buffers the stops’ geometries in the target CRS and performs a spatial
+         join with the roadway data.
+      7. Uses fuzzy matching to compare stop names to roadway names,
+         identifying potential typos.
       8. Exports any potential typos to a CSV file for further review.
 
     Raises:
-        FileNotFoundError: If the specified 'stops.txt' file is not found.
-        ValueError: If required columns are missing, or if there is an issue with CRS or distance unit conversions.
+        FileNotFoundError: If 'stops.txt' is not found.
+        ValueError: If required columns are missing, or if there's a CRS/unit issue.
     """
     logging.info("Starting processing...")
 
@@ -298,20 +333,27 @@ def main():
 
     # Validate the existence of the GTFS stops file.
     if not os.path.isfile(STOPS_PATH):
-        raise FileNotFoundError("'stops.txt' not found in the GTFS folder: %s" % GTFS_FOLDER)
+        raise FileNotFoundError(
+            "'stops.txt' not found in the GTFS folder: %s" % GTFS_FOLDER
+        )
 
     # Determine CRS unit and compute the appropriate buffer distance.
     crs_unit = get_crs_unit(TARGET_CRS)
     if crs_unit is None:
-        raise ValueError("Unable to determine the CRS unit. Please check the TARGET_CRS.")
+        raise ValueError(
+            "Unable to determine the CRS unit. Please check the TARGET_CRS."
+        )
 
-    logging.info("Target CRS (%s) uses '%s' as its linear unit.", TARGET_CRS, crs_unit)
+    logging.info(
+        "Target CRS (%s) uses '%s' as its linear unit.",
+        TARGET_CRS,
+        crs_unit
+    )
     supported_units = ['feet', 'meters', 'metre', 'us survey foot']
     if BUFFER_DISTANCE_UNIT.lower() not in supported_units:
         raise ValueError(
-            "Unsupported buffer distance unit '%s'. Supported units are: %s",
-            BUFFER_DISTANCE_UNIT,
-            supported_units
+            "Unsupported buffer distance unit '%s'. Supported units are: %s"
+            % (BUFFER_DISTANCE_UNIT, supported_units)
         )
 
     try:
@@ -323,11 +365,18 @@ def main():
             )
             logging.info(
                 "Buffer distance converted from %s to %s: %.6f %s",
-                BUFFER_DISTANCE_UNIT, crs_unit, buffer_distance, crs_unit
+                BUFFER_DISTANCE_UNIT,
+                crs_unit,
+                buffer_distance,
+                crs_unit
             )
         else:
             buffer_distance = BUFFER_DISTANCE_VALUE
-            logging.info("Buffer distance: %f %s", buffer_distance, crs_unit)
+            logging.info(
+                "Buffer distance: %f %s",
+                buffer_distance,
+                crs_unit
+            )
     except ValueError as ve:
         logging.error("Conversion error: %s", ve)
         raise
@@ -343,7 +392,9 @@ def main():
     # Map the roadway shapefile columns.
     column_mapping_roadway = map_roadway_columns(roadways_gdf)
     if 'FULLNAME' not in column_mapping_roadway or not column_mapping_roadway['FULLNAME']:
-        raise ValueError("The 'FULLNAME' column is required in the roadway shapefile.")
+        raise ValueError(
+            "The 'FULLNAME' column is required in the roadway shapefile."
+        )
     roadways_gdf = roadways_gdf.rename(columns=column_mapping_roadway)
 
     # Extract and log unique modifiers.
@@ -365,8 +416,17 @@ def main():
     road_names_clean = set(roadways_gdf['FULLNAME_clean'].dropna().unique())
 
     # Process potential typos.
-    typos_df_sorted = process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, SIMILARITY_THRESHOLD)
-    logging.info("Total potential typos after deduplication: %d", typos_df_sorted.shape[0])
+    typos_df_sorted = process_typos(
+        stops_gdf,
+        roadways_gdf,
+        modifiers,
+        road_names_clean,
+        SIMILARITY_THRESHOLD
+    )
+    logging.info(
+        "Total potential typos after deduplication: %d",
+        typos_df_sorted.shape[0]
+    )
 
     if typos_df_sorted.empty:
         logging.info("No potential typos found.")
