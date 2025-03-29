@@ -153,6 +153,13 @@ def load_gtfs_files(input_dir):
     }
 
 def filter_trips(trips_df, routes_df, cal_ids):
+    """
+    Filter trips by desired route short names and calendar service IDs.
+
+    The filter includes trips whose route_short_name is in FILTER_IN_ROUTE_SHORT_NAMES,
+    excludes those in FILTER_OUT_ROUTE_SHORT_NAMES, and further filters by any
+    specified service IDs.
+    """
     # Merge to get route_short_name
     merged = pd.merge(
         trips_df,
