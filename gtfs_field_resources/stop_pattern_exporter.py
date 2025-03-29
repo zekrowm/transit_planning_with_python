@@ -47,6 +47,9 @@ VALIDATE_TIMEPOINT_DISTANCE = True
 # Helper Functions
 # ------------------------------------------------------------
 def is_number(x):
+    """
+    Check if a value can be converted to a float.
+    """
     try:
         float(x)
         return True
