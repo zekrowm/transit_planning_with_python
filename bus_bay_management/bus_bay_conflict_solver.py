@@ -77,6 +77,12 @@ LAYOVER_STATUSES = {"LAYOVER", "DWELL", "LONG BREAK", "LOADING"}
 ###############################################################################
 
 def build_stop_capacities(cluster_info):
+    """
+    Build a dictionary mapping stop IDs to their maximum capacity (number of bays).
+
+    This function reads the lists of single-, double-, triple-bay stops, and overflow bays
+    from the given `cluster_info` dictionary, then assigns capacity values accordingly.
+    """
     stop_caps = {}
     for stop_id in cluster_info.get("single_bay_stops", []):
         stop_caps[str(stop_id)] = 1
@@ -153,6 +159,14 @@ def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
 #                        GREEDY SOLVER
 ###############################################################################
 def solve_bus_assignment_greedy(df, cluster_info):
+    """
+    Assign bus trips to stops using a simple greedy approach.
+
+    This solver iterates through each bus trip in chronological order and picks the first
+    available stop that has not exceeded its capacity for that time. The approach quickly
+    yields a feasible solution but may not minimize total conflicts as well as an integer
+    programming solver.
+    """
     stop_caps = build_stop_capacities(cluster_info)
     all_stops = list(stop_caps.keys())
 
@@ -217,7 +231,15 @@ def solve_bus_assignment_greedy(df, cluster_info):
 ###############################################################################
 def solve_bus_assignment_pulp(df, cluster_info):
     """
-    More advanced approach using integer programming to minimize OverCap.
+    Assign bus trips to stops using an Integer Programming (IP) formulation with PuLP.
+
+    This solver builds and solves a linear/integer model to minimize the total over-capacity
+    across all stops and timestamps. It enforces:
+        - Capacity constraints per stop per minute.
+        - Each bus must occupy exactly one stop if present.
+        - A bus can use at most 3 stops in total.
+        - Departure status must occur at the primary stop if present.
+    PuLP is required to use this solver.
     """
     if not PULP_AVAILABLE:
         raise ImportError("PuLP is not available.")
@@ -326,6 +348,15 @@ def solve_bus_assignment_pulp(df, cluster_info):
 ###############################################################################
 
 def main():
+    """
+    Main entry point for the bus assignment script.
+
+    - Reads input data for each defined cluster from an Excel file.
+    - Chooses the solver method based on configuration flags (`USE_PULP`, `USE_GREEDY`).
+    - Solves bus-stop assignments and computes conflicts both before and after assignment.
+    - Outputs two Excel files per cluster: one with row-level details (including bolded
+      conflict rows) and one with a summary of conflicts/assignments by route and direction.
+    """
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # Decide solver
