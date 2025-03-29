@@ -464,7 +464,7 @@ def main():
             .agg(lambda g: sorted(x for x in set(g) if x not in (None, "")))
             .reset_index()
         )
-        
+
         pivoted = grouped.pivot_table(
             index=["Route","Direction"],
             columns="StatusBucket",
