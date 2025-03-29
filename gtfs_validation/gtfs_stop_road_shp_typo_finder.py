@@ -108,9 +108,9 @@ def load_stops(stops_path):
     """
     Load and validate the GTFS stops file, and return a GeoDataFrame.
     """
-    REQUIRED_COLUMNS_STOPS = ['stop_id', 'stop_name', 'stop_lat', 'stop_lon']
+    required_columns_stops = ['stop_id', 'stop_name', 'stop_lat', 'stop_lon']
     stops_df = pd.read_csv(stops_path, dtype=str)
-    missing_cols = [col for col in REQUIRED_COLUMNS_STOPS if col not in stops_df.columns]
+    missing_cols = [col for col in required_columns_stops if col not in stops_df.columns]
     if missing_cols:
         raise ValueError("The following required columns are missing in stops.txt: %s" % missing_cols)
     stops_df['stop_lat'] = stops_df['stop_lat'].astype(float)
@@ -301,33 +301,33 @@ def main():
         raise FileNotFoundError("'stops.txt' not found in the GTFS folder: %s" % GTFS_FOLDER)
 
     # Determine CRS unit and compute the appropriate buffer distance.
-    CRS_UNIT = get_crs_unit(TARGET_CRS)
-    if CRS_UNIT is None:
+    crs_unit = get_crs_unit(TARGET_CRS)
+    if crs_unit is None:
         raise ValueError("Unable to determine the CRS unit. Please check the TARGET_CRS.")
 
-    logging.info("Target CRS (%s) uses '%s' as its linear unit.", TARGET_CRS, CRS_UNIT)
-    SUPPORTED_UNITS = ['feet', 'meters', 'metre', 'us survey foot']
-    if BUFFER_DISTANCE_UNIT.lower() not in SUPPORTED_UNITS:
+    logging.info("Target CRS (%s) uses '%s' as its linear unit.", TARGET_CRS, crs_unit)
+    supported_units = ['feet', 'meters', 'metre', 'us survey foot']
+    if BUFFER_DISTANCE_UNIT.lower() not in supported_units:
         raise ValueError(
             "Unsupported buffer distance unit '%s'. Supported units are: %s",
             BUFFER_DISTANCE_UNIT,
-            SUPPORTED_UNITS
+            supported_units
         )
 
     try:
-        if BUFFER_DISTANCE_UNIT.lower() != CRS_UNIT.lower():
-            BUFFER_DISTANCE = convert_buffer_distance(
+        if BUFFER_DISTANCE_UNIT.lower() != crs_unit.lower():
+            buffer_distance = convert_buffer_distance(
                 BUFFER_DISTANCE_VALUE,
                 BUFFER_DISTANCE_UNIT,
-                CRS_UNIT
+                crs_unit
             )
             logging.info(
                 "Buffer distance converted from %s to %s: %.6f %s",
-                BUFFER_DISTANCE_UNIT, CRS_UNIT, BUFFER_DISTANCE, CRS_UNIT
+                BUFFER_DISTANCE_UNIT, crs_unit, buffer_distance, crs_unit
             )
         else:
-            BUFFER_DISTANCE = BUFFER_DISTANCE_VALUE
-            logging.info("Buffer distance: %f %s", BUFFER_DISTANCE, CRS_UNIT)
+            buffer_distance = BUFFER_DISTANCE_VALUE
+            logging.info("Buffer distance: %f %s", buffer_distance, crs_unit)
     except ValueError as ve:
         logging.error("Conversion error: %s", ve)
         raise
@@ -356,7 +356,7 @@ def main():
     )
 
     # Create buffered stops and perform spatial join.
-    stops_buffered_gdf = create_buffered_stops(stops_gdf, BUFFER_DISTANCE)
+    stops_buffered_gdf = create_buffered_stops(stops_gdf, buffer_distance)
     joined_gdf = spatial_join_stops_roadways(stops_buffered_gdf, roadways_gdf)
     logging.info("Total stops processed: %d", len(stops_gdf))
     logging.info("Total spatial join matches: %d", joined_gdf.shape[0])
