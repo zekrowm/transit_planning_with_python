@@ -368,7 +368,7 @@ def main():
     """
     Main entry point for the conflict detection script.
 
-    1) Reads and combines block-level spreadsheets (the Step 1 outputs) 
+    1) Reads and combines block-level spreadsheets (the Step 1 outputs)
        from the configured BLOCK_OUTPUT_FOLDER.
     2) Normalizes stop IDs, assigns each record to a transit cluster,
        and identifies potential conflicts based on cluster- and stop-level bay capacities.
