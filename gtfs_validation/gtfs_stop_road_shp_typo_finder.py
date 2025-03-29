@@ -272,6 +272,23 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshol
 # ---------------------------
 
 def main():
+    """
+    The main entry point of the GTFS stop/road shapefile typo-finding script.
+
+    This function orchestrates the entire process:
+      1. Validates and loads the GTFS stops data from a CSV file.
+      2. Loads and prepares the roadway shapefile data.
+      3. Converts both datasets to the specified target coordinate reference system (CRS).
+      4. Maps required columns in the roadways data, prompting for user input if necessary.
+      5. Extracts and normalizes modifiers (e.g., street type abbreviations).
+      6. Buffers the stops’ geometries in the target CRS and performs a spatial join with the roadway data.
+      7. Uses fuzzy matching to compare stop names to roadway names, identifying potential typos.
+      8. Exports any potential typos to a CSV file for further review.
+
+    Raises:
+        FileNotFoundError: If the specified 'stops.txt' file is not found.
+        ValueError: If required columns are missing, or if there is an issue with CRS or distance unit conversions.
+    """
     logging.info("Starting processing...")
 
     # Ensure the output directory exists.
