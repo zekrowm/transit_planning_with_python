@@ -404,6 +404,9 @@ def forward_match_pattern_to_master(pattern_stops, master_stops):
 # EXCEL EXPORT
 # ------------------------------------------------------------
 def create_workbook():
+    """
+    Create and return a new openpyxl Workbook instance with the default sheet removed.
+    """
     wb = Workbook()
     default_sheet = wb.active
     wb.remove(default_sheet)
