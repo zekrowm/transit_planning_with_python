@@ -590,6 +590,24 @@ def format_service_id_folder_name(service_row):
 
 
 def main():
+    """
+    Orchestrates the end-to-end GTFS schedule export process by:
+      1. Loading the GTFS input files (trips, stop_times, routes, stops, calendar).
+      2. Selecting or filtering specific routes and service IDs based on user-defined lists.
+      3. Identifying key stops (timepoints) for constructing schedules.
+      4. Generating schedules by direction for each route-service combination.
+      5. Validating and cleaning up schedule columns (e.g., removing columns with no valid times).
+      6. Checking for out-of-order times both within each trip and across trips.
+      7. Exporting the resulting schedules into Excel workbooks, one per service ID and route.
+
+    This function uses global variables defined in the configuration section (e.g. FILTER_SERVICE_IDS,
+    FILTER_IN_ROUTES, FILTER_OUT_ROUTES, TIME_FORMAT_OPTION) to manage input paths, filtering behavior,
+    and output preferences. Adjust these configurations as needed prior to running the script.
+
+    Note:
+        If no matching routes or service IDs are found after filtering,
+        the script will terminate without producing output files.
+    """
     # 1. Load GTFS Files
     load_gtfs_files()
 
