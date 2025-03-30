@@ -323,7 +323,7 @@ def consolidate_ridership_data():
             excluded_all.to_excel(excl_file, index=False)
             print(f"Excluded routes saved to {excl_file} (Count={total_excluded_count}).")
         except Exception as exc:
-            # If you only ever expect PermissionError here, 
+            # If you only ever expect PermissionError here,
             # you could narrow this down to that if you prefer.
             print(f"Error saving excluded routes: {exc}")
 
