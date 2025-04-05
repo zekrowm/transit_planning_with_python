@@ -36,7 +36,6 @@ TIME_COLUMNS = {
     "Average Actual Running Time": "AvgActual(min)",
     "Average Deviation": "AvgDeviation(min)",
     "Average StartTPSScheduleDeviation": "StartTPSDev(min)",
-    # NEW column below (same name but different sheet label):
     "Average StartTPScheduleDeviation": "StartTPSchedDev(min)",
 }
 
