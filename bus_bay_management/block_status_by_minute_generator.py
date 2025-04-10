@@ -10,11 +10,11 @@ import os
 import pandas as pd
 
 ###############################################################################
-#                       UNIFIED CONFIGURATION SECTION
+#                       CONFIGURATION SECTION
 ###############################################################################
 
-GTFS_FOLDER = r"Path\To\Your\GTFS_Folder"
-BLOCK_OUTPUT_FOLDER = r"Path\To\Your\Output_Folder"
+GTFS_FOLDER_PATH = r"C:\Users\zach\Desktop\Zach\python_stuff\data\connector_gtfs_2025_01_28"
+BLOCK_OUTPUT_FOLDER = r"C:\Users\zach\Desktop\Zach\python_stuff\testing\block_status_minute_by_minute_generator\output"
 
 DEFAULT_HOURS = 26
 TIME_INTERVAL_MINUTES = 1
@@ -23,7 +23,7 @@ DWELL_THRESHOLD = 3     # minutes
 LAYOVER_THRESHOLD = 20  # minutes
 MAX_TRIPS_PER_BLOCK = 150
 
-CALENDAR_SERVICE_IDS = [3]
+CALENDAR_SERVICE_IDS = ['3']
 
 ROUTE_SHORTNAME_FILTER = []
 STOP_ID_FILTER = []
@@ -54,6 +54,89 @@ BUS_STOP_CLUSTERS_STEP1 = [
     {"name": name, "stops": info["stops"]}
     for name, info in CLUSTER_DEFINITIONS.items()
 ]
+
+
+###############################################################################
+#                            REUSABLE FUNCTIONS
+###############################################################################
+
+def load_gtfs_data(files=None, dtype=str):
+    """
+    Loads GTFS files into pandas DataFrames from a path defined externally
+    (GTFS_FOLDER_PATH).
+
+    Parameters:
+        files (list[str], optional): GTFS filenames to load. Default is all
+            standard GTFS files:
+            [
+                "agency.txt", "stops.txt", "routes.txt", "trips.txt",
+                "stop_times.txt", "calendar.txt", "calendar_dates.txt",
+                "fare_attributes.txt", "fare_rules.txt", "feed_info.txt",
+                "frequencies.txt", "shapes.txt", "transfers.txt"
+            ]
+        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+
+    Raises:
+        FileNotFoundError: If GTFS_FOLDER_PATH doesn't exist or if any required
+            file is missing.
+        ValueError: If a file is empty or there's a parsing error.
+        Exception: For any unexpected error during loading.
+    """
+
+    # Check if GTFS_FOLDER_PATH exists
+    if not os.path.exists(GTFS_FOLDER_PATH):
+        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
+
+    # Default to all standard GTFS files if none were specified
+    if files is None:
+        files = [
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt"
+        ]
+
+    # Check for missing files
+    missing = [
+        file_name for file_name in files
+        if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
+    ]
+    if missing:
+        raise FileNotFoundError(
+            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        )
+
+    # Load files into DataFrames
+    data = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(GTFS_FOLDER_PATH, file_name)
+
+        try:
+            df = pd.read_csv(file_path, dtype=dtype)
+            data[key] = df
+            print(f"Loaded {file_name} ({len(df)} records).")
+
+        except pd.errors.EmptyDataError:
+            raise ValueError(f"File '{file_name}' is empty.")
+        except pd.errors.ParserError as err:
+            raise ValueError(f"Parser error in '{file_name}': {err}")
+        except Exception as err:
+            raise Exception(f"Error loading '{file_name}': {err}")
+
+    return data
 
 
 ###############################################################################
@@ -524,36 +607,6 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
 #                   STEP 1: GTFS -> Block Spreadsheets
 ###############################################################################
 
-def _load_gtfs_data():
-    """
-    Load necessary GTFS files (trips, stop_times, stops, routes if present).
-    Returns (trips_df, stop_times_df, stops_df).
-    """
-    trips_path = os.path.join(GTFS_FOLDER, "trips.txt")
-    stop_times_path = os.path.join(GTFS_FOLDER, "stop_times.txt")
-    stops_path = os.path.join(GTFS_FOLDER, "stops.txt")
-    routes_path = os.path.join(GTFS_FOLDER, "routes.txt")
-
-    print("Reading GTFS files...")
-    trips_df = pd.read_csv(trips_path)
-    stop_times_df = pd.read_csv(stop_times_path)
-    stops_df = pd.read_csv(stops_path)
-
-    if os.path.exists(routes_path):
-        routes_df = pd.read_csv(routes_path)
-        trips_df = pd.merge(
-            trips_df,
-            routes_df[["route_id", "route_short_name"]],
-            on="route_id",
-            how="left"
-        )
-    else:
-        print("WARNING: No routes.txt found; route_short_name filters may not work.")
-        trips_df["route_short_name"] = None
-
-    return trips_df, stop_times_df, stops_df
-
-
 def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
     """
     Merge trips and stops, filter by service_id, route, etc.
@@ -637,9 +690,34 @@ def run_step1_gtfs_to_blocks():
     Step 1: Generate block-level schedules from GTFS.
     """
     print("=== Step 1: Reading GTFS and generating block-level schedules ===")
-    validate_folders(GTFS_FOLDER, BLOCK_OUTPUT_FOLDER)
+    validate_folders(GTFS_FOLDER_PATH, BLOCK_OUTPUT_FOLDER)
 
-    trips_df, stop_times_df, stops_df = _load_gtfs_data()
+    # Use the standardized loader
+    print("Loading GTFS data using standardized function ...")
+    gtfs_data = load_gtfs_data(dtype=str)  # or files=[...] if you want to limit
+
+    # Pull out frames you'll need
+    trips_df = gtfs_data["trips"]
+    stop_times_df = gtfs_data["stop_times"]
+    stops_df = gtfs_data["stops"]
+
+    # Optionally handle routes
+    routes_df = gtfs_data.get("routes", None)
+    if routes_df is not None and "route_short_name" in routes_df.columns:
+        print("Merging routes.txt with trips ...")
+        if "route_short_name" not in trips_df.columns:
+            trips_df = pd.merge(
+                trips_df,
+                routes_df[["route_id", "route_short_name"]],
+                on="route_id",
+                how="left"
+            )
+    else:
+        print("WARNING: No routes.txt found or missing route_short_name column.")
+        if "route_short_name" not in trips_df.columns:
+            trips_df["route_short_name"] = None
+
+    # Now merge & filter to get the final dataset
     merged_df = _merge_and_filter_data(trips_df, stop_times_df, stops_df)
 
     all_blocks = merged_df["block_id"].dropna().unique()
