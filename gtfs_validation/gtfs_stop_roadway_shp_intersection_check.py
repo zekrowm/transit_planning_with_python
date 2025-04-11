@@ -13,9 +13,9 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
-# ==============================
-# CONFIGURATION SECTION - DO NOT MODIFY
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Paths to input files
 ROADWAYS_PATH = (
@@ -40,9 +40,9 @@ BUFFER_DISTANCES = [-1, -5, -10]  # Adjust buffer distances as needed
 OUTPUT_SHP_NAME = 'intersecting_stops.shp'
 OUTPUT_CSV_NAME = 'intersecting_stops.csv'
 
-# ==============================
-# END OF CONFIGURATION SECTION
-# ==============================
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 
 def create_output_directory(output_dir):
@@ -165,6 +165,11 @@ def save_csv(gdf, output_dir, csv_name):
     """
     output_csv_path = os.path.join(output_dir, csv_name)
     gdf.to_csv(output_csv_path, index=False)
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 
 def main():
