@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
 """
 Module: gtfs_stop_capitalization_suffix_checker
 Description: Provides functionality to validate stop names in GTFS data for:
@@ -12,9 +10,9 @@ import os
 
 import pandas as pd
 
-# ================================
-# CONFIGURATION SECTION
-# ================================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Define input and output paths
 INPUT_FOLDER = r"C:\Path\To\Your\System\GTFS_Data"  # Replace with your folder path
@@ -57,9 +55,10 @@ USPS_ABBREVIATIONS_SET = {abbr.upper().strip() for abbr in USPS_ABBREVIATIONS}
 # Combined valid short words (USPS suffixes + exempt words)
 VALID_SHORT_WORDS_SET = USPS_ABBREVIATIONS_SET.union(EXEMPT_WORDS_SET)
 
-# ================================
-# END CONFIGURATION SECTION
-# ================================
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def check_capitalization(stop_name):
     """
@@ -160,6 +159,11 @@ def validate_stop(stop_row):
         'capitalization_scheme': capitalization_scheme,
         'errors': errors
     }
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 
 def main():
