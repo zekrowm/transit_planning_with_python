@@ -24,9 +24,9 @@ import os
 
 import pandas as pd
 
-# ===========================
-# Configuration Section
-# ===========================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 FILE_PATH = "Path/To/Your/noaa_weather_data.csv"
 OUTPUT_FOLDER = "Path/To/Your/output_folder"
@@ -78,11 +78,9 @@ POOR_WEATHER_CRITERIA = {
     'snowfall': 2.0               # in inches (example threshold)
 }
 
-# ===========================
-# Function Definitions
-# ===========================
-
-
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 def load_weather_data(file_path: str) -> pd.DataFrame:
     """
     Load NOAA weather data from a CSV file.
@@ -258,9 +256,6 @@ def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFram
         raise
 
 
-# ------------------------------------------------------------------
-# CHANGED: Using os.makedirs + os.path.join for saving the CSV files
-# ------------------------------------------------------------------
 def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str):
     """
     Save a DataFrame to a CSV file in the specified output folder.
@@ -280,6 +275,9 @@ def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str):
         raise
 
 
+# =============================================================================
+# MAIN
+# =============================================================================
 def main():
     """
     Main function to load, process, summarize, and save NOAA weather data.
