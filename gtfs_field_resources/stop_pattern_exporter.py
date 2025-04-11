@@ -26,9 +26,10 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-# ===============================
+# =============================================================================
 # CONFIGURATION
-# ===============================
+# =============================================================================
+
 INPUT_DIR = r'\\Path\\To\\Your\\GTFS'
 OUTPUT_DIR = r'\\Path\\To\\Output'
 TRIPS_FILE = 'trips.txt'
@@ -48,9 +49,11 @@ CONVERT_TO_MILES = True
 EXPORT_TIMEPOINTS_ONLY = True
 VALIDATE_TIMEPOINT_DISTANCE = True
 
-# ------------------------------------------------------------
-# Helper Functions
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# HELPER FUNCTIONS
+# -----------------------------------------------------------------------------
+
+
 def is_number(value):
     """
     Check if a value can be converted to a float.
@@ -144,9 +147,11 @@ def format_service_id_folder_name(service_id, calendar_df):
     return f"calendar_{service_id}_{day_str}"
 
 
-# ------------------------------------------------------------
-# Loading GTFS
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# LOADING GTFS
+# -----------------------------------------------------------------------------
+
+
 def load_gtfs_files(input_dir):
     """
     Load the core GTFS files and return as a dict.
@@ -196,9 +201,11 @@ def filter_trips(trips_df, routes_df, cal_ids):
     return merged
 
 
-# ------------------------------------------------------------
-# Build Patterns
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# BUILD PATTERNS
+# -----------------------------------------------------------------------------
+
+
 def generate_unique_patterns(trips_df, stop_times_df, stops_df):
     """
     Creates unique patterns keyed by (route_id, direction_id, service_id, pattern_stops).
@@ -339,9 +346,11 @@ def assign_pattern_ids(patterns_dict):
     return out
 
 
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # EARLIEST START TIME
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+
 def compute_earliest_start_times(pattern_records, stop_times_df):
     """
     For each pattern, find the earliest arrival/departure time for the first stop
@@ -382,9 +391,11 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
         rec['earliest_time_str'] = minutes_to_hhmm(earliest_val) if earliest_val else ""
 
 
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # MASTER TRIP
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+
 def find_master_trip_stops(route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df):
     """
     Among 'relevant_trips' for route+direction, find the trip with the most stops/timepoints.
@@ -433,9 +444,11 @@ def forward_match_pattern_to_master(pattern_stops, master_stops):
     return result
 
 
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # EXCEL EXPORT
-# ------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+
 def create_workbook():
     """
     Create and return a new openpyxl Workbook instance with the default sheet removed.
@@ -599,9 +612,11 @@ def export_patterns_to_excel(
             logging.error("Could not save workbook '%s': %s", filename, exc)
 
 
-# ------------------------------------------------------------
-# Main
-# ------------------------------------------------------------
+# =============================================================================
+# MAIN
+# =============================================================================
+
+
 def main():
     """
     Main entry point for generating and exporting unique GTFS stop patterns.
