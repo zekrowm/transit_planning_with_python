@@ -13,9 +13,9 @@ import pandas as pd
 from rapidfuzz import fuzz, process
 from pyproj import CRS
 
-# ==============================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Paths to input files
 GTFS_FOLDER = r'path\to\your\GTFS\folder'  # Replace with your GTFS folder path
@@ -59,10 +59,10 @@ DESCRIPTIONS_ROADWAY = {
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
 
-# ---------------------------
-# Helper Functions
-# ---------------------------
 
 def get_crs_unit(crs_code):
     """
@@ -100,9 +100,10 @@ def convert_buffer_distance(value, from_unit, to_unit):
     )
 
 
-# ---------------------------
-# Data Loading Functions
-# ---------------------------
+# -----------------------------------------------------------------------------
+# DATA LOADING FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def load_stops(stops_path):
     """
@@ -133,9 +134,10 @@ def load_roadways(roadways_path):
     return gpd.read_file(roadways_path)
 
 
-# ---------------------------
-# Data Processing Functions
-# ---------------------------
+# -----------------------------------------------------------------------------
+# DATA PROCESSING FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def map_roadway_columns(roadways_gdf):
     """
@@ -299,9 +301,10 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean,
     return typos_df_sorted
 
 
-# ---------------------------
-# Main Workflow Function
-# ---------------------------
+# =============================================================================
+# MAIN
+# =============================================================================
+
 
 def main():
     """
