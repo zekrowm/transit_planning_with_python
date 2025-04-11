@@ -18,9 +18,9 @@ import geopandas as gpd
 from shapely.geometry import Point
 from rapidfuzz import fuzz, process
 
-# ==============================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Input directory for GTFS files
 BASE_INPUT_PATH = r'\\your_input_path\here\\'
@@ -50,9 +50,9 @@ SIMILARITY_THRESHOLD_NAMES = 70  # For included stops with different names (0-10
 #  - Avoid using Web Mercator (EPSG:3857). Example used here: NAD83 / Metro DC area (feet).
 DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 
-# ==============================
-# END OF CONFIGURATION SECTION
-# ==============================
+# -----------------------------------------------------------------------------
+# MISC
+# -----------------------------------------------------------------------------
 
 # Create output directory if it doesn't exist
 if not os.path.exists(BASE_OUTPUT_PATH):
