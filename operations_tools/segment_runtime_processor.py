@@ -14,12 +14,14 @@ and exports pivot tables as CSV files organized by route, direction, and specifi
 
 Configuration options allow users to specify file paths, output directories, included/excluded routes, and time columns for processing.
 """
+
 import os
 import pandas as pd
 
-# -------------------------------------------------------------------------
-#                           CONFIGURATION
-# -------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
 WKDY_FILE_PATH = r"\\Your\Path\CLEVER_Runtime_by_Segment_by_Trip_Weekday.csv"
 SAT_FILE_PATH  = r""
 SUN_FILE_PATH  = r""
@@ -36,7 +38,10 @@ TIME_COLUMNS = {
     "Average StartTPSScheduleDeviation": "StartTPSDev(min)",
     "Average StartTPScheduleDeviation": "StartTPSchedDev(min)",
 }
-# -------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 
 def load_data(file_path: str) -> pd.DataFrame:
@@ -309,6 +314,11 @@ def process_file(file_path: str, dataset_label: str):
         output_subdir = dataset_label
 
     create_and_save_pivots(df, output_subdir, dataset_label, TIME_COLUMNS)
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 
 def main():
