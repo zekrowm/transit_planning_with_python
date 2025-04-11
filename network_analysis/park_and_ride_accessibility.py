@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 """
 Park and Ride Jobs Residents Served Script
 ==========================================
@@ -32,7 +29,10 @@ import pandas as pd
 from shapely.geometry import LineString, Point
 from shapely.ops import unary_union
 
-# ----------------- CONFIGURATION SECTION -----------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
 GTFS_PATH = r'C:\Path\To\Your\GTFS_data'  # Replace with your folder path
 
 # Define time windows (in seconds since midnight)
@@ -59,7 +59,6 @@ MAX_DRIVING_TIME_MINUTES = 10   # Adjust as needed for driving isochrones
 # Convert minutes to seconds
 MAX_TRANSIT_TIME_SECONDS = MAX_TRANSIT_TIME_MINUTES * 60
 MAX_DRIVING_TIME_SECONDS = MAX_DRIVING_TIME_MINUTES * 60
-# -----------------------------------
 
 CENSUS_BLOCKS_PATH = (
     r"C:\Path\To\Your\Census_Blocks.shp" # Replace with your file path
@@ -76,7 +75,9 @@ ROAD_SHP_PATH = (
 )
 # Check build_road_network function to ensure speed limit and oneway field names are correct
 
-# --------------- END CONFIGURATION SECTION ---------------
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 
 def parse_gtfs_time(time_str):
@@ -119,7 +120,6 @@ FACILITIES_GDF = gpd.GeoDataFrame(
 )
 
 
-# pylint: disable=too-many-locals, redefined-outer-name, unused-argument
 def create_transit_network_with_transfers(
     stop_times_df, trips_df, xfer_time_seconds=300
 ):
@@ -184,7 +184,6 @@ def find_reachable_stops_with_times(graph_obj, origin_nodes, max_time_minutes=45
     return reachable_stops
 
 
-# pylint: disable=too-many-locals, unused-argument
 def find_accessible_area_with_transfers(
     stops_gdf_local,
     graph_obj,
@@ -399,7 +398,6 @@ for area_file in accessible_area_files:
     print(f"Saved accessible job data to {output_path}\n")
 
 
-# pylint: disable=too-many-locals
 def build_road_network():
     """
     Build a directed road network graph from the road centerlines.
