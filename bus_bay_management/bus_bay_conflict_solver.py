@@ -40,10 +40,9 @@ try:
 except ImportError:
     PULP_AVAILABLE = False
 
-
-###############################################################################
-#                           CONFIGURATION
-###############################################################################
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 INPUT_DIR = r"Path\To\Your\Input_Folder"
 OUTPUT_DIR = r"ath\To\Your\Output_Folder"
@@ -71,9 +70,9 @@ ARRIVE_STATUSES = {"ARRIVE", "ARRIVE/DEPART"}
 DEPART_STATUSES = {"DEPART", "ARRIVE/DEPART"}
 LAYOVER_STATUSES = {"LAYOVER", "DWELL", "LONG BREAK", "LOADING"}
 
-###############################################################################
-#                      BASIC CONFLICT-DETECTION UTILS
-###############################################################################
+# -----------------------------------------------------------------------------
+# BASIC CONFLICT-DETECTION UTILS
+# -----------------------------------------------------------------------------
 
 def build_stop_capacities(cluster_info):
     """
@@ -154,9 +153,10 @@ def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
     grp.rename(columns={"HasConflict": "ConflictMinutes"}, inplace=True)
     return grp
 
-###############################################################################
-#                        GREEDY SOLVER
-###############################################################################
+# -----------------------------------------------------------------------------
+# GREEDY SOLVER
+# -----------------------------------------------------------------------------
+
 def solve_bus_assignment_greedy(df, cluster_info):
     """
     Assign bus trips to stops using a simple greedy approach.
@@ -225,9 +225,10 @@ def solve_bus_assignment_greedy(df, cluster_info):
     out_df["AssignedStop"] = assigned_list
     return out_df
 
-###############################################################################
-#                       PULP-BASED SOLVER
-###############################################################################
+# -----------------------------------------------------------------------------
+# PULP-BASED SOLVER
+# -----------------------------------------------------------------------------
+
 def solve_bus_assignment_pulp(df, cluster_info):
     """
     Assign bus trips to stops using an Integer Programming (IP) formulation with PuLP.
@@ -342,9 +343,9 @@ def solve_bus_assignment_pulp(df, cluster_info):
     out_df["AssignedStop"] = assigned_list
     return out_df
 
-###############################################################################
-#                   MAIN SCRIPT: TWO OUTPUT FILES
-###############################################################################
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
