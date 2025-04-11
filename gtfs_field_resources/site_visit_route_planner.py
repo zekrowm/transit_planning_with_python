@@ -26,7 +26,9 @@ import pulp
 import pyproj
 from shapely.geometry import Point, LineString
 
-# --------------------- CONFIGURATION ---------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Adjust these paths to match your data locations
 GTFS_PATH = r'C:\Path\To\Your\GTFS_data'
@@ -59,7 +61,10 @@ OPTIMIZATION_CONFIG = {
     "optimization_approach": "ilp",
 }
 
-# --------------------- PROJECTION HELPERS ---------------------
+# -----------------------------------------------------------------------------
+# HELPER FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 # Build a transformer from WGS84 (lon/lat) to EPSG:2283 (feet).
 PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
@@ -77,7 +82,6 @@ def reproject_point_4326_to_2283(x_lon, y_lat):
     x_2283, y_2283 = PROJECT_4326_TO_2283.transform(x_lon, y_lat)
     return (x_2283, y_2283)
 
-# --------------------- HELPER FUNCTIONS ---------------------
 
 def dms_to_decimal(dms_str):
     """
@@ -100,6 +104,7 @@ def dms_to_decimal(dms_str):
         dec = -dec
     return dec
 
+
 def parse_google_maps_coords(coord_str):
     """
     Given a single string like "38°51'54.5\"N 77°21'53.6\"W",
@@ -112,6 +117,7 @@ def parse_google_maps_coords(coord_str):
     lat_dd = dms_to_decimal(lat_str)
     lon_dd = dms_to_decimal(lon_str)
     return lat_dd, lon_dd
+
 
 def rotate_route(route, start_node):
     """
@@ -128,6 +134,7 @@ def rotate_route(route, start_node):
     rotated.append(start_node)
     return rotated
 
+
 def compute_heading(p1, p2):
     """
     Computes the heading (in degrees) from point p1 to point p2.
@@ -138,6 +145,7 @@ def compute_heading(p1, p2):
     angle_rad = math.atan2(dy, dx)
     angle_deg = math.degrees(angle_rad)
     return angle_deg
+
 
 def compute_turn_direction(heading1, heading2, threshold=15):
     """
@@ -157,7 +165,11 @@ def compute_turn_direction(heading1, heading2, threshold=15):
     else:
         return "Right"
 
-# --------------------- GTFS AND STOP FUNCTIONS ---------------------
+
+# -----------------------------------------------------------------------------
+# GTFS AND STOP FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def export_gtfs_stops(gtfs_path, output_dir, target_crs):
     """
@@ -183,6 +195,7 @@ def export_gtfs_stops(gtfs_path, output_dir, target_crs):
     print(f"Exported GTFS stops to shapefile: {shapefile_path}")
     return stops_gdf
 
+
 def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
     """
     Filters the stops GeoDataFrame for the selected stop IDs using the specified column.
@@ -198,7 +211,11 @@ def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
     }
     return bus_stops, selected_stops_gdf
 
-# --------------------- ROAD NETWORK FUNCTIONS ---------------------
+
+# -----------------------------------------------------------------------------
+# ROAD NETWORK FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def build_directed_road_network(
     road_shp_path,
@@ -272,6 +289,7 @@ def build_directed_road_network(
     print(f"Road network graph built: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     return G, roads_gdf
 
+
 def snap_point_to_network(pt, road_graph):
     """
     Snaps a point (x, y) in EPSG:2283 (feet) to the nearest node in the road network.
@@ -285,6 +303,7 @@ def snap_point_to_network(pt, road_graph):
             min_dist = dist
             nearest_node = node
     return nearest_node
+
 
 def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops):
     """
@@ -313,7 +332,11 @@ def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops)
                 G.add_edge(stop1, stop2, weight=travel_time)
     return G
 
-# --------------------- TSP SOLVER FUNCTIONS ---------------------
+
+# -----------------------------------------------------------------------------
+# TSP SOLVER FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def compute_tsp_route_greedy(G):
     """
@@ -327,6 +350,7 @@ def compute_tsp_route_greedy(G):
     )
     print("Total travel time (seconds) (greedy):", total_travel_time)
     return tsp_route, total_travel_time
+
 
 def compute_tsp_route_ilp(G):
     """
@@ -409,7 +433,11 @@ def compute_tsp_route_ilp(G):
     print("Total travel time (seconds) (ILP):", total_travel_time)
     return tsp_route, total_travel_time
 
-# --------------------- DIRECTIONS & EXPORTS ---------------------
+
+# -----------------------------------------------------------------------------
+# DIRECTIONS & EXPORTS
+# -----------------------------------------------------------------------------
+
 
 def generate_directions(tsp_route, stops_snapped, road_graph):
     """
@@ -498,6 +526,7 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
 
     return directions_steps
 
+
 def export_directions_excel(directions_steps, output_dir):
     """
     Exports the driving directions as an Excel (.xlsx) file.
@@ -506,6 +535,7 @@ def export_directions_excel(directions_steps, output_dir):
     output_file = os.path.join(output_dir, "directions.xlsx")
     df.to_excel(output_file, index=False)
     print(f"Exported directions to {output_file}")
+
 
 def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, output_dir):
     """
@@ -554,7 +584,11 @@ def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, 
     route_gdf.to_file(out_path)
     print(f"Exported the TSP route shapefile: {out_path}")
 
-# --------------------- PLOTTING ---------------------
+
+# -----------------------------------------------------------------------------
+# PLOTTING
+# -----------------------------------------------------------------------------
+
 
 def plot_tsp_route(G, tsp_route):
     """
@@ -570,7 +604,11 @@ def plot_tsp_route(G, tsp_route):
     plt.ylabel("Y (feet, EPSG:2283)")
     plt.show()
 
-# --------------------- MAIN FUNCTION ---------------------
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
 
 def main():
     """
