@@ -26,11 +26,11 @@ import pandas as pd
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
-# ==============================
-# CONFIGURATION SECTION
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
-GTFS_FOLDER_PATH = r"C:\Path\To\Your\GTFS_Folder"  # Folder should contain all GTFS .txt files
+GTFS_FOLDER_PATH = r"C:\Path\To\Your\GTFS_Folder"  # Contains GTFS .txt files
 
 BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output_Folder"
 if not os.path.exists(BASE_OUTPUT_PATH):
@@ -44,9 +44,10 @@ TIME_FORMAT_OPTION = '24'  # '12' or '24'
 MISSING_TIME = "---"
 MAX_COLUMN_WIDTH = 30
 
-# ------------------------------
+# -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
-# ------------------------------
+# -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(files=None, dtype=str):
     """
@@ -122,9 +123,10 @@ def load_gtfs_data(files=None, dtype=str):
     return data
 
 
-# ------------------------------
-# UTILITY FUNCTIONS
-# ------------------------------
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def time_to_minutes(time_str):
     """
@@ -688,9 +690,10 @@ def format_service_id_folder_name(service_row):
     return f"calendar_{service_id}_{day_str}"
 
 
-# ------------------------------
-# MAIN FUNCTION
-# ------------------------------
+# =============================================================================
+# MAIN
+# =============================================================================
+
 
 def main():
     """
