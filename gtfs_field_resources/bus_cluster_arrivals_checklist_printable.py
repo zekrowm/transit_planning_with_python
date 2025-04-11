@@ -22,9 +22,9 @@ import pandas as pd
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
-# ==============================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Output directory
 BASE_OUTPUT_PATH = r'\\your_file_path\here\\'
@@ -83,9 +83,9 @@ TIME_WINDOWS = {
     # },
 }
 
-# ==============================
-# END OF CONFIGURATION SECTION
-# ==============================
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 
 def validate_input_directory(base_input_path, gtfs_files):
@@ -361,6 +361,11 @@ def generate_gtfs_checklists():
             )
 
     print("All clusters and schedules have been processed and exported.")
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 
 def main():
