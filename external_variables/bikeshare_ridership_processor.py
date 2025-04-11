@@ -21,23 +21,23 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# -----------------------------
-# Configuration
-# -----------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
 BIKESHARE_SHP_PATH = r"C:\Your\File\Path\To\Bikeshare_Locations.shp"
 # Set BOUNDARY_SHP_PATH to an empty string or None if you want to use all stops.
 BOUNDARY_SHP_PATH = r"C:\Your\File\Path\To\Study_Area_Boundary.shp"
 CSV_FOLDER = r"C:\Your\Folder\Path\To\Bikeshare_Trip_Data"
-OUTPUT_CSV = r"C:\Your\File\Path\To\Output\total_monthly_trip_activity_by_station.csv"
-OUTPUT_XLSX = r"C:\Your\File\Path\To\Output\trip_activity_averages_by_station.xlsx"
+OUTPUT_CSV = r"C:\File\Path\To\Output\total_monthly_trip_activity_by_station.csv"
+OUTPUT_XLSX = r"C:\File\Path\To\Output\trip_activity_averages_by_station.xlsx"
 
 # New configuration: Users can set the fuzzy matching threshold here.
 FUZZY_THRESHOLD = 0.8
 
-
-# -----------------------------
+# -----------------------------------------------------------------------------
 # Functions
-# -----------------------------
+# -----------------------------------------------------------------------------
 def load_shapefiles(bikeshare_shp_path, boundary_shp_path=None):
     """
     Load the bikeshare shapefile and optionally the boundary shapefile.
@@ -307,19 +307,24 @@ def compute_daily_averages(filtered_data_frame, valid_station_names):
     return averages_data_frame
 
 
+# =============================================================================
+# MAIN
+# =============================================================================
 def main():
     """
     Process Capital Bikeshare data to generate trip activity reports.
 
     This function:
-      - Loads bikeshare station data (and optionally a study area boundary) from shapefiles.
+      - Loads bikeshare station data (and optionally a study area boundary)
+        from shapefiles.
       - Loads and concatenates trip data from CSV files.
       - Applies fixed and interactive corrections to station names.
       - Filters trips to valid stations and aggregates monthly counts.
       - Computes daily average trip counts (weekday, Saturday, Sunday).
       - Exports the aggregated results to CSV and Excel files.
 
-    Configuration (file paths, fuzzy matching threshold, etc.) is handled at the module level.
+    Configuration (file paths, fuzzy matching threshold, etc.) is handled at the
+    module level.
     """
     bikeshare_shp_path = BIKESHARE_SHP_PATH
     boundary_shp_path = BOUNDARY_SHP_PATH
