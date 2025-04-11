@@ -15,9 +15,9 @@ The extracted data is then exported to the specified output file.
 
 import pandas as pd
 
-# ----------------------------
-# Configuration Section
-# ----------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 INPUT_FILE = r"C:\Your\File\Path\To\pswrgvwall.xls"
 OUTPUT_FILE = r"C:\Your\Output\File\Path\To\extracted_data.xlsx"
@@ -36,7 +36,9 @@ PRICE_COLUMN = (
 DATE_FILTER_START = "2020-01-01"
 DATE_FILTER_END = "2024-12-31"
 
-
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFrame:
     """
     Load the Excel file using the specified sheet and header rows.
@@ -108,6 +110,9 @@ def export_data(dataframe_to_export: pd.DataFrame, output_file: str) -> None:
     print(f"Extracted data has been written to {output_file}")
 
 
+# =============================================================================
+# MAIN
+# =============================================================================
 def main() -> None:
     """
     Main function to load, filter, and export the data.
