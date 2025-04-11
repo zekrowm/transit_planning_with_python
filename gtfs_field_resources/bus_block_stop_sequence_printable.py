@@ -31,9 +31,10 @@ import pandas as pd
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
-# ================================
+# =============================================================================
 # CONFIGURATION
-# ================================
+# =============================================================================
+
 BASE_INPUT_PATH = r"C:\Path\To\Your\Input\Folder"    # <<< EDIT HERE
 BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output\Folder"  # <<< EDIT HERE
 
@@ -54,9 +55,10 @@ MISSING_VALUE = "_____"
 # Maximum column width for neat Excel formatting:
 MAX_COLUMN_WIDTH = 35
 
-# ================================
+# -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
-# ================================
+# -----------------------------------------------------------------------------
+
 
 def time_to_seconds(time_str):
     """
@@ -79,6 +81,7 @@ def time_to_seconds(time_str):
 
     return hours * 3600 + minutes * 60 + seconds
 
+
 def format_hhmm(total_seconds):
     """
     Given a time in total seconds, returns a 'HH:MM' string (24-hour).
@@ -89,6 +92,12 @@ def format_hhmm(total_seconds):
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
     return f"{hours:02d}:{minutes:02d}"
+
+
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def export_to_excel(data_frame, output_file):
     """
@@ -310,6 +319,11 @@ def export_blocks(stop_times_df):
         filename = f"block_{block_id}_schedule_printable.xlsx"
         output_path = os.path.join(BASE_OUTPUT_PATH, filename)
         export_to_excel(final_df, output_path)
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 
 def main():
