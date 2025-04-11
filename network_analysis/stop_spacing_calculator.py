@@ -11,9 +11,10 @@ import pandas as pd
 from shapely.geometry import Point, LineString
 from shapely.ops import nearest_points, linemerge
 
-# -----------------------------------------------------------------------------
-# STEP 0: CONFIGURATION (DO NOT MODIFY)
-# -----------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
 GTFS_FOLDER = r'C:\Your\Folder\Path\For\GTFS'
 ROAD_NETWORK_FILE = r'C:\Your\File\Path\For\road_network.shp'
 ROUTE_SHAPE_FILE = r'C:\Your\File\Path\For\bus_system_network.shp'
@@ -36,10 +37,11 @@ print(f"  Direction:       {FILTER_DIRECTION}")
 print(f"  Departure time:  {FILTER_DEPARTURE}")
 print(f"  Calendar:        {FILTER_CALENDAR}")
 
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
-# =============================================================================
-# STEP 1: Load GTFS files and filter trips
-# =============================================================================
+
 def load_gtfs(gtfs_folder):
     """Loads the GTFS files from the specified folder."""
     stops = pd.read_csv(os.path.join(gtfs_folder, "stops.txt"))
@@ -105,9 +107,6 @@ def filter_and_select_trip(trips_df, stop_times_df, calendar_df,
         return selected_trip_id
 
 
-# =============================================================================
-# STEP 2: Create unsnapped stops and chord segments for the selected trip
-# =============================================================================
 def create_unsnapped_stops(gtfs_folder, selected_trip_id, projected_crs):
     """Creates a GeoDataFrame of unsnapped stops for the selected trip."""
     stops_file = os.path.join(gtfs_folder, "stops.txt")
@@ -173,9 +172,6 @@ def export_chord_segments(chord_segments_gdf, output_folder, selected_trip_id, p
     print(f"Exported {prefix.replace('_',' ')} to {out_path}")
 
 
-# =============================================================================
-# STEP 3: Process bus route and snap stops to roads
-# =============================================================================
 def process_bus_route(route_shape_file, filter_route, projected_crs, output_folder, road_network_file):
     """Processes the bus route shapefile, creates a buffer, and filters the road network."""
     # Load and reproject the bus route shapefile
@@ -253,9 +249,6 @@ def merge_and_export_snapped_chord(snapped_chord_segments_gdf, output_folder, se
     print(f"Exported merged snapped chord to {merged_out}")
 
 
-# =============================================================================
-# STEP 4: Build a directed network and compute shortest paths
-# =============================================================================
 def build_directed_network_with_stops(roads_gdf, snapped_stops_gdf, oneway_col="ONEWAY"):
     """
     Builds a directed graph from roads_gdf, respecting ONEWAY='Y' or 'N',
@@ -288,7 +281,8 @@ def build_directed_network_with_stops(roads_gdf, snapped_stops_gdf, oneway_col="
     # 2. Connect each snapped stop to the nearest road segment endpoints
     roads_union = roads_gdf.unary_union  # merged geometry
 
-    def find_nearest_segment_and_endpoints(stop_pt, roads_union):
+
+def find_nearest_segment_and_endpoints(stop_pt, roads_union):
         """
         Returns the nearest linestring from roads and the endpoints of the sub-segment
         where the stop lies.
@@ -410,8 +404,10 @@ def compute_and_export_shortest_paths(road_network, snapped_stops_gdf, output_fo
 
 
 # =============================================================================
-# MAIN FUNCTION: Orchestrate processing steps
+# MAIN
 # =============================================================================
+
+
 def main():
     """Generates a route shapefile from GTFS, road network, and bus route data, segmented at stops."""
     # Ensure output folder is absolute and exists
