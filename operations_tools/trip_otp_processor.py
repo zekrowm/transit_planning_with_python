@@ -10,9 +10,10 @@ from typing import List, Optional
 
 import pandas as pd
 
-# -----------------------------------------------------------------------------
-# Configuration Section
-# -----------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
 INPUT_FILE = (
     r"\\Path\To\Your\CLEVER_Runtime_and_OTP_Trip_Level.csv"
 )
@@ -51,8 +52,10 @@ SUM_ON_TIME_COLUMN = "Sum # On Time"
 
 
 # -----------------------------------------------------------------------------
-# Helper Functions
+# FUNCTIONS
 # -----------------------------------------------------------------------------
+
+
 def parse_time_string_to_minutes(time_str: str) -> float:
     """
     Convert a time string in the format HH:MM:SS to minutes (float) with one decimal place.
@@ -222,9 +225,11 @@ def export_individual_files(agg_df: pd.DataFrame, group_by_direction: bool, outp
         print(f"Exported individual aggregated file for group {name} to: {file_path}")
 
 
-# -----------------------------------------------------------------------------
-# Main Execution
-# -----------------------------------------------------------------------------
+# =============================================================================
+# MAIN
+# =============================================================================
+
+
 def main():
     """
     Orchestrates the end-to-end processing of runtime and OTP data.
