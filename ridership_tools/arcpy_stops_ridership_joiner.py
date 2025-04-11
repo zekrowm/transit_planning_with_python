@@ -16,9 +16,9 @@ import csv
 import arcpy
 import pandas as pd
 
-# --------------------------------------------------------------------------
-# 1. USER-DEFINED VARIABLES (CONFIGURATION)
-# --------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # INPUTS --------------------------------------------------------------------
 # Bus stops can be either a .shp or GTFS stops.txt
@@ -71,9 +71,10 @@ POLYGON_FIELDS_TO_KEEP = [
 IS_GTFS_INPUT = BUS_STOPS_INPUT.lower().endswith(".txt")
 arcpy.env.overwriteOutput = True
 
-# --------------------------------------------------------------------------
-# 2. FUNCTION DEFINITIONS
-# --------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def create_bus_stops_feature_class():
     """
@@ -391,10 +392,6 @@ def aggregate_ridership(df_joined):
           f"{POLYGON_WITH_RIDERSHIP_SHP}")
 
 
-# ---------------------------------------------------------
-# >>>> CHANGED SECTION: NEW/UPDATED MAIN FUNCTION <<<<
-# ---------------------------------------------------------
-
 def process_stops_for_single_run():
     """
     (Helper) Original single-run flow (no splitting by route).
@@ -423,6 +420,11 @@ def process_stops_for_single_run():
     aggregate_ridership(df_joined)
 
     print("Single-run process complete.")
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 
 def main():
