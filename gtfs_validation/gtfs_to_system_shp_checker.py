@@ -15,9 +15,9 @@ from rapidfuzz import fuzz
 from shapely.geometry import Point
 import matplotlib.pyplot as plt
 
-# ==============================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # FILE PATHS
 GTFS_DIR = r'\\your_project_folder\system_gtfs'
@@ -36,9 +36,10 @@ INPUT_CRS = 'EPSG:4326'     # WGS84
 PROJECTED_CRS = 'EPSG:26918' # NAD83 / UTM zone 18N (adjust as appropriate)
 OUTPUT_CRS = 'EPSG:4326'    # WGS84
 
-# ==============================
-# END OF CONFIGURATION SECTION
-# ==============================
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_dir):
     """Load GTFS files and return DataFrames for routes, stops, trips, and stop_times."""
@@ -59,6 +60,7 @@ def load_gtfs_data(gtfs_dir):
 
     return routes_df, stops_df, trips_df, stop_times_df
 
+
 def load_shapefile(shp_path, input_crs):
     """Load the shapefile and set its CRS if needed."""
     if not os.path.isfile(shp_path):
@@ -70,6 +72,7 @@ def load_shapefile(shp_path, input_crs):
     else:
         shp_df = shp_df.to_crs(input_crs)
     return shp_df
+
 
 def preprocess_data(routes_df, shp_df, route_number_col):
     """Ensure route columns are strings and cleaned for merging."""
@@ -83,6 +86,7 @@ def preprocess_data(routes_df, shp_df, route_number_col):
         .str.replace(" ", "")
     )
     return routes_df, shp_df
+
 
 def merge_and_score(routes_df, shp_df, route_number_col, route_name_col):
     """Merge the GTFS routes with the shapefile data and compute similarity scores."""
@@ -109,6 +113,7 @@ def merge_and_score(routes_df, shp_df, route_number_col, route_name_col):
 
     return merged_df
 
+
 def export_comparison(merged_df, output_dir):
     """Print match percentages and export the merged DataFrame as CSV."""
     total_short_names = len(merged_df)
@@ -133,6 +138,7 @@ def export_comparison(merged_df, output_dir):
     print(f"Route comparison exported to {output_csv_path}")
     return merged_df
 
+
 def convert_stops_to_gdf(stops_df, input_crs):
     """Convert the stops DataFrame to a GeoDataFrame with proper geometry."""
     stops_df['stop_lat'] = pd.to_numeric(stops_df['stop_lat'], errors='coerce')
@@ -142,6 +148,7 @@ def convert_stops_to_gdf(stops_df, input_crs):
     stops_gdf = gpd.GeoDataFrame(stops_df, geometry='geometry', crs=input_crs)
     return stops_gdf
 
+
 def prepare_geometries(stops_gdf, shp_df, projected_crs):
     """Reproject GeoDataFrames to the projected CRS and rename shapefile geometry."""
     stops_gdf = stops_gdf.to_crs(projected_crs)
@@ -150,11 +157,13 @@ def prepare_geometries(stops_gdf, shp_df, projected_crs):
         shp_df = shp_df.rename(columns={'geometry': 'route_geometry'})
     return stops_gdf, shp_df
 
+
 def calculate_distance(row):
     """Calculate distance between a stop and its route geometry (in meters)."""
     if pd.notnull(row['geometry']) and pd.notnull(row['route_geometry']):
         return row['geometry'].distance(row['route_geometry'])
     return None
+
 
 def identify_problem_stops(
     routes_df,
@@ -295,6 +304,12 @@ def identify_problem_stops(
     problem_stops_gdf = problem_stops_gdf.to_crs(output_crs)
 
     return problem_stops_gdf, routes_with_stops_outside_buffer, route_geometry_table
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
 
 def main():
     """Load data, compare GTFS routes to the system shapefile, identify discrepancies, and export results."""
