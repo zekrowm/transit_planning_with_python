@@ -14,9 +14,9 @@ import os
 
 import pandas as pd
 
-# ------------------------------------------------------------------------------
-# CONFIGURATION SECTION
-# ------------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Path to the input Excel file
 INPUT_FILE_PATH = r'\\Your\File\Path\To\STOP_USAGE_(BY_STOP_NAME).XLSX'
@@ -31,9 +31,9 @@ STOP_FILTER_LIST = [1107, 2816, 6548]  # Example default
 USE_BOARDINGS = True
 USE_ALIGHTINGS = True
 
-# ------------------------------------------------------------------------------
-# FUNCTION DEFINITIONS
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def load_data(excel_path):
     """
@@ -41,6 +41,7 @@ def load_data(excel_path):
     """
     data_frame = pd.read_excel(excel_path)
     return data_frame
+
 
 def filter_by_stops(data_frame, stop_ids):
     """
@@ -51,11 +52,13 @@ def filter_by_stops(data_frame, stop_ids):
         return data_frame[data_frame['STOP_ID'].isin(stop_ids)]
     return data_frame
 
+
 def get_route_names(data_frame):
     """
     Returns a list of unique route names in the given DataFrame.
     """
     return data_frame['ROUTE_NAME'].unique()
+
 
 def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag):
     """
@@ -100,6 +103,7 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
 
     return grouped
 
+
 def save_route_data(route_data, route_name, output_directory):
     """
     Saves the route_data DataFrame to an Excel file named after the route.
@@ -107,6 +111,11 @@ def save_route_data(route_data, route_name, output_directory):
     filename = f"{route_name}.xlsx"
     filepath = os.path.join(output_directory, filename)
     route_data.to_excel(filepath, index=False)
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
