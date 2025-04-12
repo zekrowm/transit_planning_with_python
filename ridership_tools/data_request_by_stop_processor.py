@@ -21,9 +21,9 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font
 
-# ==========================
-# Configuration Section
-# ==========================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 INPUT_FILE_PATH = (
     r'\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX'
@@ -69,9 +69,9 @@ COLUMNS_TO_RETAIN = [
     'ALIGHT_ALL'
 ]
 
-# ==========================
-# End of Configuration
-# ==========================
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 
 def bin_ridership_value(value):
@@ -237,6 +237,11 @@ def process_aggregations(filtered_data):
                         df_agg[col] = df_agg[col].round(1)
 
     return filtered_data, aggregated_peaks, all_time_aggregated
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 
 def main():
