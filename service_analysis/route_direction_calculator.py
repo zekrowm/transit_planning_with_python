@@ -35,9 +35,10 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import LineString
 
-# --------------------------------------------------------------------------------
-# Configuration
-# --------------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
 GTFS_FOLDER = r"/path/to/your/gtfs_folder"
 OUTPUT_FOLDER = r"/path/to/your/output_folder"
 
@@ -56,8 +57,10 @@ EXPORT_JPEG = True
 
 # NEW CODE: Boolean to analyze only the most common (modal) shape
 ANALYZE_ONLY_DOMINANT_SHAPE = True
-# --------------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def classify_direction(line_4326: LineString,
                        line_projected: LineString,
@@ -362,6 +365,10 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
     else:
         print("[INFO] No suspicious route/direction combos found.")
 
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
