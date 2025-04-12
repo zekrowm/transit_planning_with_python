@@ -27,9 +27,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-###############################################################################
-#                             CONFIGURATION                                   #
-###############################################################################
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 CONFIG = {
     'periods': {
@@ -117,7 +117,9 @@ CONFIG = {
     'output_dir': r'\\Path\to\Your\Output_Folder'
 }
 
-# ------------------ PLOT CONFIGURATION BOOLEANS -----------------------------
+# -----------------------------------------------------------------------------
+# PLOT CONFIGURATION BOOLEANS
+# -----------------------------------------------------------------------------
 # Set any of these to False if you do NOT want that particular plot generated.
 PLOT_CONFIG = {
     'plot_total_ridership': True,
@@ -142,9 +144,9 @@ PLOT_STYLE = {
 }
 
 
-###############################################################################
-#                           DATA LOADING / CLEANING                           #
-###############################################################################
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def read_excel_data(config: dict) -> dict:
     """
@@ -184,10 +186,6 @@ def read_excel_data(config: dict) -> dict:
     return data_dict
 
 
-###############################################################################
-#                    SERVICE TYPE & CORRIDOR CLASSIFICATION                   #
-###############################################################################
-
 def classify_route(route_name: str, cfg: dict) -> str:
     """
     Returns the first service_type in which this route is found.
@@ -214,10 +212,6 @@ def classify_corridor(route_name: str, cfg: dict) -> list:
             corridors.append(c_name)
     return corridors if corridors else ['other']
 
-
-###############################################################################
-#                   ADDING DERIVED COLUMNS & AGGREGATIONS                     #
-###############################################################################
 
 def calculate_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -306,10 +300,6 @@ def aggregate_by_service_type(df: pd.DataFrame) -> pd.DataFrame:
     return grouped
 
 
-###############################################################################
-#                      ROUTE-LEVEL SUMMARY WITH SUBTOTALS                     #
-###############################################################################
-
 def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
     """
     Summarize each route, grouped by service_type + route_name, then add
@@ -393,10 +383,6 @@ def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
     df_summary = df_summary.append(total_dict, ignore_index=True)
     return df_summary
 
-
-###############################################################################
-#                     BUILD TIME-SERIES FOR PLOTTING                          #
-###############################################################################
 
 def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFrame:
     """
@@ -632,9 +618,9 @@ def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict):
             plot_metric_over_time(df_time, col_name, config)
 
 
-###############################################################################
-#                                 MAIN                                        #
-###############################################################################
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
@@ -666,9 +652,9 @@ def main():
         print("\nRoutes not classified by SERVICE_TYPE_DICT:")
         print(", ".join(sorted(unknown_routes)))
 
-    # =======================================================================
+    # -----------------------------------------------------------------------
     #             FILE #1: DetailedAllPeriods + Monthly Sheets
-    # =======================================================================
+    # -----------------------------------------------------------------------
     output_dir = CONFIG['output_dir']
     os.makedirs(output_dir, exist_ok=True)
 
@@ -683,10 +669,9 @@ def main():
 
     print("Concatenated NTD data has been exported successfully.")
 
-
-    # =======================================================================
+    # -----------------------------------------------------------------------
     #       FILE #2: Aggregated by Service Type (YTD + each month)
-    # =======================================================================
+    # -----------------------------------------------------------------------
     file2_path = os.path.join(output_dir, 'AggByServiceType.xlsx')
     # YTD aggregator (all periods)
     service_type_agg_ytd = aggregate_by_service_type(all_data)
@@ -703,10 +688,9 @@ def main():
 
     print("Summary statistics by service type have been exported successfully.")
 
-
-    # =======================================================================
+    # -----------------------------------------------------------------------
     #             FILE #3: Route-Level Summary (YTD Only)
-    # =======================================================================
+    # -----------------------------------------------------------------------
     file3_path = os.path.join(output_dir, 'RouteLevelSummary.xlsx')
     route_summary_ytd = route_level_summary(all_data)
 
@@ -715,10 +699,9 @@ def main():
 
     print("YTD summary statistics by route have been exported successfully.")
 
-
-    # =======================================================================
+    # -----------------------------------------------------------------------
     #            OPTIONAL: GENERATE TIME-SERIES PLOTS FOR METRICS
-    # =======================================================================
+    # -----------------------------------------------------------------------
     # Build a monthly time-series dataframe for each route & systemwide
     df_time = build_monthly_timeseries(all_data, CONFIG)
     # Then generate plots if booleans are set to True
