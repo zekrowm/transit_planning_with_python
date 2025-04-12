@@ -3,12 +3,13 @@ Script to process GTFS and district data to determine where routes operate.
 """
 
 import os
+
 import pandas as pd
 import geopandas as gpd
 
-# ----------------------------------------------------------------------------
-# Configuration Section
-# ----------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Shapefile of Districts (already in or to be projected to EPSG:2248, for example)
 DISTRICTS_SHP = (
@@ -42,9 +43,9 @@ TARGET_EPSG = 2248  # Adjust if your region uses a different EPSG code
 # Specify the district column name in your shapefile
 DISTRICT_FIELD = "DISTRICT"
 
-# ----------------------------------------------------------------------------
-# Utility / Helper Functions
-# ----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def load_gtfs_data(gtfs_dir):
     """
@@ -186,9 +187,9 @@ def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
         df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 
-# ----------------------------------------------------------------------------
-# Main Execution
-# ----------------------------------------------------------------------------
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
