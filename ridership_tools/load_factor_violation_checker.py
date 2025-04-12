@@ -43,7 +43,10 @@ DECIMAL_PLACES = 4         # default is 4 decimals
 # -----------------------------------------------------------------------------
 
 def load_data(input_file: str) -> pd.DataFrame:
-    """Load the Excel file and select the relevant columns."""
+    """
+    Loads bus data from an Excel file and returns a DataFrame
+    containing selected columns.
+    """
     data_frame = pd.read_excel(input_file)
     selected_columns = [
         'SERIAL_NUMBER', 'ROUTE_NAME', 'DIRECTION_NAME', 'TRIP_START_TIME',
