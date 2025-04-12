@@ -5,15 +5,16 @@ Supports two modes:
      and retrieves the associated routes/directions.
   2) 'stop_code': Directly uses provided stop_codes to retrieve route/direction information (no spatial processing).
 """
+
 import os
 
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 
-# ==============================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 GTFS_FOLDER = r"\\your_file_path\here"
 OUTPUT_FOLDER = r"\\your_file_path\here"
@@ -36,9 +37,9 @@ STOP_CODE_FILTER = ["1001", "1002", "1003"]  # example stop_codes
 # Output file name
 OUTPUT_FILE_NAME = "results.csv"
 
-# ==============================
-# END CONFIGURATION
-# ==============================
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def check_input_files(base_path):
     """
@@ -55,6 +56,7 @@ def check_input_files(base_path):
             raise FileNotFoundError(
                 f"The required GTFS file {file_name} does not exist in {base_path}."
             )
+
 
 def load_gtfs_data(base_path):
     """
@@ -76,6 +78,7 @@ def load_gtfs_data(base_path):
 
     return data
 
+
 def create_geodataframe_locations(locations, crs="EPSG:4326"):
     """
     Convert a list of location dictionaries to a GeoDataFrame.
@@ -86,6 +89,7 @@ def create_geodataframe_locations(locations, crs="EPSG:4326"):
         crs=crs
     )
     return gdf
+
 
 def create_geodataframe_stops(stops_df, crs="EPSG:4326"):
     """
@@ -100,6 +104,7 @@ def create_geodataframe_stops(stops_df, crs="EPSG:4326"):
     )
     return gdf
 
+
 def convert_buffer_distance(distance, unit):
     """
     Convert buffer distance to feet based on the specified unit.
@@ -111,6 +116,7 @@ def convert_buffer_distance(distance, unit):
     else:
         raise ValueError("Unsupported buffer unit. Please use 'miles' or 'feet'.")
 
+
 def reproject_geodataframes(gdf_locations, stops_gdf, target_crs):
     """
     Reproject GeoDataFrames to the target CRS.
@@ -120,6 +126,7 @@ def reproject_geodataframes(gdf_locations, stops_gdf, target_crs):
     stops_gdf_proj = stops_gdf.to_crs(target_crs)
     print("Reprojection completed.\n")
     return gdf_locations_proj, stops_gdf_proj
+
 
 def find_nearby_routes_with_nearest_stops(gdf_locations, stops_gdf, stop_times_trips_routes, buffer_distance_feet):
     """
@@ -186,9 +193,7 @@ def find_nearby_routes_with_nearest_stops(gdf_locations, stops_gdf, stop_times_t
 
     return results
 
-# ---------------------------------------------------------------------
-#  HELPER FUNCTIONS FOR STOP_CODE-BASED LOOKUPS
-# ---------------------------------------------------------------------
+
 def get_stop_ids_for_stop_codes(stops_df, stop_code_filter):
     """
     Filter the stops DataFrame to include only those stops with a stop_code
@@ -199,6 +204,7 @@ def get_stop_ids_for_stop_codes(stops_df, stop_code_filter):
 
     filtered_stops = stops_df[stops_df["stop_code"].isin(stop_code_filter)]
     return filtered_stops["stop_id"].unique().tolist()
+
 
 def find_routes_by_stop_ids(stops_df, stop_ids, stop_times_df, trips_df, routes_df):
     """
@@ -246,6 +252,7 @@ def find_routes_by_stop_ids(stops_df, stop_ids, stop_times_df, trips_df, routes_
         })
     return results
 
+
 def save_results_to_csv(results, output_file):
     """
     Save the results to a CSV file.
@@ -254,6 +261,10 @@ def save_results_to_csv(results, output_file):
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     df_results.to_csv(output_file, index=False, encoding="utf-8-sig")
     print(f"Results successfully saved to {output_file}")
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
@@ -342,6 +353,7 @@ def main():
         print(f"Value error: {val_error}")
     except Exception as error:
         print(f"An unexpected error occurred: {error}")
+
 
 if __name__ == "__main__":
     main()
