@@ -3,12 +3,14 @@ Script to process bus data and determine whether maximum load
 standards are being observed or violated, with optional route filters
 given as lists, and configurable decimal rounding.
 """
+
 import pandas as pd
 from openpyxl.utils import get_column_letter
 
-# =======================
-# Configuration Section
-# =======================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
 INPUT_FILE = r"\\File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
 OUTPUT_FILE = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
 BUS_CAPACITY = 39
@@ -36,9 +38,9 @@ FILTER_OUT_ROUTES = []     # e.g. ['105', '106']
 # Specify how many decimals to round the LOAD_FACTOR to
 DECIMAL_PLACES = 4         # default is 4 decimals
 
-# =======================
-# Helper Functions
-# =======================
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def load_data(input_file: str) -> pd.DataFrame:
     """Load the Excel file and select the relevant columns."""
@@ -148,9 +150,10 @@ def print_high_load_trips(data_frame: pd.DataFrame) -> None:
         print("Trips with MAX_LOAD over 30:")
         print(high_load_trips)
 
-# =======================
-# Main Routine
-# =======================
+# =============================================================================
+# MAIN
+# =============================================================================
+
 def main():
     """Main routine to load, process, and export bus load data."""
     # Load data
