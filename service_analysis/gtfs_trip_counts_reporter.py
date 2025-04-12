@@ -17,9 +17,9 @@ from openpyxl.utils import get_column_letter
 # Configure logging (optional)
 logging.basicConfig(level=logging.INFO)
 
-# ==============================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Input directory containing GTFS files
 BASE_INPUT_PATH = r'\\your_file_path\here\\'
@@ -50,10 +50,9 @@ CALENDAR_FILTER_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
 # To process all services separately, set it to an empty list:
 # CALENDAR_FILTER_DAYS = []
 
-# ==============================
-# END OF CONFIGURATION SECTION
-# ==============================
-
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def check_input_files(base_path, files):
     """Ensure all required GTFS files exist in the input directory."""
@@ -336,6 +335,10 @@ def _export_to_excel(df, output_path, interval_minutes, route_short,
     wb.save(output_file)
     logging.info("Trips per %d minutes for %s successfully exported!", interval_minutes, file_name)
 
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """Main function to execute the script."""
