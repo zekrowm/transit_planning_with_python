@@ -36,9 +36,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 
-# ==============================
-# CONFIGURATION SECTION
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # 1) List of GTFS dataset inputs, each item is a dict:
 #    - "name": a label (e.g., "September_2024_signup")
@@ -93,17 +93,16 @@ STOP_BUFFER_DISTANCE_MILES = 0.25  # 0.25-mile buffer for coverage
 # 10) For "geography expanded" / "geography contracted" classification
 GEOM_CHANGE_THRESHOLD = 0.05  # 5% area difference
 
+# -----------------------------------------------------------------------------
+# GLOBAL STORAGE
+# -----------------------------------------------------------------------------
 
-# ==============================
-# END OF CONFIGURATION SECTION
-# ==============================
-
-# -------------------------------------------------------------------
-# Global storage for final data and coverages
-# -------------------------------------------------------------------
 ALL_SIGNUP_FINAL_DATA = {}  # { label: [DataFrame, DataFrame, ...] }
 ALL_SIGNUP_COVERAGES = {}   # { label: { route_short_name: polygon } }
 
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def check_input_files(base_path, files):
     """
@@ -766,6 +765,10 @@ def save_comparison_to_excel(comparison_df, output_path, filename):
     workbook.save(file_path)
     print(f"Comparison data saved to {file_path}")
 
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
