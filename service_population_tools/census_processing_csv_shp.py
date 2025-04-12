@@ -1,14 +1,11 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 """
 Census Data Processing Script
 
 This script processes census data by performing the following operations:
 - Loads and merges shapefiles from specified input directories.
 - Filters geographic data based on provided FIPS codes.
-- Processes various demographic datasets including population, households, jobs, income, ethnicity,
-  language proficiency, vehicle ownership, and age.
+- Processes various demographic datasets including population, households, jobs,
+  income, ethnicity, language proficiency, vehicle ownership, and age.
 - Merges tract-level and block-level data to calculate estimates.
 - Exports the processed data to CSV and shapefile formats for further analysis.
 
@@ -18,7 +15,8 @@ Configuration:
   - https://lehd.ces.census.gov/data/
   - https://data.census.gov/table
   - https://www.census.gov/cgi-bin/geo/shapefiles/index.php
-- Other tables are optional depending on the detailed information you are interested in.
+- Other tables are optional depending on the detailed information you are
+  interested in.
 - Output configuration is consolidated at the end of the config section.
 """
 
@@ -29,10 +27,9 @@ import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
 
-
-###############################################################################
-#                         CONFIGURATION SECTION                               #
-###############################################################################
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 # Logging Configuration
 logging.basicConfig(
@@ -41,9 +38,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# -----------------------
+# -----------------------------------------------------------------------------
 # 1) Mandatory Inputs
-# -----------------------
+# -----------------------------------------------------------------------------
 
 # A. Shapefiles (block-level)
 BLOCK_SHP_FILES = [
@@ -82,9 +79,9 @@ JT00_FILES = [
     r"C:\full\path\to\dc_wac_S000_JT00_2021.csv.gz"
 ]
 
-# -----------------------
+# -----------------------------------------------------------------------------
 # 2) Optional Inputs
-# -----------------------
+# -----------------------------------------------------------------------------
 
 # Income data by tract (B19001)
 INCOME_B19001_FILES = [
@@ -116,18 +113,19 @@ AGE_B01001_FILES = [
     # Add more paths or remove if not used
 ]
 
-# -----------------------
+# -----------------------------------------------------------------------------
 # 3) Output Configuration
-# -----------------------
+# -----------------------------------------------------------------------------
+
 CSV_OUTPUT_PATH = r"C:\full\path\to\output\df_joined_blocks.csv"
 SHP_OUTPUT_PATH = (
     r"C:\Users\zach\Desktop\Zach\python_stuff\projects\census_data_processing_for_transit_2025_01_21"
     r"\output\va_md_dc_census_blocks_folder\va_census_blocks.shp"
 )
 
-###############################################################################
-#                             HELPER FUNCTIONS                                #
-###############################################################################
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
 def load_and_merge_shapefiles(shapefile_paths: list[str]) -> gpd.GeoDataFrame:
     """
@@ -308,9 +306,9 @@ def export_dataframes_to_disk(
     logging.info("Shapefile saved to: %s", shp_output_path)
 
 
-###############################################################################
-#                                  MAIN LOGIC                                 #
-###############################################################################
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
