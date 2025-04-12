@@ -33,6 +33,7 @@ Usage:
 This tool is intended to simplify and standardize route performance assessment, making
 comparative analysis straightforward for planners, analysts, and transit agencies.
 """
+
 import os
 from datetime import timedelta
 
@@ -41,9 +42,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 
-# ==============================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
-# ==============================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 GTFS_INPUT_PATH = r'\\your_folder_path\here\\'
 OUTPUT_PATH = r'\\your_folder_path\here\\'
@@ -78,10 +79,9 @@ FAKE_ROUTES = ["9999A","9999B","9999C"]
 # Set this to 'meters', 'feet', or 'miles'
 DISTANCE_UNIT = 'meters'
 
-
-# ==============================
-# HELPER FUNCTIONS
-# ==============================
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def get_distance_conversion_factor(unit: str) -> float:
     """
@@ -208,9 +208,9 @@ def save_to_excel(df, out_dir, out_filename, sheet_name="Route_Schedule_Headway"
     print(f"Saved {full_out}")
 
 
-# ==============================
-# MAIN SCRIPT
-# ==============================
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     try:
