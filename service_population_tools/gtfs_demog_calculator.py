@@ -34,7 +34,7 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Point
 
 # =============================================================================
-# CONFIGURATION SECTION - CUSTOMIZE HERE
+# CONFIGURATION
 # =============================================================================
 
 # Select analysis mode: "network", "route", or "stop"
@@ -89,9 +89,8 @@ REQUIRED_GTFS_FILES = [
 ]
 
 # =============================================================================
-# END OF CONFIGURATION SECTION
+# FUNCTIONS
 # =============================================================================
-
 
 def load_gtfs_data(gtfs_path: str) -> tuple[
     pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
@@ -673,6 +672,10 @@ def do_stop_by_stop_analysis(
         plt.legend()
         plt.show()
 
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
