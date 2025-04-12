@@ -100,12 +100,9 @@ def process_data(data_frame: pd.DataFrame,
                  filter_out_routes: list,
                  decimals: int) -> pd.DataFrame:
     """
-    Process the DataFrame to:
-      1) Filter routes if filtering lists are provided.
-      2) Calculate load factor and determine service periods.
-      3) Mark whether routes violate the load factor limit.
-      4) Add a column for 'HIGH' or 'LOW' limit route.
-      5) Round load factor to specified decimals.
+    Processes bus data to filter routes, calculate load factors,
+    determine service periods, identify load factor violations,
+    and categorize route limit types. Returns the processed DataFrame.
     """
     # 1) Apply filters
     if filter_in_routes:
