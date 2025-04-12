@@ -1,9 +1,19 @@
 """
-GTFS Block Schedule Printable
+GTFS Block Stop Schedule Printable Generator
 
-This script processes GTFS data to create printable tables for each block.
-Each table includes all trips within a block, even if they belong to different routes.
-This allows field checkers to see the complete schedule and behavior of a bus block.
+Generates printable Excel schedules for each vehicle block using GTFS data.
+Each output sheet provides a stop-by-stop schedule of trips assigned to the
+same block, allowing field personnel to observe the complete sequence of
+activity for a vehicle.
+
+Key Features:
+- Groups trips by `block_id`, even across different routes.
+- Merges `stop_times.txt`, `trips.txt`, `stops.txt`, and `routes.txt` for
+  complete context.
+- Supports filtering by `service_id` and `route_short_name` for targeted
+  exports.
+- Outputs one formatted Excel file per block, including placeholders for field
+  checks.
 
 Each table includes:
 - Block ID
@@ -21,7 +31,14 @@ Each table includes:
 - Alightings (blank)
 - Comments (blank)
 
-The blank columns are placeholders for manual data entry during ride checks.
+Requirements:
+- Input GTFS folder must contain all required files: trips.txt, stop_times.txt,
+  stops.txt, routes.txt.
+- Python packages: pandas, openpyxl
+
+Intended Use:
+- Supports field audits and manual ride checks by providing a clear, printable
+  view of a bus block’s operation.
 """
 
 import os
@@ -35,14 +52,16 @@ from openpyxl.styles import Alignment
 # CONFIGURATION
 # =============================================================================
 
-BASE_INPUT_PATH = r"C:\Path\To\Your\Input\Folder"    # <<< EDIT HERE
+GTFS_FOLDER_PATH = r"C:\Path\To\Your\Input\Folder"    # <<< EDIT HERE
 BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output\Folder"  # <<< EDIT HERE
 
-STOP_TIMES_FILE = "stop_times.txt"
-TRIPS_FILE = "trips.txt"
-CALENDAR_FILE = "calendar.txt"
-STOPS_FILE = "stops.txt"
-ROUTES_FILE = "routes.txt"
+REQUIRED_GTFS_FILES = [
+    "trips.txt",
+    "stop_times.txt",
+    "stops.txt",
+    "routes.txt",
+    "calendar.txt"
+]
 
 # If you only want certain service IDs or route short names, specify them here:
 FILTER_SERVICE_IDS = []          # e.g. ['1', '2'] or [] to include all
@@ -58,6 +77,89 @@ MAX_COLUMN_WIDTH = 35
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
+
+def load_gtfs_data(files=None, dtype=str):
+    """
+    Loads GTFS files into pandas DataFrames from a path defined externally
+    (GTFS_FOLDER_PATH).
+
+    Parameters:
+        files (list[str], optional): GTFS filenames to load. Default is all
+            standard GTFS files:
+            [
+                "agency.txt", "stops.txt", "routes.txt", "trips.txt",
+                "stop_times.txt", "calendar.txt", "calendar_dates.txt",
+                "fare_attributes.txt", "fare_rules.txt", "feed_info.txt",
+                "frequencies.txt", "shapes.txt", "transfers.txt"
+            ]
+        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+
+    Raises:
+        FileNotFoundError: If GTFS_FOLDER_PATH doesn't exist or if any required
+            file is missing.
+        ValueError: If a file is empty or there's a parsing error.
+        Exception: For any unexpected error during loading.
+    """
+
+    # Check if GTFS_FOLDER_PATH exists
+    if not os.path.exists(GTFS_FOLDER_PATH):
+        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
+
+    # Default to all standard GTFS files if none were specified
+    if files is None:
+        files = [
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt"
+        ]
+
+    # Check for missing files
+    missing = [
+        file_name for file_name in files
+        if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
+    ]
+    if missing:
+        raise FileNotFoundError(
+            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        )
+
+    # Load files into DataFrames
+    data = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(GTFS_FOLDER_PATH, file_name)
+
+        try:
+            df = pd.read_csv(file_path, dtype=dtype)
+            data[key] = df
+            print(f"Loaded {file_name} ({len(df)} records).")
+
+        except pd.errors.EmptyDataError:
+            raise ValueError(f"File '{file_name}' is empty.")
+        except pd.errors.ParserError as err:
+            raise ValueError(f"Parser error in '{file_name}': {err}")
+        except Exception as err:
+            raise Exception(f"Error loading '{file_name}': {err}")
+
+    return data
+
 
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
@@ -144,25 +246,6 @@ def export_to_excel(data_frame, output_file):
             worksheet.column_dimensions[col_letter].width = min(max_len + 2, MAX_COLUMN_WIDTH)
 
     print(f"Exported: {output_file}")
-
-
-def load_data():
-    """
-    Loads GTFS data from CSV files. Returns multiple DataFrames.
-    Raises FileNotFoundError or other exceptions if something is wrong.
-    """
-    trips_path = os.path.join(BASE_INPUT_PATH, TRIPS_FILE)
-    stop_times_path = os.path.join(BASE_INPUT_PATH, STOP_TIMES_FILE)
-    stops_path = os.path.join(BASE_INPUT_PATH, STOPS_FILE)
-    routes_path = os.path.join(BASE_INPUT_PATH, ROUTES_FILE)
-
-    # Removed calendar_df since it was unused (fixes the unused-variable warning).
-    trips_df = pd.read_csv(trips_path, dtype=str)
-    stop_times_df = pd.read_csv(stop_times_path, dtype=str)
-    stops_df = pd.read_csv(stops_path, dtype=str)
-    routes_df = pd.read_csv(routes_path, dtype=str)
-
-    return trips_df, stop_times_df, stops_df, routes_df
 
 
 def filter_data(trips_df, stop_times_df, routes_df):
@@ -329,28 +412,92 @@ def export_blocks(stop_times_df):
 
 def main():
     """
-    Main function to load, filter, process, and export printable bus block schedules.
+    Main function to orchestrate loading, filtering, processing,
+    and exporting of printable bus block schedules.
     """
+    print("========================================================")
+    print(" GTFS Block Schedule Printable Generator")
+    print("========================================================")
+    print(f"Input GTFS Folder: {BASE_INPUT_PATH}")
+    print(f"Output Folder:     {BASE_OUTPUT_PATH}")
+    if FILTER_ROUTE_SHORT_NAMES: print(f"Filtering for Routes: {FILTER_ROUTE_SHORT_NAMES}")
+    if FILTER_SERVICE_IDS: print(f"Filtering for Service IDs: {FILTER_SERVICE_IDS}")
+
     try:
-        trips_df, stop_times_df, stops_df, routes_df = load_data()
-    except FileNotFoundError as file_not_found_err:
-        print(f"File not found: {file_not_found_err}")
-        return
-    except Exception as err:  # Consider catching more specific exceptions if possible
-        print(f"Error reading GTFS files: {err}")
-        return
+        # --- Load required GTFS data using the INLINED function ---
+        # The dtype=str ensures IDs are read correctly without scientific notation etc.
+        gtfs_data = load_gtfs_data(files=REQUIRED_GTFS_FILES, dtype=str)
 
-    trips_df, stop_times_df = filter_data(trips_df, stop_times_df, routes_df)
-    if trips_df.empty or stop_times_df.empty:
-        return
+        # --- Get DataFrames from the loaded dictionary ---
+        trips_df = gtfs_data.get('trips')
+        stop_times_df = gtfs_data.get('stop_times')
+        stops_df = gtfs_data.get('stops')
+        routes_df = gtfs_data.get('routes')
 
-    stop_times_df = prepare_stop_times(trips_df, stop_times_df, stops_df)
-    export_blocks(stop_times_df)
+        # --- Validate that essential dataframes were loaded ---
+        if trips_df is None or stop_times_df is None or stops_df is None or routes_df is None:
+            # The loader should have raised an error before this, but double-check
+            raise ValueError("Failed to load one or more essential GTFS files (trips, stop_times, stops, routes).")
 
-    print("\nAll blocks have been processed and exported.")
+        # --- Filter Data based on Configuration ---
+        trips_df, stop_times_df = filter_data(trips_df, stop_times_df, routes_df)
+
+        # Exit if filtering removed all data
+        if trips_df.empty or stop_times_df.empty:
+            print("\nNo data remains after filtering. No files will be generated.")
+            return # Exit gracefully
+
+        # --- Prepare stop_times data for export ---
+        prepared_stop_times = prepare_stop_times(trips_df, stop_times_df, stops_df)
+
+        # Exit if preparation resulted in no data
+        if prepared_stop_times.empty:
+            print("\nNo data remains after preparation. No files will be generated.")
+            return # Exit gracefully
+
+        # --- Export each block to a separate Excel file ---
+        export_blocks(prepared_stop_times)
+
+        print("\n========================================================")
+        print(" Script finished successfully.")
+        print("========================================================")
+
+    # --- Error Handling ---
+    except FileNotFoundError as fnf_err:
+        print("\n-------------------- ERROR -------------------------")
+        print(f" File Not Found Error: {fnf_err}")
+        print(" Please ensure the BASE_INPUT_PATH is correct and")
+        print(f" the following files exist inside it: {', '.join(REQUIRED_GTFS_FILES)}")
+        print("----------------------------------------------------")
+    except ValueError as val_err:
+        print("\n-------------------- ERROR -------------------------")
+        print(f" Data Error: {val_err}")
+        print(" Please check the format and content of your GTFS files.")
+        print("----------------------------------------------------")
+    except TypeError as type_err:
+         print("\n-------------------- ERROR -------------------------")
+         print(f" Configuration Error: {type_err}")
+         print(" Ensure REQUIRED_GTFS_FILES list is correctly defined.")
+         print("----------------------------------------------------")
+    except MemoryError as mem_err:
+         print("\n-------------------- ERROR -------------------------")
+         print(f" Memory Error: {mem_err}")
+         print(" The script ran out of memory, likely due to a very large GTFS file.")
+         print(" Consider running on a machine with more RAM or optimizing the script.")
+         print("----------------------------------------------------")
+    except Exception as err:
+        print("\n-------------------- UNEXPECTED ERROR -------------------------")
+        print(f" An unexpected error occurred: {err}")
+        print(" Please review the error message and the script.")
+        # Optional: Uncomment below for full error details during debugging
+        # import traceback
+        # traceback.print_exc()
+        print("---------------------------------------------------------------")
+
+    finally:
+        # This block runs whether there was an error or not
+        print("\nExiting script.")
 
 
 if __name__ == "__main__":
-    # Disabling these if you prefer not to refactor into smaller functions:
-    # pylint: disable=too-many-locals, too-many-statements
     main()
