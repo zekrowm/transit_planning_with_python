@@ -19,16 +19,18 @@ from openpyxl.styles import Font
 from openpyxl.chart import BarChart, Reference
 from openpyxl.utils import get_column_letter
 
-# ---------------------------------------------------------------------
-#                         CONFIGURATION SECTION
-# ---------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
 INPUT_FILE = r'\\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX'
 OUTPUT_FOLDER = r'\\Path\To\Your\Output\Folder'
 
 # User can indicate something like 'Weekday', 'Saturday', 'Sunday', etc.
 DATE_TYPE = 'Weekday'
 
-# ------------------ COLUMN CONFIGURATION ---------------------------
+# COLUMN CONFIGURATION --------------------------------------------------------
+
 # Define a list of columns to retain.
 # Each entry can be either:
 #   "COLUMN_NAME"  (no renaming) or
@@ -56,9 +58,8 @@ for col_entry in COLUMNS_CONFIG:
     else:
         col_entry = col_entry.strip()
         COLUMNS_TO_RETAIN.append(col_entry)
-# ---------------------------------------------------------------------
-#                         OTHER OPTIONS
-# ---------------------------------------------------------------------
+
+# OTHER OPTIONS ---------------------------------------------------------------
 
 # Whether to create bar charts (True/False)
 CREATE_CHARTS = True
@@ -67,7 +68,8 @@ CREATE_CHARTS = True
 FLAG_ULTRA_LOW = False
 ULTRA_LOW_THRESHOLD = 1  # e.g., 1 average rider
 
-# ---------------------- FILTERING OPTIONS ----------------------------
+# FILTERING OPTIONS -----------------------------------------------------------
+
 # Column name to filter on (e.g. 'ROUTE_NAME' or 'DIRECTION_NAME').
 # If you don't want to filter, leave this as None or an empty string.
 FILTER_COLUMN_NAME = 'ROUTE_NAME'
@@ -80,9 +82,9 @@ FILTER_IN_LIST = ["101", "202"
 FILTER_OUT_LIST = [
 ]
 
-# ---------------------------------------------------------------------
-#                          HELPER FUNCTIONS
-# ---------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     """
@@ -283,6 +285,10 @@ def create_route_workbook(
     wb.save(output_path)
     print(f"Saved workbook: {output_path}")
 
+
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main() -> None:
     """
