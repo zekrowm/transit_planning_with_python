@@ -163,12 +163,12 @@ def calculate_run_time_and_distance(stop_times_sub):
         run_min = run_td.total_seconds() / 60.0
     else:
         run_min = None
-    
+
     if 'shape_dist_traveled' in stop_times_sub.columns:
         dist = stop_times_sub['shape_dist_traveled'].max()
     else:
         dist = None
-    
+
     return pd.Series({'trip_run_minutes': run_min, 'trip_distance_miles': dist})
 
 
