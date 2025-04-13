@@ -22,8 +22,9 @@ from rapidfuzz import fuzz, process
 # CONFIGURATION
 # =============================================================================
 
-BASE_INPUT_PATH = r'\\your_input_path\here\\'
-BASE_OUTPUT_PATH = r'\\your_output_path\here\\'
+GTFS_FOLDER_PATH = r'\\your_GTFS_folder_path\here\\'
+
+BASE_OUTPUT_PATH = r'\\your_output_folder_path\here\\'
 
 clusters = {
     # Example:
@@ -42,21 +43,120 @@ DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 # FUNCTIONS
 # =============================================================================
 
-def load_stops_data(input_path, crs_epsg):
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
+
+def load_gtfs_data(files=None, dtype=str):
     """
-    Load GTFS stops.txt into a GeoDataFrame, reprojecting to crs_epsg.
+    Loads GTFS files into pandas DataFrames from a path defined externally
+    (GTFS_FOLDER_PATH).
+
+    Parameters:
+        files (list[str], optional): GTFS filenames to load. Default is all
+            standard GTFS files:
+            [
+                "agency.txt",
+                "stops.txt",
+                "routes.txt",
+                "trips.txt",
+                "stop_times.txt",
+                "calendar.txt",
+                "calendar_dates.txt",
+                "fare_attributes.txt",
+                "fare_rules.txt",
+                "feed_info.txt",
+                "frequencies.txt",
+                "shapes.txt",
+                "transfers.txt"
+            ]
+        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+
+    Raises:
+        FileNotFoundError: If GTFS_FOLDER_PATH doesn't exist or if any required file is missing.
+        ValueError: If a file is empty or there's a parsing error.
+        RuntimeError: For any unexpected error during loading.
+    """
+    if not os.path.exists(GTFS_FOLDER_PATH):
+        raise FileNotFoundError(
+            f"The directory '{GTFS_FOLDER_PATH}' does not exist."
+        )
+
+    if files is None:
+        files = [
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt"
+        ]
+
+    missing = [
+        file_name for file_name in files
+        if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
+    ]
+    if missing:
+        raise FileNotFoundError(
+            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        )
+
+    data = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(GTFS_FOLDER_PATH, file_name)
+        try:
+            df = pd.read_csv(file_path, dtype=dtype)
+            data[key] = df
+            print(f"Loaded {file_name} ({len(df)} records).")
+
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(
+                f"File '{file_name}' is empty."
+            ) from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}': {exc}"
+            ) from exc
+
+        except Exception as exc:
+            # Use a more specific error class than bare Exception (e.g., RuntimeError)
+            raise RuntimeError(
+                f"Error loading '{file_name}': {exc}"
+            ) from exc
+
+    return data
+
+
+# -----------------------------------------------------------------------------
+# REGULAR FUNCTIONS
+# -----------------------------------------------------------------------------
+
+def prepare_stops_gdf(crs_epsg):
+    """
+    Load GTFS 'stops.txt' as a DataFrame using load_gtfs_data, then convert
+    to a GeoDataFrame (and reproject to crs_epsg).
     Returns the GeoDataFrame.
     """
-    stops_file = os.path.join(input_path, 'stops.txt')
-    if not os.path.exists(stops_file):
-        raise FileNotFoundError(f"stops.txt not found in {input_path}")
+    # Use the new function to load stops.txt
+    gtfs_data = load_gtfs_data(files=["stops.txt"], dtype=str)
+    stops_df = gtfs_data["stops"]
 
-    stops_df = pd.read_csv(stops_file)
+    # Convert stop_id to string, build geometry, and reproject
     stops_df['stop_id'] = stops_df['stop_id'].astype(str)
-
-    # Convert to GeoDataFrame
     stops_df['geometry'] = stops_df.apply(
-        lambda row: Point(row['stop_lon'], row['stop_lat']), axis=1
+        lambda row: Point(float(row['stop_lon']), float(row['stop_lat'])), axis=1
     )
     stops_gdf = gpd.GeoDataFrame(stops_df, geometry='geometry', crs='EPSG:4326')
     stops_gdf = stops_gdf.to_crs(epsg=crs_epsg)
@@ -262,9 +362,8 @@ def save_to_excel(data_frame, filename, output_directory):
     """
     file_path = os.path.join(output_directory, filename)
 
-    # If empty, create columns so headers appear
     if data_frame.empty:
-        # Determine columns based on the filename or data
+        # Provide columns so headers appear
         if 'similar_names' in filename:
             columns = [
                 'included_stop_name', 'excluded_stop_name',
@@ -290,19 +389,14 @@ def save_to_excel(data_frame, filename, output_directory):
 
     data_frame.to_excel(file_path, index=False, header=True)
 
-
 # =============================================================================
 # MAIN
 # =============================================================================
 
 def main():
     """
-    Runs the GTFS Bus Bay Cluster Validation workflow.
-
-    Loads and reprojects GTFS stops data, assigns stops to defined clusters,
-    and performs checks for naming and spatial inconsistencies. Results—
-    including similar names, nearby excluded stops, distant included stops,
-    and name mismatches—are exported as Excel files and shapefiles for review.
+    Main entry point for the GTFS Bus Bay Cluster Validation script.
+    Creates output directories, prepares data, runs checks, and saves outputs.
     """
     # Create output directory if it doesn't exist
     if not os.path.exists(BASE_OUTPUT_PATH):
@@ -311,8 +405,8 @@ def main():
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
-    # Load GTFS stops data
-    stops_gdf = load_stops_data(BASE_INPUT_PATH, DISTANCE_CRS_EPSG)
+    # Prepare stops using the new function (no reference to BASE_INPUT_PATH)
+    stops_gdf = prepare_stops_gdf(DISTANCE_CRS_EPSG)
 
     # Split stops into included and excluded sets
     included_stops_global, excluded_stops_global, updated_clusters = initialize_clusters(
@@ -323,22 +417,16 @@ def main():
     # Perform analysis only if clusters are defined
     if updated_clusters:
         similar_name_stops = find_similar_stop_names(
-            included_stops_global,
-            excluded_stops_global,
-            threshold=SIMILARITY_THRESHOLD
+            included_stops_global, excluded_stops_global, SIMILARITY_THRESHOLD
         )
         nearby_excluded_stops = find_nearby_excluded_stops(
-            included_stops_global,
-            excluded_stops_global,
-            distance_threshold=DISTANCE_THRESHOLD_NEARBY
+            included_stops_global, excluded_stops_global, DISTANCE_THRESHOLD_NEARBY
         )
         distant_included_stops = find_distant_included_stops(
-            included_stops_global,
-            distance_threshold=DISTANCE_THRESHOLD_DISTANT
+            included_stops_global, DISTANCE_THRESHOLD_DISTANT
         )
         different_named_included_stops = find_different_named_included_stops(
-            included_stops_global,
-            similarity_threshold=SIMILARITY_THRESHOLD_NAMES
+            included_stops_global, SIMILARITY_THRESHOLD_NAMES
         )
     else:
         # If clusters are not defined, create empty DataFrames
@@ -347,20 +435,26 @@ def main():
         distant_included_stops = pd.DataFrame()
         different_named_included_stops = pd.DataFrame()
 
-    # Print summary
+    # Print summary (line kept under 100 chars)
     print(f"Number of similar name stops found: {len(similar_name_stops)}")
     print(f"Number of nearby excluded stops found: {len(nearby_excluded_stops)}")
     print(f"Number of distant included stops found: {len(distant_included_stops)}")
-    print(
-        "Number of different named included stops found: "
-        f"{len(different_named_included_stops)}"
-    )
+    print(f"Number of different named included stops found: {len(different_named_included_stops)}")
 
     # Save outputs to Excel
-    save_to_excel(similar_name_stops, 'excluded_stops_similar_names.xlsx', output_directory)
-    save_to_excel(nearby_excluded_stops, 'excluded_stops_nearby.xlsx', output_directory)
-    save_to_excel(distant_included_stops, 'included_stops_distant.xlsx', output_directory)
-    save_to_excel(different_named_included_stops, 'included_stops_different_names.xlsx', output_directory)
+    save_to_excel(
+        similar_name_stops, 'excluded_stops_similar_names.xlsx', output_directory
+    )
+    save_to_excel(
+        nearby_excluded_stops, 'excluded_stops_nearby.xlsx', output_directory
+    )
+    save_to_excel(
+        distant_included_stops, 'included_stops_distant.xlsx', output_directory
+    )
+    save_to_excel(
+        different_named_included_stops, 'included_stops_different_names.xlsx',
+        output_directory
+    )
 
     # Export included, excluded, and all stops to shapefiles
     included_stops_shp = os.path.join(output_directory, 'included_stops.shp')
@@ -379,8 +473,7 @@ def main():
 
     stops_gdf.to_file(all_stops_shp)
 
-    print("Stops check completed. Results have been saved to the 'stops_check' directory.")
-
+    print("Stops check completed. See the 'stops_check' folder for results.")
 
 if __name__ == '__main__':
     main()
