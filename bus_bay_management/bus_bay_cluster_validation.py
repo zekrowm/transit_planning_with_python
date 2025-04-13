@@ -296,6 +296,14 @@ def save_to_excel(data_frame, filename, output_directory):
 # =============================================================================
 
 def main():
+    """
+    Runs the GTFS Bus Bay Cluster Validation workflow.
+
+    Loads and reprojects GTFS stops data, assigns stops to defined clusters,
+    and performs checks for naming and spatial inconsistencies. Results—
+    including similar names, nearby excluded stops, distant included stops,
+    and name mismatches—are exported as Excel files and shapefiles for review.
+    """
     # Create output directory if it doesn't exist
     if not os.path.exists(BASE_OUTPUT_PATH):
         os.makedirs(BASE_OUTPUT_PATH)
