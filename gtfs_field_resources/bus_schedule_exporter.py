@@ -17,6 +17,7 @@ Key Features:
 - Provides data validation checks on schedule times to detect ordering issues.
 - Handles GTFS files robustly with error checking and clear messaging.
 """
+
 import os
 import re
 import sys
@@ -44,10 +45,13 @@ TIME_FORMAT_OPTION = '24'  # '12' or '24'
 MISSING_TIME = "---"
 MAX_COLUMN_WIDTH = 30
 
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
+
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def load_gtfs_data(files=None, dtype=str):
     """
@@ -56,26 +60,21 @@ def load_gtfs_data(files=None, dtype=str):
 
     Parameters:
         files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt", "stops.txt", "routes.txt", "trips.txt",
-                "stop_times.txt", "calendar.txt", "calendar_dates.txt",
-                "fare_attributes.txt", "fare_rules.txt", "feed_info.txt",
-                "frequencies.txt", "shapes.txt", "transfers.txt"
-            ]
+            standard GTFS files.
         dtype (str or dict, optional): Pandas dtype to use. Default is str.
 
     Returns:
         dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
 
     Raises:
-        FileNotFoundError: If GTFS_FOLDER_PATH doesn't exist or if any required
-            file is missing.
+        FileNotFoundError: If GTFS_FOLDER_PATH doesn't exist or if any required file is missing.
         ValueError: If a file is empty or there's a parsing error.
-        Exception: For any unexpected error during loading.
+        RuntimeError: For any unexpected error during loading.
     """
     if not os.path.exists(GTFS_FOLDER_PATH):
-        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
+        raise FileNotFoundError(
+            f"The directory '{GTFS_FOLDER_PATH}' does not exist."
+        )
 
     if files is None:
         files = [
@@ -107,32 +106,45 @@ def load_gtfs_data(files=None, dtype=str):
     for file_name in files:
         key = file_name.replace(".txt", "")
         file_path = os.path.join(GTFS_FOLDER_PATH, file_name)
-
         try:
             df = pd.read_csv(file_path, dtype=dtype)
             data[key] = df
             print(f"Loaded {file_name} ({len(df)} records).")
 
-        except pd.errors.EmptyDataError:
-            raise ValueError(f"File '{file_name}' is empty.")
-        except pd.errors.ParserError as err:
-            raise ValueError(f"Parser error in '{file_name}': {err}")
-        except Exception as err:
-            raise Exception(f"Error loading '{file_name}': {err}")
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(
+                f"File '{file_name}' is empty."
+            ) from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}': {exc}"
+            ) from exc
+
+        except (OSError, RuntimeError) as exc:
+            # catch known I/O or runtime-related errors more narrowly
+            raise RuntimeError(
+                f"Error loading '{file_name}': {exc}"
+            ) from exc
+
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            # If you must catch everything else:
+            raise RuntimeError(
+                f"Unexpected error loading '{file_name}': {exc}"
+            ) from exc
 
     return data
 
 
 # -----------------------------------------------------------------------------
-# FUNCTIONS
+# REGULAR FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def time_to_minutes(time_str):
     """
     Converts a time string to total minutes since midnight.
     Supports 'HH:MM' and 'HH:MM AM/PM' formats, including hours >= 24
-    in 24-hour mode. Returns None if format is invalid or time_str == MISSING_TIME.
+    in 24-hour mode. Returns None if invalid or if time_str == MISSING_TIME.
     """
     if not isinstance(time_str, str):
         return None
@@ -184,7 +196,7 @@ def adjust_time(time_str, time_format='24'):
         hours = int(parts[0])
         minutes = int(parts[1])
         if time_format == '12':
-            # If hours >= 24, we can't fully convert, so keep as-is
+            # If hours >= 24, we can't fully convert properly, so keep as-is
             if hours >= 24:
                 return time_str
             period = 'AM' if hours < 12 else 'PM'
@@ -192,9 +204,8 @@ def adjust_time(time_str, time_format='24'):
             if adjusted_hour == 0:
                 adjusted_hour = 12
             return f"{adjusted_hour}:{minutes:02d} {period}"
-        else:
-            # 24-hour format
-            return f"{hours:02d}:{minutes:02d}"
+        # 24-hour format:
+        return f"{hours:02d}:{minutes:02d}"
     except ValueError:
         return None
 
@@ -202,7 +213,7 @@ def adjust_time(time_str, time_format='24'):
 def prepare_timepoints(stop_times):
     """
     Subset STOP_TIMES to timepoint=1 if available, else use all.
-    Returns the resulting DataFrame (TIMEPOINTS).
+    Returns a DataFrame (TIMEPOINTS).
     """
     stop_times = stop_times.copy()
     stop_times['stop_sequence'] = pd.to_numeric(
@@ -238,8 +249,9 @@ def remove_empty_schedule_columns(input_df):
 def check_schedule_order(input_df, ordered_stop_names,
                          route_short_name, schedule_type, dir_id):
     """
-    Checks times in the DataFrame to ensure they increase across rows (within a trip)
-    and down columns (across trips). Prints warnings if a violation is found.
+    Checks times in the DataFrame to ensure they increase across rows
+    (within a trip) and down columns (across trips). Prints warnings
+    if a violation is found.
     """
     # Row-wise check
     for _, row in input_df.iterrows():
@@ -300,7 +312,7 @@ def safe_check_schedule_order(input_df, ordered_stop_names,
             schedule_type,
             dir_id
         )
-    except Exception as error:
+    except (ValueError, TypeError, KeyError) as error:
         print(
             f"❌ Skipping schedule order check for route '{route_short_name}', "
             f"schedule '{schedule_type}', direction '{dir_id}' due to error:\n   {error}"
@@ -343,7 +355,6 @@ def map_service_id_to_schedule(service_row_local):
             schedule_label = 'Daily'
         else:
             schedule_label = 'Special'
-
     return schedule_label
 
 
@@ -356,7 +367,6 @@ def build_service_id_schedule_map(calendar_df):
         sid_val = service_row_local['service_id']
         stype_var = map_service_id_to_schedule(service_row_local)
         service_id_schedule_map[sid_val] = stype_var
-
     return service_id_schedule_map
 
 
@@ -372,7 +382,7 @@ def apply_in_out_filters(route_list):
     Takes the list of all route short names.
     If FILTER_IN_ROUTES is non-empty, keep only those in that list.
     If FILTER_OUT_ROUTES is non-empty, remove those in that list.
-    If both are empty, we keep everything.
+    If both are empty, keep everything.
     """
     route_set = set(route_list)
 
@@ -387,8 +397,8 @@ def apply_in_out_filters(route_list):
 
 def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
     """
-    Among all trips in 'relevant_trips_dir' for direction=dir_id, pick the trip with
-    the largest number of timepoints. Return a DataFrame of that trip's stops.
+    Among all trips in 'relevant_trips_dir' for direction=dir_id, pick the trip
+    with the largest number of timepoints. Return a DataFrame of that trip's stops.
     """
     relevant_dir = relevant_trips_dir[relevant_trips_dir['direction_id'] == dir_id]
     if relevant_dir.empty:
@@ -418,7 +428,7 @@ def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
 
     # Count occurrence of repeated stops
     occurrence_counter = defaultdict(int)
-    rows = []
+    rows_data = []
     for _, row_2 in master_data.iterrows():
         sid = row_2['stop_id']
         sseq = row_2['stop_sequence']
@@ -431,14 +441,14 @@ def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
         occurrence_counter[sid] += 1
         nth = occurrence_counter[sid]
 
-        rows.append({
+        rows_data.append({
             'stop_id': sid,
             'occurrence': nth,
             'stop_sequence': sseq,
             'base_stop_name': base_name
         })
 
-    out_df = pd.DataFrame(rows)
+    out_df = pd.DataFrame(rows_data)
     # Build final_stop_name with repeated stops labeled
     name_occurrences = defaultdict(int)
     final_names = []
@@ -455,13 +465,15 @@ def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
     return out_df
 
 
-def process_single_trip(
-    trip_id, trip_stop_times, master_trip_stops,
-    master_dict, time_fmt, trips_df, routes_df
-):
+def process_single_trip(trip_id, trip_stop_times, master_trip_stops,
+                        master_dict, ctx):
     """
     For each trip, produce a single schedule row. Uses a "forward-only" approach.
     """
+    trips_df = ctx["trips"]
+    routes_df = ctx["routes"]
+    time_fmt = ctx["time_fmt"]
+
     trip_info = trips_df[trips_df['trip_id'] == trip_id].iloc[0]
     route_id = trip_info['route_id']
     route_name_val = routes_df[routes_df['route_id'] == route_id]['route_short_name'].values[0]
@@ -485,6 +497,7 @@ def process_single_trip(
         arr_m = time_to_minutes(arr_val)
         dep_m = time_to_minutes(dep_val)
         if arr_val and dep_val and arr_m is not None and dep_m is not None:
+            # If arrival is earlier, use arrival as displayed time
             if arr_m < dep_m:
                 time_val = arr_val
         elif arr_val and not dep_val:
@@ -517,7 +530,7 @@ def process_single_trip(
         try:
             timedeltas = [pd.to_timedelta(f"{t}:00") for t in valid_24h_times]
             max_sort_time = max(timedeltas)
-        except Exception:
+        except (ValueError, TypeError):
             max_sort_time = pd.to_timedelta('00:00')
     else:
         max_sort_time = pd.to_timedelta('9999:00:00')
@@ -535,28 +548,22 @@ def process_trips_for_direction(params):
     """
     Processes trips for a specific direction_id => returns a DataFrame for that direction.
 
-    params expects:
-        - trips_dir
-        - master_trip_stops
-        - time_fmt
-        - route_short
-        - sched_type
-        - dir_id
-        - timepoints (for indexing)
-        - stops_df
-        - trips_df
-        - routes_df
+    params expects a dictionary containing:
+        - 'trips_dir'
+        - 'master_trip_stops'
+        - 'dir_id'
+        - 'timepoints'
+        - 'ctx' (the context dict with time_fmt, trips, routes)
+        - 'route_short'
+        - 'sched_type'
     """
     trips_dir = params["trips_dir"]
     master_trip_stops = params["master_trip_stops"]
-    time_fmt = params["time_fmt"]
-    route_short = params["route_short"]
-    sched_type = params["sched_type"]
     dir_id = params["dir_id"]
     timepoints = params["timepoints"]
-    stops_df = params["stops_df"]
-    trips_df = params["trips_df"]
-    routes_df = params["routes_df"]
+    ctx = params["ctx"]
+    route_short = params["route_short"]
+    sched_type = params["sched_type"]
 
     if trips_dir.empty or master_trip_stops.empty:
         print(f"No usable trips/stops for direction {dir_id}. Skipping.")
@@ -572,7 +579,7 @@ def process_trips_for_direction(params):
         master_dict[sid].append((occ, mseq, i))
 
     for sid in master_dict:
-        # Sort by stop_sequence
+        # Sort by stop_sequence inside each list
         master_dict[sid].sort(key=lambda x: x[1])
 
     group_mask = timepoints['trip_id'].isin(trips_dir['trip_id'])
@@ -593,9 +600,7 @@ def process_trips_for_direction(params):
             trip_stop_times=grp,
             master_trip_stops=master_trip_stops,
             master_dict=master_dict,
-            time_fmt=time_fmt,
-            trips_df=trips_df,
-            routes_df=routes_df
+            ctx=ctx
         )
         rows.append(row_data)
 
@@ -614,7 +619,6 @@ def process_trips_for_direction(params):
         dir_id
     )
     remove_empty_schedule_columns(out_df)
-
     return out_df
 
 
@@ -640,7 +644,9 @@ def export_to_excel_multiple_sheets(df_dict, out_file):
             for col_num, _ in enumerate(input_df.columns, 1):
                 col_letter = get_column_letter(col_num)
                 header_cell = worksheet[f'{col_letter}1']
-                header_cell.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
+                header_cell.alignment = Alignment(horizontal='left',
+                                                  vertical='top',
+                                                  wrap_text=True)
                 for row_num in range(2, worksheet.max_row + 1):
                     cell = worksheet[f'{col_letter}{row_num}']
                     cell.alignment = Alignment(horizontal='left')
@@ -690,59 +696,38 @@ def format_service_id_folder_name(service_row):
     return f"calendar_{service_id}_{day_str}"
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
+# -----------------------------------------------------------------------------
+# SUB-STEPS
+# -----------------------------------------------------------------------------
 
-
-def main():
+def filter_calendar_df(calendar_df):
     """
-    Orchestrates the end-to-end GTFS schedule export process:
-      1. Load GTFS input files directly via load_gtfs_data().
-      2. Filter specific routes and service IDs, if configured.
-      3. Identify key stops (timepoints) for constructing schedules.
-      4. Generate schedules by direction for each route-service combination.
-      5. Validate times for ordering, remove columns with all missing times.
-      6. Export to Excel, one workbook per service ID/route combination.
+    Applies FILTER_SERVICE_IDS if any, returns filtered df or None if empty.
     """
-    # 1) Load GTFS data
-    try:
-        data = load_gtfs_data(dtype=str)  # Standardized loader
-        trips_df = data["trips"]
-        stop_times_df = data["stop_times"]
-        routes_df = data["routes"]
-        stops_df = data["stops"]
-        calendar_df = data["calendar"]
-        print("Successfully loaded GTFS files.")
-    except FileNotFoundError as error:
-        print(f"Error: {error}")
-        sys.exit(1)
-    except (pd.errors.EmptyDataError, pd.errors.ParserError) as error:
-        print(f"Error reading GTFS files: {error}")
-        sys.exit(1)
-    except Exception as error:
-        print(f"An unexpected error occurred while reading GTFS files: {error}")
-        sys.exit(1)
-
-    # 2) Filter service IDs if any
     if FILTER_SERVICE_IDS:
         calendar_df = calendar_df[calendar_df['service_id'].isin(FILTER_SERVICE_IDS)]
     if calendar_df.empty:
         print("No service_ids found after applying FILTER_SERVICE_IDS. Exiting.")
-        return
+        return None
+    return calendar_df
 
-    # 3) Build timepoints
-    timepoints_df = prepare_timepoints(stop_times_df)
 
-    # 4) Service ID => schedule type map
-    service_id_schedule_map = build_service_id_schedule_map(calendar_df)
+def process_route_service_combinations(ctx):
+    """
+    Loops over final routes + service rows and builds Excel exports.
+    """
+    routes_df = ctx["routes"]
+    trips_df = ctx["trips"]
+    calendar_df = ctx["calendar"]
+    timepoints_df = ctx["timepoints"]
+    service_id_schedule_map = ctx["service_id_schedule_map"]
 
-    # 5) Determine final routes to process
+    # 1) Determine final routes to process
     all_routes = get_all_route_short_names(routes_df)
     final_routes = apply_in_out_filters(all_routes)
     print(f"Final route selection after filters: {final_routes}")
 
-    # 6) For each route, build schedules by direction & service_id
+    # 2) For each route, build schedules by direction & service_id
     for route_short_name in final_routes:
         print(f"\nProcessing route '{route_short_name}'...")
         route_ids = routes_df[routes_df['route_short_name'] == route_short_name]['route_id']
@@ -778,9 +763,8 @@ def main():
                     f"    Building direction_id '{dir_id}' "
                     f"for service_id='{service_id}'..."
                 )
-                # Identify the "master trip" stops for this route+service+direction
                 master_trip_stops = get_master_trip_stops(
-                    dir_id, relevant_trips, timepoints_df, stops_df
+                    dir_id, relevant_trips, timepoints_df, ctx["stops"]
                 )
                 if master_trip_stops.empty:
                     continue
@@ -788,21 +772,17 @@ def main():
                 params_dict = {
                     "trips_dir": relevant_trips[relevant_trips['direction_id'] == dir_id],
                     "master_trip_stops": master_trip_stops,
-                    "time_fmt": TIME_FORMAT_OPTION,
-                    "route_short": route_short_name,
-                    "sched_type": schedule_type,
                     "dir_id": dir_id,
                     "timepoints": timepoints_df,
-                    "stops_df": stops_df,
-                    "trips_df": trips_df,
-                    "routes_df": routes_df
+                    "ctx": ctx,
+                    "route_short": route_short_name,
+                    "sched_type": schedule_type
                 }
                 output_df = process_trips_for_direction(params_dict)
                 if not output_df.empty:
                     sheet_name = f"Direction_{dir_id}"
                     df_sheets[sheet_name] = output_df
 
-            # 7) Export
             if df_sheets:
                 schedule_type_safe = (
                     schedule_type.replace(' ', '_')
@@ -819,6 +799,60 @@ def main():
                     f"  No data to export for service_id '{service_id}' "
                     f"on route '{route_short_name}'."
                 )
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+def main():
+    """
+    Orchestrates the end-to-end GTFS schedule export process:
+      1. Load GTFS input files directly via load_gtfs_data().
+      2. Filter specific service IDs (calendar).
+      3. Prepare timepoints.
+      4. Build schedule map from calendar => service_id => schedule_type
+      5. Process route-service-direction combos and export Excel.
+    """
+
+    # 1) Load GTFS data
+    try:
+        data = load_gtfs_data(dtype=str)  # Standardized loader
+        print("Successfully loaded GTFS files.")
+    except FileNotFoundError as error:
+        print(f"Error: {error}")
+        sys.exit(1)
+    except (pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+        print(f"Error reading GTFS files: {error}")
+        sys.exit(1)
+    except RuntimeError as error:
+        print(f"An unexpected error occurred while reading GTFS files: {error}")
+        sys.exit(1)
+
+    # 2) Filter service IDs if any
+    calendar_df = filter_calendar_df(data["calendar"])
+    if calendar_df is None:
+        return
+
+    # 3) Prepare timepoints
+    timepoints_df = prepare_timepoints(data["stop_times"])
+
+    # 4) Build service_id => schedule_type
+    service_id_schedule_map = build_service_id_schedule_map(calendar_df)
+
+    # 5) Build a context dict to reduce argument counts
+    ctx = {
+        "calendar": calendar_df,
+        "timepoints": timepoints_df,
+        "service_id_schedule_map": service_id_schedule_map,
+        "time_fmt": TIME_FORMAT_OPTION,
+        "stops": data["stops"],
+        "trips": data["trips"],
+        "routes": data["routes"]
+    }
+
+    # Final step: process route + service combos
+    process_route_service_combinations(ctx)
 
 
 if __name__ == "__main__":
