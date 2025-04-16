@@ -5,6 +5,11 @@ transit_planning_with_python/
 ├── .github/
 │   └── workflows/
 │       └── pylint.yml
+├── helpers/
+│   └── gtfs_helpers.py
+├── linting/
+│   └── linter.py
+├── scripts/
 ├── bus_bay_management/
 │   ├── block_status_by_minute_generator.py
 │   ├── bus_bay_by_min_conflict_checker.py
