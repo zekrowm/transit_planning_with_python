@@ -11,8 +11,9 @@ It has two modes:
   2) SPLIT_BY_ROUTE = True   --> Create one stops shapefile per route.
 """
 
-import os
 import csv
+import os
+
 import arcpy
 import pandas as pd
 
