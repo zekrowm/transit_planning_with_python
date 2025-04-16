@@ -1,5 +1,5 @@
 """
-linter.py
+pylint_logger.py
 
 This script will:
 1) Gather all .py files from FILES_OR_FOLDERS.
