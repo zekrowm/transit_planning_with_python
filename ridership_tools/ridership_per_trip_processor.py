@@ -15,8 +15,8 @@ import os
 
 import pandas as pd
 from openpyxl import Workbook
-from openpyxl.styles import Font
 from openpyxl.chart import BarChart, Reference
+from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
 # =============================================================================
