@@ -22,9 +22,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 import pulp
-
 import pyproj
-from shapely.geometry import Point, LineString
+from shapely.geometry import LineString, Point
 
 # =============================================================================
 # CONFIGURATION
