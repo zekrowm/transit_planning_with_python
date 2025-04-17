@@ -41,12 +41,12 @@ Intended Use:
   view of a bus block’s operation.
 """
 
-import os
 import math
+import os
 
 import pandas as pd
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
 
 # =============================================================================
 # CONFIGURATION
