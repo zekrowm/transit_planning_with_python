@@ -4,14 +4,14 @@ Description: Identifies potential typos in GTFS stop names by comparing them
 to roadway shapefile names using fuzzy matching.
 """
 
+import logging
 import os
 import re
-import logging
 
 import geopandas as gpd
 import pandas as pd
-from rapidfuzz import fuzz, process
 from pyproj import CRS
+from rapidfuzz import fuzz, process
 
 # =============================================================================
 # CONFIGURATION
