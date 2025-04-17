@@ -23,9 +23,9 @@ Configuration:
 import logging
 import os
 
-import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # =============================================================================
 # CONFIGURATION
