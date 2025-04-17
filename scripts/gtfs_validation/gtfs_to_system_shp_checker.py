@@ -9,11 +9,11 @@ The results are exported as CSV and Shapefile for further analysis.
 
 import os
 
-import pandas as pd
 import geopandas as gpd
+import matplotlib.pyplot as plt
+import pandas as pd
 from rapidfuzz import fuzz
 from shapely.geometry import Point
-import matplotlib.pyplot as plt
 
 # =============================================================================
 # CONFIGURATION
