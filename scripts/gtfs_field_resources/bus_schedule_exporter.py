@@ -24,8 +24,8 @@ import sys
 from collections import defaultdict
 
 import pandas as pd
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
 
 # =============================================================================
 # CONFIGURATION
