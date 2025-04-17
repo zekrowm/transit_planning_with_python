@@ -29,12 +29,12 @@ Usage:
 import os
 from datetime import timedelta
 
-import pandas as pd
 import geopandas as gpd
-from shapely.ops import unary_union
+import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
+from shapely.ops import unary_union
 
 # =============================================================================
 # CONFIGURATION
