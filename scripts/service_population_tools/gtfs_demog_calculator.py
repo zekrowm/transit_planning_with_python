@@ -28,9 +28,9 @@ Usage:
 
 import os
 
-import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import pandas as pd
 from shapely.geometry import Point
 
 # =============================================================================
