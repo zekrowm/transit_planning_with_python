@@ -27,12 +27,12 @@ Configurations allow filtering routes for targeted analysis, and the script util
 (NAD83 / Maryland) for spatial calculations by default.
 """
 
-import os
 import math
+import os
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
-import geopandas as gpd
 from shapely.geometry import LineString
 
 # =============================================================================
