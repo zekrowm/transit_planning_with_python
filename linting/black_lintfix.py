@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-black_linter.py
+black_lintfix.py
 
 This script will:
 1) Gather all .py files within TARGET_DIRECTORY.
