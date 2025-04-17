@@ -1,5 +1,5 @@
 """
-black_lintfix.py
+black_linter.py
 
 This script will:
 1) Gather all .py files within TARGET_DIRECTORY.
@@ -59,8 +59,8 @@ def main():
 
     with open(LOG_FILENAME, 'w', encoding='utf-8') as log_file:
         for py_file in py_files:
-            # 1) Check + Diff to see if any reformatting is needed
-            check_cmd = ['black', '--check', '--diff', py_file]
+            # 1) Check + Diff to see if any reformatting is needed with line length set to 100
+            check_cmd = ['black', '--check', '--diff', '--line-length', '100', py_file]
             try:
                 check_process = subprocess.run(
                     check_cmd,
@@ -78,8 +78,8 @@ def main():
                 log_file.write(check_process.stdout)
                 log_file.write("\n\n")
 
-                # 2) Actually reformat (fix) the file
-                fix_cmd = ['black', py_file]
+                # 2) Actually reformat (fix) the file with line length set to 100
+                fix_cmd = ['black', '--line-length', '100', py_file]
                 try:
                     fix_process = subprocess.run(
                         fix_cmd,
