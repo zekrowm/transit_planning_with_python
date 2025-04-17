@@ -24,11 +24,12 @@ generates per-route line charts for each day-type variable across all months.
 """
 
 import os
-import sys
 import re
+import sys
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # =============================================================================
 # CONFIGURATION
