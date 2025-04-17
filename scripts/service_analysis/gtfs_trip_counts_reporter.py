@@ -6,8 +6,8 @@ reports of trips for selected routes based on a specified time interval and expo
 the results to Excel workbooks.
 """
 
-import os
 import logging
+import os
 
 import pandas as pd
 from openpyxl import Workbook
