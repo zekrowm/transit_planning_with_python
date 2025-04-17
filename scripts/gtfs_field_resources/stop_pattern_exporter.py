@@ -12,9 +12,10 @@ Key features:
   (e.g., calendar_123_mon_tue).
 - Clear master-trip structure for visualizing stop patterns across different trips.
 """
+
 import logging
 import os
-from collections import defaultdict  # Standard library, placed before third-party imports
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
