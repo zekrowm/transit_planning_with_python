@@ -13,10 +13,10 @@ and visual inspection.
 
 import os
 
-import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point
+import pandas as pd
 from rapidfuzz import fuzz, process
+from shapely.geometry import Point
 
 # =============================================================================
 # CONFIGURATION
