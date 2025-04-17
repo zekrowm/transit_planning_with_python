@@ -8,8 +8,8 @@ import os
 import geopandas as gpd
 import networkx as nx
 import pandas as pd
-from shapely.geometry import Point, LineString
-from shapely.ops import nearest_points, linemerge
+from shapely.geometry import LineString, Point
+from shapely.ops import linemerge, nearest_points
 
 # =============================================================================
 # CONFIGURATION
