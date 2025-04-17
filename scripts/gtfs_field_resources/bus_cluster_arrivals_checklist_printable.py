@@ -16,11 +16,12 @@ Output:
 - Excel files containing detailed arrival and departure schedules with placeholders
   for manual data collection during operations.
 """
+
 import os
 
 import pandas as pd
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
 
 # =============================================================================
 # CONFIGURATION
