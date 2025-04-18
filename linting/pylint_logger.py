@@ -38,9 +38,9 @@ from typing import List, Tuple
 
 from openpyxl import Workbook
 
-# =============================================================================
+# ==================================================================================================
 # CONFIGURATION
-# =============================================================================
+# ==================================================================================================
 
 FILES_OR_FOLDERS: List[str] = [
     # Example: mix .py files and/or folders
@@ -58,9 +58,9 @@ OUTPUT_FOLDER: str = r"C:\Path\to\Your\Logs\Folder"
 LOG_LEVEL: int = logging.INFO  # set to logging.DEBUG for more detail
 DETAILED_LOG_FILENAME_PREFIX: str = "lint_detailed_log"
 
-# =============================================================================
+# ==================================================================================================
 # LOGGING SETUP
-# =============================================================================
+# ==================================================================================================
 logging.basicConfig(
     level=LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -68,9 +68,9 @@ logging.basicConfig(
 )
 console_logger = logging.getLogger(__name__)
 
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
+# ==================================================================================================
+# FUNCTIONS
+# ==================================================================================================
 
 def setup_detailed_logger(output_folder: str, filename_prefix: str, log_level: int) -> Tuple[logging.Logger, str]:
     """Create a dedicated file logger and return (logger, log_filepath)."""
@@ -110,8 +110,7 @@ def is_skipped(path_str: str, skip_list: List[str]) -> bool:
             return True
     return False
 
-
-# ---------------------------  Pylint helpers ---------------------------------
+# ---------------------------  Pylint helpers ------------------------------------------------------
 
 def run_pylint_on_file(py_file: str) -> Tuple[str | None, str | None]:
     """Run pylint and return (stdout, stderr)."""
@@ -152,8 +151,7 @@ def parse_pylint_output(stdout_text: str | None) -> Tuple[float, int]:
                 console_logger.debug("Could not parse pylint score from: %s", line)
     return score, issues
 
-
-# ----------------------------  isort helpers ---------------------------------
+# ----------------------------  isort helpers ------------------------------------------------------
 
 def run_isort_check_on_file(py_file: str) -> Tuple[str | None, str | None, bool]:
     """
@@ -178,9 +176,9 @@ def run_isort_check_on_file(py_file: str) -> Tuple[str | None, str | None, bool]
         return None, f"Execution Error: {exc}", False
 
 
-# =============================================================================
+# ==================================================================================================
 # MAIN LINTING WORKFLOW
-# =============================================================================
+# ==================================================================================================
 
 def lint_and_create_outputs(files_or_folders: List[str], skip_list: List[str], output_folder: str) -> None:
     """Run pylint + isort, log details, build Excel summary."""
@@ -301,9 +299,9 @@ def lint_and_create_outputs(files_or_folders: List[str], skip_list: List[str], o
     console_logger.info("Done.")
 
 
-# =============================================================================
+# ==================================================================================================
 # MAIN
-# =============================================================================
+# ==================================================================================================
 
 def main() -> None:  # pylint: disable=missing-function-docstring
     lint_and_create_outputs(FILES_OR_FOLDERS, SKIP_PATHS, OUTPUT_FOLDER)
