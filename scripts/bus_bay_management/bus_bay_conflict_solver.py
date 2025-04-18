@@ -40,9 +40,9 @@ try:
 except ImportError:
     PULP_AVAILABLE = False
 
-# =============================================================================
+# ==================================================================================================
 # CONFIGURATION
-# =============================================================================
+# ==================================================================================================
 
 INPUT_DIR = r"Path\To\Your\Input_Folder"
 OUTPUT_DIR = r"ath\To\Your\Output_Folder"
@@ -70,9 +70,14 @@ ARRIVE_STATUSES = {"ARRIVE", "ARRIVE/DEPART"}
 DEPART_STATUSES = {"DEPART", "ARRIVE/DEPART"}
 LAYOVER_STATUSES = {"LAYOVER", "DWELL", "LONG BREAK", "LOADING"}
 
-# -----------------------------------------------------------------------------
+# ==================================================================================================
+# FUNCTIONS
+# ==================================================================================================
+
+# --------------------------------------------------------------------------------------------------
 # BASIC CONFLICT-DETECTION UTILS
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+
 
 def build_stop_capacities(cluster_info):
     """
@@ -91,6 +96,7 @@ def build_stop_capacities(cluster_info):
     for ovf in cluster_info.get("overflow_bays", []):
         stop_caps[str(ovf)] = 1
     return stop_caps
+
 
 def recompute_conflict_types(df_in, cluster_info):
     """
@@ -143,6 +149,7 @@ def recompute_conflict_types(df_in, cluster_info):
 
     return out_list
 
+
 def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
     """
     Summarize each route+direction's total 'conflict minutes'.
@@ -153,9 +160,11 @@ def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
     grp.rename(columns={"HasConflict": "ConflictMinutes"}, inplace=True)
     return grp
 
-# -----------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------
 # GREEDY SOLVER
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+
 
 def solve_bus_assignment_greedy(df, cluster_info):
     """
@@ -225,9 +234,11 @@ def solve_bus_assignment_greedy(df, cluster_info):
     out_df["AssignedStop"] = assigned_list
     return out_df
 
-# -----------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------
 # PULP-BASED SOLVER
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+
 
 def solve_bus_assignment_pulp(df, cluster_info):
     """
@@ -343,9 +354,10 @@ def solve_bus_assignment_pulp(df, cluster_info):
     out_df["AssignedStop"] = assigned_list
     return out_df
 
-# =============================================================================
+# ==================================================================================================
 # MAIN
-# =============================================================================
+# ==================================================================================================
+
 
 def main():
     """
@@ -525,6 +537,7 @@ def main():
 
         print(f" -> Wrote route-level summary file: {os.path.basename(summary_out)}")
         print("====================================================")
+
 
 if __name__ == "__main__":
     main()
