@@ -14,8 +14,8 @@ import pandas as pd
 # CONFIGURATION SECTION
 # =============================================================================
 
-GTFS_FOLDER_PATH = r"C:\Users\zach\Desktop\Zach\python_stuff\data\connector_gtfs_2025_01_28"
-BLOCK_OUTPUT_FOLDER = r"C:\Users\zach\Desktop\Zach\python_stuff\testing\block_status_minute_by_minute_generator\output"
+GTFS_FOLDER_PATH = r"\\your_GTFS_folder_path\here\\"
+BLOCK_OUTPUT_FOLDER = r"\\your_output_folder_path\here\\"
 
 DEFAULT_HOURS = 26
 TIME_INTERVAL_MINUTES = 1
