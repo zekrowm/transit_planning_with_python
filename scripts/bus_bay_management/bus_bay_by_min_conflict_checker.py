@@ -27,9 +27,9 @@ import os
 import pandas as pd
 from openpyxl.styles import Font
 
-# =============================================================================
+# ==================================================================================================
 # CONFIGURATION
-# =============================================================================
+# ==================================================================================================
 
 # Folder containing your block-level XLSX files from Step 1
 BLOCK_OUTPUT_FOLDER = r"\\Path\To\Your\Input_Folder"
@@ -70,9 +70,13 @@ PASSENGER_SERVICE_STATUSES = {
     "ARRIVE", "DEPART", "ARRIVE/DEPART", "LOADING"
 }
 
-# -----------------------------------------------------------------------------
+# ==================================================================================================
+# FUNCTIONS
+# ==================================================================================================
+
+# --------------------------------------------------------------------------------------------------
 # CAPACITY AND STOP-LIST BUILDING BASED ON BAY COUNTS
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 
 def get_all_official_stops(cinfo):
     """
@@ -84,6 +88,7 @@ def get_all_official_stops(cinfo):
         cinfo.get("double_bay_stops", []) +
         cinfo.get("triple_bay_stops", [])
     )
+
 
 def build_cluster_capacities():
     """
@@ -124,9 +129,10 @@ def build_stop_capacities():
             stop_caps[str(ovf)] = 1
     return stop_caps
 
-# -----------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------
 # CORE CONFLICT-DETECTION LOGIC
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 
 def normalize_stop_id(stop_id):
     """Convert stop IDs like '2956.0' -> '2956'. Handles NaN gracefully."""
@@ -136,6 +142,7 @@ def normalize_stop_id(stop_id):
     if sid_str.endswith(".0"):
         sid_str = sid_str[:-2]
     return sid_str
+
 
 def assign_cluster_name(df_in):
     """
@@ -159,6 +166,7 @@ def assign_cluster_name(df_in):
 
     return df_out
 
+
 def find_cluster_conflicts(df_in):
     """
     Return a set of (cluster_name, timestamp) where the number of buses present
@@ -179,6 +187,7 @@ def find_cluster_conflicts(df_in):
 
     return conflict_set
 
+
 def find_stop_conflicts(df_in):
     """
     Return a set of (stop_id, timestamp) where the number of buses
@@ -197,6 +206,7 @@ def find_stop_conflicts(df_in):
             conflict_set.add((sid, ts))
 
     return conflict_set
+
 
 def annotate_conflicts(df_in, cluster_conflicts, stop_conflicts):
     """
@@ -229,9 +239,10 @@ def annotate_conflicts(df_in, cluster_conflicts, stop_conflicts):
     df_out["ConflictType"] = conflict_types
     return df_out
 
-# -----------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------
 # I/O AND EXCEL WRITING LOGIC
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
 
 def gather_block_spreadsheets(block_folder):
     """
@@ -255,6 +266,7 @@ def gather_block_spreadsheets(block_folder):
     df_combined = pd.concat(big_df_list, ignore_index=True)
     print(f"Loaded {len(df_combined)} total rows from Step 1 block XLSX files.")
     return df_combined
+
 
 def run_step2_conflict_detection():
     """
@@ -362,9 +374,9 @@ def run_step2_conflict_detection():
     print("Step 2 complete.")
 
 
-# =============================================================================
+# ==================================================================================================
 # MAIN
-# =============================================================================
+# ==================================================================================================
 
 def main():
     """
@@ -386,6 +398,7 @@ def main():
     No arguments are accepted and nothing is returned; all results are saved directly to disk.
     """
     run_step2_conflict_detection()
+
 
 if __name__ == "__main__":
     main()
