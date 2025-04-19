@@ -24,8 +24,8 @@ import pandas as pd
 # =============================================================================
 
 WKDY_FILE_PATH = r"\\Your\Path\CLEVER_Runtime_by_Segment_by_Trip_Weekday.csv"
-SAT_FILE_PATH  = r""
-SUN_FILE_PATH  = r""
+SAT_FILE_PATH = r""
+SUN_FILE_PATH = r""
 OTHER_FILE_PATH = r""
 
 PARENT_OUTPUT_DIR = r"C:\Path\To\Outputs"  # or "" to save in current folder
@@ -62,16 +62,14 @@ def load_data(file_path: str) -> pd.DataFrame:
     return df
 
 
-def filter_routes(df: pd.DataFrame,
-                  routes_to_exclude=None,
-                  routes_to_include=None) -> pd.DataFrame:
+def filter_routes(df: pd.DataFrame, routes_to_exclude=None, routes_to_include=None) -> pd.DataFrame:
     routes_to_exclude = routes_to_exclude or []
     routes_to_include = routes_to_include or []
 
     if routes_to_exclude:
-        df = df[~df['Branch'].isin(routes_to_exclude)]
+        df = df[~df["Branch"].isin(routes_to_exclude)]
     if routes_to_include:
-        df = df[df['Branch'].isin(routes_to_include)]
+        df = df[df["Branch"].isin(routes_to_include)]
     return df
 
 
@@ -86,7 +84,7 @@ def convert_time_columns(df: pd.DataFrame, time_columns=None) -> None:
 
     for col in cols:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = pd.to_numeric(df[col], errors="coerce")
             df[col] = df[col] / 60.0
 
 
@@ -206,10 +204,7 @@ def sort_route_segments(segments):
 
 
 def create_and_save_pivots(
-    df: pd.DataFrame,
-    output_subdir: str,
-    dataset_label: str,
-    time_columns_map: dict
+    df: pd.DataFrame, output_subdir: str, dataset_label: str, time_columns_map: dict
 ) -> None:
     """
     Exports one CSV per (route, direction, time_col).
@@ -220,29 +215,33 @@ def create_and_save_pivots(
     if not os.path.exists(output_subdir):
         os.makedirs(output_subdir)
 
-    for route in df['Branch'].unique():
-        route_df = df[df['Branch'] == route].copy()
+    for route in df["Branch"].unique():
+        route_df = df[df["Branch"] == route].copy()
 
         route_wrote_any_csv = False
 
-        for direction in route_df['Direction'].unique():
-            direction_df = route_df[route_df['Direction'] == direction].copy()
+        for direction in route_df["Direction"].unique():
+            direction_df = route_df[route_df["Direction"] == direction].copy()
 
             # 1) Create temp time_sort column, sort, then drop
-            if 'Trip' in direction_df.columns:
-                direction_df['time_sort'] = direction_df['Trip'].apply(parse_trip_time)
-                direction_df.sort_values('time_sort', inplace=True, na_position='last')
-                direction_df.drop(columns='time_sort', inplace=True)
+            if "Trip" in direction_df.columns:
+                direction_df["time_sort"] = direction_df["Trip"].apply(parse_trip_time)
+                direction_df.sort_values("time_sort", inplace=True, na_position="last")
+                direction_df.drop(columns="time_sort", inplace=True)
 
             # 2) Keep track of the exact sorted order for reindexing
             #    so pivot_table doesn't reorder the rows.
-            sorted_index_df = direction_df[['Branch','Direction','TripNo','Variation','Trip']].drop_duplicates()
-            sorted_index_df = sorted_index_df.set_index(['Branch','Direction','TripNo','Variation','Trip'])
+            sorted_index_df = direction_df[
+                ["Branch", "Direction", "TripNo", "Variation", "Trip"]
+            ].drop_duplicates()
+            sorted_index_df = sorted_index_df.set_index(
+                ["Branch", "Direction", "TripNo", "Variation", "Trip"]
+            )
             sorted_index_list = sorted_index_df.index
 
             # 3) Check route validity
-            segments = direction_df['SegmentName'].dropna().unique().tolist()
-            variations = direction_df['Variation'].dropna().unique().tolist()
+            segments = direction_df["SegmentName"].dropna().unique().tolist()
+            variations = direction_df["Variation"].dropna().unique().tolist()
             is_single_path = check_route_validity(segments, variations)
             if is_single_path:
                 segments = sort_route_segments(segments)
@@ -255,10 +254,10 @@ def create_and_save_pivots(
                     continue
 
                 pivot_table = direction_df.pivot_table(
-                    index=['Branch', 'Direction', 'TripNo', 'Variation', 'Trip'],
-                    columns='SegmentName',
+                    index=["Branch", "Direction", "TripNo", "Variation", "Trip"],
+                    columns="SegmentName",
                     values=time_col,
-                    aggfunc='mean'
+                    aggfunc="mean",
                 )
 
                 if pivot_table.empty:
@@ -329,22 +328,22 @@ def main():
     It checks for configured file paths and initiates processing for each available dataset, skipping any with empty paths.
     """
     if WKDY_FILE_PATH:
-        process_file(WKDY_FILE_PATH, 'wkdy')
+        process_file(WKDY_FILE_PATH, "wkdy")
     else:
         print("Skipping 'wkdy' (blank path).")
 
     if SAT_FILE_PATH:
-        process_file(SAT_FILE_PATH, 'sat')
+        process_file(SAT_FILE_PATH, "sat")
     else:
         print("Skipping 'sat' (blank path).")
 
     if SUN_FILE_PATH:
-        process_file(SUN_FILE_PATH, 'sun')
+        process_file(SUN_FILE_PATH, "sun")
     else:
         print("Skipping 'sun' (blank path).")
 
     if OTHER_FILE_PATH:
-        process_file(OTHER_FILE_PATH, 'other')
+        process_file(OTHER_FILE_PATH, "other")
     else:
         print("Skipping 'other' (blank path).")
 
