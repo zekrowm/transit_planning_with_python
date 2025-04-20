@@ -49,7 +49,7 @@ DATE_FORMAT = "%Y-%b-%d"  # Format for converting to datetime
 
 # Y-axis Limits Adjustment (for OTP plots)
 Y_MIN_CUTOFF = 50  # Ensure the minimum y-axis starts at 50%
-Y_MARGIN = 5       # Margin added/subtracted to y-axis limits
+Y_MARGIN = 5  # Margin added/subtracted to y-axis limits
 
 # Percentage Thresholds for Horizontal Lines
 PERCENTAGE_LEVELS = [95, 85, 75]
@@ -76,6 +76,7 @@ LATE_COLUMN = "Sum # Late"
 # ------------------------------------------------------------------------------
 #                         HELPER FUNCTIONS (RUN-TIME DATA)
 # ------------------------------------------------------------------------------
+
 
 def time_str_to_seconds(time_str):
     """
@@ -186,14 +187,18 @@ def process_runtime_data():
     df["Scheduled_Start_Seconds"] = df["Scheduled Start Time (HH:MM)"].apply(parse_start_time)
 
     # Parse 'Average Scheduled Running Time' and 'Average Actual Running Time' to seconds
-    df["Avg_Scheduled_Running_Time_sec"] = df["Average Scheduled Running Time"].apply(time_str_to_seconds)
+    df["Avg_Scheduled_Running_Time_sec"] = df["Average Scheduled Running Time"].apply(
+        time_str_to_seconds
+    )
     df["Avg_Actual_Running_Time_sec"] = df["Average Actual Running Time"].apply(time_str_to_seconds)
 
     # Parse 'Average Start Delta' to seconds
     df["Avg_Start_Delta_sec"] = df["Average Start Delta"].apply(parse_start_delta)
 
     # Recalculate deviations
-    df["Recalc_Running_Time_Deviation_sec"] = df["Avg_Actual_Running_Time_sec"] - df["Avg_Scheduled_Running_Time_sec"]
+    df["Recalc_Running_Time_Deviation_sec"] = (
+        df["Avg_Actual_Running_Time_sec"] - df["Avg_Scheduled_Running_Time_sec"]
+    )
 
     # Convert deviations from seconds to minutes
     df["Running Time Deviation (minutes)"] = df["Recalc_Running_Time_Deviation_sec"] / 60
@@ -210,15 +215,21 @@ def process_runtime_data():
 
     # Compute Pct_Early, Pct_Late, Pct_On_Time
     df["Pct_Early"] = df.apply(
-        lambda row: 100.0 * row["Sum # Early"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0,
+        lambda row: (
+            100.0 * row["Sum # Early"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
+        ),
         axis=1,
     )
     df["Pct_Late"] = df.apply(
-        lambda row: 100.0 * row["Sum # Late"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0,
+        lambda row: (
+            100.0 * row["Sum # Late"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
+        ),
         axis=1,
     )
     df["Pct_On_Time"] = df.apply(
-        lambda row: 100.0 * row["Sum # On Time"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0,
+        lambda row: (
+            100.0 * row["Sum # On Time"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
+        ),
         axis=1,
     )
 
@@ -276,6 +287,7 @@ def process_runtime_data():
 # ------------------------------------------------------------------------------
 #                         HELPER FUNCTIONS (OTP DATA)
 # ------------------------------------------------------------------------------
+
 
 def load_csv(file_path):
     """
@@ -531,6 +543,7 @@ def process_otp_data():
 # ------------------------------------------------------------------------------
 #                                   MAIN
 # ------------------------------------------------------------------------------
+
 
 def main():
     """
