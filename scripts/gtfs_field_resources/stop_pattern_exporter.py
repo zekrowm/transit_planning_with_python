@@ -22,22 +22,19 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-INPUT_DIR = r'\\Path\\To\\Your\\GTFS'
-OUTPUT_DIR = r'\\Path\\To\\Output'
-TRIPS_FILE = 'trips.txt'
-STOP_TIMES_FILE = 'stop_times.txt'
-STOPS_FILE = 'stops.txt'
-ROUTES_FILE = 'routes.txt'
-CALENDAR_FILE = 'calendar.txt'  # for subfolder naming if available
+INPUT_DIR = r"\\Path\\To\\Your\\GTFS"
+OUTPUT_DIR = r"\\Path\\To\\Output"
+TRIPS_FILE = "trips.txt"
+STOP_TIMES_FILE = "stop_times.txt"
+STOPS_FILE = "stops.txt"
+ROUTES_FILE = "routes.txt"
+CALENDAR_FILE = "calendar.txt"  # for subfolder naming if available
 
 FILTER_IN_ROUTE_SHORT_NAMES = []
 FILTER_OUT_ROUTE_SHORT_NAMES = []
@@ -89,7 +86,7 @@ def parse_time_to_minutes(time_str):
     """
     if not isinstance(time_str, str):
         return None
-    parts = time_str.strip().split(':')
+    parts = time_str.strip().split(":")
     if len(parts) != 3:
         return None
     try:
@@ -121,23 +118,23 @@ def format_service_id_folder_name(service_id, calendar_df):
     if calendar_df is None or calendar_df.empty:
         return f"calendar_{service_id}"
 
-    row = calendar_df[calendar_df['service_id'] == str(service_id)]
+    row = calendar_df[calendar_df["service_id"] == str(service_id)]
     if row.empty:
         return f"calendar_{service_id}"
 
     row = row.iloc[0]  # Take the first matching row
     day_map = [
-        ('monday', 'mon'),
-        ('tuesday', 'tue'),
-        ('wednesday', 'wed'),
-        ('thursday', 'thu'),
-        ('friday', 'fri'),
-        ('saturday', 'sat'),
-        ('sunday', 'sun'),
+        ("monday", "mon"),
+        ("tuesday", "tue"),
+        ("wednesday", "wed"),
+        ("thursday", "thu"),
+        ("friday", "fri"),
+        ("saturday", "sat"),
+        ("sunday", "sun"),
     ]
     served_days = []
     for col, short_name in day_map:
-        if str(row.get(col, '0')) == '1':
+        if str(row.get(col, "0")) == "1":
             served_days.append(short_name)
 
     if served_days:
@@ -166,12 +163,7 @@ def load_gtfs_files(input_dir):
     routes = pd.read_csv(os.path.join(input_dir, ROUTES_FILE))
 
     logging.info("Loaded GTFS files successfully.")
-    return {
-        'stops': stops,
-        'trips': trips,
-        'stop_times': stop_times,
-        'routes': routes
-    }
+    return {"stops": stops, "trips": trips, "stop_times": stop_times, "routes": routes}
 
 
 def filter_trips(trips_df, routes_df, cal_ids):
@@ -183,20 +175,17 @@ def filter_trips(trips_df, routes_df, cal_ids):
     service IDs in cal_ids.
     """
     merged = pd.merge(
-        trips_df,
-        routes_df[['route_id', 'route_short_name']],
-        on='route_id',
-        how='left'
+        trips_df, routes_df[["route_id", "route_short_name"]], on="route_id", how="left"
     )
     # Filter in
     if FILTER_IN_ROUTE_SHORT_NAMES:
-        merged = merged[merged['route_short_name'].isin(FILTER_IN_ROUTE_SHORT_NAMES)]
+        merged = merged[merged["route_short_name"].isin(FILTER_IN_ROUTE_SHORT_NAMES)]
     # Filter out
     if FILTER_OUT_ROUTE_SHORT_NAMES:
-        merged = merged[~merged['route_short_name'].isin(FILTER_OUT_ROUTE_SHORT_NAMES)]
+        merged = merged[~merged["route_short_name"].isin(FILTER_OUT_ROUTE_SHORT_NAMES)]
     # Filter calendar
-    if cal_ids and 'service_id' in merged.columns:
-        merged = merged[merged['service_id'].isin(cal_ids)]
+    if cal_ids and "service_id" in merged.columns:
+        merged = merged[merged["service_id"].isin(cal_ids)]
     elif cal_ids:
         logging.warning("No service_id in data for filtering.")
     return merged
@@ -214,51 +203,49 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
     """
     tmp = pd.merge(
         stop_times_df,
-        trips_df[['trip_id', 'route_id', 'direction_id', 'service_id']],
-        on='trip_id',
-        how='inner'
+        trips_df[["trip_id", "route_id", "direction_id", "service_id"]],
+        on="trip_id",
+        how="inner",
     )
-    if 'shape_dist_traveled' not in tmp.columns:
-        tmp['shape_dist_traveled'] = np.nan
+    if "shape_dist_traveled" not in tmp.columns:
+        tmp["shape_dist_traveled"] = np.nan
 
-    tmp = pd.merge(tmp, stops_df[['stop_id', 'stop_name']], on='stop_id', how='left')
-    tmp.sort_values(['trip_id', 'stop_sequence'], inplace=True)
+    tmp = pd.merge(tmp, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
+    tmp.sort_values(["trip_id", "stop_sequence"], inplace=True)
 
     # If we only want timepoints
-    if EXPORT_TIMEPOINTS_ONLY and 'timepoint' in tmp.columns:
-        tmp = tmp[tmp['timepoint'] == 1]
+    if EXPORT_TIMEPOINTS_ONLY and "timepoint" in tmp.columns:
+        tmp = tmp[tmp["timepoint"] == 1]
 
     # For distance validation
     trip_distances = {}
     if VALIDATE_TIMEPOINT_DISTANCE and EXPORT_TIMEPOINTS_ONLY:
-        for trip_id_val, group_sub in tmp.groupby('trip_id'):
-            group_sub = group_sub.dropna(subset=['shape_dist_traveled'])
+        for trip_id_val, group_sub in tmp.groupby("trip_id"):
+            group_sub = group_sub.dropna(subset=["shape_dist_traveled"])
             if group_sub.empty:
                 trip_distances[trip_id_val] = None
             else:
-                dist_val = (group_sub.iloc[-1]['shape_dist_traveled']
-                            - group_sub.iloc[0]['shape_dist_traveled'])
-                trip_distances[trip_id_val] = convert_dist_to_miles(
-                    dist_val,
-                    INPUT_DISTANCE_UNIT
+                dist_val = (
+                    group_sub.iloc[-1]["shape_dist_traveled"]
+                    - group_sub.iloc[0]["shape_dist_traveled"]
                 )
+                trip_distances[trip_id_val] = convert_dist_to_miles(dist_val, INPUT_DISTANCE_UNIT)
 
     # Build patterns
     patterns_list = []
-    for trip_id_val, group_sub in tmp.groupby('trip_id'):
-        group_sub = group_sub.sort_values('stop_sequence')
+    for trip_id_val, group_sub in tmp.groupby("trip_id"):
+        group_sub = group_sub.sort_values("stop_sequence")
         stops_for_trip = []
         prev_dist_val = None
 
         for _, row in group_sub.iterrows():
-            stop_id_val = row['stop_id']
-            shape_val = row['shape_dist_traveled']
+            stop_id_val = row["stop_id"]
+            shape_val = row["shape_dist_traveled"]
             if prev_dist_val is None:
                 dist_str = "-"
             else:
                 if pd.notnull(shape_val) and pd.notnull(prev_dist_val):
-                    diff = convert_dist_to_miles(shape_val - prev_dist_val,
-                                                 INPUT_DISTANCE_UNIT)
+                    diff = convert_dist_to_miles(shape_val - prev_dist_val, INPUT_DISTANCE_UNIT)
                     dist_str = f"{diff:.2f}" if diff else ""
                 else:
                     dist_str = ""
@@ -278,40 +265,46 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
             if (full_trip is not None) and abs(sum_seg - full_trip) > 0.02:
                 logging.warning(
                     "Trip %s sum of segments=%.2f vs. full=%.2f mismatch >0.02",
-                    trip_id_val, sum_seg, full_trip
+                    trip_id_val,
+                    sum_seg,
+                    full_trip,
                 )
 
         first_row = group_sub.iloc[0]
-        route_id_val = first_row['route_id']
-        direction_id_val = first_row['direction_id']
-        service_id_val = first_row['service_id']
+        route_id_val = first_row["route_id"]
+        direction_id_val = first_row["direction_id"]
+        service_id_val = first_row["service_id"]
 
-        patterns_list.append({
-            'trip_id': trip_id_val,
-            'route_id': route_id_val,
-            'direction_id': direction_id_val,
-            'service_id': service_id_val,
-            'pattern_stops': tuple(stops_for_trip)
-        })
+        patterns_list.append(
+            {
+                "trip_id": trip_id_val,
+                "route_id": route_id_val,
+                "direction_id": direction_id_val,
+                "service_id": service_id_val,
+                "pattern_stops": tuple(stops_for_trip),
+            }
+        )
 
     # Accumulate unique patterns
     patterns_dict = {}
     for record in patterns_list:
-        key = (record['route_id'],
-               record['direction_id'],
-               record['service_id'],
-               record['pattern_stops'])
+        key = (
+            record["route_id"],
+            record["direction_id"],
+            record["service_id"],
+            record["pattern_stops"],
+        )
         if key not in patterns_dict:
             patterns_dict[key] = {
-                'route_id': record['route_id'],
-                'direction_id': record['direction_id'],
-                'service_id': record['service_id'],
-                'pattern_stops': record['pattern_stops'],
-                'trip_count': 0,
-                'trip_ids': []
+                "route_id": record["route_id"],
+                "direction_id": record["direction_id"],
+                "service_id": record["service_id"],
+                "pattern_stops": record["pattern_stops"],
+                "trip_count": 0,
+                "trip_ids": [],
             }
-        patterns_dict[key]['trip_count'] += 1
-        patterns_dict[key]['trip_ids'].append(record['trip_id'])
+        patterns_dict[key]["trip_count"] += 1
+        patterns_dict[key]["trip_ids"].append(record["trip_id"])
 
     logging.info("Found %d unique patterns.", len(patterns_dict))
     return patterns_dict
@@ -323,26 +316,28 @@ def assign_pattern_ids(patterns_dict):
     """
     group_map = defaultdict(list)
     for pattern_val in patterns_dict.values():
-        route_id_val = pattern_val['route_id']
-        dir_id_val = pattern_val['direction_id']
-        srv_id_val = pattern_val['service_id']
+        route_id_val = pattern_val["route_id"]
+        dir_id_val = pattern_val["direction_id"]
+        srv_id_val = pattern_val["service_id"]
         group_map[(route_id_val, srv_id_val, dir_id_val)].append(pattern_val)
 
     out = []
     for (route_id_val, service_id_val, direction_id_val), recs in group_map.items():
         # sort stable by pattern_stops
-        recs = sorted(recs, key=lambda x: x['pattern_stops'])
+        recs = sorted(recs, key=lambda x: x["pattern_stops"])
         for idx, pattern_rec in enumerate(recs, 1):
-            pattern_rec['pattern_id'] = idx
-            out.append({
-                'route_id': pattern_rec['route_id'],
-                'direction_id': pattern_rec['direction_id'],
-                'service_id': pattern_rec['service_id'],
-                'pattern_stops': pattern_rec['pattern_stops'],
-                'trip_count': pattern_rec['trip_count'],
-                'trip_ids': pattern_rec['trip_ids'],
-                'pattern_id': idx
-            })
+            pattern_rec["pattern_id"] = idx
+            out.append(
+                {
+                    "route_id": pattern_rec["route_id"],
+                    "direction_id": pattern_rec["direction_id"],
+                    "service_id": pattern_rec["service_id"],
+                    "pattern_stops": pattern_rec["pattern_stops"],
+                    "trip_count": pattern_rec["trip_count"],
+                    "trip_ids": pattern_rec["trip_ids"],
+                    "pattern_id": idx,
+                }
+            )
     logging.info("Assigned pattern IDs to pattern records.")
     return out
 
@@ -357,24 +352,24 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
     For each pattern, find the earliest arrival/departure time for the first stop
     of each trip in that pattern.
     """
-    if 'arrival_time' not in stop_times_df.columns:
+    if "arrival_time" not in stop_times_df.columns:
         for rec in pattern_records:
-            rec['earliest_time_minutes'] = None
-            rec['earliest_time_str'] = ""
+            rec["earliest_time_minutes"] = None
+            rec["earliest_time_str"] = ""
         return
 
-    stop_times_by_trip = stop_times_df.groupby('trip_id')
+    stop_times_by_trip = stop_times_df.groupby("trip_id")
     for rec in pattern_records:
-        trip_ids = rec['trip_ids']
+        trip_ids = rec["trip_ids"]
         earliest_val = None
         for t_id in trip_ids:
             if t_id not in stop_times_by_trip.groups:
                 continue
-            group_2 = stop_times_by_trip.get_group(t_id).sort_values('stop_sequence')
+            group_2 = stop_times_by_trip.get_group(t_id).sort_values("stop_sequence")
             if group_2.empty:
                 continue
-            arr = group_2.iloc[0].get('arrival_time', '')
-            dep = group_2.iloc[0].get('departure_time', '')
+            arr = group_2.iloc[0].get("arrival_time", "")
+            dep = group_2.iloc[0].get("departure_time", "")
             arr_minutes = parse_time_to_minutes(str(arr)) if arr else None
             dep_minutes = parse_time_to_minutes(str(dep)) if dep else None
 
@@ -388,8 +383,8 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
             this_min = min(candidates)
             if earliest_val is None or this_min < earliest_val:
                 earliest_val = this_min
-        rec['earliest_time_minutes'] = earliest_val
-        rec['earliest_time_str'] = minutes_to_hhmm(earliest_val) if earliest_val else ""
+        rec["earliest_time_minutes"] = earliest_val
+        rec["earliest_time_str"] = minutes_to_hhmm(earliest_val) if earliest_val else ""
 
 
 # -----------------------------------------------------------------------------
@@ -404,22 +399,21 @@ def find_master_trip_stops(route_id_val, direction_id_val, relevant_trips, stop_
     """
     if relevant_trips.empty:
         return []
-    st_sub = stop_times_df[stop_times_df['trip_id'].isin(relevant_trips['trip_id'])]
-    if 'timepoint' in st_sub.columns and EXPORT_TIMEPOINTS_ONLY:
-        st_sub = st_sub[st_sub['timepoint'] == 1]
+    st_sub = stop_times_df[stop_times_df["trip_id"].isin(relevant_trips["trip_id"])]
+    if "timepoint" in st_sub.columns and EXPORT_TIMEPOINTS_ONLY:
+        st_sub = st_sub[st_sub["timepoint"] == 1]
 
-    sizes = st_sub.groupby('trip_id').size()
+    sizes = st_sub.groupby("trip_id").size()
     if sizes.empty:
         return []
     best_trip_id = sizes.idxmax()
-    best_group = st_sub[st_sub['trip_id'] == best_trip_id].sort_values('stop_sequence')
-    best_group = pd.merge(best_group, stops_df[['stop_id', 'stop_name']],
-                          on='stop_id', how='left')
+    best_group = st_sub[st_sub["trip_id"] == best_trip_id].sort_values("stop_sequence")
+    best_group = pd.merge(best_group, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
 
     out_list = []
     for _, row in best_group.iterrows():
-        stop_id_val = row['stop_id']
-        stop_name_val = row.get('stop_name', 'Unknown')
+        stop_id_val = row["stop_id"]
+        stop_name_val = row.get("stop_name", "Unknown")
         out_list.append((stop_id_val, stop_name_val))
     return out_list
 
@@ -461,14 +455,14 @@ def create_workbook():
 
 
 def fill_worksheet_for_direction(
-        workbook,
-        sheet_title,
-        route_short_name,
-        direction_id_val,
-        service_id_val,
-        pattern_records_dir,
-        master_stops
-    ):
+    workbook,
+    sheet_title,
+    route_short_name,
+    direction_id_val,
+    service_id_val,
+    pattern_records_dir,
+    master_stops,
+):
     """
     Create one Excel sheet for route/direction. Each pattern is one row, columns:
     [
@@ -502,16 +496,16 @@ def fill_worksheet_for_direction(
     pattern_records_dir = sorted(
         pattern_records_dir,
         key=lambda rec: (
-            rec.get('earliest_time_minutes') is None,
-            rec.get('earliest_time_minutes', 9999999)
-        )
+            rec.get("earliest_time_minutes") is None,
+            rec.get("earliest_time_minutes", 9999999),
+        ),
     )
 
     for rec in pattern_records_dir:
-        pat_id = rec['pattern_id']
-        trip_count = rec['trip_count']
-        earliest_str = rec.get('earliest_time_str', "")
-        pattern_stops = rec['pattern_stops']
+        pat_id = rec["pattern_id"]
+        trip_count = rec["trip_count"]
+        earliest_str = rec.get("earliest_time_str", "")
+        pattern_stops = rec["pattern_stops"]
         row_distances = forward_match_pattern_to_master(pattern_stops, master_stops)
 
         row_data = [
@@ -520,7 +514,7 @@ def fill_worksheet_for_direction(
             service_id_val,
             pat_id,
             trip_count,
-            earliest_str
+            earliest_str,
         ]
         row_data.extend(row_distances)
         worksheet.append(row_data)
@@ -531,13 +525,7 @@ def fill_worksheet_for_direction(
         worksheet.column_dimensions[col_letter].width = 30
 
 
-def export_patterns_to_excel(
-        pattern_records,
-        routes_df,
-        stop_times_df,
-        stops_df,
-        calendar_df=None
-    ):
+def export_patterns_to_excel(pattern_records, routes_df, stop_times_df, stops_df, calendar_df=None):
     """
     For each (route_id, service_id), group patterns by direction, create a subfolder
     named for that service_id's days (if calendar.txt loaded), and save an Excel workbook
@@ -545,14 +533,14 @@ def export_patterns_to_excel(
     """
     group_map = defaultdict(list)
     for pat_rec in pattern_records:
-        rid_val = pat_rec['route_id']
-        sid_val = pat_rec['service_id']
+        rid_val = pat_rec["route_id"]
+        sid_val = pat_rec["service_id"]
         group_map[(rid_val, sid_val)].append(pat_rec)
 
     for (rid_val, sid_val), group_list in group_map.items():
-        route_info = routes_df[routes_df['route_id'] == rid_val]
+        route_info = routes_df[routes_df["route_id"] == rid_val]
         if not route_info.empty:
-            short_name = route_info.iloc[0].get('route_short_name', f"Route_{rid_val}")
+            short_name = route_info.iloc[0].get("route_short_name", f"Route_{rid_val}")
         else:
             short_name = f"Route_{rid_val}"
 
@@ -565,43 +553,37 @@ def export_patterns_to_excel(
         # Group by direction_id
         dir_map = defaultdict(list)
         for rec_dir in group_list:
-            d_id_val = rec_dir['direction_id']
+            d_id_val = rec_dir["direction_id"]
             dir_map[d_id_val].append(rec_dir)
 
         for direction_val, recs_dir in dir_map.items():
             # gather all trip_ids
             all_trip_ids = set()
             for pattern_rec in recs_dir:
-                all_trip_ids.update(pattern_rec['trip_ids'])
+                all_trip_ids.update(pattern_rec["trip_ids"])
 
-            st_sub = stop_times_df[stop_times_df['trip_id'].isin(all_trip_ids)]
-            if 'timepoint' in st_sub.columns and EXPORT_TIMEPOINTS_ONLY:
-                st_sub = st_sub[st_sub['timepoint'] == 1]
+            st_sub = stop_times_df[stop_times_df["trip_id"].isin(all_trip_ids)]
+            if "timepoint" in st_sub.columns and EXPORT_TIMEPOINTS_ONLY:
+                st_sub = st_sub[st_sub["timepoint"] == 1]
 
             # pick trip with max # stops => master_stops
-            sizes = st_sub.groupby('trip_id').size()
+            sizes = st_sub.groupby("trip_id").size()
             if sizes.empty:
                 master_stops = []
             else:
                 best_tid = sizes.idxmax()
-                merged_group = st_sub[st_sub['trip_id'] == best_tid]
-                merged_group = merged_group.sort_values('stop_sequence')
+                merged_group = st_sub[st_sub["trip_id"] == best_tid]
+                merged_group = merged_group.sort_values("stop_sequence")
                 merged_group = pd.merge(
-                    merged_group,
-                    stops_df[['stop_id', 'stop_name']],
-                    on='stop_id',
-                    how='left'
+                    merged_group, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left"
                 )
                 master_stops = []
                 for _, rowz in merged_group.iterrows():
-                    master_stops.append(
-                        (rowz['stop_id'], rowz.get('stop_name', 'Unknown'))
-                    )
+                    master_stops.append((rowz["stop_id"], rowz.get("stop_name", "Unknown")))
 
             sheet_title = f"Dir{direction_val}"
             fill_worksheet_for_direction(
-                workbook, sheet_title, short_name, direction_val,
-                sid_val, recs_dir, master_stops
+                workbook, sheet_title, short_name, direction_val, sid_val, recs_dir, master_stops
             )
 
         filename = f"{short_name}_{sid_val}_{SIGNUP_NAME}.xlsx"
@@ -652,10 +634,10 @@ def main():
         logging.error("Failed to load GTFS: %s", exc)
         return
 
-    stops_df = gtfs_data['stops']
-    trips_df = gtfs_data['trips']
-    stop_times_df = gtfs_data['stop_times']
-    routes_df = gtfs_data['routes']
+    stops_df = gtfs_data["stops"]
+    trips_df = gtfs_data["trips"]
+    stop_times_df = gtfs_data["stop_times"]
+    routes_df = gtfs_data["routes"]
 
     filtered_trips = filter_trips(trips_df, routes_df, cal_ids=FILTER_IN_CALENDAR_IDS)
     if filtered_trips.empty:
