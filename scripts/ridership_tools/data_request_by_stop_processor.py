@@ -26,23 +26,21 @@ from openpyxl.styles import Font
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE_PATH = (
-    r'\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX'
-)
-OUTPUT_FILE_SUFFIX = '_processed'
-OUTPUT_FILE_EXTENSION = '.xlsx'
+INPUT_FILE_PATH = r"\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX"
+OUTPUT_FILE_SUFFIX = "_processed"
+OUTPUT_FILE_EXTENSION = ".xlsx"
 
 # ROUTES, STOP_IDS, and TIME_PERIODS can be left empty
 # If empty, the script will skip filtering or time-period breakdown for these lists.
 ROUTES = []  # e.g. [] means skip route filter
 STOP_IDS = [1001, 2002, 3003]  # e.g. [] means skip stop filter
 TIME_PERIODS = [
-    'AM EARLY',
-    'AM PEAK',
-    'MIDDAY',
-    'PM PEAK',
-    'PM LATE',
-    'PM NITE'
+    "AM EARLY",
+    "AM PEAK",
+    "MIDDAY",
+    "PM PEAK",
+    "PM LATE",
+    "PM NITE",
 ]  # e.g. [] means skip time-period breakdown
 
 # If True, ridership columns in the "Original" data are rounded to 1 decimal place.
@@ -54,21 +52,8 @@ APPLY_ROUNDING = True
 # get rounded to 1 decimal place only if APPLY_ROUNDING = True.
 AGGREGATE_BIN_RANGES = False
 
-REQUIRED_COLUMNS = [
-    'TIME_PERIOD',
-    'ROUTE_NAME',
-    'STOP',
-    'STOP_ID',
-    'BOARD_ALL',
-    'ALIGHT_ALL'
-]
-COLUMNS_TO_RETAIN = [
-    'ROUTE_NAME',
-    'STOP',
-    'STOP_ID',
-    'BOARD_ALL',
-    'ALIGHT_ALL'
-]
+REQUIRED_COLUMNS = ["TIME_PERIOD", "ROUTE_NAME", "STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL"]
+COLUMNS_TO_RETAIN = ["ROUTE_NAME", "STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL"]
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS
@@ -90,18 +75,20 @@ def aggregate_by_stop(data_subset):
     """
     Summarize ridership by stop, totaling boardings and alightings, and listing unique routes.
     """
-    aggregated = data_subset.groupby(['STOP', 'STOP_ID'], as_index=False).agg({
-        'BOARD_ALL': 'sum',
-        'ALIGHT_ALL': 'sum',
-        'ROUTE_NAME': lambda x: ', '.join(sorted(x.unique()))
-    })
+    aggregated = data_subset.groupby(["STOP", "STOP_ID"], as_index=False).agg(
+        {
+            "BOARD_ALL": "sum",
+            "ALIGHT_ALL": "sum",
+            "ROUTE_NAME": lambda x: ", ".join(sorted(x.unique())),
+        }
+    )
     aggregated.rename(
         columns={
-            'BOARD_ALL': 'BOARD_ALL_TOTAL',
-            'ALIGHT_ALL': 'ALIGHT_ALL_TOTAL',
-            'ROUTE_NAME': 'ROUTES'
+            "BOARD_ALL": "BOARD_ALL_TOTAL",
+            "ALIGHT_ALL": "ALIGHT_ALL_TOTAL",
+            "ROUTE_NAME": "ROUTES",
         },
-        inplace=True
+        inplace=True,
     )
     return aggregated
 
@@ -136,9 +123,9 @@ def filter_data(data_frame, routes, stop_ids):
     """
     filtered_df = data_frame.copy()
     if routes:
-        filtered_df = filtered_df[filtered_df['ROUTE_NAME'].isin(routes)]
+        filtered_df = filtered_df[filtered_df["ROUTE_NAME"].isin(routes)]
     if stop_ids:
-        filtered_df = filtered_df[filtered_df['STOP_ID'].isin(stop_ids)]
+        filtered_df = filtered_df[filtered_df["STOP_ID"].isin(stop_ids)]
     return filtered_df
 
 
@@ -149,14 +136,14 @@ def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggreg
     try:
         # Remove 'engine="openpyxl"' to avoid abstract-class-instantiated warnings
         with pd.ExcelWriter(output_file) as writer:
-            filtered_data.to_excel(writer, sheet_name='Original', index=False)
+            filtered_data.to_excel(writer, sheet_name="Original", index=False)
 
             # Write each time period's aggregated data
             for period, df_agg in aggregated_peaks.items():
                 df_agg.to_excel(writer, sheet_name=period, index=False)
 
             # Always write the all-time aggregated data
-            all_time_aggregated.to_excel(writer, sheet_name='All Time Periods', index=False)
+            all_time_aggregated.to_excel(writer, sheet_name="All Time Periods", index=False)
 
             writer.save()
 
@@ -183,7 +170,7 @@ def adjust_excel_formatting(output_file):
                 max_length = 0
                 col_letter = column_cells[0].column_letter
                 for cell in column_cells:
-                    cell_val = str(cell.value) if cell.value is not None else ''
+                    cell_val = str(cell.value) if cell.value is not None else ""
                     max_length = max(max_length, len(cell_val))
                 sheet.column_dimensions[col_letter].width = max_length + 2
         workbook.save(output_file)
@@ -204,7 +191,7 @@ def process_aggregations(filtered_data):
     if TIME_PERIODS:
         for period in TIME_PERIODS:
             period_upper = period.upper()
-            subset = filtered_data[filtered_data['TIME_PERIOD'] == period_upper]
+            subset = filtered_data[filtered_data["TIME_PERIOD"] == period_upper]
             peak_data_dict[period] = subset[COLUMNS_TO_RETAIN]
 
     # Aggregate data for all rows (regardless of time period)
@@ -218,7 +205,7 @@ def process_aggregations(filtered_data):
 
     # 1) Round the original ridership columns if requested
     if APPLY_ROUNDING:
-        for col in ['BOARD_ALL', 'ALIGHT_ALL']:
+        for col in ["BOARD_ALL", "ALIGHT_ALL"]:
             if col in filtered_data.columns:
                 filtered_data[col] = filtered_data[col].round(1)
 
@@ -227,13 +214,13 @@ def process_aggregations(filtered_data):
     for df_agg in all_dfs:
         if AGGREGATE_BIN_RANGES:
             # Convert numeric aggregated totals into bins
-            for col in ['BOARD_ALL_TOTAL', 'ALIGHT_ALL_TOTAL']:
+            for col in ["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]:
                 if col in df_agg.columns:
                     df_agg[col] = df_agg[col].apply(bin_ridership_value)
         else:
             # If not binning, but rounding is desired, do decimal rounding
             if APPLY_ROUNDING:
-                for col in ['BOARD_ALL_TOTAL', 'ALIGHT_ALL_TOTAL']:
+                for col in ["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]:
                     if col in df_agg.columns:
                         df_agg[col] = df_agg[col].round(1)
 
@@ -253,8 +240,10 @@ def main():
     base, ext = os.path.splitext(input_file)
     ext = ext.lower()
     if ext != OUTPUT_FILE_EXTENSION:
-        print(f"Warning: The input file has extension '{ext}'. "
-              f"Using '{OUTPUT_FILE_EXTENSION}' for output.")
+        print(
+            f"Warning: The input file has extension '{ext}'. "
+            f"Using '{OUTPUT_FILE_EXTENSION}' for output."
+        )
         ext = OUTPUT_FILE_EXTENSION
     output_file = f"{base}{OUTPUT_FILE_SUFFIX}{ext}"
 
@@ -266,14 +255,10 @@ def main():
     filtered_data = filter_data(ridership_df, ROUTES, STOP_IDS)
 
     # Standardize 'TIME_PERIOD' values
-    filtered_data['TIME_PERIOD'] = (
-        filtered_data['TIME_PERIOD'].astype(str).str.strip().str.upper()
-    )
+    filtered_data["TIME_PERIOD"] = filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
 
     # Process and retrieve final aggregated data
-    final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(
-        filtered_data
-    )
+    final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(filtered_data)
 
     # Write the data to Excel
     write_to_excel(output_file, final_filtered, aggregated_peaks, all_time_aggregated)
