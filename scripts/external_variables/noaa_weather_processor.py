@@ -33,50 +33,51 @@ OUTPUT_FOLDER = "Path/To/Your/output_folder"
 
 # Mapping of original column names to new, PEP-8 compliant column names
 COLUMN_MAPPING = {
-    'STATION': 'weather_station',
-    'NAME': 'station_name',
-    'DATE': 'date',
-    'AWND': 'average_wind_speed',
-    'PGTM': 'peak_gust_time',
-    'PRCP': 'precipitation',
-    'SNOW': 'snowfall',
-    'SNWD': 'snow_depth',
-    'TAVG': 'average_temperature',
-    'TMAX': 'maximum_temperature',
-    'TMIN': 'minimum_temperature',
-    'WDF2': 'direction_of_fastest_2_minute_wind',
-    'WDF5': 'direction_of_fastest_5_minute_wind',
-    'WT01': 'fog_ice_fog_freezing_fog',
-    'WT02': 'heavy_fog_heavy_freezing_fog',
-    'WT03': 'thunder',
-    'WT04': 'ice_pellets_sleet_snow_pellets_small_hail',
-    'WT05': 'hail_may_include_small_hail',
-    'WT06': 'glaze_or_rime',
-    'WT07': 'dust_volcanic_ash_blowing_dust_blowing_sand',
-    'WT08': 'smoke_or_haze',
-    'WT09': 'blowing_drifting_snow',
-    'WT11': 'high_or_damaging_winds',
-    'WT13': 'mist',
-    'WT14': 'drizzle',
-    'WT15': 'freezing_drizzle',
-    'WT16': 'rain_may_include_freezing_rain_drizzle',
-    'WT17': 'freezing_rain',
-    'WT18': 'snow_snow_pellets_snow_grains_ice_crystals',
-    'WT21': 'ground_fog',
-    'WT22': 'ice_fog_or_freezing_fog',
-    'WESD': 'water_equivalent_of_snow_on_ground',
-    'WSF2': 'fastest_2_minute_wind_speed',
-    'WSF5': 'fastest_5_second_wind_speed',
-    'FMTM': 'time_of_fastest_mile_or_1_minute_wind',
+    "STATION": "weather_station",
+    "NAME": "station_name",
+    "DATE": "date",
+    "AWND": "average_wind_speed",
+    "PGTM": "peak_gust_time",
+    "PRCP": "precipitation",
+    "SNOW": "snowfall",
+    "SNWD": "snow_depth",
+    "TAVG": "average_temperature",
+    "TMAX": "maximum_temperature",
+    "TMIN": "minimum_temperature",
+    "WDF2": "direction_of_fastest_2_minute_wind",
+    "WDF5": "direction_of_fastest_5_minute_wind",
+    "WT01": "fog_ice_fog_freezing_fog",
+    "WT02": "heavy_fog_heavy_freezing_fog",
+    "WT03": "thunder",
+    "WT04": "ice_pellets_sleet_snow_pellets_small_hail",
+    "WT05": "hail_may_include_small_hail",
+    "WT06": "glaze_or_rime",
+    "WT07": "dust_volcanic_ash_blowing_dust_blowing_sand",
+    "WT08": "smoke_or_haze",
+    "WT09": "blowing_drifting_snow",
+    "WT11": "high_or_damaging_winds",
+    "WT13": "mist",
+    "WT14": "drizzle",
+    "WT15": "freezing_drizzle",
+    "WT16": "rain_may_include_freezing_rain_drizzle",
+    "WT17": "freezing_rain",
+    "WT18": "snow_snow_pellets_snow_grains_ice_crystals",
+    "WT21": "ground_fog",
+    "WT22": "ice_fog_or_freezing_fog",
+    "WESD": "water_equivalent_of_snow_on_ground",
+    "WSF2": "fastest_2_minute_wind_speed",
+    "WSF5": "fastest_5_second_wind_speed",
+    "FMTM": "time_of_fastest_mile_or_1_minute_wind",
 }
 
 # Poor weather criteria thresholds
 POOR_WEATHER_CRITERIA = {
-    'average_wind_speed': 15.0,  # in mph (example threshold)
-    'maximum_temperature': 95.0,  # in Fahrenheit (example threshold)
-    'minimum_temperature': 20.0,  # in Fahrenheit (example threshold)
-    'snowfall': 2.0               # in inches (example threshold)
+    "average_wind_speed": 15.0,  # in mph (example threshold)
+    "maximum_temperature": 95.0,  # in Fahrenheit (example threshold)
+    "minimum_temperature": 20.0,  # in Fahrenheit (example threshold)
+    "snowfall": 2.0,  # in inches (example threshold)
 }
+
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS
@@ -133,13 +134,13 @@ def process_date_columns(weather_df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: DataFrame with additional date-related columns.
     """
     try:
-        weather_df['date'] = pd.to_datetime(weather_df['date'])
-        weather_df['year_month'] = weather_df['date'].dt.to_period('M')
-        weather_df['year'] = weather_df['date'].dt.year
-        weather_df['month'] = weather_df['date'].dt.month
-        weather_df['day'] = weather_df['date'].dt.day
-        weather_df['day_of_week'] = weather_df['date'].dt.dayofweek  # 0 = Monday, 6 = Sunday
-        weather_df['day_name'] = weather_df['date'].dt.day_name()     # Human-readable day name
+        weather_df["date"] = pd.to_datetime(weather_df["date"])
+        weather_df["year_month"] = weather_df["date"].dt.to_period("M")
+        weather_df["year"] = weather_df["date"].dt.year
+        weather_df["month"] = weather_df["date"].dt.month
+        weather_df["day"] = weather_df["date"].dt.day
+        weather_df["day_of_week"] = weather_df["date"].dt.dayofweek  # 0 = Monday, 6 = Sunday
+        weather_df["day_name"] = weather_df["date"].dt.day_name()  # Human-readable day name
         print("Date columns processed successfully.")
         return weather_df
     except KeyError:
@@ -162,12 +163,12 @@ def classify_poor_weather(weather_df: pd.DataFrame, criteria: dict) -> pd.DataFr
         pd.DataFrame: DataFrame with an additional 'poor_weather' column.
     """
     conditions = (
-        (weather_df['average_wind_speed'] > criteria['average_wind_speed'])
-        | (weather_df['maximum_temperature'] > criteria['maximum_temperature'])
-        | (weather_df['minimum_temperature'] < criteria['minimum_temperature'])
-        | (weather_df['snowfall'] > criteria['snowfall'])
+        (weather_df["average_wind_speed"] > criteria["average_wind_speed"])
+        | (weather_df["maximum_temperature"] > criteria["maximum_temperature"])
+        | (weather_df["minimum_temperature"] < criteria["minimum_temperature"])
+        | (weather_df["snowfall"] > criteria["snowfall"])
     )
-    weather_df['poor_weather'] = conditions
+    weather_df["poor_weather"] = conditions
     print("Poor weather days classified successfully.")
     return weather_df
 
@@ -183,20 +184,26 @@ def create_daily_summary(weather_df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: Daily summary DataFrame with aggregated metrics and day names.
     """
     try:
-        daily_summary = weather_df.groupby('date').agg({
-            'average_wind_speed': 'mean',
-            'precipitation': 'sum',
-            'snowfall': 'sum',
-            'snow_depth': 'mean',
-            'average_temperature': 'mean',
-            'maximum_temperature': 'max',
-            'minimum_temperature': 'min',
-            'poor_weather': 'max'  # If any condition met, mark as True
-        }).reset_index()
+        daily_summary = (
+            weather_df.groupby("date")
+            .agg(
+                {
+                    "average_wind_speed": "mean",
+                    "precipitation": "sum",
+                    "snowfall": "sum",
+                    "snow_depth": "mean",
+                    "average_temperature": "mean",
+                    "maximum_temperature": "max",
+                    "minimum_temperature": "min",
+                    "poor_weather": "max",  # If any condition met, mark as True
+                }
+            )
+            .reset_index()
+        )
 
         # Add 'day_name' by merging with original DataFrame
-        day_names = weather_df[['date', 'day_name']].drop_duplicates()
-        daily_summary = daily_summary.merge(day_names, on='date', how='left')
+        day_names = weather_df[["date", "day_name"]].drop_duplicates()
+        daily_summary = daily_summary.merge(day_names, on="date", how="left")
 
         print("Daily summary created successfully.")
         return daily_summary
@@ -216,38 +223,42 @@ def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFram
         pd.DataFrame: Monthly summary with counts of poor weather days per day type.
     """
     try:
+
         def categorize_day(day_num):
             if day_num < 5:
-                return 'Weekday'
+                return "Weekday"
             if day_num == 5:
-                return 'Saturday'
-            return 'Sunday'
+                return "Saturday"
+            return "Sunday"
 
-        weather_df['day_type'] = weather_df['day_of_week'].apply(categorize_day)
+        weather_df["day_type"] = weather_df["day_of_week"].apply(categorize_day)
 
         # Filter poor weather days
-        poor_weather_df = weather_df[weather_df['poor_weather']]
+        poor_weather_df = weather_df[weather_df["poor_weather"]]
 
         # Group by year_month and day_type, count poor weather days
-        monthly_summary = poor_weather_df.groupby(
-            ['year_month', 'day_type']
-        ).size().reset_index(name='poor_weather_days')
+        monthly_summary = (
+            poor_weather_df.groupby(["year_month", "day_type"])
+            .size()
+            .reset_index(name="poor_weather_days")
+        )
 
         # Pivot to have day types as columns
         monthly_summary_pivot = (
-            monthly_summary
-            .pivot(index='year_month', columns='day_type', values='poor_weather_days')
+            monthly_summary.pivot(
+                index="year_month", columns="day_type", values="poor_weather_days"
+            )
             .fillna(0)
             .reset_index()
         )
 
         # Ensure all day types are present
-        for day_type in ['Weekday', 'Saturday', 'Sunday']:
+        for day_type in ["Weekday", "Saturday", "Sunday"]:
             if day_type not in monthly_summary_pivot.columns:
                 monthly_summary_pivot[day_type] = 0
 
         # Convert year_month to string for easier handling
-        monthly_summary_pivot['year_month'] = monthly_summary_pivot['year_month'].astype(str)
+        monthly_summary_pivot["year_month"] = monthly_summary_pivot["year_month"].astype(str)
 
         print("Monthly poor weather summary created successfully.")
         return monthly_summary_pivot
@@ -301,14 +312,15 @@ def main():
     monthly_poor_weather_summary_df = create_monthly_poor_weather_summary(weather_data)
 
     # Save processed data
-    save_dataframe(weather_data, OUTPUT_FOLDER, 'processed_weather_data.csv')
+    save_dataframe(weather_data, OUTPUT_FOLDER, "processed_weather_data.csv")
 
     # Save daily summary
-    save_dataframe(daily_summary_df, OUTPUT_FOLDER, 'daily_summary.csv')
+    save_dataframe(daily_summary_df, OUTPUT_FOLDER, "daily_summary.csv")
 
     # Save monthly poor weather summary
-    save_dataframe(monthly_poor_weather_summary_df, OUTPUT_FOLDER,
-                   'monthly_poor_weather_summary.csv')
+    save_dataframe(
+        monthly_poor_weather_summary_df, OUTPUT_FOLDER, "monthly_poor_weather_summary.csv"
+    )
 
     # Display the first few rows of the processed DataFrame
     print("\nProcessed Weather Data:")
