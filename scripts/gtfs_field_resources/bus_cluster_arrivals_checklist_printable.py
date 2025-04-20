@@ -28,40 +28,40 @@ from openpyxl.utils import get_column_letter
 # =============================================================================
 
 # Output directory
-BASE_OUTPUT_PATH = r'\\your_file_path\here\\'
+BASE_OUTPUT_PATH = r"\\your_file_path\here\\"
 
 # Input file paths to load GTFS files with specified dtypes
-BASE_INPUT_PATH = r'\\your_file_path\here\\'
+BASE_INPUT_PATH = r"\\your_file_path\here\\"
 
 # Which field to use for clustering filters, 'stop_id' or 'stop_code'
-STOP_IDENTIFIER_FIELD = 'stop_code'  # or 'stop_id'
+STOP_IDENTIFIER_FIELD = "stop_code"  # or 'stop_id'
 
 # Define columns to read as strings
 DTYPE_DICT = {
-    'stop_id': str,
-    'trip_id': str,
-    'route_id': str,
-    'service_id': str,
+    "stop_id": str,
+    "trip_id": str,
+    "route_id": str,
+    "service_id": str,
     # Add other ID fields as needed
 }
 
 # List of required GTFS files
-GTFS_FILES = ['trips.txt', 'stop_times.txt', 'routes.txt', 'stops.txt', 'calendar.txt']
+GTFS_FILES = ["trips.txt", "stop_times.txt", "routes.txt", "stops.txt", "calendar.txt"]
 
 # Define clusters with stop IDs or stop_codes (depending on STOP_IDENTIFIER_FIELD)
 # Format: {'Cluster Name': ['identifier1', 'identifier2', ...]}
 CLUSTERS = {
-    'Your Cluster 1': ['1', '2', '3'],   # If using 'stop_id', these are stop_ids
-    'Your Cluster 2': ['4', '5', '6'],   # If using 'stop_code', these must be stop_codes
-    'Your Cluster 3': ['7', '8', '9', '10'],
+    "Your Cluster 1": ["1", "2", "3"],  # If using 'stop_id', these are stop_ids
+    "Your Cluster 2": ["4", "5", "6"],  # If using 'stop_code', these must be stop_codes
+    "Your Cluster 3": ["7", "8", "9", "10"],
 }
 
 # Define schedule types and corresponding days in the calendar
 # Format: {'Schedule Type': ['day1', 'day2', ...]}
 SCHEDULE_TYPES = {
-    'Weekday': ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-    'Saturday': ['saturday'],
-    'Sunday': ['sunday'],
+    "Weekday": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    "Saturday": ["saturday"],
+    "Sunday": ["sunday"],
     # 'Friday': ['friday'],  # Uncomment if you have a unique Friday schedule
 }
 
@@ -69,13 +69,13 @@ SCHEDULE_TYPES = {
 # Format: {'Schedule Type': {'Time Window Name': ('Start Time', 'End Time')}}
 # Times should be in 'HH:MM' 24-hour format
 TIME_WINDOWS = {
-    'Weekday': {
-        'morning': ('06:00', '09:59'),
-        'afternoon': ('14:00', '17:59'),
+    "Weekday": {
+        "morning": ("06:00", "09:59"),
+        "afternoon": ("14:00", "17:59"),
         # 'evening': ('18:00', '21:59'),  # Add as needed
     },
-    'Saturday': {
-        'midday': ('10:00', '13:59'),
+    "Saturday": {
+        "midday": ("10:00", "13:59"),
         # Add more time windows for Saturday if needed
     },
     # 'Sunday': {  # Uncomment and customize for Sunday if needed
@@ -87,7 +87,6 @@ TIME_WINDOWS = {
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def validate_input_directory(base_input_path, gtfs_files):
     """
@@ -116,11 +115,11 @@ def load_gtfs_data(base_input_path, dtype_dict):
     """
     Load all required GTFS files into Pandas DataFrames and return them.
     """
-    trips = pd.read_csv(os.path.join(base_input_path, 'trips.txt'), dtype=dtype_dict)
-    stop_times = pd.read_csv(os.path.join(base_input_path, 'stop_times.txt'), dtype=dtype_dict)
-    routes = pd.read_csv(os.path.join(base_input_path, 'routes.txt'), dtype=dtype_dict)
-    stops = pd.read_csv(os.path.join(base_input_path, 'stops.txt'), dtype=dtype_dict)
-    calendar = pd.read_csv(os.path.join(base_input_path, 'calendar.txt'), dtype=dtype_dict)
+    trips = pd.read_csv(os.path.join(base_input_path, "trips.txt"), dtype=dtype_dict)
+    stop_times = pd.read_csv(os.path.join(base_input_path, "stop_times.txt"), dtype=dtype_dict)
+    routes = pd.read_csv(os.path.join(base_input_path, "routes.txt"), dtype=dtype_dict)
+    stops = pd.read_csv(os.path.join(base_input_path, "stops.txt"), dtype=dtype_dict)
+    calendar = pd.read_csv(os.path.join(base_input_path, "calendar.txt"), dtype=dtype_dict)
     return trips, stop_times, routes, stops, calendar
 
 
@@ -129,14 +128,14 @@ def apply_stop_identifier_mode(stops_df, stop_identifier_field):
     If user chooses 'stop_code' as STOP_IDENTIFIER_FIELD, rename the stops_df column
     'stop_code' to 'stop_id' so that downstream code can remain unchanged.
     """
-    if stop_identifier_field not in ['stop_id', 'stop_code']:
+    if stop_identifier_field not in ["stop_id", "stop_code"]:
         raise ValueError("STOP_IDENTIFIER_FIELD must be 'stop_id' or 'stop_code'.")
 
-    if stop_identifier_field == 'stop_code':
-        if 'stop_code' not in stops_df.columns:
+    if stop_identifier_field == "stop_code":
+        if "stop_code" not in stops_df.columns:
             raise ValueError("No 'stop_code' column found in stops data.")
         # Overwrite stops['stop_id'] with the values from stop_code
-        stops_df['stop_id'] = stops_df['stop_code']
+        stops_df["stop_id"] = stops_df["stop_code"]
 
 
 def fix_time_format(time_str):
@@ -155,22 +154,19 @@ def export_to_excel(df, output_file):
     """
     Export the given DataFrame to an Excel file with basic formatting.
     """
-    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+    with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         df.to_excel(writer, index=False)
         workbook = writer.book
-        worksheet = writer.sheets['Sheet1']
+        worksheet = writer.sheets["Sheet1"]
 
         # Align all headers to the left
         for cell in worksheet[1]:
-            cell.alignment = Alignment(horizontal='left')
+            cell.alignment = Alignment(horizontal="left")
 
         # Adjust the width of all columns
         for idx, col in enumerate(df.columns, 1):  # 1-based indexing for Excel columns
             column_letter = get_column_letter(idx)
-            max_length = max(
-                df[col].astype(str).map(len).max(),
-                len(str(col))
-            ) + 2  # Extra space
+            max_length = max(df[col].astype(str).map(len).max(), len(str(col))) + 2  # Extra space
             worksheet.column_dimensions[column_letter].width = max_length
 
 
@@ -182,56 +178,53 @@ def process_cluster_data(
     both the full data set and any time-window-specific subsets to Excel files.
     """
     # Fix arrival and departure times
-    cluster_data['arrival_time'] = cluster_data['arrival_time'].apply(fix_time_format)
-    cluster_data['departure_time'] = cluster_data['departure_time'].apply(fix_time_format)
+    cluster_data["arrival_time"] = cluster_data["arrival_time"].apply(fix_time_format)
+    cluster_data["departure_time"] = cluster_data["departure_time"].apply(fix_time_format)
 
     # Convert columns to string in HH:MM format
-    cluster_data['arrival_time'] = cluster_data['arrival_time'].astype(str)
-    cluster_data['departure_time'] = cluster_data['departure_time'].astype(str)
+    cluster_data["arrival_time"] = cluster_data["arrival_time"].astype(str)
+    cluster_data["departure_time"] = cluster_data["departure_time"].astype(str)
 
     # Sort by arrival_time using a temporary datetime conversion
-    cluster_data['arrival_sort'] = pd.to_datetime(cluster_data['arrival_time'], format='%H:%M')
-    cluster_data = cluster_data.sort_values(by='arrival_sort').drop(columns='arrival_sort')
+    cluster_data["arrival_sort"] = pd.to_datetime(cluster_data["arrival_time"], format="%H:%M")
+    cluster_data = cluster_data.sort_values(by="arrival_sort").drop(columns="arrival_sort")
 
     # Insert placeholder columns
+    cluster_data.insert(cluster_data.columns.get_loc("arrival_time") + 1, "act_arrival", "________")
     cluster_data.insert(
-        cluster_data.columns.get_loc('arrival_time') + 1,
-        'act_arrival',
-        '________'
+        cluster_data.columns.get_loc("departure_time") + 1, "act_departure", "________"
     )
-    cluster_data.insert(
-        cluster_data.columns.get_loc('departure_time') + 1,
-        'act_departure',
-        '________'
-    )
-    cluster_data.insert(
-        cluster_data.columns.get_loc('block_id') + 1,
-        'act_block',
-        '________'
-    )
+    cluster_data.insert(cluster_data.columns.get_loc("block_id") + 1, "act_block", "________")
 
     # Modify placeholders for first/last stop in each trip
-    cluster_data.loc[cluster_data['sequence_long'] == 'start', 'act_arrival'] = '__XXXX__'
-    cluster_data.loc[cluster_data['sequence_long'] == 'last', 'act_departure'] = '__XXXX__'
+    cluster_data.loc[cluster_data["sequence_long"] == "start", "act_arrival"] = "__XXXX__"
+    cluster_data.loc[cluster_data["sequence_long"] == "last", "act_departure"] = "__XXXX__"
 
     # Add bus_number and comments columns
-    cluster_data['bus_number'] = '________'
-    cluster_data['comments'] = '________________'
+    cluster_data["bus_number"] = "________"
+    cluster_data["comments"] = "________________"
 
     # Merge with stop names
     cluster_data = pd.merge(
-        cluster_data,
-        stops_df[['stop_id', 'stop_name']],
-        on='stop_id',
-        how='left'
+        cluster_data, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left"
     )
 
     # Reorder columns
     first_columns = [
-        'route_short_name', 'trip_headsign', 'stop_sequence', 'sequence_long',
-        'stop_id', 'stop_name', 'arrival_time', 'act_arrival',
-        'departure_time', 'act_departure', 'block_id', 'act_block',
-        'bus_number', 'comments'
+        "route_short_name",
+        "trip_headsign",
+        "stop_sequence",
+        "sequence_long",
+        "stop_id",
+        "stop_name",
+        "arrival_time",
+        "act_arrival",
+        "departure_time",
+        "act_departure",
+        "block_id",
+        "act_block",
+        "bus_number",
+        "comments",
     ]
     other_columns = [col for col in cluster_data.columns if col not in first_columns]
     cluster_data = cluster_data[first_columns + other_columns]
@@ -239,16 +232,26 @@ def process_cluster_data(
     # Drop unnecessary columns
     cluster_data = cluster_data.drop(
         columns=[
-            'shape_dist_traveled', 'shape_id', 'route_id', 'service_id',
-            'trip_id', 'timepoint', 'direction_id', 'stop_headsign',
-            'pickup_type', 'drop_off_type', 'wheelchair_accessible',
-            'bikes_allowed', 'trip_short_name', 'stop_code'
+            "shape_dist_traveled",
+            "shape_id",
+            "route_id",
+            "service_id",
+            "trip_id",
+            "timepoint",
+            "direction_id",
+            "stop_headsign",
+            "pickup_type",
+            "drop_off_type",
+            "wheelchair_accessible",
+            "bikes_allowed",
+            "trip_short_name",
+            "stop_code",
         ],
-        errors='ignore'
+        errors="ignore",
     )
 
     # Export full cluster data
-    output_file_name = f'{cluster_name}_{schedule_name}_data.xlsx'
+    output_file_name = f"{cluster_name}_{schedule_name}_data.xlsx"
     output_file = os.path.join(base_output_path, output_file_name)
     export_to_excel(cluster_data, output_file)
 
@@ -260,11 +263,11 @@ def process_cluster_data(
             start_time_str, end_time_str = time_range
 
             # Parse the start and end times
-            start_dt = pd.to_datetime(start_time_str, format='%H:%M').time()
-            end_dt = pd.to_datetime(end_time_str, format='%H:%M').time()
+            start_dt = pd.to_datetime(start_time_str, format="%H:%M").time()
+            end_dt = pd.to_datetime(end_time_str, format="%H:%M").time()
 
             # Convert arrival_time strings (HH:MM) to datetime.time for filtering
-            arrival_times = pd.to_datetime(cluster_data['arrival_time'], format='%H:%M').dt.time
+            arrival_times = pd.to_datetime(cluster_data["arrival_time"], format="%H:%M").dt.time
             filtered_data = cluster_data[(arrival_times >= start_dt) & (arrival_times <= end_dt)]
 
             if filtered_data.empty:
@@ -275,7 +278,7 @@ def process_cluster_data(
                 continue
 
             # Export filtered data to Excel
-            output_file_name = f'{cluster_name}_{schedule_name}_{time_window_name}_data.xlsx'
+            output_file_name = f"{cluster_name}_{schedule_name}_{time_window_name}_data.xlsx"
             output_file = os.path.join(base_output_path, output_file_name)
             export_to_excel(filtered_data, output_file)
 
@@ -303,7 +306,7 @@ def generate_gtfs_checklists():
     apply_stop_identifier_mode(stops, STOP_IDENTIFIER_FIELD)
 
     # Ensure stop_id is a string in stops
-    stops['stop_id'] = stops['stop_id'].astype(str)
+    stops["stop_id"] = stops["stop_id"].astype(str)
 
     # 5) Process each schedule type
     for schedule_name, days in SCHEDULE_TYPES.items():
@@ -311,31 +314,27 @@ def generate_gtfs_checklists():
 
         # Filter calendar by days
         service_mask = calendar[days].astype(bool).all(axis=1)
-        relevant_service_ids = calendar.loc[service_mask, 'service_id']
+        relevant_service_ids = calendar.loc[service_mask, "service_id"]
 
         # Filter trips by relevant service IDs
-        trips_filtered = trips[trips['service_id'].isin(relevant_service_ids)]
+        trips_filtered = trips[trips["service_id"].isin(relevant_service_ids)]
 
         if trips_filtered.empty:
             print(f"No trips found for {schedule_name} schedule. Skipping.")
             continue
 
         # Merge with stop_times and routes
-        merged_data = pd.merge(stop_times, trips_filtered, on='trip_id')
-        merged_data = pd.merge(
-            merged_data,
-            routes[['route_id', 'route_short_name']],
-            on='route_id'
-        )
+        merged_data = pd.merge(stop_times, trips_filtered, on="trip_id")
+        merged_data = pd.merge(merged_data, routes[["route_id", "route_short_name"]], on="route_id")
 
         # Ensure stop_id is string in merged_data
-        merged_data['stop_id'] = merged_data['stop_id'].astype(str)
+        merged_data["stop_id"] = merged_data["stop_id"].astype(str)
 
         # Create sequence_long column
-        merged_data['sequence_long'] = 'middle'
-        merged_data.loc[merged_data['stop_sequence'] == 1, 'sequence_long'] = 'start'
-        max_sequence = merged_data.groupby('trip_id')['stop_sequence'].transform('max')
-        merged_data.loc[merged_data['stop_sequence'] == max_sequence, 'sequence_long'] = 'last'
+        merged_data["sequence_long"] = "middle"
+        merged_data.loc[merged_data["stop_sequence"] == 1, "sequence_long"] = "start"
+        max_sequence = merged_data.groupby("trip_id")["stop_sequence"].transform("max")
+        merged_data.loc[merged_data["stop_sequence"] == max_sequence, "sequence_long"] = "last"
 
         # 6) Process each cluster
         for cluster_name, cluster_stop_ids in CLUSTERS.items():
@@ -345,7 +344,7 @@ def generate_gtfs_checklists():
             cluster_stop_ids = [str(sid) for sid in cluster_stop_ids]
 
             # Filter merged data by cluster's stops
-            cluster_data = merged_data[merged_data['stop_id'].isin(cluster_stop_ids)]
+            cluster_data = merged_data[merged_data["stop_id"].isin(cluster_stop_ids)]
 
             if cluster_data.empty:
                 print(f"No data found for {cluster_name} on {schedule_name} schedule. Skipping.")
@@ -358,7 +357,7 @@ def generate_gtfs_checklists():
                 cluster_name,
                 schedule_name,
                 BASE_OUTPUT_PATH,
-                time_windows=TIME_WINDOWS
+                time_windows=TIME_WINDOWS,
             )
 
     print("All clusters and schedules have been processed and exported.")
@@ -368,7 +367,6 @@ def generate_gtfs_checklists():
 # MAIN
 # =============================================================================
 
-
 def main():
     """
     Main entry point of the script.
@@ -376,5 +374,5 @@ def main():
     generate_gtfs_checklists()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
