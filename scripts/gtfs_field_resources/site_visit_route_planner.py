@@ -30,26 +30,26 @@ from shapely.geometry import LineString, Point
 # =============================================================================
 
 # Adjust these paths to match your data locations
-GTFS_PATH = r'C:\Path\To\Your\GTFS_data'
-OUTPUT_DIR = r'C:\Path\To\Your\Output_folder'
-ROADWAYS_SHP_PATH = r'C:\Path\To\Your\Roadways.shp'
+GTFS_PATH = r"C:\Path\To\Your\GTFS_data"
+OUTPUT_DIR = r"C:\Path\To\Your\Output_folder"
+ROADWAYS_SHP_PATH = r"C:\Path\To\Your\Roadways.shp"
 
 # GTFS stop IDs for demonstration
-SELECTED_STOP_IDS = ['1001', '1002', '1003', '1004', '1005']
+SELECTED_STOP_IDS = ["1001", "1002", "1003", "1004", "1005"]
 
 # GTFS column with the stop identifiers
-SELECTED_STOP_ID_COL = 'stop_id'
+SELECTED_STOP_ID_COL = "stop_id"
 
 # A single string from Google Maps, e.g., "38°51'54.5\"N 77°21'53.6\"W"
-GOOGLE_MAPS_COORD_STR = '38°51\'54.5"N 77°21\'53.6"W'
+GOOGLE_MAPS_COORD_STR = "38°51'54.5\"N 77°21'53.6\"W"
 
 # We assume the road shapefile is in EPSG:2283 (NAD83 / Virginia North (ftUS)).
 # This means distances are in feet.
 TARGET_ROAD_CRS = "EPSG:2283"
 
 # Road shapefile columns/fields
-ONEWAY_COL = "ONEWAY"         # 'Y' for one-way, else two-way
-SPEED_COL = "SPEEDLIMI"       # Speed limit in mph
+ONEWAY_COL = "ONEWAY"  # 'Y' for one-way, else two-way
+SPEED_COL = "SPEEDLIMI"  # Speed limit in mph
 STREET_NAME_COL = "FULLNAME"  # Column containing the street name
 
 # Fallback average speed in ft/s (44 ft/s ~ 30 mph).
@@ -67,10 +67,11 @@ OPTIMIZATION_CONFIG = {
 
 # Build a transformer from WGS84 (lon/lat) to EPSG:2283 (feet).
 PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
-    "EPSG:4326",     # source (lat/lon)
-    TARGET_ROAD_CRS, # destination (feet)
-    always_xy=True   # treat x=lon, y=lat
+    "EPSG:4326",  # source (lat/lon)
+    TARGET_ROAD_CRS,  # destination (feet)
+    always_xy=True,  # treat x=lon, y=lat
 )
+
 
 def reproject_point_4326_to_2283(x_lon, y_lat):
     """
@@ -99,7 +100,7 @@ def dms_to_decimal(dms_str):
     seconds = float(match.group("seconds"))
     direction = match.group("direction").upper()
     dec = degrees + minutes / 60 + seconds / 3600
-    if direction in ['S', 'W']:
+    if direction in ["S", "W"]:
         dec = -dec
     return dec
 
@@ -176,20 +177,18 @@ def export_gtfs_stops(gtfs_path, output_dir, target_crs):
     2) Reprojects to target_crs (EPSG:2283, ftUS).
     3) Exports as a shapefile in that CRS.
     """
-    stops_file = os.path.join(gtfs_path, 'stops.txt')
+    stops_file = os.path.join(gtfs_path, "stops.txt")
     stops_df = pd.read_csv(stops_file)
 
     # Original is WGS84 lat/lon
     stops_gdf = gpd.GeoDataFrame(
-        stops_df,
-        geometry=gpd.points_from_xy(stops_df.stop_lon, stops_df.stop_lat),
-        crs='EPSG:4326'
+        stops_df, geometry=gpd.points_from_xy(stops_df.stop_lon, stops_df.stop_lat), crs="EPSG:4326"
     )
 
     # Now reproject to the road network CRS (feet)
     stops_gdf = stops_gdf.to_crs(target_crs)
 
-    shapefile_path = os.path.join(output_dir, 'gtfs_stops.shp')
+    shapefile_path = os.path.join(output_dir, "gtfs_stops.shp")
     stops_gdf.to_file(shapefile_path)
     print(f"Exported GTFS stops to shapefile: {shapefile_path}")
     return stops_gdf
@@ -221,7 +220,7 @@ def build_directed_road_network(
     oneway_col=ONEWAY_COL,
     speed_col=SPEED_COL,
     target_crs=TARGET_ROAD_CRS,
-    street_name_col=STREET_NAME_COL
+    street_name_col=STREET_NAME_COL,
 ):
     """
     Builds a directed road network from the shapefile, assumed to be in EPSG:2283 (ft).
@@ -257,32 +256,35 @@ def build_directed_road_network(
             coords = list(line.coords)
             for i in range(len(coords) - 1):
                 start = coords[i]
-                end = coords[i+1]
+                end = coords[i + 1]
                 seg_line = LineString([start, end])
                 length_ft = seg_line.length  # in feet
                 travel_time = length_ft / speed_fps  # in seconds
-                if oneway == 'Y':
+                if oneway == "Y":
                     G.add_edge(
-                        start, end,
+                        start,
+                        end,
                         weight=travel_time,
                         geometry=seg_line,
                         length=length_ft,
-                        street=street_name
+                        street=street_name,
                     )
                 else:
                     G.add_edge(
-                        start, end,
+                        start,
+                        end,
                         weight=travel_time,
                         geometry=seg_line,
                         length=length_ft,
-                        street=street_name
+                        street=street_name,
                     )
                     G.add_edge(
-                        end, start,
+                        end,
+                        start,
                         weight=travel_time,
                         geometry=seg_line,
                         length=length_ft,
-                        street=street_name
+                        street=street_name,
                     )
 
     print(f"Road network graph built: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
@@ -321,13 +323,10 @@ def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops)
                 node2 = stops_snapped[stop2]
                 try:
                     travel_time = nx.shortest_path_length(
-                        road_graph,
-                        source=node1,
-                        target=node2,
-                        weight='weight'
+                        road_graph, source=node1, target=node2, weight="weight"
                     )
                 except nx.NetworkXNoPath:
-                    travel_time = float('inf')
+                    travel_time = float("inf")
                 G.add_edge(stop1, stop2, weight=travel_time)
     return G
 
@@ -341,11 +340,10 @@ def compute_tsp_route_greedy(G):
     """
     Approximate TSP using NetworkX's greedy approach.
     """
-    tsp_route = nx.approximation.traveling_salesman_problem(G, weight='weight', cycle=True)
+    tsp_route = nx.approximation.traveling_salesman_problem(G, weight="weight", cycle=True)
     print("TSP Route (greedy) before rotation:", tsp_route)
     total_travel_time = sum(
-        G[tsp_route[i]][tsp_route[i+1]]['weight']
-        for i in range(len(tsp_route) - 1)
+        G[tsp_route[i]][tsp_route[i + 1]]["weight"] for i in range(len(tsp_route) - 1)
     )
     print("Total travel time (seconds) (greedy):", total_travel_time)
     return tsp_route, total_travel_time
@@ -357,9 +355,9 @@ def compute_tsp_route_ilp(G):
     Good for smaller stop counts (~15 or fewer).
     """
     nodes = list(G.nodes())
-    if 'start' in nodes:
-        nodes.remove('start')
-        nodes.insert(0, 'start')
+    if "start" in nodes:
+        nodes.remove("start")
+        nodes.insert(0, "start")
     n = len(nodes)
 
     index_to_node = {i: nodes[i] for i in range(n)}
@@ -369,24 +367,23 @@ def compute_tsp_route_ilp(G):
             if i != j:
                 u_node = index_to_node[i]
                 v_node = index_to_node[j]
-                weights[(i, j)] = G[u_node][v_node]['weight']
+                weights[(i, j)] = G[u_node][v_node]["weight"]
 
     prob = pulp.LpProblem("TSP", pulp.LpMinimize)
     x = {}
     for i in range(n):
         for j in range(n):
             if i != j:
-                x[(i, j)] = pulp.LpVariable(f"x_{i}_{j}", cat='Binary')
+                x[(i, j)] = pulp.LpVariable(f"x_{i}_{j}", cat="Binary")
 
     # Subtour elimination variables
     u = {}
-    u[0] = pulp.LpVariable("u_0", lowBound=0, upBound=0, cat='Continuous')
+    u[0] = pulp.LpVariable("u_0", lowBound=0, upBound=0, cat="Continuous")
     for i in range(1, n):
-        u[i] = pulp.LpVariable(f"u_{i}", lowBound=1, upBound=n-1, cat='Continuous')
+        u[i] = pulp.LpVariable(f"u_{i}", lowBound=1, upBound=n - 1, cat="Continuous")
 
     # Objective
-    prob += pulp.lpSum(weights[(i, j)] * x[(i, j)]
-                       for i in range(n) for j in range(n) if i != j)
+    prob += pulp.lpSum(weights[(i, j)] * x[(i, j)] for i in range(n) for j in range(n) if i != j)
 
     # Each node has exactly one outgoing edge
     for i in range(n):
@@ -426,7 +423,7 @@ def compute_tsp_route_ilp(G):
 
     total_travel_time = 0
     for i in range(len(route_indices) - 1):
-        total_travel_time += weights[(route_indices[i], route_indices[i+1])]
+        total_travel_time += weights[(route_indices[i], route_indices[i + 1])]
 
     print("TSP Route (ILP) before rotation:", tsp_route)
     print("Total travel time (seconds) (ILP):", total_travel_time)
@@ -450,22 +447,33 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
 
     for leg in range(len(tsp_route) - 1):
         source_stop = tsp_route[leg]
-        dest_stop = tsp_route[leg+1]
+        dest_stop = tsp_route[leg + 1]
 
         # Arrival/Departure marker
         if leg == 0:
-            directions_steps.append({"Step": step_num, "Instruction": f"Start at stop {source_stop}"})
+            directions_steps.append(
+                {"Step": step_num, "Instruction": f"Start at stop {source_stop}"}
+            )
             step_num += 1
         else:
-            directions_steps.append({"Step": step_num, "Instruction": f"Depart from stop {source_stop}"})
+            directions_steps.append(
+                {"Step": step_num, "Instruction": f"Depart from stop {source_stop}"}
+            )
             step_num += 1
 
         source_node = stops_snapped[source_stop]
         dest_node = stops_snapped[dest_stop]
         try:
-            path_nodes = nx.shortest_path(road_graph, source=source_node, target=dest_node, weight='weight')
+            path_nodes = nx.shortest_path(
+                road_graph, source=source_node, target=dest_node, weight="weight"
+            )
         except nx.NetworkXNoPath:
-            directions_steps.append({"Step": step_num, "Instruction": f"No path found from {source_stop} to {dest_stop}"})
+            directions_steps.append(
+                {
+                    "Step": step_num,
+                    "Instruction": f"No path found from {source_stop} to {dest_stop}",
+                }
+            )
             step_num += 1
             continue
 
@@ -473,16 +481,12 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
         segments = []
         for i in range(len(path_nodes) - 1):
             u = path_nodes[i]
-            v = path_nodes[i+1]
+            v = path_nodes[i + 1]
             edge_data = road_graph.get_edge_data(u, v)
             seg_heading = compute_heading(u, v)
             seg_length = edge_data.get("length", 0)  # in feet
             seg_street = edge_data.get("street", "Unnamed Road")
-            segments.append({
-                "street": seg_street,
-                "length": seg_length,
-                "heading": seg_heading
-            })
+            segments.append({"street": seg_street, "length": seg_length, "heading": seg_heading})
 
         # Group consecutive segments with the same street
         grouped = []
@@ -498,22 +502,30 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
 
         # Create instructions
         for i, group in enumerate(grouped):
-            length_ft = group['length']
+            length_ft = group["length"]
             if i == 0:
                 if leg == 0:
                     instruction = f"Proceed on {group['street']} for {length_ft:.0f} ft."
                 else:
-                    turn = compute_turn_direction(last_heading, group["heading"]) if last_heading is not None else "Straight"
+                    turn = (
+                        compute_turn_direction(last_heading, group["heading"])
+                        if last_heading is not None
+                        else "Straight"
+                    )
                     if turn == "Straight":
-                        instruction = f"Continue straight on {group['street']} for {length_ft:.0f} ft."
+                        instruction = (
+                            f"Continue straight on {group['street']} for {length_ft:.0f} ft."
+                        )
                     else:
                         instruction = f"Turn {turn} onto {group['street']} and continue for {length_ft:.0f} ft."
             else:
-                turn = compute_turn_direction(grouped[i-1]["heading"], group["heading"])
+                turn = compute_turn_direction(grouped[i - 1]["heading"], group["heading"])
                 if turn == "Straight":
                     instruction = f"Continue straight on {group['street']} for {length_ft:.0f} ft."
                 else:
-                    instruction = f"Turn {turn} onto {group['street']} and continue for {length_ft:.0f} ft."
+                    instruction = (
+                        f"Turn {turn} onto {group['street']} and continue for {length_ft:.0f} ft."
+                    )
             directions_steps.append({"Step": step_num, "Instruction": instruction})
             step_num += 1
 
@@ -545,20 +557,22 @@ def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, 
 
     for i in range(len(tsp_route) - 1):
         source_stop = tsp_route[i]
-        dest_stop = tsp_route[i+1]
+        dest_stop = tsp_route[i + 1]
 
         source_node = stops_snapped[source_stop]
         dest_node = stops_snapped[dest_stop]
 
         try:
-            path_nodes = nx.shortest_path(road_graph, source=source_node, target=dest_node, weight='weight')
+            path_nodes = nx.shortest_path(
+                road_graph, source=source_node, target=dest_node, weight="weight"
+            )
         except nx.NetworkXNoPath:
             continue
 
         # For each consecutive node pair in this path, gather edge geometry
         for j in range(len(path_nodes) - 1):
             u = path_nodes[j]
-            v = path_nodes[j+1]
+            v = path_nodes[j + 1]
             edge_data = road_graph.get_edge_data(u, v)
             if not edge_data:
                 continue
@@ -566,12 +580,14 @@ def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, 
             street_name = edge_data.get("street", "Unnamed Road")
 
             if geometry is not None:
-                route_features.append({
-                    "start_stop": source_stop,
-                    "end_stop": dest_stop,
-                    "street_name": street_name,
-                    "geometry": geometry
-                })
+                route_features.append(
+                    {
+                        "start_stop": source_stop,
+                        "end_stop": dest_stop,
+                        "street_name": street_name,
+                        "geometry": geometry,
+                    }
+                )
 
     if not route_features:
         print("No route features found (possibly no valid path). Shapefile not created.")
@@ -593,11 +609,11 @@ def plot_tsp_route(G, tsp_route):
     """
     Plots the complete graph of stops (in Node space) and highlights the TSP route.
     """
-    pos = nx.get_node_attributes(G, 'pos')
+    pos = nx.get_node_attributes(G, "pos")
     plt.figure(figsize=(8, 6))
-    nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500)
+    nx.draw(G, pos, with_labels=True, node_color="lightblue", edge_color="gray", node_size=500)
     route_edges = list(zip(tsp_route, tsp_route[1:]))
-    nx.draw_networkx_edges(G, pos, edgelist=route_edges, edge_color='red', width=2)
+    nx.draw_networkx_edges(G, pos, edgelist=route_edges, edge_color="red", width=2)
     plt.title("TSP Route for Selected Bus Stops (Road Network Time)")
     plt.xlabel("X (feet, EPSG:2283)")
     plt.ylabel("Y (feet, EPSG:2283)")
@@ -614,7 +630,7 @@ def main():
     Executes the entire workflow for exporting GTFS stops, building a directed road network,
     snapping the stops to this network, solving the Traveling Salesman Problem (TSP) on
     selected bus stops, and then exporting directions and the route as a shapefile.
-    
+
     Steps performed by this function:
         1. Reads GTFS stops from a CSV file in EPSG:4326 and reprojects them to EPSG:2283.
         2. Filters for the selected stop IDs from the GTFS data.
@@ -643,7 +659,7 @@ def main():
     lat_dd, lon_dd = parse_google_maps_coords(GOOGLE_MAPS_COORD_STR)
     # Reproject from EPSG:4326 -> EPSG:2283 (feet)
     start_coord_2283 = reproject_point_4326_to_2283(lon_dd, lat_dd)
-    bus_stops['start'] = start_coord_2283
+    bus_stops["start"] = start_coord_2283
 
     # 4. Build the directed road network (assumed EPSG:2283)
     road_graph, roads_gdf = build_directed_road_network(
@@ -651,7 +667,7 @@ def main():
         oneway_col=ONEWAY_COL,
         speed_col=SPEED_COL,
         target_crs=TARGET_ROAD_CRS,
-        street_name_col=STREET_NAME_COL
+        street_name_col=STREET_NAME_COL,
     )
 
     # 5. Snap each stop (and start) to the nearest node
@@ -680,7 +696,7 @@ def main():
         return
 
     # 8. Rotate route so it starts/ends at 'start'
-    tsp_route = rotate_route(tsp_route, 'start')
+    tsp_route = rotate_route(tsp_route, "start")
     print("TSP Route after rotation:", tsp_route)
 
     # 9. Generate directions and export to Excel
@@ -693,12 +709,12 @@ def main():
         stops_snapped,
         road_graph,
         roads_gdf.crs,  # same CRS as roads (EPSG:2283)
-        OUTPUT_DIR
+        OUTPUT_DIR,
     )
 
     # 11. Plot TSP route (just on the "bus stops" node graph)
     plot_tsp_route(road_time_complete_graph, tsp_route)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
