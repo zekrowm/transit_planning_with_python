@@ -18,27 +18,21 @@ from shapely.geometry import Point
 # =============================================================================
 
 # Paths to input files
-ROADWAYS_PATH = (
-    r'path\to\your\roadways.shp'  # Replace with your roadways shapefile path
-)
-GTFS_FOLDER = (
-    r'path\to\your\GTFS\folder'     # Replace with your GTFS folder path
-)
-STOPS_PATH = os.path.join(GTFS_FOLDER, 'stops.txt')
-OUTPUT_DIR = (
-    r'path\to\output\directory'       # Replace with your desired output directory
-)
+ROADWAYS_PATH = r"path\to\your\roadways.shp"  # Replace with your roadways shapefile path
+GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
+STOPS_PATH = os.path.join(GTFS_FOLDER, "stops.txt")
+OUTPUT_DIR = r"path\to\output\directory"  # Replace with your desired output directory
 
 # Coordinate Reference Systems
-STOPS_CRS = 'EPSG:4326'   # WGS84 Latitude/Longitude
-TARGET_CRS = 'EPSG:2283'  # NAD83 / Virginia North
+STOPS_CRS = "EPSG:4326"  # WGS84 Latitude/Longitude
+TARGET_CRS = "EPSG:2283"  # NAD83 / Virginia North
 
 # Negative buffer distances in feet
 BUFFER_DISTANCES = [-1, -5, -10]  # Adjust buffer distances as needed
 
 # Output file names
-OUTPUT_SHP_NAME = 'intersecting_stops.shp'
-OUTPUT_CSV_NAME = 'intersecting_stops.csv'
+OUTPUT_SHP_NAME = "intersecting_stops.shp"
+OUTPUT_CSV_NAME = "intersecting_stops.csv"
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS
@@ -90,7 +84,7 @@ def find_intersecting_stops(stops_gdf, roadways_gdf):
     Performs a spatial join to find stops that intersect with roadways.
     Returns only columns from stops_gdf.
     """
-    intersecting = gpd.sjoin(stops_gdf, roadways_gdf, how='inner', predicate='intersects')
+    intersecting = gpd.sjoin(stops_gdf, roadways_gdf, how="inner", predicate="intersects")
     return intersecting[stops_gdf.columns]
 
 
@@ -98,8 +92,8 @@ def add_xy_columns(gdf):
     """
     Adds 'x' and 'y' columns to a GeoDataFrame from its geometry.
     """
-    gdf['x'] = gdf.geometry.x
-    gdf['y'] = gdf.geometry.y
+    gdf["x"] = gdf.geometry.x
+    gdf["y"] = gdf.geometry.y
     return gdf
 
 
@@ -122,7 +116,7 @@ def determine_conflict_depth(stops_gdf, roadways_gdf, buffer_distances):
     for buffer_distance in buffer_distances:
         # Buffer the roadways by the negative distance
         roadways_buffered = roadways_gdf.copy()
-        roadways_buffered['geometry'] = roadways_buffered.geometry.buffer(buffer_distance)
+        roadways_buffered["geometry"] = roadways_buffered.geometry.buffer(buffer_distance)
 
         # Remove invalid or empty geometries
         roadways_buffered = roadways_buffered[~roadways_buffered.is_empty]
@@ -130,15 +124,12 @@ def determine_conflict_depth(stops_gdf, roadways_gdf, buffer_distances):
 
         # Spatial join to find stops that intersect the buffered roadways
         buffered_join = gpd.sjoin(
-            stops_gdf,
-            roadways_buffered[['geometry']],
-            how='left',
-            predicate='intersects'
+            stops_gdf, roadways_buffered[["geometry"]], how="left", predicate="intersects"
         )
 
         # Create a column to indicate whether the stop intersects the buffered roadways
-        column_name = f'conflict_{-buffer_distance}ft'
-        stops_gdf[column_name] = ~buffered_join['index_right'].isnull()
+        column_name = f"conflict_{-buffer_distance}ft"
+        stops_gdf[column_name] = ~buffered_join["index_right"].isnull()
 
     return stops_gdf
 
@@ -147,8 +138,8 @@ def sort_stops_by_conflict_depth(stops_gdf, buffer_distances):
     """
     Sorts the stops by conflict depth columns in descending order.
     """
-    conflict_columns = [f'conflict_{-bd}ft' for bd in buffer_distances]
-    return stops_gdf.sort_values(by=conflict_columns, ascending=[False]*len(conflict_columns))
+    conflict_columns = [f"conflict_{-bd}ft" for bd in buffer_distances]
+    return stops_gdf.sort_values(by=conflict_columns, ascending=[False] * len(conflict_columns))
 
 
 def save_shapefile(gdf, output_dir, shp_name):
@@ -214,5 +205,5 @@ def main():
     print("Processing complete. Output saved to:", OUTPUT_DIR)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
