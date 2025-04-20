@@ -52,20 +52,14 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER_PATH = r"C:\Path\To\Your\Input\Folder"    # <<< EDIT HERE
+GTFS_FOLDER_PATH = r"C:\Path\To\Your\Input\Folder"  # <<< EDIT HERE
 BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output\Folder"  # <<< EDIT HERE
 
-REQUIRED_GTFS_FILES = [
-    "trips.txt",
-    "stop_times.txt",
-    "stops.txt",
-    "routes.txt",
-    "calendar.txt"
-]
+REQUIRED_GTFS_FILES = ["trips.txt", "stop_times.txt", "stops.txt", "routes.txt", "calendar.txt"]
 
 # If you only want certain service IDs or route short names, specify them here:
-FILTER_SERVICE_IDS = []          # e.g. ['1', '2'] or [] to include all
-FILTER_ROUTE_SHORT_NAMES = []    # e.g. ['101', '202'] or [] to include all
+FILTER_SERVICE_IDS = []  # e.g. ['1', '2'] or [] to include all
+FILTER_ROUTE_SHORT_NAMES = []  # e.g. ['101', '202'] or [] to include all
 
 # Placeholder values for printing:
 MISSING_TIME = "________"
@@ -127,18 +121,17 @@ def load_gtfs_data(files=None, dtype=str):
             "feed_info.txt",
             "frequencies.txt",
             "shapes.txt",
-            "transfers.txt"
+            "transfers.txt",
         ]
 
     # Check for missing files
     missing = [
-        file_name for file_name in files
+        file_name
+        for file_name in files
         if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
     ]
     if missing:
-        raise FileNotFoundError(
-            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
-        )
+        raise FileNotFoundError(f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}")
 
     # Load files into DataFrames
     data = {}
@@ -173,7 +166,7 @@ def time_to_seconds(time_str):
     if pd.isnull(time_str):
         return math.nan
 
-    parts = time_str.strip().split(':')
+    parts = time_str.strip().split(":")
     if len(parts) < 2:
         return math.nan
 
@@ -217,9 +210,9 @@ def export_to_excel(data_frame, output_file):
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
     # Write DataFrame to Excel and access the worksheet object for formatting
-    with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-        data_frame.to_excel(writer, index=False, sheet_name='Schedule')
-        worksheet = writer.sheets['Schedule']
+    with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
+        data_frame.to_excel(writer, index=False, sheet_name="Schedule")
+        worksheet = writer.sheets["Schedule"]
 
         # Adjust columns
         for col_i, col_name in enumerate(data_frame.columns, 1):
@@ -227,12 +220,12 @@ def export_to_excel(data_frame, output_file):
 
             # Header alignment and text wrap
             header_cell = worksheet[f"{col_letter}1"]
-            header_cell.alignment = Alignment(horizontal='left', wrap_text=True)
+            header_cell.alignment = Alignment(horizontal="left", wrap_text=True)
 
             # Data alignment
             for row_i in range(2, worksheet.max_row + 1):
                 cell = worksheet[f"{col_letter}{row_i}"]
-                cell.alignment = Alignment(horizontal='left')
+                cell.alignment = Alignment(horizontal="left")
 
             # Set column width based on max content length, capped at MAX_COLUMN_WIDTH
             max_len = max(len(str(col_name)), 10)  # Minimum width
@@ -252,29 +245,28 @@ def filter_data(trips_df, stop_times_df, routes_df):
     """
 
     # Merge route_short_name into trips
-    routes_subset = routes_df[['route_id', 'route_short_name']]
-    trips_df = trips_df.merge(routes_subset, on='route_id', how='left')
+    routes_subset = routes_df[["route_id", "route_short_name"]]
+    trips_df = trips_df.merge(routes_subset, on="route_id", how="left")
 
     # Apply Route Filtering
     if FILTER_ROUTE_SHORT_NAMES:
         blocks_for_selected_routes = (
-            trips_df[trips_df['route_short_name'].isin(FILTER_ROUTE_SHORT_NAMES)]
-            ['block_id'].dropna().unique()
+            trips_df[trips_df["route_short_name"].isin(FILTER_ROUTE_SHORT_NAMES)]["block_id"]
+            .dropna()
+            .unique()
         )
         if len(blocks_for_selected_routes) == 0:
             print("No blocks found with the specified route short names.")
             return pd.DataFrame(), pd.DataFrame()
 
-        trips_df = trips_df[trips_df['block_id'].isin(blocks_for_selected_routes)]
+        trips_df = trips_df[trips_df["block_id"].isin(blocks_for_selected_routes)]
 
     # Apply Service ID Filtering
     if FILTER_SERVICE_IDS:
-        trips_df = trips_df[trips_df['service_id'].isin(FILTER_SERVICE_IDS)]
+        trips_df = trips_df[trips_df["service_id"].isin(FILTER_SERVICE_IDS)]
 
     # Filter stop_times to only include relevant trips
-    stop_times_df = stop_times_df[
-        stop_times_df['trip_id'].isin(trips_df['trip_id'])
-    ]
+    stop_times_df = stop_times_df[stop_times_df["trip_id"].isin(trips_df["trip_id"])]
 
     return trips_df, stop_times_df
 
@@ -285,37 +277,32 @@ def prepare_stop_times(trips_df, stop_times_df, stops_df):
     Returns the updated stop_times_df.
     """
     # If 'timepoint' does not exist, create a new column with 0.
-    if 'timepoint' not in stop_times_df.columns:
-        stop_times_df['timepoint'] = 0
+    if "timepoint" not in stop_times_df.columns:
+        stop_times_df["timepoint"] = 0
     else:
         # Convert to numeric, fill NaN with 0
-        stop_times_df['timepoint'] = (
-            pd.to_numeric(stop_times_df['timepoint'], errors='coerce')
-            .fillna(0).astype(int)
+        stop_times_df["timepoint"] = (
+            pd.to_numeric(stop_times_df["timepoint"], errors="coerce").fillna(0).astype(int)
         )
 
     # Merge essential trip columns into stop_times
-    needed_trip_cols = ['trip_id', 'block_id', 'route_short_name', 'direction_id']
-    stop_times_df = stop_times_df.merge(
-        trips_df[needed_trip_cols],
-        on='trip_id',
-        how='left'
-    )
+    needed_trip_cols = ["trip_id", "block_id", "route_short_name", "direction_id"]
+    stop_times_df = stop_times_df.merge(trips_df[needed_trip_cols], on="trip_id", how="left")
 
     # Convert arrival/departure times to seconds and format
-    stop_times_df['arrival_seconds'] = stop_times_df['arrival_time'].apply(time_to_seconds)
-    stop_times_df['departure_seconds'] = stop_times_df['departure_time'].apply(time_to_seconds)
-    stop_times_df['scheduled_time_hhmm'] = stop_times_df['departure_seconds'].apply(format_hhmm)
+    stop_times_df["arrival_seconds"] = stop_times_df["arrival_time"].apply(time_to_seconds)
+    stop_times_df["departure_seconds"] = stop_times_df["departure_time"].apply(time_to_seconds)
+    stop_times_df["scheduled_time_hhmm"] = stop_times_df["departure_seconds"].apply(format_hhmm)
 
     # Merge in stop names
-    stop_name_map = stops_df.set_index('stop_id')['stop_name'].to_dict()
-    stop_times_df['stop_name'] = stop_times_df['stop_id'].map(stop_name_map).fillna("Unknown Stop")
+    stop_name_map = stops_df.set_index("stop_id")["stop_name"].to_dict()
+    stop_times_df["stop_name"] = stop_times_df["stop_id"].map(stop_name_map).fillna("Unknown Stop")
 
     # Sort by block, trip, and stop_sequence
-    stop_times_df = stop_times_df.dropna(subset=['block_id'])
-    stop_times_df['stop_sequence'] = pd.to_numeric(stop_times_df['stop_sequence'], errors='coerce')
-    stop_times_df = stop_times_df.dropna(subset=['stop_sequence'])
-    stop_times_df.sort_values(['block_id', 'trip_id', 'stop_sequence'], inplace=True)
+    stop_times_df = stop_times_df.dropna(subset=["block_id"])
+    stop_times_df["stop_sequence"] = pd.to_numeric(stop_times_df["stop_sequence"], errors="coerce")
+    stop_times_df = stop_times_df.dropna(subset=["stop_sequence"])
+    stop_times_df.sort_values(["block_id", "trip_id", "stop_sequence"], inplace=True)
 
     return stop_times_df
 
@@ -324,79 +311,83 @@ def export_blocks(stop_times_df):
     """
     Groups rows by block_id and exports each block to a separate Excel file.
     """
-    all_blocks = stop_times_df['block_id'].unique()
+    all_blocks = stop_times_df["block_id"].unique()
     print(f"Found {len(all_blocks)} blocks to export.\n")
 
     for block_id in all_blocks:
-        block_subset = stop_times_df[stop_times_df['block_id'] == block_id].copy()
+        block_subset = stop_times_df[stop_times_df["block_id"] == block_id].copy()
         if block_subset.empty:
             continue
 
         # For each trip_id within this block, find earliest departure
         first_departures = (
-            block_subset.groupby('trip_id')['departure_seconds']
+            block_subset.groupby("trip_id")["departure_seconds"]
             .min()
-            .reset_index(name='trip_start_seconds')
+            .reset_index(name="trip_start_seconds")
         )
-        first_departures['trip_start_hhmm'] = first_departures['trip_start_seconds'].apply(format_hhmm)
-        block_subset = block_subset.merge(first_departures, on='trip_id', how='left')
+        first_departures["trip_start_hhmm"] = first_departures["trip_start_seconds"].apply(
+            format_hhmm
+        )
+        block_subset = block_subset.merge(first_departures, on="trip_id", how="left")
 
-        block_subset['Trip Start Time'] = block_subset['trip_start_hhmm']
+        block_subset["Trip Start Time"] = block_subset["trip_start_hhmm"]
 
         # Select and rename columns for clarity
         out_cols = [
-            'block_id',
-            'route_short_name',
-            'direction_id',
-            'trip_id',
-            'Trip Start Time',
-            'stop_sequence',
-            'timepoint',
-            'stop_id',
-            'stop_name',
-            'scheduled_time_hhmm',
+            "block_id",
+            "route_short_name",
+            "direction_id",
+            "trip_id",
+            "Trip Start Time",
+            "stop_sequence",
+            "timepoint",
+            "stop_id",
+            "stop_name",
+            "scheduled_time_hhmm",
         ]
         final_df = block_subset[out_cols].copy()
-        final_df.rename(columns={
-            'block_id': 'Block ID',
-            'route_short_name': 'Route',
-            'direction_id': 'Direction',
-            'trip_id': 'Trip ID',
-            'stop_sequence': 'Stop Sequence',
-            'timepoint': 'Timepoint',
-            'stop_id': 'Stop ID',
-            'stop_name': 'Stop Name',
-            'scheduled_time_hhmm': 'Scheduled Time',
-        }, inplace=True)
+        final_df.rename(
+            columns={
+                "block_id": "Block ID",
+                "route_short_name": "Route",
+                "direction_id": "Direction",
+                "trip_id": "Trip ID",
+                "stop_sequence": "Stop Sequence",
+                "timepoint": "Timepoint",
+                "stop_id": "Stop ID",
+                "stop_name": "Stop Name",
+                "scheduled_time_hhmm": "Scheduled Time",
+            },
+            inplace=True,
+        )
 
         # Insert placeholders
-        final_df['Actual Time'] = MISSING_TIME
-        final_df['Boardings'] = MISSING_VALUE
-        final_df['Alightings'] = MISSING_VALUE
-        final_df['Comments'] = MISSING_VALUE
+        final_df["Actual Time"] = MISSING_TIME
+        final_df["Boardings"] = MISSING_VALUE
+        final_df["Alightings"] = MISSING_VALUE
+        final_df["Comments"] = MISSING_VALUE
 
         # Reorder columns to place 'Timepoint' after 'Stop Sequence'
-        final_df = final_df[[
-            'Block ID',
-            'Route',
-            'Direction',
-            'Trip ID',
-            'Trip Start Time',
-            'Stop Sequence',
-            'Timepoint',
-            'Stop ID',
-            'Stop Name',
-            'Scheduled Time',
-            'Actual Time',
-            'Boardings',
-            'Alightings',
-            'Comments'
-        ]]
+        final_df = final_df[
+            [
+                "Block ID",
+                "Route",
+                "Direction",
+                "Trip ID",
+                "Trip Start Time",
+                "Stop Sequence",
+                "Timepoint",
+                "Stop ID",
+                "Stop Name",
+                "Scheduled Time",
+                "Actual Time",
+                "Boardings",
+                "Alightings",
+                "Comments",
+            ]
+        ]
 
-        final_df.sort_values(
-            by=['Trip Start Time', 'Trip ID', 'Stop Sequence'],
-            inplace=True
-        )
+        final_df.sort_values(by=["Trip Start Time", "Trip ID", "Stop Sequence"], inplace=True)
 
         filename = f"block_{block_id}_schedule_printable.xlsx"
         output_path = os.path.join(BASE_OUTPUT_PATH, filename)
@@ -417,8 +408,10 @@ def main():
     print("========================================================")
     print(f"Input GTFS Folder: {BASE_INPUT_PATH}")
     print(f"Output Folder:     {BASE_OUTPUT_PATH}")
-    if FILTER_ROUTE_SHORT_NAMES: print(f"Filtering for Routes: {FILTER_ROUTE_SHORT_NAMES}")
-    if FILTER_SERVICE_IDS: print(f"Filtering for Service IDs: {FILTER_SERVICE_IDS}")
+    if FILTER_ROUTE_SHORT_NAMES:
+        print(f"Filtering for Routes: {FILTER_ROUTE_SHORT_NAMES}")
+    if FILTER_SERVICE_IDS:
+        print(f"Filtering for Service IDs: {FILTER_SERVICE_IDS}")
 
     try:
         # --- Load required GTFS data using the INLINED function ---
@@ -426,15 +419,17 @@ def main():
         gtfs_data = load_gtfs_data(files=REQUIRED_GTFS_FILES, dtype=str)
 
         # --- Get DataFrames from the loaded dictionary ---
-        trips_df = gtfs_data.get('trips')
-        stop_times_df = gtfs_data.get('stop_times')
-        stops_df = gtfs_data.get('stops')
-        routes_df = gtfs_data.get('routes')
+        trips_df = gtfs_data.get("trips")
+        stop_times_df = gtfs_data.get("stop_times")
+        stops_df = gtfs_data.get("stops")
+        routes_df = gtfs_data.get("routes")
 
         # --- Validate that essential dataframes were loaded ---
         if trips_df is None or stop_times_df is None or stops_df is None or routes_df is None:
             # The loader should have raised an error before this, but double-check
-            raise ValueError("Failed to load one or more essential GTFS files (trips, stop_times, stops, routes).")
+            raise ValueError(
+                "Failed to load one or more essential GTFS files (trips, stop_times, stops, routes)."
+            )
 
         # --- Filter Data based on Configuration ---
         trips_df, stop_times_df = filter_data(trips_df, stop_times_df, routes_df)
@@ -442,7 +437,7 @@ def main():
         # Exit if filtering removed all data
         if trips_df.empty or stop_times_df.empty:
             print("\nNo data remains after filtering. No files will be generated.")
-            return # Exit gracefully
+            return  # Exit gracefully
 
         # --- Prepare stop_times data for export ---
         prepared_stop_times = prepare_stop_times(trips_df, stop_times_df, stops_df)
@@ -450,7 +445,7 @@ def main():
         # Exit if preparation resulted in no data
         if prepared_stop_times.empty:
             print("\nNo data remains after preparation. No files will be generated.")
-            return # Exit gracefully
+            return  # Exit gracefully
 
         # --- Export each block to a separate Excel file ---
         export_blocks(prepared_stop_times)
@@ -472,16 +467,16 @@ def main():
         print(" Please check the format and content of your GTFS files.")
         print("----------------------------------------------------")
     except TypeError as type_err:
-         print("\n-------------------- ERROR -------------------------")
-         print(f" Configuration Error: {type_err}")
-         print(" Ensure REQUIRED_GTFS_FILES list is correctly defined.")
-         print("----------------------------------------------------")
+        print("\n-------------------- ERROR -------------------------")
+        print(f" Configuration Error: {type_err}")
+        print(" Ensure REQUIRED_GTFS_FILES list is correctly defined.")
+        print("----------------------------------------------------")
     except MemoryError as mem_err:
-         print("\n-------------------- ERROR -------------------------")
-         print(f" Memory Error: {mem_err}")
-         print(" The script ran out of memory, likely due to a very large GTFS file.")
-         print(" Consider running on a machine with more RAM or optimizing the script.")
-         print("----------------------------------------------------")
+        print("\n-------------------- ERROR -------------------------")
+        print(f" Memory Error: {mem_err}")
+        print(" The script ran out of memory, likely due to a very large GTFS file.")
+        print(" Consider running on a machine with more RAM or optimizing the script.")
+        print("----------------------------------------------------")
     except Exception as err:
         print("\n-------------------- UNEXPECTED ERROR -------------------------")
         print(f" An unexpected error occurred: {err}")
