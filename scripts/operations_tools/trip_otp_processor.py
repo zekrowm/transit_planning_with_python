@@ -14,18 +14,14 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE = (
-    r"\\Path\To\Your\CLEVER_Runtime_and_OTP_Trip_Level.csv"
-)
-OUTPUT_DIR = (
-    r"\\Path\To\Your\Output_Folder"
-)
+INPUT_FILE = r"\\Path\To\Your\CLEVER_Runtime_and_OTP_Trip_Level.csv"
+OUTPUT_DIR = r"\\Path\To\Your\Output_Folder"
 
 # If ROUTES_OF_INTEREST is non-empty, only rows with Branch in this list are kept.
 ROUTES_OF_INTEREST: List[str] = []
 
 # If FILTER_OUT_BRANCHES is non-empty, rows with Branch in this list will be excluded.
-FILTER_OUT_BRANCHES: List[str] = ['9999A ', '9999B', '9999C ', 'STRGH ', 'STRGR ', 'STRGW ']
+FILTER_OUT_BRANCHES: List[str] = ["9999A ", "9999B", "9999C ", "STRGH ", "STRGR ", "STRGW "]
 
 # Set to True to aggregate by [Branch, Direction], or False to aggregate by [Branch] only.
 AGGREGATE_BY_DIRECTION = True
@@ -44,7 +40,7 @@ EXPORT_INDIVIDUAL_ROUTE_FILES = True
 SCHEDULED_COLUMN = "Average Scheduled Running Time"
 ACTUAL_COLUMN = "Average Actual Running Time"
 DEVIATION_COLUMN = "Average Running Time Deviation"  # in seconds
-START_DELTA_COLUMN = "Average Start Delta"           # in HH:MM:SS
+START_DELTA_COLUMN = "Average Start Delta"  # in HH:MM:SS
 COUNT_TRIP_COLUMN = "Count Trip"
 SUM_EARLY_COLUMN = "Sum # Early"
 SUM_LATE_COLUMN = "Sum # Late"
@@ -54,7 +50,6 @@ SUM_ON_TIME_COLUMN = "Sum # On Time"
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def parse_time_string_to_minutes(time_str: str) -> float:
     """
@@ -148,48 +143,86 @@ def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd
     if otp_columns.issubset(set(df.columns)):
         if AGGREGATE_OTP_USING_COUNTS:
             # Sum counts and then compute percentages using the calculated total trips.
-            otp_agg = df.groupby(group_cols, dropna=False).agg(
-                total_trips=("Calculated Total Trips", "sum"),
-                total_early=(SUM_EARLY_COLUMN, "sum"),
-                total_late=(SUM_LATE_COLUMN, "sum"),
-                total_on_time=(SUM_ON_TIME_COLUMN, "sum"),
-            ).reset_index()
+            otp_agg = (
+                df.groupby(group_cols, dropna=False)
+                .agg(
+                    total_trips=("Calculated Total Trips", "sum"),
+                    total_early=(SUM_EARLY_COLUMN, "sum"),
+                    total_late=(SUM_LATE_COLUMN, "sum"),
+                    total_on_time=(SUM_ON_TIME_COLUMN, "sum"),
+                )
+                .reset_index()
+            )
             otp_agg["early_pct"] = otp_agg.apply(
-                lambda row: round((row["total_early"] / row["total_trips"] * 100)
-                                  if row["total_trips"] else float("nan"), 1), axis=1
+                lambda row: round(
+                    (
+                        (row["total_early"] / row["total_trips"] * 100)
+                        if row["total_trips"]
+                        else float("nan")
+                    ),
+                    1,
+                ),
+                axis=1,
             )
             otp_agg["late_pct"] = otp_agg.apply(
-                lambda row: round((row["total_late"] / row["total_trips"] * 100)
-                                  if row["total_trips"] else float("nan"), 1), axis=1
+                lambda row: round(
+                    (
+                        (row["total_late"] / row["total_trips"] * 100)
+                        if row["total_trips"]
+                        else float("nan")
+                    ),
+                    1,
+                ),
+                axis=1,
             )
             otp_agg["on_time_pct"] = otp_agg.apply(
-                lambda row: round((row["total_on_time"] / row["total_trips"] * 100)
-                                  if row["total_trips"] else float("nan"), 1), axis=1
+                lambda row: round(
+                    (
+                        (row["total_on_time"] / row["total_trips"] * 100)
+                        if row["total_trips"]
+                        else float("nan")
+                    ),
+                    1,
+                ),
+                axis=1,
             )
         else:
             # Compute OTP percentages per row using Calculated Total Trips and then average by group.
             df = df.copy()
             df["early_pct"] = df.apply(
-                lambda row: (row[SUM_EARLY_COLUMN] / row["Calculated Total Trips"] * 100)
-                if row["Calculated Total Trips"] else float("nan"),
+                lambda row: (
+                    (row[SUM_EARLY_COLUMN] / row["Calculated Total Trips"] * 100)
+                    if row["Calculated Total Trips"]
+                    else float("nan")
+                ),
                 axis=1,
             )
             df["late_pct"] = df.apply(
-                lambda row: (row[SUM_LATE_COLUMN] / row["Calculated Total Trips"] * 100)
-                if row["Calculated Total Trips"] else float("nan"),
+                lambda row: (
+                    (row[SUM_LATE_COLUMN] / row["Calculated Total Trips"] * 100)
+                    if row["Calculated Total Trips"]
+                    else float("nan")
+                ),
                 axis=1,
             )
             df["on_time_pct"] = df.apply(
-                lambda row: (row[SUM_ON_TIME_COLUMN] / row["Calculated Total Trips"] * 100)
-                if row["Calculated Total Trips"] else float("nan"),
+                lambda row: (
+                    (row[SUM_ON_TIME_COLUMN] / row["Calculated Total Trips"] * 100)
+                    if row["Calculated Total Trips"]
+                    else float("nan")
+                ),
                 axis=1,
             )
-            otp_agg = df.groupby(group_cols, dropna=False).agg(
-                total_trips=("Calculated Total Trips", "sum"),
-                early_pct=("early_pct", "mean"),
-                late_pct=("late_pct", "mean"),
-                on_time_pct=("on_time_pct", "mean"),
-            ).reset_index()
+            otp_agg = (
+                df.groupby(group_cols, dropna=False)
+                .agg(
+                    total_trips=("Calculated Total Trips", "sum"),
+                    early_pct=("early_pct", "mean"),
+                    late_pct=("late_pct", "mean"),
+                    on_time_pct=("on_time_pct", "mean"),
+                )
+                .reset_index()
+            )
             otp_agg["early_pct"] = otp_agg["early_pct"].round(1)
             otp_agg["late_pct"] = otp_agg["late_pct"].round(1)
             otp_agg["on_time_pct"] = otp_agg["on_time_pct"].round(1)
@@ -207,7 +240,9 @@ def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd
     return agg_df
 
 
-def export_individual_files(agg_df: pd.DataFrame, group_by_direction: bool, output_dir: str) -> None:
+def export_individual_files(
+    agg_df: pd.DataFrame, group_by_direction: bool, output_dir: str
+) -> None:
     """
     Export individual Excel files for each unique route (or route/direction)
     from the aggregated DataFrame, which includes OTP percentages.
@@ -229,7 +264,6 @@ def export_individual_files(agg_df: pd.DataFrame, group_by_direction: bool, outp
 # MAIN
 # =============================================================================
 
-
 def main():
     """
     Orchestrates the end-to-end processing of runtime and OTP data.
@@ -242,18 +276,26 @@ def main():
 
     # 2. Parse the relevant time columns to minutes
     if SCHEDULED_COLUMN in df.columns:
-        df["Average Scheduled Running Time (min)"] = df[SCHEDULED_COLUMN].apply(parse_time_string_to_minutes)
+        df["Average Scheduled Running Time (min)"] = df[SCHEDULED_COLUMN].apply(
+            parse_time_string_to_minutes
+        )
     if ACTUAL_COLUMN in df.columns:
-        df["Average Actual Running Time (min)"] = df[ACTUAL_COLUMN].apply(parse_time_string_to_minutes)
+        df["Average Actual Running Time (min)"] = df[ACTUAL_COLUMN].apply(
+            parse_time_string_to_minutes
+        )
     if DEVIATION_COLUMN in df.columns:
-        df["Average Running Time Deviation (min)"] = df[DEVIATION_COLUMN].apply(parse_seconds_to_minutes)
+        df["Average Running Time Deviation (min)"] = df[DEVIATION_COLUMN].apply(
+            parse_seconds_to_minutes
+        )
     if START_DELTA_COLUMN in df.columns:
         df["Average Start Delta (min)"] = df[START_DELTA_COLUMN].apply(parse_time_string_to_minutes)
 
     # 3. Calculate total trips using the sum of early, late, and on-time counts
     otp_cols = {SUM_EARLY_COLUMN, SUM_LATE_COLUMN, SUM_ON_TIME_COLUMN}
     if otp_cols.issubset(set(df.columns)):
-        df["Calculated Total Trips"] = df[SUM_EARLY_COLUMN] + df[SUM_LATE_COLUMN] + df[SUM_ON_TIME_COLUMN]
+        df["Calculated Total Trips"] = (
+            df[SUM_EARLY_COLUMN] + df[SUM_LATE_COLUMN] + df[SUM_ON_TIME_COLUMN]
+        )
 
     # 4. Filter the data by branch if needed
     df_filtered = filter_by_branch(
