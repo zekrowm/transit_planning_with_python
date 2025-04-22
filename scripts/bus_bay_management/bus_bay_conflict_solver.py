@@ -45,7 +45,7 @@ except ImportError:
 # ==================================================================================================
 
 INPUT_DIR = r"Path\To\Your\Input_Folder"
-OUTPUT_DIR = r"ath\To\Your\Output_Folder"
+OUTPUT_DIR = r"Path\To\Your\Output_Folder"
 
 USE_PULP = False
 USE_GREEDY = True
