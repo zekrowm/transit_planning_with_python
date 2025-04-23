@@ -22,9 +22,9 @@ from shapely.geometry import Point
 # CONFIGURATION
 # ==================================================================================================
 
-GTFS_FOLDER_PATH = r'\\your_GTFS_folder_path\here\\'
+GTFS_FOLDER_PATH = r"\\your_GTFS_folder_path\here\\"
 
-BASE_OUTPUT_PATH = r'\\your_output_folder_path\here\\'
+BASE_OUTPUT_PATH = r"\\your_output_folder_path\here\\"
 
 clusters = {
     # Example:
@@ -46,7 +46,6 @@ DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 # --------------------------------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
-
 
 def load_gtfs_data(files=None, dtype=str):
     """
@@ -82,9 +81,7 @@ def load_gtfs_data(files=None, dtype=str):
         RuntimeError: For any unexpected error during loading.
     """
     if not os.path.exists(GTFS_FOLDER_PATH):
-        raise FileNotFoundError(
-            f"The directory '{GTFS_FOLDER_PATH}' does not exist."
-        )
+        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
 
     if files is None:
         files = [
@@ -100,17 +97,16 @@ def load_gtfs_data(files=None, dtype=str):
             "feed_info.txt",
             "frequencies.txt",
             "shapes.txt",
-            "transfers.txt"
+            "transfers.txt",
         ]
 
     missing = [
-        file_name for file_name in files
+        file_name
+        for file_name in files
         if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
     ]
     if missing:
-        raise FileNotFoundError(
-            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
-        )
+        raise FileNotFoundError(f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}")
 
     data = {}
     for file_name in files:
@@ -122,20 +118,14 @@ def load_gtfs_data(files=None, dtype=str):
             print(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
-            raise ValueError(
-                f"Parser error in '{file_name}': {exc}"
-            ) from exc
+            raise ValueError(f"Parser error in '{file_name}': {exc}") from exc
 
         except Exception as exc:
             # Use a more specific error class than bare Exception (e.g., RuntimeError)
-            raise RuntimeError(
-                f"Error loading '{file_name}': {exc}"
-            ) from exc
+            raise RuntimeError(f"Error loading '{file_name}': {exc}") from exc
 
     return data
 
@@ -143,7 +133,6 @@ def load_gtfs_data(files=None, dtype=str):
 # --------------------------------------------------------------------------------------------------
 # REGULAR FUNCTIONS
 # --------------------------------------------------------------------------------------------------
-
 
 def prepare_stops_gdf(crs_epsg):
     """
@@ -156,11 +145,11 @@ def prepare_stops_gdf(crs_epsg):
     stops_df = gtfs_data["stops"]
 
     # Convert stop_id to string, build geometry, and reproject
-    stops_df['stop_id'] = stops_df['stop_id'].astype(str)
-    stops_df['geometry'] = stops_df.apply(
-        lambda row: Point(float(row['stop_lon']), float(row['stop_lat'])), axis=1
+    stops_df["stop_id"] = stops_df["stop_id"].astype(str)
+    stops_df["geometry"] = stops_df.apply(
+        lambda row: Point(float(row["stop_lon"]), float(row["stop_lat"])), axis=1
     )
-    stops_gdf = gpd.GeoDataFrame(stops_df, geometry='geometry', crs='EPSG:4326')
+    stops_gdf = gpd.GeoDataFrame(stops_df, geometry="geometry", crs="EPSG:4326")
     stops_gdf = stops_gdf.to_crs(epsg=crs_epsg)
 
     return stops_gdf
@@ -187,25 +176,19 @@ def initialize_clusters(stops_gdf, clusters_dict):
         }
 
         included_stop_ids = [
-            stop_id
-            for stop_id_list in clusters_dict.values()
-            for stop_id in stop_id_list
+            stop_id for stop_id_list in clusters_dict.values() for stop_id in stop_id_list
         ]
 
-        included_stops_global = stops_gdf[
-            stops_gdf['stop_id'].isin(included_stop_ids)
-        ].copy()
-        included_stops_global['cluster'] = None
+        included_stops_global = stops_gdf[stops_gdf["stop_id"].isin(included_stop_ids)].copy()
+        included_stops_global["cluster"] = None
 
         # Assign cluster names
         for cluster_name, stop_ids in clusters_dict.items():
             included_stops_global.loc[
-                included_stops_global['stop_id'].isin(stop_ids), 'cluster'
+                included_stops_global["stop_id"].isin(stop_ids), "cluster"
             ] = cluster_name
 
-        excluded_stops_global = stops_gdf[
-            ~stops_gdf['stop_id'].isin(included_stop_ids)
-        ].copy()
+        excluded_stops_global = stops_gdf[~stops_gdf["stop_id"].isin(included_stop_ids)].copy()
         excluded_stops_global.reset_index(drop=True, inplace=True)
 
     return included_stops_global, excluded_stops_global, clusters_dict
@@ -218,43 +201,50 @@ def find_similar_stop_names(inc_stops, exc_stops, threshold):
     if inc_stops.empty or exc_stops.empty:
         return pd.DataFrame(
             columns=[
-                'included_stop_name', 'excluded_stop_name',
-                'similarity_score', 'stop_id', 'stop_lat', 'stop_lon'
+                "included_stop_name",
+                "excluded_stop_name",
+                "similarity_score",
+                "stop_id",
+                "stop_lat",
+                "stop_lon",
             ]
         )
 
     # Convert stop names to lowercase for case-insensitive comparison
-    inc_stops['stop_name_lower'] = inc_stops['stop_name'].str.lower()
-    exc_stops['stop_name_lower'] = exc_stops['stop_name'].str.lower()
+    inc_stops["stop_name_lower"] = inc_stops["stop_name"].str.lower()
+    exc_stops["stop_name_lower"] = exc_stops["stop_name"].str.lower()
 
     similar_stops = []
-    included_names = inc_stops['stop_name_lower'].unique()
+    included_names = inc_stops["stop_name_lower"].unique()
 
     for name in included_names:
         matches = process.extract(
-            name,
-            exc_stops['stop_name_lower'],
-            scorer=fuzz.token_sort_ratio,
-            limit=None
+            name, exc_stops["stop_name_lower"], scorer=fuzz.token_sort_ratio, limit=None
         )
         for _, score, idx in matches:
             if score >= threshold:
                 similar_stop = exc_stops.iloc[idx]
-                original_included_name = inc_stops[
-                    inc_stops['stop_name_lower'] == name
-                ]['stop_name'].iloc[0]
-                similar_stops.append({
-                    'included_stop_name': original_included_name,
-                    'excluded_stop_name': similar_stop['stop_name'],
-                    'similarity_score': score,
-                    'stop_id': similar_stop['stop_id'],
-                    'stop_lat': similar_stop['stop_lat'],
-                    'stop_lon': similar_stop['stop_lon']
-                })
+                original_included_name = inc_stops[inc_stops["stop_name_lower"] == name][
+                    "stop_name"
+                ].iloc[0]
+                similar_stops.append(
+                    {
+                        "included_stop_name": original_included_name,
+                        "excluded_stop_name": similar_stop["stop_name"],
+                        "similarity_score": score,
+                        "stop_id": similar_stop["stop_id"],
+                        "stop_lat": similar_stop["stop_lat"],
+                        "stop_lon": similar_stop["stop_lon"],
+                    }
+                )
 
     columns = [
-        'included_stop_name', 'excluded_stop_name', 'similarity_score',
-        'stop_id', 'stop_lat', 'stop_lon'
+        "included_stop_name",
+        "excluded_stop_name",
+        "similarity_score",
+        "stop_id",
+        "stop_lat",
+        "stop_lon",
     ]
     return pd.DataFrame(similar_stops, columns=columns)
 
@@ -266,8 +256,11 @@ def find_nearby_excluded_stops(inc_stops, exc_stops, distance_threshold):
     if inc_stops.empty or exc_stops.empty:
         return pd.DataFrame(
             columns=[
-                'included_stop_id', 'included_stop_name',
-                'excluded_stop_id', 'excluded_stop_name', 'distance_m'
+                "included_stop_id",
+                "included_stop_name",
+                "excluded_stop_id",
+                "excluded_stop_name",
+                "distance_m",
             ]
         )
 
@@ -279,17 +272,22 @@ def find_nearby_excluded_stops(inc_stops, exc_stops, distance_threshold):
         nearby = exc_stops[exc_stops.geometry.within(buffer_geom)]
         for _, nearby_stop in nearby.iterrows():
             distance = included_stop.geometry.distance(nearby_stop.geometry)
-            nearby_stops.append({
-                'included_stop_id': included_stop['stop_id'],
-                'included_stop_name': included_stop['stop_name'],
-                'excluded_stop_id': nearby_stop['stop_id'],
-                'excluded_stop_name': nearby_stop['stop_name'],
-                'distance_m': distance
-            })
+            nearby_stops.append(
+                {
+                    "included_stop_id": included_stop["stop_id"],
+                    "included_stop_name": included_stop["stop_name"],
+                    "excluded_stop_id": nearby_stop["stop_id"],
+                    "excluded_stop_name": nearby_stop["stop_name"],
+                    "distance_m": distance,
+                }
+            )
 
     columns = [
-        'included_stop_id', 'included_stop_name',
-        'excluded_stop_id', 'excluded_stop_name', 'distance_m'
+        "included_stop_id",
+        "included_stop_name",
+        "excluded_stop_id",
+        "excluded_stop_name",
+        "distance_m",
     ]
     return pd.DataFrame(nearby_stops, columns=columns)
 
@@ -300,28 +298,30 @@ def find_distant_included_stops(inc_stops, distance_threshold):
     """
     if inc_stops.empty:
         return pd.DataFrame(
-            columns=['stop_id', 'stop_name', 'cluster', 'min_distance_to_cluster_m']
+            columns=["stop_id", "stop_name", "cluster", "min_distance_to_cluster_m"]
         )
 
     distant_stops = []
-    clusters_list = inc_stops['cluster'].unique()
+    clusters_list = inc_stops["cluster"].unique()
 
     for cluster in clusters_list:
-        cluster_stops = inc_stops[inc_stops['cluster'] == cluster]
+        cluster_stops = inc_stops[inc_stops["cluster"] == cluster]
         for _, stop in cluster_stops.iterrows():
             other_stops = cluster_stops.drop(stop.name)
             if other_stops.empty:
                 continue
             distances = other_stops.geometry.distance(stop.geometry)
             if distances.min() > distance_threshold:
-                distant_stops.append({
-                    'stop_id': stop['stop_id'],
-                    'stop_name': stop['stop_name'],
-                    'cluster': cluster,
-                    'min_distance_to_cluster_m': distances.min()
-                })
+                distant_stops.append(
+                    {
+                        "stop_id": stop["stop_id"],
+                        "stop_name": stop["stop_name"],
+                        "cluster": cluster,
+                        "min_distance_to_cluster_m": distances.min(),
+                    }
+                )
 
-    columns = ['stop_id', 'stop_name', 'cluster', 'min_distance_to_cluster_m']
+    columns = ["stop_id", "stop_name", "cluster", "min_distance_to_cluster_m"]
     return pd.DataFrame(distant_stops, columns=columns)
 
 
@@ -330,31 +330,32 @@ def find_different_named_included_stops(inc_stops, similarity_threshold):
     Find included stops in the same cluster whose name similarity is below similarity_threshold.
     """
     if inc_stops.empty:
-        return pd.DataFrame(
-            columns=['stop_id', 'stop_name', 'cluster', 'max_similarity_score']
-        )
+        return pd.DataFrame(columns=["stop_id", "stop_name", "cluster", "max_similarity_score"])
 
     different_named_stops = []
-    clusters_list = inc_stops['cluster'].unique()
+    clusters_list = inc_stops["cluster"].unique()
 
     for cluster in clusters_list:
-        cluster_stops = inc_stops[inc_stops['cluster'] == cluster]
-        names = cluster_stops['stop_name'].unique()
+        cluster_stops = inc_stops[inc_stops["cluster"] == cluster]
+        names = cluster_stops["stop_name"].unique()
 
         for _, stop in cluster_stops.iterrows():
             similarities = [
-                fuzz.token_sort_ratio(stop['stop_name'], name)
-                for name in names if name != stop['stop_name']
+                fuzz.token_sort_ratio(stop["stop_name"], name)
+                for name in names
+                if name != stop["stop_name"]
             ]
             if similarities and max(similarities) < similarity_threshold:
-                different_named_stops.append({
-                    'stop_id': stop['stop_id'],
-                    'stop_name': stop['stop_name'],
-                    'cluster': cluster,
-                    'max_similarity_score': max(similarities)
-                })
+                different_named_stops.append(
+                    {
+                        "stop_id": stop["stop_id"],
+                        "stop_name": stop["stop_name"],
+                        "cluster": cluster,
+                        "max_similarity_score": max(similarities),
+                    }
+                )
 
-    columns = ['stop_id', 'stop_name', 'cluster', 'max_similarity_score']
+    columns = ["stop_id", "stop_name", "cluster", "max_similarity_score"]
     return pd.DataFrame(different_named_stops, columns=columns)
 
 
@@ -366,25 +367,27 @@ def save_to_excel(data_frame, filename, output_directory):
 
     if data_frame.empty:
         # Provide columns so headers appear
-        if 'similar_names' in filename:
+        if "similar_names" in filename:
             columns = [
-                'included_stop_name', 'excluded_stop_name',
-                'similarity_score', 'stop_id', 'stop_lat', 'stop_lon'
+                "included_stop_name",
+                "excluded_stop_name",
+                "similarity_score",
+                "stop_id",
+                "stop_lat",
+                "stop_lon",
             ]
-        elif 'nearby' in filename:
+        elif "nearby" in filename:
             columns = [
-                'included_stop_id', 'included_stop_name',
-                'excluded_stop_id', 'excluded_stop_name', 'distance_m'
+                "included_stop_id",
+                "included_stop_name",
+                "excluded_stop_id",
+                "excluded_stop_name",
+                "distance_m",
             ]
-        elif 'distant' in filename:
-            columns = [
-                'stop_id', 'stop_name', 'cluster',
-                'min_distance_to_cluster_m'
-            ]
-        elif 'different_names' in filename:
-            columns = [
-                'stop_id', 'stop_name', 'cluster', 'max_similarity_score'
-            ]
+        elif "distant" in filename:
+            columns = ["stop_id", "stop_name", "cluster", "min_distance_to_cluster_m"]
+        elif "different_names" in filename:
+            columns = ["stop_id", "stop_name", "cluster", "max_similarity_score"]
         else:
             columns = data_frame.columns
         data_frame = pd.DataFrame(columns=columns)
@@ -396,7 +399,6 @@ def save_to_excel(data_frame, filename, output_directory):
 # MAIN
 # ==================================================================================================
 
-
 def main():
     """
     Main entry point for the GTFS Bus Bay Cluster Validation script.
@@ -405,7 +407,7 @@ def main():
     # Create output directory if it doesn't exist
     if not os.path.exists(BASE_OUTPUT_PATH):
         os.makedirs(BASE_OUTPUT_PATH)
-    output_directory = os.path.join(BASE_OUTPUT_PATH, 'stops_check')
+    output_directory = os.path.join(BASE_OUTPUT_PATH, "stops_check")
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
@@ -414,8 +416,7 @@ def main():
 
     # Split stops into included and excluded sets
     included_stops_global, excluded_stops_global, updated_clusters = initialize_clusters(
-        stops_gdf,
-        clusters
+        stops_gdf, clusters
     )
 
     # Perform analysis only if clusters are defined
@@ -446,24 +447,17 @@ def main():
     print(f"Number of different named included stops found: {len(different_named_included_stops)}")
 
     # Save outputs to Excel
+    save_to_excel(similar_name_stops, "excluded_stops_similar_names.xlsx", output_directory)
+    save_to_excel(nearby_excluded_stops, "excluded_stops_nearby.xlsx", output_directory)
+    save_to_excel(distant_included_stops, "included_stops_distant.xlsx", output_directory)
     save_to_excel(
-        similar_name_stops, 'excluded_stops_similar_names.xlsx', output_directory
-    )
-    save_to_excel(
-        nearby_excluded_stops, 'excluded_stops_nearby.xlsx', output_directory
-    )
-    save_to_excel(
-        distant_included_stops, 'included_stops_distant.xlsx', output_directory
-    )
-    save_to_excel(
-        different_named_included_stops, 'included_stops_different_names.xlsx',
-        output_directory
+        different_named_included_stops, "included_stops_different_names.xlsx", output_directory
     )
 
     # Export included, excluded, and all stops to shapefiles
-    included_stops_shp = os.path.join(output_directory, 'included_stops.shp')
-    excluded_stops_shp = os.path.join(output_directory, 'excluded_stops.shp')
-    all_stops_shp = os.path.join(output_directory, 'all_stops.shp')
+    included_stops_shp = os.path.join(output_directory, "included_stops.shp")
+    excluded_stops_shp = os.path.join(output_directory, "excluded_stops.shp")
+    all_stops_shp = os.path.join(output_directory, "all_stops.shp")
 
     if not included_stops_global.empty:
         included_stops_global.to_file(included_stops_shp)
@@ -480,5 +474,5 @@ def main():
     print("Stops check completed. See the 'stops_check' folder for results.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
