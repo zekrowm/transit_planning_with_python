@@ -51,6 +51,10 @@ def _aggregate(df: pd.DataFrame) -> pd.DataFrame:
     return df.groupby(STOP_ID_FIELD, as_index=False).agg(agg_map)
 
 
+# ==================================================================================================
+# MAIN
+# ==================================================================================================
+
 def main():
     # 1 ▸ Read Excel --------------------------------------------------------
     df_raw = pd.read_excel(RIDERSHIP_XLSX, sheet_name=RIDERSHIP_SHEET, dtype=str)
