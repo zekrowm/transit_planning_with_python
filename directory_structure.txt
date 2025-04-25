@@ -26,6 +26,7 @@ transit_planning_with_python/
     │   ├── bus_block_stop_sequence_printable.py
     │   ├── bus_cluster_arrivals_checklist_printable.py
     │   ├── bus_schedule_exporter.py
+    │   ├── gtfs_shapefile_converter.py
     │   ├── site_visit_route_planner.py
     │   └── stop_pattern_exporter.py
     ├── gtfs_validation/
@@ -47,11 +48,13 @@ transit_planning_with_python/
     │   ├── load_factor_violation_checker.py
     │   ├── monthly_ntd_report_generator.py
     │   ├── ridership_per_stop_processor.py
-    │   └── ridership_per_trip_processor.py
+    │   ├── ridership_per_trip_processor.py
+    │   └── stop_amenity_upgrade_flagger.py
     ├── service_analysis/
     │   ├── bus_route_district_matrix.py
     │   ├── gtfs_headway_span_trips_calculator.py
-    │   ├── gtfs_nearby_routes_finder.py
+    │   ├── gtfs_proximity_stops_and_routes.py
+    │   ├── gtfs_service_area_mapper.py
     │   ├── gtfs_service_change_history.py
     │   ├── gtfs_trip_counts_reporter.py
     │   └── route_direction_calculator.py
