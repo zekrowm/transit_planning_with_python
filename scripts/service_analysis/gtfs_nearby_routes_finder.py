@@ -6,7 +6,9 @@ Supports two modes:
   2) 'stop_code': Directly uses provided stop_codes to retrieve route/direction information (no spatial processing).
 """
 
+from __future__ import annotations
 import os
+import sys
 
 import geopandas as gpd
 import pandas as pd
@@ -16,343 +18,228 @@ from shapely.geometry import Point
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER = r"\\your_file_path\here"
-OUTPUT_FOLDER = r"\\your_file_path\here"
+GTFS_FOLDER = r"Path\To\Your\GTFS\Folder"
+OUTPUT_FOLDER = (r"Path\To\Your\Output\Folder")
 
-# Choose "location" OR "stop_code"
-INPUT_MODE = "location"
+INPUT_MODE = "location"  # "location" | "stop_code"
+LOCATION_SOURCE = "shapefile"  # "manual"   | "shapefile"
+POINT_SHAPEFILE = r"Path\To\Your\Points.shp"
+POINT_NAME_FIELD = "OBJECTID"  # column copied to 'Location'
 
-# For 'location' mode
+# extra point-layer attributes you want in the CSV
+LOCATION_EXTRA_FIELDS = ["SCHOOL_NAM", "SCHOOL_TYP", "WEB_ADDRES"] # Edit
+
+# Route filters
+ROUTE_FILTER_IN: list[str] = []  # keep only these (leave empty for no “in” filter)
+ROUTE_FILTER_OUT: list[str] = ["9999A", "9999B", "9999C"]  # always drop these
+
+# location-mode specifics
 MANUAL_LOCATIONS = [
     {"name": "Braddock", "latitude": 38.813545, "longitude": -77.053864},
-    {"name": "Crystal City", "latitude": 38.85835, "longitude": -77.051232}
+    {"name": "Crystal City", "latitude": 38.85835, "longitude": -77.051232},
 ]
-BUFFER_DISTANCE = 0.25  # 0.25 miles (example)
-BUFFER_UNIT = "miles"   # or 'feet'
-PROJECTED_CRS = "EPSG:2232"  # e.g. NAD83 / DC State Plane (US Feet)
+BUFFER_DISTANCE = 0.25  # numeric value
+BUFFER_UNIT = "miles"  # 'miles' | 'feet'
+PROJECTED_CRS = "EPSG:2232"  # NAD83 / DC state plane (ft)
 
-# For 'stop_code' mode
-STOP_CODE_FILTER = ["1001", "1002", "1003"]  # example stop_codes
+# stop_code-mode specifics
+STOP_CODE_FILTER: list[str] = []
 
-# Output file name
-OUTPUT_FILE_NAME = "results.csv"
+OUTPUT_FILE_NAME = "proximity_results.csv"
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # FUNCTIONS
-# -----------------------------------------------------------------------------
+# =============================================================================
 
-def check_input_files(base_path):
-    """
-    Verify that the standard GTFS files exist in the specified directory.
-    Required files: stops.txt, stop_times.txt, trips.txt, routes.txt.
-    """
-    required_files = ["stops.txt", "stop_times.txt", "trips.txt", "routes.txt"]
-
-    if not os.path.exists(base_path):
-        raise FileNotFoundError(f"The input directory {base_path} does not exist.")
-    for file_name in required_files:
-        file_path = os.path.join(base_path, file_name)
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(
-                f"The required GTFS file {file_name} does not exist in {base_path}."
-            )
+def _check_gtfs(path: str) -> None:
+    for fn in ("stops.txt", "stop_times.txt", "trips.txt", "routes.txt"):
+        fp = os.path.join(path, fn)
+        if not os.path.exists(fp):
+            raise FileNotFoundError(f"Required GTFS file missing → {fp!s}")
 
 
-def load_gtfs_data(base_path):
-    """
-    Load the standard GTFS data files into Pandas DataFrames from the specified folder.
-    Returns a dictionary with keys: "stops", "stop_times", "trips", "routes".
-    """
-    required_files = ["stops.txt", "stop_times.txt", "trips.txt", "routes.txt"]
-    data = {}
-
-    for file_name in required_files:
-        file_path = os.path.join(base_path, file_name)
-        # Use the file name minus extension as the dict key, e.g. "stops", "trips", etc.
-        dict_key = file_name.split(".")[0]
-        try:
-            data[dict_key] = pd.read_csv(file_path, dtype=str)
-            print(f"Loaded {file_name} with {len(data[dict_key])} records.")
-        except Exception as error:
-            raise Exception(f"Error loading {file_name}: {error}") from error
-
-    return data
+def _load_gtfs(path: str) -> dict[str, pd.DataFrame]:
+    return {
+        fn.split(".")[0]: pd.read_csv(os.path.join(path, fn), dtype=str)
+        for fn in ("stops.txt", "stop_times.txt", "trips.txt", "routes.txt")
+    }
 
 
-def create_geodataframe_locations(locations, crs="EPSG:4326"):
-    """
-    Convert a list of location dictionaries to a GeoDataFrame.
-    """
-    gdf = gpd.GeoDataFrame(
-        locations,
-        geometry=[Point(loc['longitude'], loc['latitude']) for loc in locations],
-        crs=crs
-    )
-    return gdf
-
-
-def create_geodataframe_stops(stops_df, crs="EPSG:4326"):
-    """
-    Convert stops DataFrame to a GeoDataFrame with point geometries.
-    """
-    stops_df["stop_lat"] = stops_df["stop_lat"].astype(float)
-    stops_df["stop_lon"] = stops_df["stop_lon"].astype(float)
-    gdf = gpd.GeoDataFrame(
-        stops_df,
-        geometry=gpd.points_from_xy(stops_df.stop_lon, stops_df.stop_lat),
-        crs=crs
-    )
-    return gdf
-
-
-def convert_buffer_distance(distance, unit):
-    """
-    Convert buffer distance to feet based on the specified unit.
-    """
-    if unit.lower() == 'miles':
-        return distance * 5280  # 1 mile = 5280 feet
-    elif unit.lower() == 'feet':
-        return distance
+def _load_locations(
+    source: str,
+    *,
+    manual_list: list[dict] | None = None,
+    shp_path: str | None = None,
+    name_field: str = "name",
+) -> gpd.GeoDataFrame:
+    if source == "manual":
+        if not manual_list:
+            raise ValueError("manual_list must be provided when LOCATION_SOURCE='manual'")
+        gdf = gpd.GeoDataFrame(
+            manual_list,
+            geometry=[Point(d["longitude"], d["latitude"]) for d in manual_list],
+            crs="EPSG:4326",
+        )
+    elif source == "shapefile":
+        if not shp_path:
+            raise ValueError("shp_path must be provided when LOCATION_SOURCE='shapefile'")
+        gdf = gpd.read_file(shp_path)
+        gdf = gdf[gdf.geometry.type.isin({"Point", "MultiPoint"})]
+        gdf = (
+            gdf.set_crs("EPSG:4326", inplace=False) if gdf.crs is None else gdf.to_crs("EPSG:4326")
+        )
+        if name_field in gdf.columns:
+            gdf = gdf.rename(columns={name_field: "name"})
+        if "name" not in gdf.columns:
+            gdf["name"] = [f"loc_{i}" for i in range(len(gdf))]
     else:
-        raise ValueError("Unsupported buffer unit. Please use 'miles' or 'feet'.")
+        raise ValueError("LOCATION_SOURCE must be 'manual' or 'shapefile'")
+    return gdf
 
 
-def reproject_geodataframes(gdf_locations, stops_gdf, target_crs):
-    """
-    Reproject GeoDataFrames to the target CRS.
-    """
-    print(f"Reprojecting GeoDataFrames to {target_crs}...")
-    gdf_locations_proj = gdf_locations.to_crs(target_crs)
-    stops_gdf_proj = stops_gdf.to_crs(target_crs)
-    print("Reprojection completed.\n")
-    return gdf_locations_proj, stops_gdf_proj
+def _stops_to_gdf(stops: pd.DataFrame) -> gpd.GeoDataFrame:
+    stops = stops.assign(
+        stop_lat=stops.stop_lat.astype(float), stop_lon=stops.stop_lon.astype(float)
+    )
+    return gpd.GeoDataFrame(
+        stops,
+        geometry=gpd.points_from_xy(stops.stop_lon, stops.stop_lat),
+        crs="EPSG:4326",
+    )
 
 
-def find_nearby_routes_with_nearest_stops(gdf_locations, stops_gdf, stop_times_trips_routes, buffer_distance_feet):
-    """
-    For each location, identify all unique (route_short_name + direction_id) pairs
-    within the buffer, then find the single nearest stop to the location for each pair.
-    """
-    results = []
-    for _, location in gdf_locations.iterrows():
-        loc_name = location.get('name', '(unnamed)')
+def _distance_ft(value: float, unit: str) -> float:
+    return value * 5280 if unit.lower() == "miles" else value
 
-        # Create a buffer around the location
-        location_buffer = location.geometry.buffer(buffer_distance_feet)
 
-        # Filter stops to only those within the buffer
-        nearby_stops = stops_gdf[stops_gdf.geometry.within(location_buffer)]
-        if nearby_stops.empty:
-            results.append({
-                'Location': loc_name,
-                'Routes': 'No routes',
-                'Stops': 'No stops'
-            })
+def _apply_route_filters(df: pd.DataFrame) -> pd.DataFrame:
+    if ROUTE_FILTER_IN:
+        df = df[df.route_short_name.isin(ROUTE_FILTER_IN)]
+    if ROUTE_FILTER_OUT:
+        df = df[~df.route_short_name.isin(ROUTE_FILTER_OUT)]
+    return df
+
+
+def _nearby_routes(
+    gdf_locations: gpd.GeoDataFrame,
+    gdf_stops: gpd.GeoDataFrame,
+    st_trips_routes: pd.DataFrame,
+    buf_ft: float,
+    extra_cols: list[str],
+) -> list[dict]:
+    results: list[dict] = []
+
+    for _, loc in gdf_locations.iterrows():
+        base = {
+            "Location": loc["name"],
+            **{c: ("" if pd.isna(loc[c]) else str(loc[c])) for c in extra_cols},
+        }
+
+        # buffer + spatial filter
+        nearby = gdf_stops[gdf_stops.geometry.within(loc.geometry.buffer(buf_ft))]
+        if nearby.empty:
+            results.append({**base, "Routes": "No routes", "Stops": "No stops"})
             continue
 
-        # Subset relevant stop_ids
-        nearby_stop_ids = nearby_stops['stop_id'].unique()
-        df_nearby_routes = stop_times_trips_routes[
-            stop_times_trips_routes['stop_id'].isin(nearby_stop_ids)
-        ]
-
-        if df_nearby_routes.empty:
-            results.append({
-                'Location': loc_name,
-                'Routes': 'No routes',
-                'Stops': 'No stops'
-            })
+        stop_ids = nearby.stop_id.unique()
+        df = st_trips_routes[st_trips_routes.stop_id.isin(stop_ids)]
+        if df.empty:
+            results.append({**base, "Routes": "No routes", "Stops": "No stops"})
             continue
 
-        # Merge geometry back so we can compute distance
-        merged_stops = pd.merge(
-            nearby_stops[['stop_id', 'geometry']],
-            df_nearby_routes[['stop_id', 'route_short_name', 'direction_id']],
-            on='stop_id'
-        ).drop_duplicates()
+        merged = (
+            nearby[["stop_id", "geometry"]]
+            .merge(df[["stop_id", "route_short_name", "direction_id"]], on="stop_id")
+            .drop_duplicates()
+        )
+        merged["dist"] = merged.geometry.distance(loc.geometry)
 
-        # Compute distance from this location's geometry to each stop
-        merged_stops['distance'] = merged_stops['geometry'].distance(location.geometry)
+        nearest = merged.groupby(["route_short_name", "direction_id"], as_index=False).apply(
+            lambda x: x.loc[x.dist.idxmin()]
+        )
 
-        # Group by route_short_name + direction_id, pick the stop with minimum distance
-        grouped = merged_stops.groupby(['route_short_name', 'direction_id'], as_index=False)
-        nearest_stops = grouped.apply(lambda x: x.loc[x['distance'].idxmin()])
-
-        # Build final lists for routes and stops
-        route_list = nearest_stops['route_short_name'].astype(str).unique().tolist()
-        stop_list = nearest_stops['stop_id'].astype(str).unique().tolist()
-
-        routes_str = ', '.join(route_list) if route_list else 'No routes'
-        stops_str = ', '.join(stop_list) if stop_list else 'No stops'
-
-        results.append({
-            'Location': loc_name,
-            'Routes': routes_str,
-            'Stops': stops_str
-        })
+        pair_set = {(r, d) for r, d in zip(nearest.route_short_name, nearest.direction_id)}
+        routes = ", ".join(sorted(f"{r} (dir {d})" for r, d in pair_set))
+        stops = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
+        results.append({**base, "Routes": routes, "Stops": stops})
 
     return results
 
-
-def get_stop_ids_for_stop_codes(stops_df, stop_code_filter):
-    """
-    Filter the stops DataFrame to include only those stops with a stop_code
-    in the filter and return the matching stop_ids.
-    """
-    if 'stop_code' not in stops_df.columns:
-        raise ValueError("stops.txt does not have a 'stop_code' column.")
-
-    filtered_stops = stops_df[stops_df["stop_code"].isin(stop_code_filter)]
-    return filtered_stops["stop_id"].unique().tolist()
-
-
-def find_routes_by_stop_ids(stops_df, stop_ids, stop_times_df, trips_df, routes_df):
-    """
-    Return a list of dictionaries, each describing the stop_code, stop_name,
-    and associated route/direction pairs.
-    """
-    if not stop_ids:
-        return []
-
-    # Filter stop_times to only include the specified stop_ids
-    filtered_stop_times = stop_times_df[stop_times_df["stop_id"].isin(stop_ids)]
-
-    # Merge stop_times with trips to get route_id and direction_id
-    st_trips = pd.merge(filtered_stop_times, trips_df, on="trip_id", how="inner")
-
-    # Merge with routes to get route_short_name
-    st_trips_routes = pd.merge(st_trips, routes_df, on="route_id", how="inner")
-
-    # Build a dictionary: stop_id -> set of (route_short_name, direction_id)
-    routes_by_stop_id = {}
-    for _, row in st_trips_routes.iterrows():
-        sid = row["stop_id"]
-        route_short_name = row["route_short_name"]
-        direction_id = row["direction_id"]
-        routes_by_stop_id.setdefault(sid, set()).add((route_short_name, direction_id))
-
-    # Create a small index for stop_code / stop_name by stop_id
-    stops_index = stops_df.set_index("stop_id").to_dict("index")
-
-    results = []
-    for sid, route_pairs in routes_by_stop_id.items():
-        row_info = stops_index.get(sid, {})
-        scode = row_info.get("stop_code", "N/A")
-        sname = row_info.get("stop_name", "N/A")
-        # Convert the route/direction pairs into sorted lists
-        route_list = []
-        for (route_sn, dir_id) in sorted(route_pairs):
-            route_list.append(f"{route_sn} (direction {dir_id})")
-
-        results.append({
-            "Stop_ID": sid,
-            "Stop_Code": scode,
-            "Stop_Name": sname,
-            "Routes": "; ".join(route_list) if route_list else "No routes"
-        })
-    return results
-
-
-def save_results_to_csv(results, output_file):
-    """
-    Save the results to a CSV file.
-    """
-    df_results = pd.DataFrame(results)
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    df_results.to_csv(output_file, index=False, encoding="utf-8-sig")
-    print(f"Results successfully saved to {output_file}")
 
 # =============================================================================
 # MAIN
 # =============================================================================
 
-def main():
-    """
-    Main function to execute either:
-      - 'location' mode: Identify nearby routes based on lat/lon buffers, or
-      - 'stop_code' mode: Retrieve routes/directions for specific stops by code.
-    """
+def main() -> None:
     try:
-        print("Checking input files...")
-        check_input_files(GTFS_FOLDER)
-        print("All input files are present.\n")
+        _check_gtfs(GTFS_FOLDER)
+        gtfs = _load_gtfs(GTFS_FOLDER)
 
-        print("Loading GTFS data...")
-        data = load_gtfs_data(GTFS_FOLDER)
-        print("GTFS data loaded successfully.\n")
+        st_trips_routes = (
+            gtfs["stop_times"]
+            .merge(gtfs["trips"], on="trip_id", how="inner")
+            .merge(gtfs["routes"], on="route_id", how="inner")
+            .pipe(_apply_route_filters)
+        )
 
-        print("Merging stop_times with trips, then with routes...")
-        stop_times_trips = pd.merge(data['stop_times'], data['trips'], on='trip_id', how='inner')
-        stop_times_trips_routes = pd.merge(stop_times_trips, data['routes'], on='route_id', how='inner')
-        print(f"Combined stop_times+trips+routes: {len(stop_times_trips_routes)} records.\n")
+        if st_trips_routes.empty:
+            print("Route filters removed every route – nothing to analyse.")
+            return
 
-        # Decide which approach to run
         if INPUT_MODE == "location":
-            print("== LOCATION MODE SELECTED ==\n")
-
-            print("Creating GeoDataFrame for manual locations...")
-            gdf_locations = create_geodataframe_locations(MANUAL_LOCATIONS)
-            print("GeoDataFrame for locations created.\n")
-
-            print("Creating GeoDataFrame for stops...")
-            stops_gdf = create_geodataframe_stops(data['stops'])
-            print("GeoDataFrame for stops created.\n")
-
-            print("Reprojecting GeoDataFrames to projected CRS...")
-            gdf_locations_proj, stops_gdf_proj = reproject_geodataframes(
-                gdf_locations, stops_gdf, PROJECTED_CRS
+            gdf_loc = _load_locations(
+                LOCATION_SOURCE,
+                manual_list=MANUAL_LOCATIONS,
+                shp_path=POINT_SHAPEFILE,
+                name_field=POINT_NAME_FIELD,
             )
-
-            # Convert buffer distance to feet
-            buffer_distance_feet = convert_buffer_distance(BUFFER_DISTANCE, BUFFER_UNIT)
-            print(f"Buffer distance set to {buffer_distance_feet} feet "
-                  f"({BUFFER_DISTANCE} {BUFFER_UNIT}).\n")
-
-            print("Finding nearby routes and nearest stops for each location...")
-            results = find_nearby_routes_with_nearest_stops(
-                gdf_locations_proj, stops_gdf_proj, stop_times_trips_routes, buffer_distance_feet
+            gdf_stops = _stops_to_gdf(gtfs["stops"]).to_crs(PROJECTED_CRS)
+            rows = _nearby_routes(
+                gdf_loc.to_crs(PROJECTED_CRS),
+                gdf_stops,
+                st_trips_routes,
+                _distance_ft(BUFFER_DISTANCE, BUFFER_UNIT),
+                LOCATION_EXTRA_FIELDS,
             )
-            print("Nearby routes found for all locations.\n")
 
         elif INPUT_MODE == "stop_code":
-            print("== STOP_CODE MODE SELECTED ==\n")
-
-            print(f"Filtering stops for stop_codes: {STOP_CODE_FILTER}...")
-            stops_df = data["stops"].copy()
-            matched_stop_ids = get_stop_ids_for_stop_codes(stops_df, STOP_CODE_FILTER)
-            if not matched_stop_ids:
-                print("No stops matched the provided stop_code filter.")
+            if "stop_code" not in gtfs["stops"].columns:
+                print("stops.txt lacks 'stop_code' – cannot run stop_code mode.")
+                return
+            stop_ids = gtfs["stops"][gtfs["stops"].stop_code.isin(STOP_CODE_FILTER)].stop_id
+            if stop_ids.empty:
+                print("No stops matched STOP_CODE_FILTER.")
                 return
 
-            print(f"Found {len(matched_stop_ids)} matching stop(s) for the given stop_codes.\n")
-
-            print("Finding routes for provided stop_codes...")
-            results = find_routes_by_stop_ids(
-                stops_df=stops_df,
-                stop_ids=matched_stop_ids,
-                stop_times_df=data["stop_times"],
-                trips_df=data["trips"],
-                routes_df=data["routes"]
+            df = (
+                gtfs["stop_times"][gtfs["stop_times"].stop_id.isin(stop_ids)]
+                .merge(gtfs["trips"], on="trip_id", how="inner")
+                .merge(gtfs["routes"], on="route_id", how="inner")
+                .pipe(_apply_route_filters)
             )
-            print("Routes/directions lookup completed.\n")
+
+            rows = []
+            for sid, grp in df.groupby("stop_id"):
+                route_pairs = sorted(
+                    {f"{r} (dir {d})" for r, d in zip(grp.route_short_name, grp.direction_id)}
+                )
+                rows.append({"Stop_ID": sid, "Routes": "; ".join(route_pairs)})
 
         else:
-            raise ValueError("Invalid INPUT_MODE. Use 'location' or 'stop_code'.")
+            raise ValueError("INPUT_MODE must be 'location' or 'stop_code'.")
 
-        if not results:
-            print("No results found.")
-        else:
-            output_file = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME)
-            print(f"Saving results to {output_file}...")
-            save_results_to_csv(results, output_file)
-            print("Process completed successfully!")
+        if not rows:
+            print("No results.")
+            return
 
-    except FileNotFoundError as fnf_error:
-        print(f"File not found: {fnf_error}")
-    except ValueError as val_error:
-        print(f"Value error: {val_error}")
-    except Exception as error:
-        print(f"An unexpected error occurred: {error}")
+        out_csv = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME)
+        os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+        pd.DataFrame(rows).to_csv(out_csv, index=False, encoding="utf-8-sig")
+        print(f"✔  Results written → {out_csv}")
+
+    except Exception as exc:  # pylint: disable=broad-except
+        print(f"✖  {exc}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
