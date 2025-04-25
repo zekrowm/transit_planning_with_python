@@ -1,9 +1,14 @@
 """
-Module for identifying GTFS routes near specified manual locations OR for user-specified stop_codes.
-Supports two modes:
-  1) 'location': Buffers a provided lat/lon coordinate (or multiple points), finds all stops within that buffer,
-     and retrieves the associated routes/directions.
-  2) 'stop_code': Directly uses provided stop_codes to retrieve route/direction information (no spatial processing).
+Identify nearby GTFS stops and routes based on user-specified locations.
+
+Supports two input modes:
+- 'location': Uses a shapefile or manual lat/lon points, buffers them, and finds
+  nearby stops and their associated routes/directions.
+- 'stop_code': Uses provided stop_codes to find the associated routes/directions
+  without any spatial filtering.
+
+Includes optional filtering for route_short_names and flexible output fields
+for infrastructure or service planning use cases.
 """
 
 from __future__ import annotations
