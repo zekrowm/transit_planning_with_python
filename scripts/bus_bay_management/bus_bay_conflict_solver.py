@@ -28,6 +28,7 @@ before and after solving.
 - `<Cluster>_Summary.xlsx`: Summary of conflicts and assigned stops per route
 and direction.
 """
+
 import os
 
 import pandas as pd
@@ -36,6 +37,7 @@ from openpyxl.styles import Font
 
 try:
     import pulp
+
     PULP_AVAILABLE = True
 except ImportError:
     PULP_AVAILABLE = False
@@ -136,8 +138,8 @@ def recompute_conflict_types(df_in, cluster_info):
             out_list.append("NONE")
             continue
 
-        c_conf = (ts in cluster_conf_set)
-        s_conf = ((sid, ts) in stop_conf_set)
+        c_conf = ts in cluster_conf_set
+        s_conf = (sid, ts) in stop_conf_set
         if c_conf and s_conf:
             out_list.append("BOTH")
         elif c_conf:
@@ -200,7 +202,7 @@ def solve_bus_assignment_greedy(df, cluster_info):
             used_stops_by_bus[bus_key] = set()
 
         primary_stop_id = str(row["Stop ID"]) if pd.notna(row["Stop ID"]) else ""
-        requires_capacity = (stat in PASSENGER_SERVICE_STATUSES)
+        requires_capacity = stat in PASSENGER_SERVICE_STATUSES
 
         if stat == "DEPART":
             # must depart from primary
@@ -285,18 +287,14 @@ def solve_bus_assignment_pulp(df, cluster_info):
     for s in all_stops:
         cap = stop_caps[s]
         for t in times:
-            model += (
-                lpSum(X[b][t][s] for b in bus_keys) <= cap,
-                f"Cap_{s}_{t}"
-            )
+            model += (lpSum(X[b][t][s] for b in bus_keys) <= cap, f"Cap_{s}_{t}")
 
     # presence constraints
     for b in bus_keys:
         for t in times:
-            present = (t in bus_info[b])
+            present = t in bus_info[b]
             if present:
-                model += (lpSum(X[b][t][s] for s in all_stops) == 1,
-                          f"Pres_{b}_{t}")
+                model += (lpSum(X[b][t][s] for s in all_stops) == 1, f"Pres_{b}_{t}")
             else:
                 for s in all_stops:
                     model += (X[b][t][s] == 0, f"NoPres_{b}_{t}_{s}")
@@ -322,10 +320,7 @@ def solve_bus_assignment_pulp(df, cluster_info):
     for s in all_stops:
         cap = stop_caps[s]
         for t in times:
-            model += (
-                OverCap[s][t] >= lpSum(X[b][t][s] for b in bus_keys) - cap,
-                f"OC_{s}_{t}"
-            )
+            model += (OverCap[s][t] >= lpSum(X[b][t][s] for b in bus_keys) - cap, f"OC_{s}_{t}")
 
     # Minimize total over-capacity across all stops/times
     model += lpSum(OverCap[s][t] for s in all_stops for t in times)
@@ -353,6 +348,7 @@ def solve_bus_assignment_pulp(df, cluster_info):
     out_df = df.copy()
     out_df["AssignedStop"] = assigned_list
     return out_df
+
 
 # ==================================================================================================
 # MAIN
@@ -410,28 +406,39 @@ def main():
         df_after_annot["ConflictType_Recalc"] = recompute_conflict_types(df_after_annot, cinfo)
 
         # 3) Build row-level “Before/After” file
-        df_before_cols = df_before_annot[[
-            "Block","Trip ID","Timestamp","Route","Direction",
-            "Stop ID","Stop Name"
-        ]].copy()
-        df_before_cols.rename(columns={
-            "Stop ID": "AssignedBeforeStopID",
-            "Stop Name": "AssignedBeforeStopName"
-        }, inplace=True)
+        df_before_cols = df_before_annot[
+            ["Block", "Trip ID", "Timestamp", "Route", "Direction", "Stop ID", "Stop Name"]
+        ].copy()
+        df_before_cols.rename(
+            columns={"Stop ID": "AssignedBeforeStopID", "Stop Name": "AssignedBeforeStopName"},
+            inplace=True,
+        )
 
-        df_after_cols = df_after_annot[[
-            "Block","Trip ID","Timestamp","Route","Direction","Status",
-            "AssignedStop","ConflictType_Recalc"
-        ]].copy()
-        df_after_cols.rename(columns={
-            "AssignedStop": "AssignedAfterStopID",
-            "ConflictType_Recalc": "ConflictType_RecalcAfter"
-        }, inplace=True)
+        df_after_cols = df_after_annot[
+            [
+                "Block",
+                "Trip ID",
+                "Timestamp",
+                "Route",
+                "Direction",
+                "Status",
+                "AssignedStop",
+                "ConflictType_Recalc",
+            ]
+        ].copy()
+        df_after_cols.rename(
+            columns={
+                "AssignedStop": "AssignedAfterStopID",
+                "ConflictType_Recalc": "ConflictType_RecalcAfter",
+            },
+            inplace=True,
+        )
 
         df_after_merge = pd.merge(
-            df_before_cols, df_after_cols,
-            on=["Block","Trip ID","Timestamp","Route","Direction"],
-            how="left"
+            df_before_cols,
+            df_after_cols,
+            on=["Block", "Trip ID", "Timestamp", "Route", "Direction"],
+            how="left",
         )
         df_after_merge["AssignedAfterStopName"] = ""
 
@@ -465,7 +472,9 @@ def main():
                         cell_to_bold.font = Font(bold=True)
 
         wb.save(detail_out)
-        print(f" -> Wrote row-level detail file (with bold conflicts): {os.path.basename(detail_out)}")
+        print(
+            f" -> Wrote row-level detail file (with bold conflicts): {os.path.basename(detail_out)}"
+        )
 
         # 4) Build a route+direction conflict summary
         conf_before = count_conflicts_by_routedir(df_before_annot, "ConflictType_Recalc")
@@ -474,8 +483,9 @@ def main():
         conf_after = count_conflicts_by_routedir(df_after_annot, "ConflictType_Recalc")
         conf_after.rename(columns={"ConflictMinutes": "ConflictAfter"}, inplace=True)
 
-        df_conf = pd.merge(conf_before, conf_after,
-                           on=["Route","Direction"], how="outer").fillna(0)
+        df_conf = pd.merge(conf_before, conf_after, on=["Route", "Direction"], how="outer").fillna(
+            0
+        )
         df_conf["ConflictBefore"] = df_conf["ConflictBefore"].astype(int)
         df_conf["ConflictAfter"] = df_conf["ConflictAfter"].astype(int)
 
@@ -502,34 +512,29 @@ def main():
         df_exploded = pd.DataFrame(rows_exploded)
 
         grouped = (
-            df_exploded
-            .groupby(["Route", "Direction", "StatusBucket"])["AssignedStop"]
+            df_exploded.groupby(["Route", "Direction", "StatusBucket"])["AssignedStop"]
             .agg(lambda g: sorted(x for x in set(g) if x not in (None, "")))
             .reset_index()
         )
 
         pivoted = grouped.pivot_table(
-            index=["Route","Direction"],
+            index=["Route", "Direction"],
             columns="StatusBucket",
             values="AssignedStop",
-            aggfunc=lambda x: x
+            aggfunc=lambda x: x,
         ).reset_index()
 
         pivoted.columns.name = None
-        col_map = {
-            "ARRIVE": "ArriveStops",
-            "DEPART": "DepartStops",
-            "LAYOVER": "LayoverStops"
-        }
+        col_map = {"ARRIVE": "ArriveStops", "DEPART": "DepartStops", "LAYOVER": "LayoverStops"}
         pivoted.rename(columns=col_map, inplace=True)
 
-        for c in ["ArriveStops","DepartStops","LayoverStops"]:
+        for c in ["ArriveStops", "DepartStops", "LayoverStops"]:
             if c in pivoted.columns:
                 pivoted[c] = pivoted[c].apply(
                     lambda lst: ",".join(lst) if isinstance(lst, list) else ""
                 )
 
-        df_summary = pd.merge(df_conf, pivoted, on=["Route","Direction"], how="outer").fillna("")
+        df_summary = pd.merge(df_conf, pivoted, on=["Route", "Direction"], how="outer").fillna("")
 
         summary_out = os.path.join(OUTPUT_DIR, f"{safe_name}_Summary.xlsx")
         with pd.ExcelWriter(summary_out, engine="openpyxl") as writer:
