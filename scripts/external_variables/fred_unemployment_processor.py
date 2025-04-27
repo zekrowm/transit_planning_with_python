@@ -20,10 +20,11 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-START_DATE = '2020-01-01'  # Replace with your desired start date
-END_DATE = '2024-12-01'    # Replace with your desired end date
-CSV_FILE_PATH = r'C:\Path\To\Your\Downloaded\Unemployment_Data.csv'
-OUTPUT_FOLDER = r'C:\Path\To\Your\Output_Folder'
+START_DATE = "2020-01-01"  # Replace with your desired start date
+END_DATE = "2024-12-01"  # Replace with your desired end date
+CSV_FILE_PATH = r"C:\Path\To\Your\Downloaded\Unemployment_Data.csv"
+OUTPUT_FOLDER = r"C:\Path\To\Your\Output_Folder"
+
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS
@@ -34,13 +35,13 @@ def load_data(csv_file_path: str) -> pd.DataFrame:
     Automatically detects the data series column (the first column other than observation_date).
     """
     data_frame = pd.read_csv(csv_file_path)
-    if 'observation_date' not in data_frame.columns:
+    if "observation_date" not in data_frame.columns:
         raise ValueError("The CSV file must contain an 'observation_date' column.")
 
-    data_frame['observation_date'] = pd.to_datetime(data_frame['observation_date'])
+    data_frame["observation_date"] = pd.to_datetime(data_frame["observation_date"])
 
     # Dynamically detect the data series column
-    data_columns = [col for col in data_frame.columns if col != 'observation_date']
+    data_columns = [col for col in data_frame.columns if col != "observation_date"]
     if not data_columns:
         raise ValueError("No data series column found in the CSV file.")
 
@@ -55,7 +56,7 @@ def filter_data(data_frame: pd.DataFrame, start_date: str, end_date: str) -> pd.
     """
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
-    mask = (data_frame['observation_date'] >= start) & (data_frame['observation_date'] <= end)
+    mask = (data_frame["observation_date"] >= start) & (data_frame["observation_date"] <= end)
     return data_frame.loc[mask].copy()
 
 
@@ -70,10 +71,7 @@ def export_to_excel(data_frame: pd.DataFrame, output_folder: str, filename: str)
 
 
 def plot_continuous_line(
-    data_frame: pd.DataFrame,
-    series_column: str,
-    output_folder: str,
-    filename: str
+    data_frame: pd.DataFrame, series_column: str, output_folder: str, filename: str
 ):
     """
     Creates a continuous line chart of the data series over time and saves it as a JPEG.
@@ -83,29 +81,25 @@ def plot_continuous_line(
     os.makedirs(output_folder, exist_ok=True)
     output_path = os.path.join(output_folder, filename)
     plt.figure(figsize=(10, 6))
-    plt.plot(data_frame['observation_date'], data_frame[series_column],
-             marker='o', linestyle='-')
-    plt.title(f'{series_column} Over Time')
-    plt.xlabel('Observation Date')
-    plt.ylabel(f'{series_column} (%)')
+    plt.plot(data_frame["observation_date"], data_frame[series_column], marker="o", linestyle="-")
+    plt.title(f"{series_column} Over Time")
+    plt.xlabel("Observation Date")
+    plt.ylabel(f"{series_column} (%)")
     plt.grid(True)
 
     # Format x-axis to display only the year
     axis = plt.gca()
-    axis.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    axis.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     plt.gcf().autofmt_xdate()
 
     plt.tight_layout()
-    plt.savefig(output_path, format='jpeg')
+    plt.savefig(output_path, format="jpeg")
     plt.close()
     print(f"Continuous line chart saved as '{output_path}'.")
 
 
 def plot_yearly_comparison(
-    data_frame: pd.DataFrame,
-    series_column: str,
-    output_folder: str,
-    filename: str
+    data_frame: pd.DataFrame, series_column: str, output_folder: str, filename: str
 ):
     """
     Creates a chart with each year's data plotted as a separate line (overlaid),
@@ -113,42 +107,52 @@ def plot_yearly_comparison(
     The y-axis label includes a "%" symbol.
     Saves the chart as a JPEG.
     """
-    data_frame['Year'] = data_frame['observation_date'].dt.year
-    data_frame['Month'] = data_frame['observation_date'].dt.month
+    data_frame["Year"] = data_frame["observation_date"].dt.year
+    data_frame["Month"] = data_frame["observation_date"].dt.month
 
     os.makedirs(output_folder, exist_ok=True)
     output_path = os.path.join(output_folder, filename)
     plt.figure(figsize=(10, 6))
 
-    years = sorted(data_frame['Year'].unique())
-    color_map = plt.get_cmap('tab10')
+    years = sorted(data_frame["Year"].unique())
+    color_map = plt.get_cmap("tab10")
 
     for i, year in enumerate(years):
-        yearly_data = data_frame[data_frame['Year'] == year].sort_values(by='Month')
+        yearly_data = data_frame[data_frame["Year"] == year].sort_values(by="Month")
         plt.plot(
-            yearly_data['Month'],
+            yearly_data["Month"],
             yearly_data[series_column],
-            marker='o',
-            linestyle='-',
+            marker="o",
+            linestyle="-",
             color=color_map(i),
-            label=str(year)
+            label=str(year),
         )
 
-    plt.title(f'{series_column} by Month (Grouped by Year)')
-    plt.xlabel('Month')
-    plt.ylabel(f'{series_column} (%)')
+    plt.title(f"{series_column} by Month (Grouped by Year)")
+    plt.xlabel("Month")
+    plt.ylabel(f"{series_column} (%)")
 
     # Map month numbers to 3-letter abbreviations
     month_abbr = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
     ]
     plt.xticks(range(1, 13), month_abbr)
 
-    plt.legend(title='Year')
+    plt.legend(title="Year")
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(output_path, format='jpeg')
+    plt.savefig(output_path, format="jpeg")
     plt.close()
     print(f"Yearly comparison chart saved as '{output_path}'.")
 
@@ -185,20 +189,12 @@ def main():
 
     # Generate continuous line chart (with x-axis showing only the year)
     plot_continuous_line(
-        filtered_data_frame,
-        series_column,
-        OUTPUT_FOLDER,
-        continuous_chart_filename
+        filtered_data_frame, series_column, OUTPUT_FOLDER, continuous_chart_filename
     )
 
     # Generate yearly comparison chart (with 3-letter month abbreviations)
-    plot_yearly_comparison(
-        filtered_data_frame,
-        series_column,
-        OUTPUT_FOLDER,
-        yearly_chart_filename
-    )
+    plot_yearly_comparison(filtered_data_frame, series_column, OUTPUT_FOLDER, yearly_chart_filename)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
