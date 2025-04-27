@@ -35,9 +35,7 @@ from openpyxl.styles import Font
 BLOCK_OUTPUT_FOLDER = r"\\Path\To\Your\Input_Folder"
 
 # Where to save the cluster conflict outputs
-CLUSTER_CONFLICT_OUTPUT_FOLDER = (
-    r"\\Path\To\Your\Output_Folder"
-)
+CLUSTER_CONFLICT_OUTPUT_FOLDER = r"\\Path\To\Your\Output_Folder"
 
 # Dictionary of clusters, including single_bay, double_bay, triple_bay, and overflow.
 # Each key is the cluster name, the value is a dict with lists:
@@ -56,19 +54,23 @@ CLUSTER_DEFINITIONS = {
         "single_bay_stops": ["2373"],
         "double_bay_stops": ["2832"],
         "triple_bay_stops": [],
-        "overflow_bays": ['layover_bay_A', 'layover_bay_B'],
+        "overflow_bays": ["layover_bay_A", "layover_bay_B"],
     },
 }
 
 # Define which statuses indicate bus presence in the cluster
 PRESENCE_STATUSES = {
-    "ARRIVE", "DEPART", "ARRIVE/DEPART", "DWELL", "LOADING", "LAYOVER", "LONG BREAK"
+    "ARRIVE",
+    "DEPART",
+    "ARRIVE/DEPART",
+    "DWELL",
+    "LOADING",
+    "LAYOVER",
+    "LONG BREAK",
 }
 
 # Define which statuses indicate the bus is physically occupying a stop bay
-PASSENGER_SERVICE_STATUSES = {
-    "ARRIVE", "DEPART", "ARRIVE/DEPART", "LOADING"
-}
+PASSENGER_SERVICE_STATUSES = {"ARRIVE", "DEPART", "ARRIVE/DEPART", "LOADING"}
 
 # ==================================================================================================
 # FUNCTIONS
@@ -84,9 +86,9 @@ def get_all_official_stops(cinfo):
     (regardless of single, double, or triple bay).
     """
     return (
-        cinfo.get("single_bay_stops", []) +
-        cinfo.get("double_bay_stops", []) +
-        cinfo.get("triple_bay_stops", [])
+        cinfo.get("single_bay_stops", [])
+        + cinfo.get("double_bay_stops", [])
+        + cinfo.get("triple_bay_stops", [])
     )
 
 
@@ -108,6 +110,7 @@ def build_cluster_capacities():
         cluster_cap = (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
         capacities[cname] = cluster_cap
     return capacities
+
 
 def build_stop_capacities():
     """
@@ -224,8 +227,8 @@ def annotate_conflicts(df_in, cluster_conflicts, stop_conflicts):
         ts = row["Timestamp"]
         sid = row["Stop ID"]
 
-        has_cluster_conf = (pd.notna(cname) and (cname, ts) in cluster_conflicts)
-        has_stop_conf = (sid is not None and (sid, ts) in stop_conflicts)
+        has_cluster_conf = pd.notna(cname) and (cname, ts) in cluster_conflicts
+        has_stop_conf = sid is not None and (sid, ts) in stop_conflicts
 
         if has_cluster_conf and has_stop_conf:
             conflict_types.append("BOTH")
@@ -250,7 +253,8 @@ def gather_block_spreadsheets(block_folder):
     and concatenate them into a single DataFrame.
     """
     all_files = [
-        f for f in os.listdir(block_folder)
+        f
+        for f in os.listdir(block_folder)
         if f.lower().endswith(".xlsx") and f.startswith("block_")
     ]
     if not all_files:
@@ -285,9 +289,17 @@ def run_step2_conflict_detection():
 
     # Basic checks/cleanup
     required_cols = [
-        "Timestamp", "Trip ID", "Block", "Route", "Direction",
-        "Stop ID", "Stop Name", "Stop Sequence",
-        "Arrival Time", "Departure Time", "Status",
+        "Timestamp",
+        "Trip ID",
+        "Block",
+        "Route",
+        "Direction",
+        "Stop ID",
+        "Stop Name",
+        "Stop Sequence",
+        "Arrival Time",
+        "Departure Time",
+        "Status",
     ]
     missing_cols = [c for c in required_cols if c not in df.columns]
     if missing_cols:
@@ -317,10 +329,7 @@ def run_step2_conflict_detection():
             continue
 
         safe_name = cname.replace(" ", "_")
-        out_path = os.path.join(
-            CLUSTER_CONFLICT_OUTPUT_FOLDER,
-            f"{safe_name}_Conflicts.xlsx"
-        )
+        out_path = os.path.join(CLUSTER_CONFLICT_OUTPUT_FOLDER, f"{safe_name}_Conflicts.xlsx")
         print(f"Building conflict output for cluster '{cname}' => {out_path}")
 
         # Sort by timestamp, then by block or stop ID
@@ -360,7 +369,9 @@ def run_step2_conflict_detection():
                 conflict_col_index_stop = stop_df.columns.get_loc("ConflictType") + 1
                 worksheet_stop = writer.sheets[sheet_name]
                 for row_idx in range(2, len(stop_df) + 2):
-                    conflict_val = worksheet_stop.cell(row=row_idx, column=conflict_col_index_stop).value
+                    conflict_val = worksheet_stop.cell(
+                        row=row_idx, column=conflict_col_index_stop
+                    ).value
                     if conflict_val != "NONE":
                         for col_idx in range(1, len(stop_df.columns) + 1):
                             cell = worksheet_stop.cell(row=row_idx, column=col_idx)
