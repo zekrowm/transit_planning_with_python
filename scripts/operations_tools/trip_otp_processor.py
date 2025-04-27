@@ -51,6 +51,7 @@ SUM_ON_TIME_COLUMN = "Sum # On Time"
 # FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def parse_time_string_to_minutes(time_str: str) -> float:
     """
     Convert a time string in the format HH:MM:SS to minutes (float) with one decimal place.
@@ -263,6 +264,7 @@ def export_individual_files(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """
