@@ -29,12 +29,13 @@ DATE_COLUMN = ("Sourcekey", "Date")
 PRICE_COLUMN = (
     "EMM_EPMRU_PTE_R1Y_DPG",
     "Weekly Central Atlantic (PADD 1B) "
-    "Regular Conventional Retail Gasoline Prices  (Dollars per Gallon)"
+    "Regular Conventional Retail Gasoline Prices  (Dollars per Gallon)",
 )
 
 # Date filter configuration (inclusive).
 DATE_FILTER_START = "2020-01-01"
 DATE_FILTER_END = "2024-12-31"
+
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS
@@ -57,11 +58,7 @@ def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFra
 
 
 def filter_data(
-    input_dataframe: pd.DataFrame,
-    date_col: tuple,
-    price_col: tuple,
-    start_date: str,
-    end_date: str
+    input_dataframe: pd.DataFrame, date_col: tuple, price_col: tuple, start_date: str, end_date: str
 ) -> pd.DataFrame:
     """
     Filter the DataFrame to include only the desired columns and rows within the
@@ -89,9 +86,8 @@ def filter_data(
     filtered_dataframe["Date"] = pd.to_datetime(filtered_dataframe["Date"], errors="coerce")
 
     # Filter rows based on the date range.
-    mask = (
-        (filtered_dataframe["Date"] >= pd.to_datetime(start_date)) &
-        (filtered_dataframe["Date"] <= pd.to_datetime(end_date))
+    mask = (filtered_dataframe["Date"] >= pd.to_datetime(start_date)) & (
+        filtered_dataframe["Date"] <= pd.to_datetime(end_date)
     )
     filtered_dataframe = filtered_dataframe.loc[mask]
 
