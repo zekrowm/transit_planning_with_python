@@ -22,6 +22,10 @@ transit_planning_with_python/
     │   ├── eia_gas_price_processor.py
     │   ├── fred_unemployment_processor.py
     │   └── noaa_weather_processor.py
+    ├── gtfs_exports/
+    │   ├── bus_schedule_exporter.py
+    │   ├── gtfs_shapefile_converter.py
+    │   └── stop_pattern_exporter.py
     ├── gtfs_field_resources/
     │   ├── bus_block_stop_sequence_printable.py
     │   ├── bus_cluster_arrivals_checklist_printable.py
