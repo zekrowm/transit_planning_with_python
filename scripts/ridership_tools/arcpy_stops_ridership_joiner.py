@@ -335,8 +335,9 @@ def update_bus_stops_ridership(current_fc, df_joined, key_field):
 
 def aggregate_ridership(df_joined):
     """
-    Aggregate ridership (XBOARDINGS, XALIGHTINGS, TOTAL) by the polygon join field
-    and update the polygon layer shapefile. Skips if POLYGON_LAYER is empty.
+    Aggregate ridership (XBOARDINGS, XALIGHTINGS, TOTAL) by the polygon join
+    field and update the polygon layer shapefile.  Also exports the aggregated
+    data to CSV for verification.
     """
     if not POLYGON_LAYER.strip():
         print("POLYGON_LAYER is empty, so aggregation steps have been skipped.")
@@ -344,18 +345,24 @@ def aggregate_ridership(df_joined):
 
     # Group by the designated polygon join field, e.g. "GEOID"
     df_agg = df_joined.groupby(POLYGON_JOIN_FIELD, as_index=False).agg({
-        'XBOARDINGS': 'sum',
-        'XALIGHTINGS': 'sum',
-        'TOTAL': 'sum'
+        "XBOARDINGS": "sum",
+        "XALIGHTINGS": "sum",
+        "TOTAL":       "sum"
     })
     print(f"Ridership data aggregated by {POLYGON_JOIN_FIELD}.")
 
+    # ─── Export aggregated ridership spreadsheet ───
+    agg_polygon_csv = os.path.join(OUTPUT_FOLDER, "agg_ridership_by_polygon.csv")
+    df_agg.to_csv(agg_polygon_csv, index=False)
+    print(f"Aggregated ridership by polygon exported to:\n{agg_polygon_csv}")
+
+    # Copy the source polygons so we can add fields without touching the original
     arcpy.management.CopyFeatures(POLYGON_LAYER, POLYGON_WITH_RIDERSHIP_SHP)
 
     agg_fields = [
         ("XBOARD_SUM", "DOUBLE"),
         ("XALITE_SUM", "DOUBLE"),
-        ("TOTAL_SUM", "DOUBLE")
+        ("TOTAL_SUM",  "DOUBLE")
     ]
 
     existing_fields_blocks = [f.name for f in arcpy.ListFields(POLYGON_WITH_RIDERSHIP_SHP)]
@@ -365,15 +372,15 @@ def aggregate_ridership(df_joined):
 
     print("Aggregation fields added to polygon shapefile (if not existing).")
 
-    # Build dictionary for quick lookup
-    agg_dict = {}
-    for _, row in df_agg.iterrows():
-        geoid = row[POLYGON_JOIN_FIELD]
-        agg_dict[geoid] = {
-            'XBOARD_SUM': row['XBOARDINGS'],
-            'XALITE_SUM': row['XALIGHTINGS'],
-            'TOTAL_SUM':  row['TOTAL']
+    # Build lookup dictionary for fast updates
+    agg_dict = {
+        row[POLYGON_JOIN_FIELD]: {
+            "XBOARD_SUM": row["XBOARDINGS"],
+            "XALITE_SUM": row["XALIGHTINGS"],
+            "TOTAL_SUM":  row["TOTAL"]
         }
+        for _, row in df_agg.iterrows()
+    }
 
     with arcpy.da.UpdateCursor(
         POLYGON_WITH_RIDERSHIP_SHP,
@@ -382,15 +389,17 @@ def aggregate_ridership(df_joined):
         for rec in cursor:
             geoid = rec[0]
             if geoid in agg_dict:
-                rec[1] = agg_dict[geoid]['XBOARD_SUM']
-                rec[2] = agg_dict[geoid]['XALITE_SUM']
-                rec[3] = agg_dict[geoid]['TOTAL_SUM']
+                rec[1] = agg_dict[geoid]["XBOARD_SUM"]
+                rec[2] = agg_dict[geoid]["XALITE_SUM"]
+                rec[3] = agg_dict[geoid]["TOTAL_SUM"]
             else:
                 rec[1], rec[2], rec[3] = 0, 0, 0
             cursor.updateRow(rec)
 
-    print(f"Polygon shapefile updated with aggregated ridership data at:\n"
-          f"{POLYGON_WITH_RIDERSHIP_SHP}")
+    print(
+        "Polygon shapefile updated with aggregated ridership data at:\n"
+        f"{POLYGON_WITH_RIDERSHIP_SHP}"
+    )
 
 
 def process_stops_for_single_run():
