@@ -1,5 +1,5 @@
 """
-GTFS Direction Classification Script
+Script Name: route_direction_calculator.py
 
 This script analyzes General Transit Feed Specification (GTFS) data to classify transit routes
 according to their geographic direction (Northbound, Southbound, Eastbound, Westbound) or as
