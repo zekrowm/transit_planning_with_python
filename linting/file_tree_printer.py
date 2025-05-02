@@ -18,9 +18,9 @@ import sys
 # CONFIGURATION
 # ==================================================================================================
 
-TARGET_DIR = '/path/to/transit_planning_with_python'
-OUTPUT_DIR = '/path/to/output_directory'
-OUTPUT_FILE = 'directory_structure.txt'
+TARGET_DIR = r"/path/to/transit_planning_with_python"
+OUTPUT_DIR = r"/path/to/output_directory"
+OUTPUT_FILE = r"directory_structure.txt"
 
 # ==================================================================================================
 # FUNCTIONS
