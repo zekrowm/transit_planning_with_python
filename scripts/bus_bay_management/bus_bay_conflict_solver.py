@@ -1,32 +1,26 @@
 """
-Module for assigning bus stops to scheduled bus trips while minimizing conflicts
-based on stop and cluster capacities.
+Script Name:
+    bus_bay_conflict_solver.py
 
-This script provides two solver approaches:
-- A Greedy heuristic solver (`solve_bus_assignment_greedy`) that quickly assigns
-stops based on availability and constraints.
-- An Integer Programming solver (`solve_bus_assignment_pulp`) that leverages PuLP
-to minimize overcapacity conflicts optimally.
+Purpose:
+    Assigns scheduled bus trips to available stops within defined clusters,
+    aiming to minimize capacity conflicts using either a Greedy heuristic
+    or an Integer Programming (PuLP) optimization approach.
 
-The script processes input data defining scheduled bus trips, statuses, and stop
-clusters, computes conflict types (NONE, STOP, CLUSTER, BOTH), and outputs Excel
-files detailing assignments before and after solving, as well as summary conflict
-reports by route and direction.
-
-Configuration options include:
-- Custom cluster definitions specifying stop capacities.
-- Constraints for assigning specific routes to particular stops or layover bays.
-- Handling of passenger statuses for precise conflict detection.
-
-Dependencies:
-- pandas
-- PuLP (optional, for the Integer Programming solver)
+Inputs:
+    1. Configuration constants within the script (paths, cluster definitions,
+       solver flags, operational constraints).
+    2. Excel file per cluster: `<INPUT_DIR>/<Cluster>_Conflicts.xlsx`
+       (containing scheduled trip data, statuses, initial assignments).
 
 Outputs:
-- `<Cluster>_BeforeAfter.xlsx`: Detailed assignments and conflicts per bus trip
-before and after solving.
-- `<Cluster>_Summary.xlsx`: Summary of conflicts and assigned stops per route
-and direction.
+    1. Excel file per cluster: `<OUTPUT_DIR>/<Cluster>_BeforeAfter.xlsx`
+       (Detailed per-trip assignments and conflicts before/after solving).
+    2. Excel file per cluster: `<OUTPUT_DIR>/<Cluster>_Summary.xlsx`
+       (Summary of conflicts and assigned stops by route/direction).
+
+Dependencies:
+    1. Libraries: pandas, openpyxl, pulp (optional, required for IP solver)
 """
 
 import os
