@@ -1,4 +1,27 @@
 """
+Script Name:
+    bus_bay_cluster_validation.py
+
+Purpose:
+    Validates predefined clusters of GTFS bus stops for accuracy.
+    Identifies potential issues like nearby excluded stops, distant
+    included stops, and stops with dissimilar names within clusters.
+
+Inputs:
+    1. GTFS 'stops.txt' file (path configured in GTFS_FOLDER_PATH).
+    2. 'clusters' dictionary defining stop groupings (in script config).
+    3. Configuration constants (thresholds, CRS) in script config.
+
+Outputs:
+    1. Excel files detailing potential validation issues found.
+    2. Shapefiles ('included_stops.shp', 'excluded_stops.shp',
+       'all_stops.shp') for spatial analysis.
+    3. (Outputs saved to a 'stops_check' subdirectory in BASE_OUTPUT_PATH)
+
+Dependencies:
+    1. Libraries: os, geopandas, pandas, rapidfuzz, shapely
+"""
+
 GTFS Bus Bay Cluster Validation
 
 This module validates GTFS bus arrival data by checking clusters of bus stops
