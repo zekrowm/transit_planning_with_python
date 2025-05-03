@@ -1,15 +1,29 @@
 """
-This module processes Capital Bikeshare data by combining spatial data from shapefiles with trip
-data from CSV files. It optionally clips bikeshare locations to a geographic boundary, reconciles
-station names between datasets, aggregates monthly trip activity per station, and calculates daily
-averages by weekday, Saturday, and Sunday.
+Script Name:
+    bikeshare_ridership_processor.py
 
-If you are interested in other bikeshare systems, you may need to modify the script to match
-their data format.
+Purpose:
+    Processes Capital Bikeshare spatial and trip data to generate monthly
+    total and daily average trip reports per station, optionally clipped
+    to a boundary and with station name reconciliation. If you are
+    interested in other bikeshare systems, you may need to modify the
+    script to match their data format.
 
-Data sources:
-- https://opendata.dc.gov/datasets/DCGIS::capital-bikeshare-locations/explore?location=38.813802%2C-77.103538%2C9.67
-- https://capitalbikeshare.com/system-data
+Inputs:
+    1. Capital Bikeshare station locations shapefile (configured via BIKESHARE_SHP_PATH)
+       (Source: https://opendata.dc.gov/datasets/DCGIS::capital-bikeshare-locations/explore)
+    2. Optional study area boundary shapefile (configured via BOUNDARY_SHP_PATH)
+    3. Folder containing trip data CSV files (configured via CSV_FOLDER)
+       (Source: https://capitalbikeshare.com/system-data)
+    4. Fuzzy matching threshold for station names (configured via FUZZY_THRESHOLD)
+
+Outputs:
+    1. CSV file: Total monthly trip activity per station (configured via OUTPUT_CSV)
+    2. Excel file: Average daily (Weekday/Sat/Sun) trip activity per station/month (configured via OUTPUT_XLSX)
+    3. (Optional) Matplotlib plot of clipped station locations (displayed if boundary is used)
+
+Dependencies:
+    1. Libraries: geopandas, pandas, matplotlib, difflib, os, glob, calendar
 """
 
 import calendar
