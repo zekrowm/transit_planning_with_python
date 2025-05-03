@@ -13,6 +13,7 @@ This script will:
    - Pylint score
    - Number of pylint issues
    - Needs Isort Fix (Yes/No)
+   - Docstring OK (Yes/No)
    - Full file path
    - Stderr (if any)
    ...and save it to a timestamped .xlsx in OUTPUT_FOLDER.
@@ -34,6 +35,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import ast  # ← NEW: for parsing module‑level docstrings
 from typing import List, Tuple
 
 from openpyxl import Workbook
@@ -57,6 +59,15 @@ OUTPUT_FOLDER: str = r"C:\Path\to\Your\Logs\Folder"
 
 LOG_LEVEL: int = logging.INFO  # set to logging.DEBUG for more detail
 DETAILED_LOG_FILENAME_PREFIX: str = "lint_detailed_log"
+
+# Required headers (case‑insensitive, must appear in this order) for a valid module docstring
+REQUIRED_DOC_HEADERS: tuple[str, ...] = (
+    "Script Name:",
+    "Purpose:",
+    "Inputs:",
+    "Outputs:",
+    "Dependencies:",
+)
 
 # ==================================================================================================
 # LOGGING SETUP
@@ -108,6 +119,35 @@ def is_skipped(path_str: str, skip_list: List[str]) -> bool:
         norm_skip = os.path.abspath(s).lower()
         if norm_path == norm_skip or norm_path.startswith(norm_skip + os.sep):
             return True
+    return False
+
+# ---------------------------  Docstring helpers ---------------------------------------------------
+
+def docstring_is_valid(py_file: str) -> bool:
+    """
+    Return True when the module‑level docstring exists and contains every header
+    in REQUIRED_DOC_HEADERS, in order (case‑insensitive).
+    """
+    try:
+        with open(py_file, "r", encoding="utf-8") as fh:
+            module = ast.parse(fh.read())
+    except (SyntaxError, OSError):
+        # unreadable or syntactically invalid file
+        return False
+
+    doc = ast.get_docstring(module)
+    if not doc:
+        return False
+
+    lines   = [ln.strip().lower() for ln in doc.splitlines() if ln.strip()]
+    headers = [h.lower() for h in REQUIRED_DOC_HEADERS]
+
+    idx = 0
+    for line in lines:
+        if line.startswith(headers[idx]):
+            idx += 1
+            if idx == len(headers):
+                return True  # saw every header in correct order
     return False
 
 # ---------------------------  Pylint helpers ------------------------------------------------------
@@ -231,6 +271,9 @@ def lint_and_create_outputs(files_or_folders: List[str], skip_list: List[str], o
 
         score, issues = parse_pylint_output(stdout_pylint)
 
+        # ---- Docstring check -----------------------------------------------
+        doc_ok = "Yes" if docstring_is_valid(py_file) else "No"
+
         # ---- isort ----------------------------------------------------------
         stdout_isort, stderr_isort, needs_isort = run_isort_check_on_file(py_file)
         detail_logger.info("\n--- isort diff (check‑only) ---\n%s", stdout_isort or "")
@@ -245,6 +288,7 @@ def lint_and_create_outputs(files_or_folders: List[str], skip_list: List[str], o
                 "score": score,
                 "issues": issues,
                 "needs_isort": "Yes" if needs_isort else "No",
+                "docstring_ok": doc_ok,
                 "stderr": (stderr_pylint or "") + (stderr_isort or ""),
             }
         )
@@ -264,6 +308,7 @@ def lint_and_create_outputs(files_or_folders: List[str], skip_list: List[str], o
             "Pylint Score",
             "Pylint Issues",
             "Needs Isort Fix",
+            "Docstring OK",
             "Full Path",
             "Stderr (if any)",
         ]
@@ -277,6 +322,7 @@ def lint_and_create_outputs(files_or_folders: List[str], skip_list: List[str], o
                 row["score"],
                 row["issues"],
                 row["needs_isort"],
+                row["docstring_ok"],
                 row["full_path"],
                 row["stderr"],
             ]
