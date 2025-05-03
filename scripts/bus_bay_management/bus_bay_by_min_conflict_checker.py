@@ -1,25 +1,32 @@
 """
-Module for detecting and reporting bus bay conflicts within transit clusters.
+Script Name:
+    bus_bay_by_min_conflict_checker.py
 
-This script processes block-level bus transit data (from block_status_by_minute_generator.py,
-Step 1 XLSX files), identifies scheduling conflicts based on bay occupancy at defined transit
-stop clusters, and outputs detailed Excel reports.
+Purpose:
+    Analyzes block-level bus data to detect and report scheduling
+    conflicts at transit clusters based on defined bay capacities
+    (single, double, triple, overflow) and bus statuses. Identifies
+    both cluster-level and stop-level over-capacity situations.
+    Designed as Step 2 in a transit analysis pipeline following
+    block_status_by_minute_generator.py.
 
-Key Features:
-- Supports single-bay, double-bay, triple-bay, and overflow bay configurations.
-- Identifies two types of conflicts:
-    - Cluster conflicts: Too many buses present simultaneously at a transit cluster.
-    - Stop conflicts: Too many buses simultaneously occupying an individual bus bay.
-- Produces annotated output files summarizing detected conflicts per transit cluster, including:
-    - An 'AllStops' sheet listing all events.
-    - Individual sheets per bus stop within each cluster.
+Inputs:
+    1. Block-level transit data spreadsheets (XLSX format) from the
+       directory specified by BLOCK_OUTPUT_FOLDER.
+    2. Configuration constants defined in the script: 
+       CLUSTER_DEFINITIONS (stop IDs, bay types per cluster),
+    3. PRESENCE_STATUSES (statuses indicating bus presence), 
+       PASSENGER_SERVICE_STATUSES (statuses indicating bay occupancy).
 
-Configuration Parameters:
-- BLOCK_OUTPUT_FOLDER: Directory containing input spreadsheets from Step 1.
-- CLUSTER_CONFLICT_OUTPUT_FOLDER: Directory to save conflict analysis output.
-- CLUSTER_DEFINITIONS: Dictionary specifying transit clusters and bay capacities.
-- PRESENCE_STATUSES: Statuses indicating bus presence within a cluster.
-- PASSENGER_SERVICE_STATUSES: Statuses indicating active bus bay occupancy.
+Outputs:
+    1. Excel conflict analysis reports (one file per defined cluster)
+       saved to the directory specified by CLUSTER_CONFLICT_OUTPUT_FOLDER.
+    2. Each report includes an 'AllStops' summary sheet and 
+       individual sheets for each stop/bay within the cluster, 
+       highlighting rows with detected conflicts (CLUSTER, STOP, BOTH).
+
+Dependencies:
+    1. Libraries: pandas, openpyxl
 """
 
 import os
