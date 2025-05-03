@@ -1,9 +1,26 @@
 """
-GTFS Block Timeline Generator
+Script Name:
+    block_status_by_minute_generator.py
 
-This script processes GTFS data to create minute-by-minute block-level spreadsheets
-(one file per block). It is designed as "Step 1" in a multi-step pipeline, but
-you can also run it independently.
+Purpose:
+    Processes GTFS data to generate a minute-by-minute status timeline (e.g.,
+    DWELL, LAYOVER, TRAVELING) for each transit block, outputting one spreadsheet
+    per block. Designed as Step 1 in a transit analysis pipeline.
+
+Inputs:
+    1. GTFS data files (stops.txt, trips.txt, stop_times.txt, etc.) located
+       via the `GTFS_FOLDER_PATH` constant.
+    2. Configuration constants defined in the script (e.g., `BLOCK_OUTPUT_FOLDER`,
+       `DEFAULT_HOURS`, `CALENDAR_SERVICE_IDS`, filter lists, thresholds).
+
+Outputs:
+    1. Excel (.xlsx) spreadsheets, one per processed block, detailing the
+       minute-by-minute status. Saved to the `BLOCK_OUTPUT_FOLDER`.
+    2. Console messages indicating progress and warnings.
+
+Dependencies:
+    1. Libraries: pandas
+    2. Data: GTFS formatted input data.
 """
 
 import os
