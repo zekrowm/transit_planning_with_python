@@ -30,9 +30,9 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
-from shapely.ops import polygonize, unary_union
-from shapely.geometry import LineString
 import shapely
+from shapely.geometry import LineString
+from shapely.ops import polygonize, unary_union
 
 # =============================================================================
 # CONFIGURATION
