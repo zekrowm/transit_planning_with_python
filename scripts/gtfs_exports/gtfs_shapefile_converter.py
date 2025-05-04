@@ -10,12 +10,12 @@ The `main` function provides examples of how to use it when run directly.
 """
 
 from pathlib import Path
+import sys
 from typing import Literal, Optional
 
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import LineString, Point
-import sys
 
 # --- Constants ---
 GTFS_CRS = "EPSG:4326"  # Standard CRS for GTFS (WGS 84)
