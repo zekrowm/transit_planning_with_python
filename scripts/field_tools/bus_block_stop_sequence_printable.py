@@ -1,44 +1,27 @@
 """
-GTFS Block Stop Schedule Printable Generator
+Script Name:
+    bus_block_stop_sequence_printable.py
 
-Generates printable Excel schedules for each vehicle block using GTFS data.
-Each output sheet provides a stop-by-stop schedule of trips assigned to the
-same block, allowing field personnel to observe the complete sequence of
-activity for a vehicle.
+Purpose:
+    Generates printable, stop-by-stop Excel schedules for each
+    vehicle block defined in GTFS data. Merges trip, stop time,
+    stop, and route information. Supports optional filtering by
+    service ID and route short name. Primarily intended for field
+    operations and audits.
 
-Key Features:
-- Groups trips by `block_id`, even across different routes.
-- Merges `stop_times.txt`, `trips.txt`, `stops.txt`, and `routes.txt` for
-  complete context.
-- Supports filtering by `service_id` and `route_short_name` for targeted
-  exports.
-- Outputs one formatted Excel file per block, including placeholders for field
-  checks.
+Inputs:
+    1. GTFS data files (specifically requires trips.txt,
+       stop_times.txt, stops.txt, routes.txt, calendar.txt)
+       located in the folder specified by GTFS_FOLDER_PATH.
 
-Each table includes:
-- Block ID
-- Route
-- Direction
-- Trip ID
-- Trip Start Time
-- Stop Sequence
-- Timepoint
-- Stop ID
-- Stop Name
-- Scheduled Time
-- Actual Time (blank)
-- Boardings (blank)
-- Alightings (blank)
-- Comments (blank)
+Outputs:
+    1. Individual Excel (.xlsx) files, one per vehicle block found
+       after applying filters. Each file contains a formatted schedule
+       with columns for field data entry (Actual Time, Boardings, etc.).
+       Files are saved to the folder specified by BASE_OUTPUT_PATH.
 
-Requirements:
-- Input GTFS folder must contain all required files: trips.txt, stop_times.txt,
-  stops.txt, routes.txt.
-- Python packages: pandas, openpyxl
-
-Intended Use:
-- Supports field audits and manual ride checks by providing a clear, printable
-  view of a bus block’s operation.
+Dependencies:
+    pandas, openpyxl
 """
 
 import math
