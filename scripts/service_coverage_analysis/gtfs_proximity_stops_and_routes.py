@@ -12,6 +12,7 @@ for infrastructure or service planning use cases.
 """
 
 from __future__ import annotations
+
 import os
 import sys
 
