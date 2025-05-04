@@ -1,23 +1,21 @@
 """
-noaa_weather_processing.py
+Script Name:
+    noaa_weather_processing.py
 
-A module for loading, processing, and analyzing NOAA weather data.
+Purpose:
+    Loads, processes, analyzes, and summarizes NOAA weather data from a CSV file.
 
-Data can be obtained here:
-https://www.ncei.noaa.gov/cdo-web/search?
+Inputs:
+    1. NOAA weather data CSV file (path defined in FILE_PATH). 
+    2. Data Source URL: https://www.ncei.noaa.gov/cdo-web/search?
 
-This script performs the following tasks:
-- Loads NOAA weather data from a specified CSV file.
-- Renames DataFrame columns to more descriptive and PEP-8 compliant names.
-- Processes date columns to extract additional temporal information.
-- Classifies days based on defined poor weather criteria.
-- Creates daily and monthly summaries of the weather data.
-- Adds human-readable day names to summaries.
-- Saves the processed data and summaries to the designated output folder.
-- Displays the processed data for verification.
+Outputs:
+    1. processed_weather_data.csv (cleaned data with added features)
+    2. daily_summary.csv (aggregated daily weather metrics)
+    3. monthly_poor_weather_summary.csv (count of poor weather days per month by day type)
 
-Configuration settings such as file paths, column mappings, and weather criteria are
-centralized in the configuration section for easy modification and scalability.
+Dependencies:
+    os, pandas
 """
 
 import os
