@@ -48,13 +48,14 @@ from shapely.ops import split as split_line
 # CONFIGURATION
 # =============================================================================
 
-GTFS_PATH: str = r"C:\Users\zach\Desktop\Zach\python_stuff\data\connector_gtfs_2025_01_28"
-OUTPUT_FOLDER: str = r"C:\Users\zach\Desktop\Zach\python_stuff\testing_manual\new_stop_spacing\output"
+GTFS_PATH: str = r"C:\Path\To\Your\GTFS\Folder"
+OUTPUT_FOLDER: str = r"C:\Path\To\Your\Output\Folder"
 
 FILTER_OUT_LIST: list[str] = ["9999A", "9999B", "9999C"]
 INCLUDE_ROUTE_IDS: list[str] = []
 
 ROUTE_UNION: bool = False
+# Replace with your preferred EPSG
 PROJECTED_CRS: str = "EPSG:2263"  # DC / MD StatePlane (US survey ft)
 
 # =============================================================================
