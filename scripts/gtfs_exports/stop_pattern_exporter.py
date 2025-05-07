@@ -1,16 +1,30 @@
 """
-This module extracts unique stop patterns from GTFS data and exports them to Excel workbooks,
-organized by route, direction, and service ID. It optionally loads calendar data to create
-structured subfolders based on days of service.
+Script Name:
+    gtfs_stop_pattern_exporter.py
 
-Key features:
-- Route-based, direction-based, and service-based (calendar) filtering.
-- Distance unit conversions (meters or feet to miles).
-- Export of timepoint-only stop patterns with optional validation of distances.
-- Computation and inclusion of earliest departure times for each pattern.
-- Excel outputs organized into subfolders by service_id, labeled with service days
-  (e.g., calendar_123_mon_tue).
-- Clear master-trip structure for visualizing stop patterns across different trips.
+Purpose:
+    Extracts unique stop patterns from GTFS data, optionally filters them,
+    calculates earliest departure times, and exports the patterns to
+    Excel workbooks organized by route, direction, and service ID.
+    Output subfolders can be structured based on service days if
+    calendar data is available.
+
+Inputs:
+    1. GTFS files (stops.txt, trips.txt, stop_times.txt, routes.txt,
+      and optionally calendar.txt) located in INPUT_DIR.
+    2. Configuration constants (e.g., INPUT_DIR, OUTPUT_DIR,
+       FILTER_IN_ROUTE_SHORT_NAMES, CONVERT_TO_MILES,
+       EXPORT_TIMEPOINTS_ONLY).
+
+Outputs:
+    1. Excel workbooks (.xlsx) containing stop patterns, saved in
+       subfolders within OUTPUT_DIR. Subfolder names are derived from
+       service IDs and optionally service days (e.g.,
+       'calendar_123_mon_tue'). Workbook names include route short
+       name, service ID, and SIGNUP_NAME.
+
+Dependencies:
+    logging, os, collections (defaultdict), numpy, pandas, openpyxl
 """
 
 import logging
