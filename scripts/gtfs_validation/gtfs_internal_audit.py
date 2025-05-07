@@ -1,5 +1,27 @@
 """
-HOLD
+Script Name:
+        gtfs_internal_audit.py
+
+Purpose:
+        Validates General Transit Feed Specification (GTFS) data by
+        performing a series of checks for common issues such as orphan
+        stops, unused routes/trips, shapes far from stops, hanging
+        segments, unrealistic timings, and bad stop sequences.
+
+Inputs:
+        1. GTFS text files (stops.txt, stop_times.txt, routes.txt,
+        trips.txt, shapes.txt) located in a specified GTFS folder.
+        2. Configuration constants within the script for paths, filtering,
+        and thresholds.
+
+Outputs:
+        1. CSV files detailing any issues found for each validation rule.
+        These are saved in a specified output folder. If no issues are
+        found for a rule, an empty CSV file is created.
+
+Dependencies:
+        pandas, logging, pathlib, sys
+        Optional: networkx, shapely
 """
 
 from __future__ import annotations
