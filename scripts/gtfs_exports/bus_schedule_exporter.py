@@ -1,21 +1,33 @@
 """
-GTFS Schedule Exporter Module.
+Script Name:
+    bus_schedule_exporter.py
 
-Processes GTFS (General Transit Feed Specification) files to generate
-clearly formatted Excel schedules per route and direction, grouped
-by service ID. Allows filtering of routes and service IDs through
-configurable lists, improving flexibility for targeted analysis.
+Purpose:
+    Processes GTFS data to generate formatted Excel transit schedules per route,
+    direction, and service ID.
 
-Key Features:
-- Filters routes using `FILTER_IN_ROUTES` and `FILTER_OUT_ROUTES`.
-- Filters services using `FILTER_SERVICE_IDS`. When non-empty, only these
-  service IDs are processed.
-- Dynamically generates descriptive output folders based on `service_id`
-  and active days of week (e.g., "calendar_2_sat").
-- Supports configurable time formatting (`12-hour` or `24-hour`) for
-  schedule readability.
-- Provides data validation checks on schedule times to detect ordering issues.
-- Handles GTFS files robustly with error checking and clear messaging.
+Inputs:
+    1. GTFS text files (e.g., stops.txt, routes.txt, trips.txt, stop_times.txt,
+       calendar.txt) located in GTFS_FOLDER_PATH.
+    2. User-defined configurations:
+       - GTFS_FOLDER_PATH: Path to the directory containing GTFS files.
+       - BASE_OUTPUT_PATH: Path to the directory where output Excel files will be
+         saved.
+       - FILTER_SERVICE_IDS: List of service_ids to process (empty processes all).
+       - FILTER_IN_ROUTES: List of route_short_names to include (empty includes all
+         not filtered out).
+       - FILTER_OUT_ROUTES: List of route_short_names to exclude.
+       - TIME_FORMAT_OPTION: Time display format ('12' or '24' hour).
+
+Outputs:
+    1. Excel (.xlsx) files, each containing schedules for a specific route and
+        service type (e.g., Weekday, Saturday), with separate sheets for each
+        direction.
+    2. Dynamically created output subfolders under BASE_OUTPUT_PATH, organized
+        by service ID and its active days (e.g., "calendar_1_mon_tue_wed_thu_fri").
+
+Dependencies:
+    os, re, sys, collections (defaultdict), pandas, openpyxl
 """
 
 import os
