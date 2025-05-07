@@ -1,16 +1,36 @@
 """
-Export GTFS Stops to Shapefile and Compute a TSP Route for Selected Bus Stops,
-using a road network (with one-way directions and variable speeds) as a time network
-in the DC area, using EPSG:2283 (NAD83 / Virginia North (ftUS)).
+Script Name:
+      site_visit_route_planner.py
 
-This script:
-1. Reads GTFS stops (EPSG:4326) and reprojects them to EPSG:2283.
-2. Lets the user specify a starting point in Google Maps DMS format (single string),
-   which is also reprojected from EPSG:4326 to EPSG:2283.
-3. Builds a directed road network from a shapefile in EPSG:2283.
-4. Snaps each bus stop (and the start) to the nearest node in the road network.
-5. Computes a TSP route via either an ILP or a Greedy approximation.
-6. Exports step-by-step directions and also a route shapefile showing the final path.
+Purpose:
+      Processes GTFS stops and a road network to compute an optimal
+      Traveling Salesman Problem (TSP) route. Reprojects coordinates,
+      snaps stops to the road network, considers travel times based on
+      one-way streets and speed limits, and allows selection between
+      ILP (exact) or greedy (approximate) TSP solutions.
+
+Inputs:
+      1. Path to GTFS data directory (containing 'stops.txt' in EPSG:4326).
+      2. Path to roadways shapefile (EPSG:2283).
+      3. List of selected GTFS stop IDs.
+      4. Starting location as a Google Maps DMS coordinate string (EPSG:4326).
+      5. Configuration constants within the script for:
+         - Output directory path.
+         - GTFS stop ID column name.
+         - Road shapefile attribute column names (ONEWAY, SPEEDLIMI, FULLNAME).
+         - Target road CRS (Coordinate Reference System).
+         - Fallback average speed.
+         - TSP optimization approach ('ilp' or 'greedy').
+
+Outputs:
+      1. Shapefile of reprojected GTFS stops ('gtfs_stops.shp') in EPSG:2283.
+      2. Excel file with step-by-step driving directions ('directions.xlsx').
+      3. Shapefile of the computed TSP route ('tsp_route.shp') in EPSG:2283.
+      4. A Matplotlib plot visualizing the TSP route on selected stops.
+
+Dependencies:
+      math, os, re, geopandas, matplotlib.pyplot, networkx, pandas,
+      pulp, pyproj, shapely.geometry.
 """
 
 import math
