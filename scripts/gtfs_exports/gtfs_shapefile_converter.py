@@ -1,12 +1,29 @@
 """
-Converts GTFS stops and shapes data into ESRI Shapefiles.
+Script Name:
+        gtfs_shapefile_converter.py
 
-This module reads GTFS `stops.txt` and `shapes.txt`, converts them into
-GeoDataFrames, and exports them as point and line Shapefiles.
+Purpose:
+        Converts General Transit Feed Specification (GTFS) data,
+        specifically `stops.txt` and `shapes.txt` files, into
+        ESRI Shapefiles representing transit stops (points) and
+        transit routes/patterns (lines).
 
-Default input and output paths can be set in the User Configuration section.
-The `gtfs_to_shapefiles` function performs the conversion.
-The `main` function provides examples of how to use it when run directly.
+Inputs:
+        1. Path to a directory containing GTFS files (`stops.txt` and
+           optionally `shapes.txt`).
+        2. Path to an output directory where Shapefiles will be saved.
+        3. (Optional) Specification of which elements to export:
+           "stops", "lines", or "both".
+        4. Default input and output paths can be pre-configured
+           within the script.
+Outputs:
+        1. `gtfs_stops.shp`: ESRI Shapefile of transit stops (Points).
+        2. `gtfs_lines.shp`: ESRI Shapefile of transit shapes (LineStrings).
+           (Output files are generated in the specified output directory)
+
+Dependencies:
+        geopandas, pandas, shapely, pathlib (standard library),
+        typing (standard library)
 """
 
 from pathlib import Path
