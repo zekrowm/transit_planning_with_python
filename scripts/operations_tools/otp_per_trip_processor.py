@@ -1,8 +1,35 @@
 """
-Python script for filtering and aggregating running time and OTP data,
-with configurable OTP aggregation methods, export options, branch filtering,
-a recalculated total trips column, and percent calculations in both the aggregate
-and individual route-level exports.
+Script Name:
+        otp_per_trip_processor.py
+
+Purpose:
+        Filters, aggregates, and analyzes trip-level running time and
+        On-Time Performance (OTP) data from a CSV file. It supports
+        configurable aggregation methods, branch filtering, recalculation
+        of total trips, and calculation of OTP percentages for both
+        aggregate and individual route-level Excel exports.
+
+Inputs:
+        1. A CSV file (specified by INPUT_FILE) containing trip-level data
+           with columns for scheduled/actual running times, deviations,
+           start deltas, and OTP counts (early, late, on-time), Branch,
+           and Direction.
+        2. Configuration constants defined in the script (e.g.,
+           ROUTES_OF_INTEREST, FILTER_OUT_BRANCHES,
+           AGGREGATE_BY_DIRECTION, OTP_STANDARD_PCT,
+           AGGREGATE_OTP_USING_COUNTS, EXPORT_INDIVIDUAL_ROUTE_FILES,
+           column name mappings).
+
+Outputs:
+        1. An aggregated Excel file ('route_level_aggregations.xlsx')
+           in the OUTPUT_DIR, summarizing metrics by route or
+           route/direction.
+        2. Optionally (if EXPORT_INDIVIDUAL_ROUTE_FILES is True),
+           individual Excel files for each route or route/direction,
+           also saved in OUTPUT_DIR.
+
+Dependencies:
+        pandas, os, typing (List, Optional)
 """
 
 import os
