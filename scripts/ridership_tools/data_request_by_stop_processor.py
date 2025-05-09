@@ -1,18 +1,32 @@
 """
-Ridership by Route and Stop Processor
+Script Name:
+        data_request_by_stop_processor.py
 
-This script processes ridership data from an input Excel file by filtering specific routes
-and stop IDs, aggregating the data for defined time periods, and exporting the results to
-a new Excel file with multiple formatted sheets.
+Purpose:
+        Processes ridership data from an Excel file by filtering, aggregating
+        by time periods and stops, and optionally rounding or binning results.
+        It is useful for fulfilling stop-based data requests.
 
-It supports two main "formatting" controls:
+Inputs:
+        1. Excel file containing ridership data (specified by INPUT_FILE_PATH).
+        2. Configuration constants in the script for:
+           - Routes to filter (ROUTES)
+           - Stop IDs to filter (STOP_IDS)
+           - Time periods for aggregation (TIME_PERIODS)
+           - Rounding of ridership figures (APPLY_ROUNDING)
+           - Binning of aggregated totals (AGGREGATE_BIN_RANGES)
 
-1. APPLY_ROUNDING = True/False
-    - Whether we round BOARD_ALL and ALIGHT_ALL to 1 decimal place in the "Original" tab
-    - If AGGREGATE_BIN_RANGES is False, also round the aggregated totals to 1 decimal place
-2. AGGREGATE_BIN_RANGES = True/False
-    - Whether we convert the aggregated totals (BOARD_ALL_TOTAL, ALIGHT_ALL_TOTAL) into
-      text ranges ("0-4.9", "5-24.9", "25 or more") in each aggregated sheet
+Outputs:
+        1. A new Excel file (input file name + OUTPUT_FILE_SUFFIX + .xlsx)
+           containing:
+           - A sheet with original, filtered (and optionally rounded) data.
+           - Separate sheets for aggregated data for each specified time period.
+           - A sheet for aggregated data across all time periods.
+           - Aggregated totals are either numeric (optionally rounded) or
+             binned into text ranges.
+
+Dependencies:
+        pandas, openpyxl, os (standard library), sys (standard library)
 """
 
 import os
