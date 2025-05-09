@@ -71,24 +71,40 @@ def bin_ridership_value(value):
     return "25 or more"  # Removed unnecessary `elif` and final `else` per no-else-return.
 
 
-def aggregate_by_stop(data_subset):
+def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
     """
-    Summarize ridership by stop, totaling boardings and alightings, and listing unique routes.
+    Summarize ridership by stop, totaling boardings and alightings, and listing
+    unique routes.
+
+    Fixes implemented
+    -----------------
+    1. **FutureWarning** – We keep only the columns we will aggregate before the
+       group-by, so pandas never has to “drop invalid columns”.
+    2. **TypeError** – ROUTE_NAME is converted to `str`, guaranteeing that
+       ','.join() always receives strings.
     """
-    aggregated = data_subset.groupby(["STOP", "STOP_ID"], as_index=False).agg(
-        {
-            "BOARD_ALL": "sum",
+    # Keep only the columns required for this aggregation step
+    cols_needed = ["STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL", "ROUTE_NAME"]
+    subset = data_subset[cols_needed].copy()
+
+    # Force ROUTE_NAME to string so join() can’t choke on numeric dtypes
+    subset["ROUTE_NAME"] = subset["ROUTE_NAME"].astype(str).str.strip()
+
+    aggregated = (
+        subset
+        .groupby(["STOP", "STOP_ID"], as_index=False)
+        .agg({
+            "BOARD_ALL":  "sum",
             "ALIGHT_ALL": "sum",
             "ROUTE_NAME": lambda x: ", ".join(sorted(x.unique())),
-        }
-    )
-    aggregated.rename(
-        columns={
-            "BOARD_ALL": "BOARD_ALL_TOTAL",
-            "ALIGHT_ALL": "ALIGHT_ALL_TOTAL",
-            "ROUTE_NAME": "ROUTES",
-        },
-        inplace=True,
+        })
+        .rename(
+            columns={
+                "BOARD_ALL":  "BOARD_ALL_TOTAL",
+                "ALIGHT_ALL": "ALIGHT_ALL_TOTAL",
+                "ROUTE_NAME": "ROUTES",
+            }
+        )
     )
     return aggregated
 
@@ -179,14 +195,25 @@ def adjust_excel_formatting(output_file):
         sys.exit(1)
 
 
-def process_aggregations(filtered_data):
+def process_aggregations(filtered_data: pd.DataFrame):
     """
     Handle rounding/bins for original and aggregated data. Returns the
     final versions of the filtered data, the aggregated peaks, and the
     all-time aggregated DataFrame.
-    """
 
-    # Build time-period subsets if TIME_PERIODS is non-empty
+    This wrapper now forces ROUTE_NAME to str *once* so every downstream use
+    (original sheet as well as any future aggregations) is safe.
+    """
+    # ------------------------------------------------------------------  
+    # 0) Make ROUTE_NAME consistently string *before* any aggregation
+    # ------------------------------------------------------------------  
+    filtered_data["ROUTE_NAME"] = (
+        filtered_data["ROUTE_NAME"].astype(str).str.strip()
+    )
+
+    # ------------------------------------------------------------------  
+    # 1) Build time-period subsets if TIME_PERIODS is non-empty
+    # ------------------------------------------------------------------  
     peak_data_dict = {}
     if TIME_PERIODS:
         for period in TIME_PERIODS:
@@ -194,35 +221,38 @@ def process_aggregations(filtered_data):
             subset = filtered_data[filtered_data["TIME_PERIOD"] == period_upper]
             peak_data_dict[period] = subset[COLUMNS_TO_RETAIN]
 
-    # Aggregate data for all rows (regardless of time period)
+    # ------------------------------------------------------------------  
+    # 2) Aggregate data (all-time and by time period)
+    # ------------------------------------------------------------------  
     all_time_aggregated = aggregate_by_stop(filtered_data)
 
-    # Aggregate data for each time period (if any)
     aggregated_peaks = {}
     if TIME_PERIODS:
         for period, data_subset in peak_data_dict.items():
             aggregated_peaks[period] = aggregate_by_stop(data_subset)
 
-    # 1) Round the original ridership columns if requested
+    # ------------------------------------------------------------------  
+    # 3) Round the original ridership columns if requested
+    # ------------------------------------------------------------------  
     if APPLY_ROUNDING:
-        for col in ["BOARD_ALL", "ALIGHT_ALL"]:
-            if col in filtered_data.columns:
-                filtered_data[col] = filtered_data[col].round(1)
+        filtered_data[["BOARD_ALL", "ALIGHT_ALL"]] = (
+            filtered_data[["BOARD_ALL", "ALIGHT_ALL"]].round(1)
+        )
 
-    # 2) Format aggregated columns
+    # ------------------------------------------------------------------  
+    # 4) Format aggregated columns (rounding or binning)
+    # ------------------------------------------------------------------  
     all_dfs = [all_time_aggregated] + list(aggregated_peaks.values())
     for df_agg in all_dfs:
         if AGGREGATE_BIN_RANGES:
             # Convert numeric aggregated totals into bins
             for col in ["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]:
-                if col in df_agg.columns:
-                    df_agg[col] = df_agg[col].apply(bin_ridership_value)
-        else:
-            # If not binning, but rounding is desired, do decimal rounding
-            if APPLY_ROUNDING:
-                for col in ["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]:
-                    if col in df_agg.columns:
-                        df_agg[col] = df_agg[col].round(1)
+                df_agg[col] = df_agg[col].apply(bin_ridership_value)
+        elif APPLY_ROUNDING:
+            # Otherwise, if rounding is desired, do decimal rounding
+            df_agg[["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]] = (
+                df_agg[["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]].round(1)
+            )
 
     return filtered_data, aggregated_peaks, all_time_aggregated
 
