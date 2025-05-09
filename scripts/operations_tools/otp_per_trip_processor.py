@@ -26,6 +26,10 @@ FILTER_OUT_BRANCHES: List[str] = ["9999A ", "9999B", "9999C ", "STRGH ", "STRGR 
 # Set to True to aggregate by [Branch, Direction], or False to aggregate by [Branch] only.
 AGGREGATE_BY_DIRECTION = True
 
+# OTP performance standard (percentage)
+# Any group with on_time_pct < this value will be flagged
+OTP_STANDARD_PCT = 85 # Adjust if needed
+
 # OTP Aggregation Options:
 # If True, use aggregated counts (sum counts then compute percentages).
 # If False (default), average the OTP percentages computed for each trip.
@@ -107,27 +111,33 @@ def filter_by_branch(
 
 def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd.DataFrame:
     """
-    Create aggregations that average running times and OTP metrics over all trips
-    for each route (Branch) or route/direction.
+    Aggregate running-time and OTP metrics by route (Branch) or route + Direction.
 
-    OTP metrics include:
-        - Calculated Total Trips
-        - Early %
-        - Late %
-        - On-Time %
+    Returns a DataFrame with the following, when the columns exist in the input:
+        ─ avg_scheduled_minutes
+        ─ avg_actual_minutes
+        ─ avg_deviation_minutes
+        ─ avg_start_delta_minutes
+        ─ total_trips
+        ─ early_pct
+        ─ late_pct
+        ─ on_time_pct
+        ─ otp_below_standard  ▶︎ Boolean flag (True when on_time_pct < OTP_STANDARD_PCT)
 
-    The method for calculating OTP percentages is determined by the configuration:
-      - If AGGREGATE_OTP_USING_COUNTS is True, counts are summed and percentages computed.
-      - Otherwise, OTP percentages are computed per row using Calculated Total Trips and then averaged.
-
-    Returns a DataFrame with the aggregated results.
+    The OTP percentage calculation method is controlled by the
+    AGGREGATE_OTP_USING_COUNTS constant; see the CONFIGURATION section.
     """
-    group_cols = ["Branch"]
+    # -----------------------------------------------------------------
+    # Which columns define a “group”?
+    # -----------------------------------------------------------------
+    group_cols: list[str] = ["Branch"]
     if group_by_direction:
         group_cols.append("Direction")
 
-    # Aggregation for running time columns (if available)
-    agg_dict = {}
+    # -----------------------------------------------------------------
+    # Running-time metrics
+    # -----------------------------------------------------------------
+    agg_dict: dict[str, tuple[str, str]] = {}
     if "Average Scheduled Running Time (min)" in df.columns:
         agg_dict["avg_scheduled_minutes"] = ("Average Scheduled Running Time (min)", "mean")
     if "Average Actual Running Time (min)" in df.columns:
@@ -139,11 +149,13 @@ def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd
 
     rt_agg = df.groupby(group_cols, dropna=False).agg(**agg_dict).reset_index()
 
-    # OTP Aggregation (if the necessary columns exist)
-    otp_columns = {SUM_EARLY_COLUMN, SUM_LATE_COLUMN, SUM_ON_TIME_COLUMN, "Calculated Total Trips"}
-    if otp_columns.issubset(set(df.columns)):
+    # -----------------------------------------------------------------
+    # OTP metrics
+    # -----------------------------------------------------------------
+    otp_cols = {SUM_EARLY_COLUMN, SUM_LATE_COLUMN, SUM_ON_TIME_COLUMN, "Calculated Total Trips"}
+    if otp_cols.issubset(df.columns):
         if AGGREGATE_OTP_USING_COUNTS:
-            # Sum counts and then compute percentages using the calculated total trips.
+            # Sum counts first, then compute percentages
             otp_agg = (
                 df.groupby(group_cols, dropna=False)
                 .agg(
@@ -154,68 +166,27 @@ def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd
                 )
                 .reset_index()
             )
-            otp_agg["early_pct"] = otp_agg.apply(
-                lambda row: round(
-                    (
-                        (row["total_early"] / row["total_trips"] * 100)
-                        if row["total_trips"]
-                        else float("nan")
-                    ),
-                    1,
-                ),
-                axis=1,
-            )
-            otp_agg["late_pct"] = otp_agg.apply(
-                lambda row: round(
-                    (
-                        (row["total_late"] / row["total_trips"] * 100)
-                        if row["total_trips"]
-                        else float("nan")
-                    ),
-                    1,
-                ),
-                axis=1,
-            )
-            otp_agg["on_time_pct"] = otp_agg.apply(
-                lambda row: round(
-                    (
-                        (row["total_on_time"] / row["total_trips"] * 100)
-                        if row["total_trips"]
-                        else float("nan")
-                    ),
-                    1,
-                ),
-                axis=1,
-            )
+            otp_agg["early_pct"] = (
+                otp_agg["total_early"] / otp_agg["total_trips"] * 100
+            ).round(1)
+            otp_agg["late_pct"] = (otp_agg["total_late"] / otp_agg["total_trips"] * 100).round(1)
+            otp_agg["on_time_pct"] = (
+                otp_agg["total_on_time"] / otp_agg["total_trips"] * 100
+            ).round(1)
         else:
-            # Compute OTP percentages per row using Calculated Total Trips and then average by group.
-            df = df.copy()
-            df["early_pct"] = df.apply(
-                lambda row: (
-                    (row[SUM_EARLY_COLUMN] / row["Calculated Total Trips"] * 100)
-                    if row["Calculated Total Trips"]
-                    else float("nan")
-                ),
-                axis=1,
+            # Compute percentages row-by-row, then average
+            df_pct = df.copy()
+            df_pct["early_pct"] = (
+                df_pct[SUM_EARLY_COLUMN] / df_pct["Calculated Total Trips"] * 100
             )
-            df["late_pct"] = df.apply(
-                lambda row: (
-                    (row[SUM_LATE_COLUMN] / row["Calculated Total Trips"] * 100)
-                    if row["Calculated Total Trips"]
-                    else float("nan")
-                ),
-                axis=1,
+            df_pct["late_pct"] = (
+                df_pct[SUM_LATE_COLUMN] / df_pct["Calculated Total Trips"] * 100
             )
-            df["on_time_pct"] = df.apply(
-                lambda row: (
-                    (row[SUM_ON_TIME_COLUMN] / row["Calculated Total Trips"] * 100)
-                    if row["Calculated Total Trips"]
-                    else float("nan")
-                ),
-                axis=1,
+            df_pct["on_time_pct"] = (
+                df_pct[SUM_ON_TIME_COLUMN] / df_pct["Calculated Total Trips"] * 100
             )
             otp_agg = (
-                df.groupby(group_cols, dropna=False)
+                df_pct.groupby(group_cols, dropna=False)
                 .agg(
                     total_trips=("Calculated Total Trips", "sum"),
                     early_pct=("early_pct", "mean"),
@@ -223,20 +194,24 @@ def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd
                     on_time_pct=("on_time_pct", "mean"),
                 )
                 .reset_index()
-            )
-            otp_agg["early_pct"] = otp_agg["early_pct"].round(1)
-            otp_agg["late_pct"] = otp_agg["late_pct"].round(1)
-            otp_agg["on_time_pct"] = otp_agg["on_time_pct"].round(1)
+            ).round({"early_pct": 1, "late_pct": 1, "on_time_pct": 1})
 
-        # Merge OTP aggregation with running time aggregation
+        # Merge running-time and OTP metrics
         agg_df = pd.merge(rt_agg, otp_agg, on=group_cols, how="left")
     else:
         agg_df = rt_agg
 
-    # Final rounding for running time columns
-    for col in agg_df.columns:
-        if col.startswith("avg_"):
-            agg_df[col] = agg_df[col].round(1)
+    # -----------------------------------------------------------------
+    # Final rounding for running-time columns
+    # -----------------------------------------------------------------
+    for col in agg_df.filter(like="avg_").columns:
+        agg_df[col] = agg_df[col].round(1)
+
+    # -----------------------------------------------------------------
+    # Flag groups below the OTP performance standard
+    # -----------------------------------------------------------------
+    if "on_time_pct" in agg_df.columns:
+        agg_df["otp_below_standard"] = agg_df["on_time_pct"] < OTP_STANDARD_PCT
 
     return agg_df
 
