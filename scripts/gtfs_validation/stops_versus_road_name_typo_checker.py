@@ -1,4 +1,29 @@
 """
+Script Name:
+        stops_versus_road_name_typo_checker.py
+
+Purpose:
+        Identifies potential typos in GTFS stop names by spatially
+        joining them with roadway centerlines from a shapefile and
+        comparing names using fuzzy matching.
+
+Inputs:
+        1. GTFS 'stops.txt' file.
+        2. Roadway centerline shapefile (.shp).
+        3. Configuration constants within the script (paths, CRS,
+           similarity threshold, buffer distance).
+        4. User input for mapping roadway shapefile columns if
+           standard names are not found.
+
+Outputs:
+        1. CSV file (default: 'potential_typos.csv') listing potential
+           typos, including stop details, the street segment from the
+           stop name, the similar roadway name, and the similarity score.
+
+Dependencies:
+        geopandas, pandas, pyproj, rapidfuzz
+        logging (standard library), os (standard library), re (standard library)
+
 Module: gtfs_stop_road_shp_typo_finder
 Description: Identifies potential typos in GTFS stop names by comparing them
 to roadway shapefile names using fuzzy matching.
