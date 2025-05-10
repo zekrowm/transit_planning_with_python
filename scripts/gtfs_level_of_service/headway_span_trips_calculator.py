@@ -1,37 +1,30 @@
 """
-Script Name: headway_span_trips_calculator.py
+Script Name:
+        headway_span_trips_calculator.py
 
-This script processes General Transit Feed Specification (GTFS) data to generate
-key performance indicators (KPIs) and essential service-level metrics for transit routes.
-It computes core statistics such as service span, headways, average run times, route distances,
-and operating speeds. Additionally, the script identifies interlined routes and validates
-trip data consistency across defined time-blocks.
+Purpose:
+        Analyzes GTFS data to calculate transit route key performance
+        indicators (KPIs) including service span, headways, trip counts
+        per time-block, average run times, route distances, and
+        operating speeds. Identifies interlined routes.
 
-Core Functionalities:
-    - Filters out non-service ("fake") routes based on configurable criteria.
-    - Calculates essential metrics including:
-        - Service span (first and last trip times)
-        - Time-block based headways and trip counts
-        - Average and median route distances
-        - Average run times and operating speeds
-    - Supports flexible units (meters, feet, or miles) for distance calculations.
-    - Identifies interlined routes to provide reference information without impacting route metrics.
-    - Includes built-in validation checks to ensure data consistency and accuracy.
+Inputs:
+        1. GTFS files (routes.txt, trips.txt, stop_times.txt,
+           calendar.txt, calendar_dates.txt) from a specified directory.
+        2. Configuration parameters:
+           - Input/output paths.
+           - Time-block definitions.
+           - List of route identifiers to exclude.
+           - Unit for distance measurement (meters, feet, or miles).
+           - Schedule type definitions (e.g., Weekday, Saturday, Sunday).
 
-Configuration:
-    - Input and output directories
-    - GTFS files to be loaded
-    - Definitions for customizable time-blocks
-    - List of route identifiers to exclude from analysis
-    - Unit specification for distance measurement
+Outputs:
+        Excel file(s) (one per schedule type, e.g.,
+        "Weekday_route_schedule_headway_with_modes.xlsx") detailing
+        the calculated route metrics, saved to a specified directory.
 
-Usage:
-    Place required GTFS files in the specified input directory, configure script parameters
-    as needed, and run the script. Outputs will be exported to Excel, formatted for clarity
-    and ease of route comparison.
-
-This tool is intended to simplify and standardize route performance assessment, making
-comparative analysis straightforward for planners, analysts, and transit agencies.
+Dependencies:
+        pandas, openpyxl, os, datetime.timedelta
 """
 
 import os
