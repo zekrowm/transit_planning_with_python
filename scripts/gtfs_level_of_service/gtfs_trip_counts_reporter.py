@@ -1,9 +1,43 @@
 """
-gtfs_trips_hourly_reporter.py
+Script Name:
+        gtfs_trips_hourly_reporter.py
 
-This module processes General Transit Feed Specification (GTFS) data to generate
-reports of trips for selected routes based on a specified time interval and exports
-the results to Excel workbooks.
+Purpose:
+        Processes GTFS data to count and report trips for specified routes
+        and directions within defined time intervals, exporting results to
+        Excel files. Allows filtering by specific days of the week or
+        processing all services separately.
+
+Inputs:
+        1. GTFS text files (e.g., trips.txt, stop_times.txt, routes.txt,
+           calendar.txt) located in the `BASE_INPUT_PATH`.
+        2. Configuration constants within the script:
+           - `BASE_INPUT_PATH`: Path to the directory containing GTFS files.
+           - `BASE_OUTPUT_PATH`: Path to the directory where Excel reports
+             will be saved.
+           - `GTFS_FILES`: List of required GTFS filenames.
+           - `ROUTE_DIRECTIONS`: List of dictionaries defining routes and
+             direction_ids to process.
+           - `TIME_INTERVAL_MINUTES`: Integer defining the time interval
+             for grouping trips (e.g., 60 for hourly).
+           - `CALENDAR_FILTER_DAYS`: List of lowercase day names (e.g.,
+             ['monday', 'tuesday']) to filter active services. If empty,
+             each service_id is processed separately.
+
+Outputs:
+        1. Excel (.xlsx) files generated in the `BASE_OUTPUT_PATH`.
+            - Each file contains a report of trip counts per time interval for a
+               specific route, direction, and, if applicable, service_id.
+            - Filename convention:
+              - If `CALENDAR_FILTER_DAYS` is used:
+                `Trips_Per_[interval]Min_Route_[route_short_name]_Dir_[dir_id].xlsx`
+                `Trips_Per_[interval]Min_Route_[route_short_name]_All_Directions.xlsx`
+              - If `CALENDAR_FILTER_DAYS` is empty (processing by service_id):
+                `Trips_Per_[interval]Min_Service_[service_id]_Route_[route_short_name]_Dir_[dir_id].xlsx`
+                `Trips_Per_[interval]Min_Service_[service_id]_Route_[route_short_name]_All_Directions.xlsx`
+
+Dependencies:
+        pandas, openpyxl, os (standard library), logging (standard library)
 """
 
 import logging
