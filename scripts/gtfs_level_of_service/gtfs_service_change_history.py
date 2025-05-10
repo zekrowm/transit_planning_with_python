@@ -1,29 +1,32 @@
 """
-Script Name: gtfs_service_change_history.py
+Script Name:
+    gtfs_service_change_history.py
 
-Highlights:
-  1) Processes multiple GTFS signups in chronological order.
-  2) Optionally filters out certain routes (default: ['9999A','9999B','9999C']).
-  3) Calculates coverage polygons for each route by buffering stops 0.25 miles.
-     - Exports a **single shapefile per signup** with all route coverage polygons.
-  4) Compares coverage polygons between consecutive signups to detect:
-     - Geography expanded
-     - Geography contracted
-     - Geography modified
-  5) Also retains logic to detect:
-     - Route created / eliminated
-     - Interlining change
-     - Other change
-     - No change
+Purpose:
+    Processes multiple GTFS datasets chronologically to analyze public
+    transport service changes. It calculates route coverage polygons,
+    detects changes in service geography (expanded, contracted, modified),
+    identifies created/eliminated routes, and notes interlining or other
+    schedule modifications between GTFS signups.
 
-Usage:
-    1. Adjust MULTIPLE_GTFS_CONFIGS in chronological order.
-    2. Adjust optional ROUTE_FILTER_OUT if needed.
-    3. Pick a default CRS in GEO_CRS.
-    4. Run the script. It will produce:
-       - One Excel file per signup+schedule type.
-       - One coverage polygon shapefile per signup.
-       - A final "service_change_comparison.xlsx" comparing changes across signups.
+Inputs:
+    1. List of GTFS dataset configurations (name and folder path for each signup).
+    2. Optional list of route IDs to filter out.
+    3. Output directory path.
+    4. GTFS files: routes.txt, trips.txt, stop_times.txt, calendar.txt,
+       calendar_dates.txt, stops.txt.
+    5. Configuration for time blocks, schedule types, CRS, buffer distance,
+       and geometry change threshold.
+
+Outputs:
+    1. One Excel file per signup and schedule type detailing route schedules
+       and headways.
+    2. One route coverage polygon shapefile per signup.
+    3. A final Excel file ("service_change_comparison.xlsx") comparing
+       service changes across all processed signups.
+
+Dependencies:
+    os, datetime, geopandas, pandas, openpyxl, shapely
 """
 
 import os
