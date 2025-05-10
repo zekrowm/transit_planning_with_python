@@ -76,19 +76,21 @@ Where possible, we will provide both `arcpy` and `geopandas` versions of geospat
      ```
 
 2. **Get the Script(s) You Need**
-   - Navigate to scripts that are useful to you and your agency. Then copy and paste their contents into an active notebook file or download them as .py files. You do not need a        GitHub account to do this.
+   - Navigate to scripts that are useful to you and your agency. Then copy and paste their contents into an active notebook file or download them        as .py files. You do not need a GitHub account to do this.
    - Alternately, you can clone or download the whole repository from GitHub.
  
 3. **Run the Script**
-   - Open the script in JupyterLab or save it as a .py file to run in Python.
-   - "Update file paths:" At a minimum, you will need to update the folder and file paths to point to your data and specify where to save any output. There may also be additional            configuration choices (e.g. choice of CRS, list of routes or stops to analyze)
-   - Run the script, follow any printed instructions or error messages, and check the output for accuracy.
+   - Confirm that desired code is present in notebook file and locate "CONFIGURATION" section.
+   - "Update file paths:" At a minimum, you will need to update the folder and file paths to point to your data and specify where to save any
+     output. There may also be additional configuration choices (e.g. choice of CRS, list of routes or stops to analyze)
+   - You do not need to modify any code outside of the configuration section, which contains the core script logic.
+   - Run the script, follow any printed instructions or error messages, and check the output for reasonableness and/or accuracy.
 
 ---
 
 ### ❓ What is Jupyter Notebook?
 
-Jupyter Notebook is a powerful tool for running Python scripts in an interactive environment that opens in your web browser. It allows you to write, test, and visualize Python code in a user-friendly way.
+Jupyter Notebook is a powerful tool for running Python scripts in an interactive environment that opens in your web browser (or within ArcPro). It allows you to write, test, and visualize Python code in a user-friendly way.
 
 ---
 
@@ -114,13 +116,15 @@ Jupyter Notebook is a powerful tool for running Python scripts in an interactive
    - Once you have JupyterLab open in your web browser, you can browse your local files and create new notebook files.
 
 4. **Get the Script(s) You Need**
-   - Navigate to scripts that are useful to you and your agency. Then copy and paste their contents into an active notebook file or download them as .py files. You do not need a        GitHub account to do this.
+   - Navigate to scripts that are useful to you and your agency. Then copy and paste their contents into an active notebook file or download them as .py files. You do not need a GitHub account to do this.
    - Alternately, you can clone or download the whole repository from GitHub.
  
 5. **Run the Script**
-   - Open the script in JupyterLab or save it as a .py file to run in Python.
-   - "Update file paths:" At a minimum, you will need to update the folder and file paths to point to your data and specify where to save any output. There may also be additional configuration choices (e.g. choice of CRS, list of routes or stops to analyze)
-   - Run the script, follow any printed instructions or error messages, and check the output for accuracy.
+   - Confirm that desired code is present in notebook file and locate "CONFIGURATION" section.
+   - "Update file paths:" At a minimum, you will need to update the folder and file paths to point to your data and specify where to save any
+     output. There may also be additional configuration choices (e.g. choice of CRS, list of routes or stops to analyze)
+   - You do not need to modify any code outside of the configuration section, which contains the core script logic.
+   - Run the script, follow any printed instructions or error messages, and check the output for reasonableness and/or accuracy.
 
 ---
 
