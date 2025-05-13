@@ -1,9 +1,24 @@
 """
-Module: gtfs_stop_capitalization_suffix_checker
-Description: Provides functionality to validate stop names in GTFS data for:
-    - Proper capitalization
-    - USPS suffix usage
-    - Invalid short words
+Script Name:
+        gtfs_stop_capitalization_suffix_checker.py
+
+Purpose:
+        Validates stop names in GTFS data for correct capitalization,
+        USPS suffix usage, and the presence of invalid short words.
+
+Inputs:
+        1. GTFS 'stops.txt' file located in the specified INPUT_FOLDER.
+
+Outputs:
+        1. A CSV file ('stop_name_suffix_errors.csv') detailing stops with
+           suffix or short word errors.
+        2. A CSV file ('all_stops_by_caps_style.csv') listing all stops
+           with their determined capitalization style.
+        3. Console printout of capitalization scheme percentages and
+           error status.
+
+Dependencies:
+        os, pandas
 """
 
 import os
