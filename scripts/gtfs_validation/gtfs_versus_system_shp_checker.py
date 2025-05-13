@@ -1,10 +1,32 @@
 """
-gtfs_to_system_shp_checker.py
+Script Name:
+        gtfs_versus_system_shp_checker.py
 
-This script compares GTFS route data with a transit system's shapefile to identify discrepancies.
-It calculates similarity scores for route names and identifies stops that are not within
-a specified distance allowance from their serving routes.
-The results are exported as CSV and Shapefile for further analysis.
+Purpose:
+        Compares GTFS route data with a transit system's shapefile to
+        identify route name discrepancies and stops located outside a
+        defined distance buffer from their assigned routes. Exports
+        findings for spatial and tabular analysis.
+
+Inputs:
+        1. Directory containing GTFS files (routes.txt, stops.txt,
+           trips.txt, stop_times.txt).
+        2. Transit system route shapefile (.shp).
+
+Outputs:
+        1. `gtfs_shp_comparison.csv`: CSV comparing GTFS and shapefile
+           routes with name similarity scores.
+        2. `problem_stops.shp`: Shapefile of stops identified as
+           problematic (e.g., outside distance allowance, no matched route).
+        3. `gtfs_shp_comparison_with_flags.csv`: Updated CSV comparison
+           flagging routes with out-of-buffer stops.
+        4. `problem_stops.xlsx`: Excel file detailing problem stops, their
+           distances to routes, and reasons.
+        5. `problem_stops_<route_short_name>_warning.jpeg`: Individual
+           map plots for each route with identified out-of-buffer stops.
+
+Dependencies:
+        os, geopandas, matplotlib, pandas, rapidfuzz, shapely
 """
 
 import os
