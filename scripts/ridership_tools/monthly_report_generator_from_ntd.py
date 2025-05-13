@@ -1,24 +1,28 @@
 """
-Transit Ridership Analysis and Visualization Module
+Script Name:
+        monthly_report_generator_from_ntd.py
 
-This script processes and analyzes transit ridership data sourced from monthly Excel files,
-organized by configured periods. It standardizes and classifies route data by service type
-and corridor, computes key performance metrics (e.g., passengers per hour, per trip, per mile),
-and generates aggregated summaries at both service-type and route levels.
+Purpose:
+        Processes monthly transit ridership Excel data to analyze performance,
+        generate aggregated statistical summaries, and visualize key metrics
+        over time.
 
-Main features include:
-- Automated data loading, cleaning, and preprocessing from Excel sheets.
-- Route classification by configurable service types and corridors.
-- Calculation of derived transit performance metrics and aggregations.
-- Exporting of comprehensive and monthly aggregated summaries to Excel.
-- Generation of time-series plots for selected performance metrics.
+Inputs:
+        1. Monthly ridership data from Excel files (paths defined in CONFIG).
+        2. Configuration dictionaries (CONFIG, PLOT_CONFIG, PLOT_STYLE)
+           for file paths, service/corridor classifications, data converters,
+           output directory, and plot generation settings.
 
-Configurations for file paths, service categories, and plotting options are customizable via
-dictionaries defined at the start of the module.
+Outputs:
+        1. DetailedAllPeriods_andMonthlySheets.xlsx: Raw and processed data.
+        2. AggByServiceType.xlsx: Ridership stats aggregated by service type (YTD and monthly).
+        3. RouteLevelSummary.xlsx: Ridership stats aggregated by route (YTD).
+        4. PNG image files:
+           Time-series plots for selected performance metrics
+           (e.g., total ridership, PPH, PPT, PPM) in a 'plots' subdirectory.
 
-Output:
-- Excel files summarizing detailed, aggregated, and route-level ridership statistics.
-- Plots visualizing transit performance metrics over time.
+Dependencies:
+        os, re, matplotlib, numpy, pandas
 """
 import os
 import re
