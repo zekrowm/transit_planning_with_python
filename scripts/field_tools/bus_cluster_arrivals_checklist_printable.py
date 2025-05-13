@@ -93,6 +93,12 @@ TIME_WINDOWS = {
     # },
 }
 
+# Optional: List of route_short_name strings to be bolded in the Excel output.
+# Ensure these are strings, matching the type in your routes.txt -> route_short_name.
+SPECIAL_ROUTES = [str(x) for x in (
+    101, 202, 303, 404, 505, 606, 707
+)] # Example list, customize as needed
+
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
@@ -161,140 +167,229 @@ def fix_time_format(time_str):
 
 def export_to_excel(df, output_file):
     """
-    Export the given DataFrame to an Excel file with basic formatting.
+    Export DataFrame to Excel with:
+    - bold rows for SPECIAL_ROUTES
+    - left-aligned headers
+    - auto-fit column widths
     """
+    bold_font = Font(bold=True)
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False)
-        workbook = writer.book
-        worksheet = writer.sheets["Sheet1"]
+        df.to_excel(writer, index=False, sheet_name="Sheet1") # Explicit sheet_name
+        ws = writer.sheets["Sheet1"]
 
-        # Align all headers to the left
-        for cell in worksheet[1]:
+        # left-align header row
+        for cell in ws[1]:
             cell.alignment = Alignment(horizontal="left")
 
-        # Adjust the width of all columns
-        for idx, col in enumerate(df.columns, 1):  # 1-based indexing for Excel columns
-            column_letter = get_column_letter(idx)
-            max_length = max(df[col].astype(str).map(len).max(), len(str(col))) + 2  # Extra space
-            worksheet.column_dimensions[column_letter].width = max_length
+        # find 1-based column index for route_short_name
+        # Ensure 'route_short_name' is in df.columns
+        if "route_short_name" in df.columns:
+            route_col_idx = df.columns.get_loc("route_short_name") + 1
+
+            # bold entire row if route_short_name is in SPECIAL_ROUTES
+            # Check if SPECIAL_ROUTES is defined and not empty
+            if 'SPECIAL_ROUTES' in globals() and SPECIAL_ROUTES:
+                for row_idx in range(2, ws.max_row + 1): # Iterate from the first data row
+                    # Get the cell in the route_short_name column for the current row
+                    route_cell = ws.cell(row=row_idx, column=route_col_idx)
+                    if str(route_cell.value) in SPECIAL_ROUTES:
+                        for cell_in_row in ws[row_idx]: # ws[row_idx] gets all cells in that row
+                            cell_in_row.font = bold_font
+        else:
+            print("Warning: 'route_short_name' column not found. Cannot apply special route bolding.")
 
 
-def process_cluster_data(
-    cluster_data, stops_df, cluster_name, schedule_name, base_output_path, time_windows=None
-):
-    """
-    Perform transformations on the cluster data (fix times, add placeholders) and export
-    both the full data set and any time-window-specific subsets to Excel files.
-    """
-    # Fix arrival and departure times
-    cluster_data["arrival_time"] = cluster_data["arrival_time"].apply(fix_time_format)
+        # auto-fit column widths
+        for idx, col_name in enumerate(df.columns, 1): # Use col_name from df.columns
+            # Get max length of data in the column
+            max_len_data = 0
+            if not df[col_name].empty: # Check if column is not empty
+                max_len_data = df[col_name].astype(str).map(len).max()
+            
+            # Max length is the greater of header length or data length
+            max_len = max(max_len_data, len(str(col_name))) + 2 # Add a little padding
+            ws.column_dimensions[get_column_letter(idx)].width = max_len
+
+
+def process_cluster_data(cluster_data, stops_df, cluster_name, schedule_name,
+                         base_output_path, time_windows=None):
+    # ensure we have a copy to avoid SettingWithCopyWarning
+    cluster_data = cluster_data.copy()
+
+    # --- normalize times ---
+    cluster_data["arrival_time"]   = cluster_data["arrival_time"].apply(fix_time_format)
     cluster_data["departure_time"] = cluster_data["departure_time"].apply(fix_time_format)
-
-    # Convert columns to string in HH:MM format
-    cluster_data["arrival_time"] = cluster_data["arrival_time"].astype(str)
+    cluster_data["arrival_time"]   = cluster_data["arrival_time"].astype(str)
     cluster_data["departure_time"] = cluster_data["departure_time"].astype(str)
 
-    # Sort by arrival_time using a temporary datetime conversion
-    cluster_data["arrival_sort"] = pd.to_datetime(cluster_data["arrival_time"], format="%H:%M")
-    cluster_data = cluster_data.sort_values(by="arrival_sort").drop(columns="arrival_sort")
+    # --- sort ---
+    # Create a temporary column for proper time sorting, handling potential errors if times are not valid
+    try:
+        cluster_data["arrival_sort"] = pd.to_datetime(cluster_data["arrival_time"], format="%H:%M", errors='raise')
+        cluster_data = cluster_data.sort_values("arrival_sort").drop(columns=["arrival_sort"])
+    except ValueError as e:
+        print(f"Warning: Could not sort by arrival_time due to invalid time format for {cluster_name} on {schedule_name}. Error: {e}")
+        # Proceed without sorting if conversion fails, or handle more gracefully
 
-    # Insert placeholder columns
-    cluster_data.insert(cluster_data.columns.get_loc("arrival_time") + 1, "act_arrival", "________")
+
+    # --- placeholders (no act_block) ---
     cluster_data.insert(
-        cluster_data.columns.get_loc("departure_time") + 1, "act_departure", "________"
+        cluster_data.columns.get_loc("arrival_time") + 1,
+        "act_arrival", "________"
     )
-    cluster_data.insert(cluster_data.columns.get_loc("block_id") + 1, "act_block", "________")
+    cluster_data.insert(
+        cluster_data.columns.get_loc("departure_time") + 1,
+        "act_departure", "________"
+    )
+    # Ensure 'sequence_long' column exists before trying to use it for loc
+    if "sequence_long" in cluster_data.columns:
+        cluster_data.loc[cluster_data["sequence_long"] == "start",  "act_arrival"]   = "__XXXX__"
+        cluster_data.loc[cluster_data["sequence_long"] == "last",   "act_departure"] = "__XXXX__"
+    else:
+        print(f"Warning: 'sequence_long' column not found in cluster_data for {cluster_name}. Cannot set start/last placeholders.")
 
-    # Modify placeholders for first/last stop in each trip
-    cluster_data.loc[cluster_data["sequence_long"] == "start", "act_arrival"] = "__XXXX__"
-    cluster_data.loc[cluster_data["sequence_long"] == "last", "act_departure"] = "__XXXX__"
-
-    # Add bus_number and comments columns
     cluster_data["bus_number"] = "________"
-    cluster_data["comments"] = "________________"
+    cluster_data["comments"]   = "________________"
 
-    # Merge with stop names
-    cluster_data = pd.merge(
-        cluster_data, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left"
-    )
+    # --- merge stop names (using stop_id) ---
+    # Ensure 'stop_id' is the correct merge key and present in both DataFrames
+    if "stop_id" in cluster_data.columns and "stop_id" in stops_df.columns:
+        cluster_data = pd.merge(
+            cluster_data,
+            stops_df[["stop_id", "stop_name"]], # Only get stop_name
+            on="stop_id",
+            how="left"
+        )
+    else:
+        print(f"Warning: 'stop_id' not found in cluster_data or stops_df for {cluster_name}. Cannot merge stop names.")
 
-    # Reorder columns
-    first_columns = [
+
+    # --- reorder columns, show stop_id ---
+    first_cols = [
         "route_short_name",
         "trip_headsign",
         "stop_sequence",
         "sequence_long",
-        "stop_id",
+        "stop_id",       # Displaying stop_id as per revised request
         "stop_name",
         "arrival_time",
         "act_arrival",
         "departure_time",
         "act_departure",
-        "block_id",
-        "act_block",
+        "block_id",      # block_id from GTFS is kept, but no act_block placeholder
         "bus_number",
         "comments",
     ]
-    other_columns = [col for col in cluster_data.columns if col not in first_columns]
-    cluster_data = cluster_data[first_columns + other_columns]
+    # Ensure all columns in first_cols exist in cluster_data before reordering
+    existing_first_cols = [col for col in first_cols if col in cluster_data.columns]
+    missing_cols = [col for col in first_cols if col not in cluster_data.columns]
+    if missing_cols:
+        print(f"Warning: The following expected columns are missing for reordering: {missing_cols} in {cluster_name}")
 
-    # Drop unnecessary columns
-    cluster_data = cluster_data.drop(
-        columns=[
-            "shape_dist_traveled",
-            "shape_id",
-            "route_id",
-            "service_id",
-            "trip_id",
-            "timepoint",
-            "direction_id",
-            "stop_headsign",
-            "pickup_type",
-            "drop_off_type",
-            "wheelchair_accessible",
-            "bikes_allowed",
-            "trip_short_name",
-            "stop_code",
-        ],
-        errors="ignore",
-    )
+    other_cols = [c for c in cluster_data.columns if c not in existing_first_cols]
+    cluster_data = cluster_data[existing_first_cols + other_cols]
 
-    # Export full cluster data
-    output_file_name = f"{cluster_name}_{schedule_name}_data.xlsx"
-    output_file = os.path.join(base_output_path, output_file_name)
-    export_to_excel(cluster_data, output_file)
+    # --- drop internal/unnecessary columns (similar to old script, ensuring stop_code is dropped if present) ---
+    columns_to_drop = [
+        "shape_dist_traveled", "shape_id", "route_id", "service_id",
+        "trip_id", "timepoint", "direction_id", "stop_headsign",
+        "pickup_type", "drop_off_type", "wheelchair_accessible",
+        "bikes_allowed", "trip_short_name",
+        "stop_code" # Add stop_code here to drop it, if it exists and stop_id is preferred
+    ]
+    # Drop only columns that actually exist in the DataFrame
+    actual_columns_to_drop = [col for col in columns_to_drop if col in cluster_data.columns]
+    cluster_data = cluster_data.drop(columns=actual_columns_to_drop, errors="ignore")
 
-    print(f"Processed and exported data for {cluster_name} on {schedule_name} schedule.")
 
-    # Process time windows if applicable
-    if time_windows and schedule_name in time_windows:
-        for time_window_name, time_range in time_windows[schedule_name].items():
-            start_time_str, end_time_str = time_range
+    # --- helper to prepend sample row 5 min before first trip ---
+    def prepend_sample(df_to_sample):
+        if df_to_sample.empty:
+            print(f"Warning: Dataframe for {cluster_name} on {schedule_name} is empty. Cannot prepend sample row.")
+            return df_to_sample # Return empty df if no data to sample from
 
-            # Parse the start and end times
-            start_dt = pd.to_datetime(start_time_str, format="%H:%M").time()
-            end_dt = pd.to_datetime(end_time_str, format="%H:%M").time()
+        sample = {col: "" for col in df_to_sample.columns}
+        try:
+            # use iloc to grab the first row by position
+            first_arr_str = df_to_sample["arrival_time"].iloc[0]
+            first_dep_str = df_to_sample["departure_time"].iloc[0]
 
-            # Convert arrival_time strings (HH:MM) to datetime.time for filtering
-            arrival_times = pd.to_datetime(cluster_data["arrival_time"], format="%H:%M").dt.time
-            filtered_data = cluster_data[(arrival_times >= start_dt) & (arrival_times <= end_dt)]
+            first_arr = pd.to_datetime(first_arr_str, format="%H:%M")
+            first_dep = pd.to_datetime(first_dep_str, format="%H:%M")
 
-            if filtered_data.empty:
-                print(
-                    f"No data found for {cluster_name} on {schedule_name} schedule in "
-                    f"{time_window_name} time window. Skipping."
+            sample_arr_dt = (first_arr - pd.Timedelta(minutes=5))
+            sample_dep_dt = (first_dep - pd.Timedelta(minutes=5))
+            
+            # Handle potential day rollover for sample time if first trip is close to midnight
+            sample_arr = sample_arr_dt.strftime("%H:%M")
+            sample_dep = sample_dep_dt.strftime("%H:%M")
+
+            update_dict = {
+                "route_short_name": "SAMPLE",
+                "trip_headsign":    "Sample Trip",
+                "arrival_time":     sample_arr,
+                "act_arrival":      sample_arr, # Fill in actuals for sample
+                "departure_time":   sample_dep,
+                "act_departure":    sample_dep, # Fill in actuals for sample
+                "comments":         "Please use 24-hour HH:MM format",
+            }
+            # Ensure keys in update_dict exist as columns in sample before updating
+            for key, value in update_dict.items():
+                if key in sample:
+                    sample[key] = value
+                else:
+                    print(f"Warning: Column '{key}' not found in sample row for prepending. Skipping update for this key.")
+            
+            return pd.concat([pd.DataFrame([sample]), df_to_sample], ignore_index=True)
+
+        except (IndexError, TypeError, ValueError) as e: # Catch errors if times are bad or df is unexpectedly empty after check
+            print(f"Error creating sample row for {cluster_name} on {schedule_name}: {e}. Proceeding without sample row.")
+            return df_to_sample
+
+
+    # --- export full dataset ---
+    # Ensure base_output_path is a directory that exists (or created by create_output_directory)
+    if not os.path.exists(base_output_path):
+        print(f"Error: Output directory {base_output_path} does not exist. Cannot save Excel file.")
+        return # Exit if path is invalid
+
+    output_file_full_path = os.path.join(base_output_path, f"{cluster_name}_{schedule_name}_data.xlsx")
+    if not cluster_data.empty:
+        df_full_with_sample = prepend_sample(cluster_data.copy()) # Use .copy() for safety before prepending
+        export_to_excel(df_full_with_sample, output_file_full_path)
+        print(f"Processed and exported {cluster_name} ({schedule_name}) to {output_file_full_path}.")
+    else:
+        print(f"No data to export for {cluster_name} ({schedule_name}). Skipping full dataset export.")
+
+
+    # --- export each time window subset ---
+    if time_windows and schedule_name in time_windows and not cluster_data.empty:
+        for win_name, (start_s, end_s) in time_windows[schedule_name].items():
+            try:
+                st = pd.to_datetime(start_s, format="%H:%M").time()
+                et = pd.to_datetime(end_s, format="%H:%M").time()
+                # Ensure 'arrival_time' is in correct format for conversion
+                atimes = pd.to_datetime(cluster_data["arrival_time"], format="%H:%M", errors='coerce').dt.time
+                
+                # Filter out NaT from atimes if errors were coerced
+                valid_times_mask = pd.notnull(atimes)
+                subset = cluster_data[valid_times_mask & (atimes[valid_times_mask] >= st) & (atimes[valid_times_mask] <= et)]
+                
+                if subset.empty:
+                    print(f"  No {win_name} data for {cluster_name} ({schedule_name}).")
+                    continue
+                
+                output_file_window_path = os.path.join(
+                    base_output_path,
+                    f"{cluster_name}_{schedule_name}_{win_name}_data.xlsx"
                 )
-                continue
-
-            # Export filtered data to Excel
-            output_file_name = f"{cluster_name}_{schedule_name}_{time_window_name}_data.xlsx"
-            output_file = os.path.join(base_output_path, output_file_name)
-            export_to_excel(filtered_data, output_file)
-
-            print(
-                f"Processed and exported data for {cluster_name} on {schedule_name} schedule "
-                f"in {time_window_name} time window."
-            )
+                df_sub_with_sample = prepend_sample(subset.copy()) # Use .copy() for safety
+                export_to_excel(df_sub_with_sample, output_file_window_path)
+                print(f"  Exported {win_name} window for {cluster_name} ({schedule_name}) to {output_file_window_path}.")
+            except ValueError as e:
+                print(f"  Error processing time window {win_name} for {cluster_name} ({schedule_name}): {e}. Skipping.")
+    elif cluster_data.empty:
+        print(f"Skipping time window processing for {cluster_name} ({schedule_name}) as main dataset is empty.")
 
 
 def generate_gtfs_checklists():
