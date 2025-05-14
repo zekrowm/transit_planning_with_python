@@ -1,6 +1,33 @@
 """
-Script that takes bus network, road network, and GTFS data and outputs a route shapefile that
-matches the network and is segmented at the stops. It is very useful for checking stop spacing.
+Script Name:
+        stop_spacing_calculator.py
+
+Purpose:
+        Processes GTFS data, a road network, and a bus network to generate a
+        route shapefile. This output route is aligned with the road network
+        and segmented at bus stops, which is useful for analyzing stop spacing
+        and route geometry. This may be used when accurate GTFS shapes are
+        unavailable.
+
+Inputs:
+        1. GTFS data folder (containing stops.txt, stop_times.txt, trips.txt, calendar.txt)
+        2. Road network shapefile (e.g., 'road_network.shp')
+        3. Bus system network/route shapefile (e.g., 'bus_system_network.shp')
+        4. User-defined configuration parameters:
+        5. Projected Coordinate Reference System (CRS)
+        6. Filter criteria for route, direction, departure time, and calendar/service_id
+
+Outputs:
+        1. Multiple shapefiles in the specified output folder, including:
+           - Unsnapped and snapped stop locations
+           - Chord segments (direct lines between stops) before and after snapping
+           - The selected bus route and its buffer
+           - Roads within the bus route buffer
+           - Shortest path segments between consecutive snapped stops along the road network
+           - Merged route lines from chord segments and shortest path segments
+
+Dependencies:
+        os, geopandas, networkx, pandas, shapely
 """
 
 import os
