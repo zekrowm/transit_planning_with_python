@@ -1,30 +1,29 @@
 """
-Script Name: route_direction_calculator.py
+Script Name:
+    route_direction_calculator.py
 
-This script analyzes General Transit Feed Specification (GTFS) data to classify transit routes
-according to their geographic direction (Northbound, Southbound, Eastbound, Westbound) or as
-loops (Clockwise, Counter-Clockwise, or general loops).
-
-Direction classification is based on comparing the start and end points of each route's
-shape geometry:
-
-- If the start and end points are within a specified threshold distance (default: 200 meters),
-  the shape is considered a loop. The direction of loop shapes is determined by calculating
-  the polygon's signed area to identify clockwise or counter-clockwise orientation.
-- For non-loop shapes, the script evaluates the greater absolute change in latitude versus
-  longitude to assign a cardinal direction (NB, SB, EB, WB).
+Purpose:
+    Analyzes GTFS data to classify transit route directions (Northbound,
+    Southbound, Eastbound, Westbound) or as loops (Clockwise,
+    Counter-Clockwise, Loop). It identifies dominant route shapes and
+    can flag suspicious direction assignments.
 
 Inputs:
-    - Standard GTFS files: routes.txt, trips.txt, stop_times.txt, shapes.txt, stops.txt
+    1. Standard GTFS files (routes.txt, trips.txt, stop_times.txt,
+       shapes.txt, stops.txt) located in a specified GTFS_FOLDER.
 
 Outputs:
-    - Excel summary file (Directions_Summary.xlsx) detailing the count of trips per route,
-      direction, and shape.
-    - Individual Excel files per route and direction containing departure times and
-      stop information.
+    1. Directions_Summary.xlsx: Summary of trips per route, direction,
+       and shape.
+    2. Route_<route_short_name>_Dir_<direction_id>_departures.xlsx:
+       Individual Excel files with departure times and stop info.
+    3. Route_<route_short_name>_Dir_<direction_id>_DominantShape.jpeg:
+       JPEG maps of dominant route shapes (optional).
+    4. Suspicious_RouteDirections.xlsx: Lists routes with potentially
+       inconsistent direction classifications (if found).
 
-Configurations allow filtering routes for targeted analysis, and the script utilizes EPSG:26985
-(NAD83 / Maryland) for spatial calculations by default.
+Dependencies:
+    pandas, geopandas, matplotlib, shapely
 """
 
 import math
