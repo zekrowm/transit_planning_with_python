@@ -1,22 +1,34 @@
 """
-Park and Ride Jobs Residents Served Script
-==========================================
+Script Name:
+        park_and_ride_accessibility.py
 
-Overview:
----------
-This script evaluates the accessibility of Park and Ride facilities by analyzing the number of jobs
-and residents served within specified time frames using public transit and road networks. It processes
-GTFS data to build transit networks, identifies reachable stops, creates accessible areas around
-facilities, and integrates census demographic data to estimate the population and employment
-characteristics served.
+Purpose:
+        Evaluates Park and Ride facility accessibility using public transit (GTFS data)
+        and road networks. It integrates census data to estimate the number of jobs
+        and residents served within defined travel times, and produces shapefiles
+        of accessible areas, isochrones, and demographic/job overlays suitable for
+        GIS mapping and further spatial analysis.
 
-Key Features:
--------------
-- **Transit Network Construction**: Parses GTFS data to create a transit network graph, including transfer times.
-- **Accessible Area Identification**: Determines reachable bus stops and generates accessible area polygons around each facility.
-- **Demographic Integration**: Overlays accessible areas with census data to calculate the number of jobs and residents served.
-- **Road Network Analysis**: Builds a road network to create isochrones representing areas reachable by car within a specified driving time.
-- **Output Generation**: Produces shapefiles for accessible areas, reachable stops, and demographic data for visualization and further analysis.
+Inputs:
+        1. GTFS data (stops.txt, stop_times.txt, trips.txt, routes.txt)
+        2. Park and Ride facility locations (latitude, longitude)
+        3. Census Blocks shapefile (with demographic and job data)
+        4. Roadway Centerlines shapefile
+        5. Configuration parameters (time windows, transfer times, max travel times)
+
+Outputs:
+        1. Shapefiles:
+           - Facility locations
+           - Transit-accessible areas per facility
+           - Reachable bus stops per facility
+           - All bus stops
+           - Clipped census data (jobs) for transit-accessible areas
+           - Driving isochrones per facility
+           - Clipped census data (demographics) for driving isochrones
+           - Console printouts of summarized job and demographic data.
+
+Dependencies:
+        os, re, geopandas, matplotlib.pyplot, networkx, pandas, shapely
 """
 
 import os
