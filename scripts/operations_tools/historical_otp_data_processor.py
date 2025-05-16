@@ -1,12 +1,33 @@
 """
-Combined Script for:
-1) Processing Running Time Data
-2) Processing OTP Data and (Optionally) Generating Plots
+Script Name:
+        historical_otp_data_processor.py
 
-Notes:
-    - Set the file paths in the configuration to match your environment.
-    - Set RUN_PLOTTING to False if you only want to run the runtime-data
-      processing (i.e., skip plotting the OTP data).
+Purpose:
+        Processes transit agency on-time performance (OTP) (and running time)
+        data. It calculates key performance metrics, identifies operational
+        deviations from schedules, and optionally generates OTP trend plots
+        for individual routes and directions.
+
+Inputs:
+        1. Primary CSV data file ('INPUT_FILE') containing detailed trip-level
+           data including scheduled/actual runtimes, start times, and OTP counts.
+        2. (If plotting enabled) Processed CSV data file ('OTP_FILE_PATH') for
+           OTP plotting, typically derived from the primary input.
+        3. Configuration constants defined in the script for file paths,
+           filters (e.g., ROUTE_FILTER), thresholds (e.g.,
+           DEVIATION_THRESHOLD_SECONDS), and plot appearance.
+
+Outputs:
+        1. Excel files detailing processed running time data, including
+           calculated deviations and problem flags, saved to 'OUTPUT_DIR'.
+           One file per route and one consolidated file.
+        2. (If plotting enabled via RUN_PLOTTING=True) JPEG image files of
+           OTP trends over time, one for each route and direction, saved
+           to 'OTP_OUTPUT_DIR'.
+        3. Status messages and error logs printed to the console.
+        
+Dependencies:
+        pandas, matplotlib, os, sys, datetime
 """
 
 import os
