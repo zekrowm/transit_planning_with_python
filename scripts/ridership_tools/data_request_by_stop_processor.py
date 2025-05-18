@@ -44,10 +44,15 @@ INPUT_FILE_PATH = r"\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS
 OUTPUT_FILE_SUFFIX = "_processed"
 OUTPUT_FILE_EXTENSION = ".xlsx"
 
-# ROUTES, STOP_IDS, and TIME_PERIODS can be left empty
-# If empty, the script will skip filtering or time-period breakdown for these lists.
-ROUTES = []  # e.g. [] means skip route filter
-STOP_IDS = [1001, 2002, 3003]  # e.g. [] means skip stop filter
+# ROUTES = keep-only list   |  ROUTES_EXCLUDE = toss-out list
+ROUTES = []              # keep these (leave empty → keep all)
+ROUTES_EXCLUDE = []      # drop these (leave empty → drop none)
+
+# Optional STOP_IDS filter list
+STOP_IDS = [1001, 2002, 3003]  # keep these (leave empty → keep all)
+
+# Optional STOP_IDS aggregation list
+# If empty, the script will skip time-period breakdown for these lists.
 TIME_PERIODS = [
     "AM EARLY",
     "AM PEAK",
@@ -147,16 +152,29 @@ def verify_required_columns(data_frame, required_columns):
         sys.exit(1)
 
 
-def filter_data(data_frame, routes, stop_ids):
+def filter_data(data_frame, routes=None, stop_ids=None, routes_exclude=None):
     """
-    Filter the data by route names and stop IDs. Returns the filtered DataFrame.
+    Apply three *optional* filters in this order:
+        1. keep-only ROUTES         (inclusive)
+        2. drop-only ROUTES_EXCLUDE (exclusive)
+        3. keep-only STOP_IDS
+    Any of the three may be an empty list / None to skip that step.
     """
-    filtered_df = data_frame.copy()
+    df = data_frame.copy()
+
+    # 1. inclusive route filter -------------------------------------------
     if routes:
-        filtered_df = filtered_df[filtered_df["ROUTE_NAME"].isin(routes)]
+        df = df[df["ROUTE_NAME"].isin(routes)]
+
+    # 2. exclusive route filter -------------------------------------------
+    if routes_exclude:
+        df = df[~df["ROUTE_NAME"].isin(routes_exclude)]
+
+    # 3. stop-id filter ----------------------------------------------------
     if stop_ids:
-        filtered_df = filtered_df[filtered_df["STOP_ID"].isin(stop_ids)]
-    return filtered_df
+        df = df[df["STOP_ID"].isin(stop_ids)]
+
+    return df
 
 
 def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggregated):
@@ -296,8 +314,13 @@ def main():
     verify_required_columns(ridership_df, REQUIRED_COLUMNS)
 
     # Apply optional filters
-    filtered_data = filter_data(ridership_df, ROUTES, STOP_IDS)
-
+    filtered_data = filter_data(
+        ridership_df,
+        routes=ROUTES,
+        stop_ids=STOP_IDS,
+        routes_exclude=ROUTES_EXCLUDE,   # <-- NEW ARG
+    )
+        
     # Standardize 'TIME_PERIOD' values
     filtered_data["TIME_PERIOD"] = filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
 
