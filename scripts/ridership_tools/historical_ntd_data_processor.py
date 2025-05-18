@@ -1,26 +1,34 @@
 """
-This module consolidates ridership data across multiple Excel workbooks,
-specifically handling separate worksheets for different day types (Weekday,
-Saturday, Sunday). For each month, the script extracts route-level totals,
-day counts, and averages for each day type, then sums them to produce a
-monthly total.
+Script Name:
+      historical_ntd_data_processor.py
 
-Key Features:
-1. Automated Day-Type Detection: Searches workbook sheets for names
-   matching "Weekday(s)", "Saturday(s)", "Sunday(s)" (in any case).
-2. Consolidated Outputs: Each month generates columns such as
-   Jan-24_WeekdayTotal, Jan-24_WeekdayDays, Jan-24_WeekdayAverage, and
-   Jan-24_MonthlyTotal.
-3. Route Exclusions: Configurable list of routes to exclude from final
-   outputs; excluded routes are logged separately for reference.
-4. Plotting Enhancements: Each day-type variable (WeekdayTotal,
-   SaturdayAverage, etc.) is plotted on its own chart, allowing clearer
-   visualization of each metric over time.
-5. Easy Configuration: Centralized settings control the input directory,
-   output paths, route exclusions, plotting behavior, and more.
+Purpose:
+      Consolidates monthly ridership data from multiple Excel files,
+      distinguishing between Weekday, Saturday, and Sunday. It
+      calculates route-level totals, day counts, and averages for
+      each day type, then aggregates these into monthly totals.
+      Optionally, generates per-route line charts visualizing
+      ridership metrics over time.
 
-The script first consolidates data into a single CSV, then optionally
-generates per-route line charts for each day-type variable across all months.
+Inputs:
+      1. Excel workbooks (.xlsx) containing ridership data, with separate
+         sheets for day types (e.g., "Weekday", "Saturday", "Sunday").
+         Paths and filenames are defined by `BASE_INPUT_DIR` and
+         `FILE_SHEET_MAPPING` in the script.
+      2. Configuration settings within the script (e.g., input/output
+         directories, route exclusion lists, column names, plotting options).
+
+Outputs:
+      1. A single CSV file ('Consolidated_Ridership_Data.csv') in the
+         `OUTPUT_DIR`, containing all processed and merged ridership data.
+      2. An Excel file ('Excluded_Routes.xlsx') in the `OUTPUT_DIR`,
+         listing routes and their data that were excluded from the main
+         consolidation.
+      3. PNG image files of line charts (if `ENABLE_PLOTTING` is True)
+         for each route and specified ridership metric, saved in the
+         `PLOTS_OUTPUT_FOLDER`.
+
+Dependencies: os, re, sys, matplotlib, numpy, pandas
 """
 
 import os
@@ -37,8 +45,8 @@ import pandas as pd
 
 # --- Part 1: Consolidation Config ---
 
-BASE_INPUT_DIR = r"\\S40SHAREPGC01\DOTWorking\zkrohm\_data_archive\ntd_ridership"
-OUTPUT_DIR = r"\\S40SHAREPGC01\DOTWorking\zkrohm\analysis_requests\route_622_722_investigation\output"
+BASE_INPUT_DIR = r"\\File\Path\To\Your\Input_Folder"
+OUTPUT_DIR = r"\\File\Path\To\Your\Output_Folder"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Each key is a "Month String", each value is the Excel filename for that month
