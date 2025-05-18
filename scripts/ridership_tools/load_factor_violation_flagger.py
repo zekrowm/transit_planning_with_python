@@ -1,7 +1,32 @@
 """
-Script to process bus data and determine whether maximum load
-standards are being observed or violated, with optional route filters
-given as lists, and configurable decimal rounding.
+Script Name:
+        load_factor_violation_flagger.py
+
+Purpose:
+        Processes bus route data to analyze passenger load factors against
+        defined capacity standards, determines compliance, and applies
+        configurable route filters and rounding for load factor calculations.
+
+Inputs:
+        1. Excel file (INPUT_FILE): Contains raw bus statistics by route and trip.
+        2. Configuration constants (defined in the script):
+           - BUS_CAPACITY: Standard capacity of a bus.
+           - HIGHER_LIMIT_ROUTES: List of routes with a higher load factor limit.
+           - LOWER_LIMIT_ROUTES: List of routes with a lower load factor limit.
+           - LOWER_LOAD_FACTOR_LIMIT: The load factor limit for routes in LOWER_LIMIT_ROUTES.
+           - HIGHER_LOAD_FACTOR_LIMIT: The load factor limit for other routes.
+           - FILTER_IN_ROUTES: Optional list of routes to include in processing.
+           - FILTER_OUT_ROUTES: Optional list of routes to exclude from processing.
+           - DECIMAL_PLACES: Number of decimal places for rounding the load factor.
+
+Outputs:     - Processed Excel file (OUTPUT_FILE): Contains the original data
+               enriched with service period, calculated load factor, load factor
+               violation status, and route limit type.
+             - Console output: Prints trips with MAX_LOAD over 30 and the path
+               to the processed output file.
+
+Dependencies:
+        pandas, openpyxl
 """
 
 import pandas as pd
