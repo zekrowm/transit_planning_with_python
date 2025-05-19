@@ -47,7 +47,7 @@ LOG_FILENAME = os.path.join(LOG_DIRECTORY, "format_check.log") # Generic log fil
 
 # Set to True to only check files and log diffs (no modifications).
 # Set to False to check files, log diffs, and apply formatting/sorting changes.
-READ_ONLY = True
+READ_ONLY = False
 
 # Use simple directory/file names for os.walk skipping
 SKIP_NAMES = [
