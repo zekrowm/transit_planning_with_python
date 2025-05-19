@@ -39,8 +39,8 @@ from pathlib import Path
 from typing import Dict, Sequence
 
 import geopandas as gpd
-import pandas as pd
 import numpy as np
+import pandas as pd
 from shapely.geometry import LineString, MultiPoint
 from shapely.ops import split as split_line
 
