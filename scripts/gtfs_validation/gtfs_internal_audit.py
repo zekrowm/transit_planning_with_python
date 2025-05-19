@@ -33,16 +33,18 @@ from typing import Dict, List, Set
 
 import pandas as pd
 
-# Optional heavyweights
+# Optional heavy-weight dependencies
 try:
     import networkx as nx
-except ModuleNotFoundError:
-    nx = None
+except ModuleNotFoundError:  # pragma: no cover
+    nx = None  # type: ignore[assignment]
+
 try:
-    import shapely.geometry as sgeom
+    from shapely import geometry as sgeom
     from shapely.ops import nearest_points
-except ModuleNotFoundError:
-    sgeom = None
+except ModuleNotFoundError:  # pragma: no cover
+    sgeom = None  # type: ignore[assignment]
+    nearest_points = None  # type: ignore[assignment]
 
 # =============================================================================
 # CONFIGURATION
