@@ -18,7 +18,8 @@ Outputs:
         3. Route geometry shapefiles, split by direction.
         4. Optional: Network-based isochrone shapefiles per route and direction.
 
-Dependencies:  geopandas, pandas, networkx, numpy, scipy, shapely
+Dependencies:
+        geopandas, pandas, networkx, numpy, scipy, shapely
 """
 
 from __future__ import annotations
