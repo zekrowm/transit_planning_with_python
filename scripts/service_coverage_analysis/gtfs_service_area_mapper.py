@@ -1,22 +1,24 @@
 """
-GTFS-to-buffer export script with optional network-based isochrones, per-direction stops, and route shapes.
+Script Name:
+        gtfs_service_area_mapper.py
 
-• Loads GTFS text files into pandas and GeoPandas DataFrames.
-• Optionally filters stops by `stop_code` and routes by `route_short_name`.
-• Creates dissolved buffer polygons around stops (default: ¼ mile ≈ 1,320 ft).
-• Optionally generates detailed street-network-based isochrones if a roadway shapefile is provided (default: 5-minute walking radius).
-• Gracefully defaults to buffer-only output if no roadway network is provided.
-• Exports the following layers (all in WGS-84):
+Purpose:
+        Processes GTFS data to generate transit stop buffers, route shapes,
+        and optional network-based isochrones for spatial analysis.
+        This is useful for transit service area mapping and manual analysis.
 
-    1. Dissolved buffer polygons for each (route_short_name, direction_id).
-    2. Stop occurrences, split by direction_id.
-    3. Route/shape lines, split by direction_id.
-    4. Optional network-based isochrones, per (route_short_name, direction_id), if enabled.
-    5. (hook left for additional layers if desired)
+Inputs:
+        1. GTFS text files (stops.txt, routes.txt, trips.txt, etc.)
+        2. Optional roadway network Shapefile for isochrone generation.
+        3. Configuration parameters (e.g., buffer distance, filters, CRS).
 
-Configuration options include:
-- GTFS data paths, buffer distances, and spatial references.
-- Optional roadway network shapefile path, travel speeds, and polygon smoothing parameters.
+Outputs:
+        1. Dissolved stop buffers per route and direction shapefile.
+        2. Stop locations shapefiles, split by direction.
+        3. Route geometry shapefiles, split by direction.
+        4. Optional: Network-based isochrone shapefiles per route and direction.
+
+Dependencies:  geopandas, pandas, networkx, numpy, scipy, shapely
 """
 
 from __future__ import annotations
