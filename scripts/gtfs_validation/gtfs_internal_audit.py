@@ -16,8 +16,10 @@ Inputs:
 
 Outputs:
         1. CSV files detailing any issues found for each validation rule.
-        These are saved in a specified output folder. If no issues are
-        found for a rule, an empty CSV file is created.
+        These are saved in a specified output folder. By default, if no
+        issues are found for a particular rule, no output file is created
+        for that rule. (This behavior can be modified to create empty
+        files if desired via the `safe_write` function).
 
 Dependencies:
         pandas, logging, pathlib, sys
@@ -84,21 +86,37 @@ def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     return dfs
 
 
-def safe_write(df: pd.DataFrame, out_dir: Path, fname: str) -> None:
+def safe_write(df: pd.DataFrame, out_dir: Path, fname: str, *, write_empty: bool = False) -> None:
     """
-    Write *fname* to *out_dir*. If df is empty we still create an empty file
-    so downstream scripts know the test ran and found nothing.
+    Write *fname* to *out_dir*.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The data to write.
+    out_dir : pathlib.Path
+        Destination directory. Created if it does not exist.
+    fname : str
+        File name, e.g. ``"orphan_stops.csv"``.
+    write_empty : bool, default False
+        If ``True`` an empty CSV is still created so that downstream
+        scripts can detect that the check ran.  If ``False`` (the new
+        default) no file is produced when *df* is empty.
     """
     tag = fname[:-4] if fname.lower().endswith(".csv") else fname
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / fname
 
     if df.empty:
-        out_path.touch(exist_ok=True)
-        logging.info("✓ %s: no issues found.", tag)
-    else:
-        df.to_csv(out_path, index=False)
-        logging.info("⚠ %s: %d records written to %s", tag, len(df), out_path)
+        if write_empty:            # keep old behaviour when explicitly asked
+            out_path.touch(exist_ok=True)
+            logging.info("✓ %s: no issues found (empty file created).", tag)
+        else:                      # new default: skip creating the file
+            logging.info("✓ %s: no issues found (file skipped).", tag)
+        return
+
+    df.to_csv(out_path, index=False)
+    logging.info("⚠ %s: %d records written to %s", tag, len(df), out_path)
 
 
 def haversine_miles(lat1, lon1, lat2, lon2) -> float:
