@@ -1,29 +1,33 @@
 """
-Combined GTFS and Demographics Analysis Script with INCLUSION/EXCLUSION Filters
-for Routes and Stops, Variable Buffer Distances, and Three Analysis Modes:
-- network
-- route
-- stop
+Script Name:
+        gtfs_demog_calculator.py
 
-This script processes GTFS data and a demographic shapefile to produce
-buffers around transit stops and compute estimated demographic measures.
+Purpose:
+        Combines GTFS transit data with demographic data to perform spatial
+        analysis. Generates service area buffers around selected transit
+        stops and estimates demographic measures within these buffers.
+        Supports three analysis modes (network, route, stop) with
+        customizable filters and variable buffer distances.
 
-Analysis modes:
-1) "network": Dissolves buffers for all (final) included routes and stops combined.
-2) "route": Performs a separate buffer-and-clip analysis per route.
-3) "stop": Performs a separate buffer-and-clip analysis per individual stop.
+Inputs:
+        1. Path to GTFS data folder (containing `trips.txt`, `stop_times.txt`,
+           `routes.txt`, `stops.txt`, `calendar.txt`).
+        2. Path to demographics shapefile (.shp).
+        3. User-configured parameters within the script (e.g.,
+           `ANALYSIS_MODE`, filter lists for routes/stops, buffer distances,
+           `SYNTHETIC_FIELDS`, `CRS_EPSG_CODE`).
 
-Inclusion/Exclusion:
-- ROUTES_TO_INCLUDE / ROUTES_TO_EXCLUDE: filters routes by route_short_name.
-- STOP_IDS_TO_INCLUDE / STOP_IDS_TO_EXCLUDE: further filter stops after route filtering.
+Outputs:
+        1. Shapefiles (.shp) containing demographic data clipped to transit
+           service area buffers.
+        2. Excel files (.xlsx) summarizing aggregated demographic data for
+           each corresponding buffer.
+           (Filenames vary based on analysis mode: network-wide, per-route,
+           or per-stop).
+        3. Console logs detailing processing status and summaries.
+        4. Optional matplotlib plots of buffer geometries.
 
-If both route lists are empty, all routes are analyzed.
-If both stop lists are empty, all stops for the final set of routes are analyzed.
-
-Usage:
-    - Adjust the CONFIGURATION variables below.
-    - Run the script (e.g., `python combined_analysis.py`).
-    - Check console output, shapefile exports, and optional plots.
+Dependencies: geopandas, pandas, matplotlib, shapely
 """
 
 import os
