@@ -1,14 +1,28 @@
 """
-Identify nearby GTFS stops and routes based on user-specified locations.
+Script Name:
+    gtfs_proximity_stops_and_routes.py
 
-Supports two input modes:
-- 'location': Uses a shapefile or manual lat/lon points, buffers them, and finds
-  nearby stops and their associated routes/directions.
-- 'stop_code': Uses provided stop_codes to find the associated routes/directions
-  without any spatial filtering.
+Purpose:
+    Identifies nearby GTFS stops and their associated routes/directions
+    based on user-specified locations (buffered points from a shapefile
+    or manual coordinates) or a list of stop codes. Allows for route
+    filtering and customized output fields.
 
-Includes optional filtering for route_short_names and flexible output fields
-for infrastructure or service planning use cases.
+Inputs:
+    1. GTFS data files (stops.txt, stop_times.txt, trips.txt, routes.txt)
+    2. Configuration settings within the script (e.g., input mode, paths)
+       - For 'location' mode:
+         - Point shapefile OR
+         - Manual latitude/longitude coordinates
+       - For 'stop_code' mode:
+         - List of stop_codes
+
+Outputs:
+    1. CSV file listing locations/stops with their corresponding routes and
+       directions.
+
+Dependencies:
+    os, sys, geopandas, pandas, shapely
 """
 
 from __future__ import annotations
