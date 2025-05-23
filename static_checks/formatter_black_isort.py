@@ -1,36 +1,40 @@
 """
-formatter_black_isort.py
+Script Name:
+    formatter_black_isort.py
 
-A unified formatter that checks—and optionally fixes—Python code with both
-isort and black.
+Purpose:
+    A unified formatter that checks—and optionally fixes—Python code styling
+    and import sorting using both `isort` and `black`. It recursively scans
+    a target directory for Python files, applies the checks/fixes, and
+    logs detailed results.
 
-Operation
----------
-1. Recursively walk TARGET_DIRECTORY, skipping anything whose base name is
-   listed in SKIP_NAMES.
-2. For each *.py file that is not skipped:
-   a. Run `isort --check --diff` to detect unsorted imports.
-   b. Run `black --check --diff` (line length set by BLACK_LINE_LENGTH) to
-      detect style issues.
-   c. If READ_ONLY is False and either tool reports changes, run the
-      corresponding fix command (`isort` or `black`) and log the outcome.
-3. Collect all stdout/stderr, diffs, and status lines in LOG_FILENAME,
-   followed by separate isort and black summaries.
+Inputs:
+    1. Target Python files/folders (specified by `TARGET_DIRECTORY` constant): The root directory to scan for .py files.
+    2. Configuration constants defined within the script:
+        - `LOG_DIRECTORY`: Directory path to save the output log file.
+        - `READ_ONLY`: Boolean flag (True to only check for issues, False to apply fixes).
+        - `SKIP_NAMES`: List of directory or file names to ignore during scanning.
+        - `BLACK_LINE_LENGTH`: Maximum line length setting enforced by `black`.
 
-Configuration
--------------
-TARGET_DIRECTORY   root folder to scan
-LOG_DIRECTORY      where the log file is written
-LOG_FILENAME       full log path (derived from LOG_DIRECTORY)
-READ_ONLY          True → check only; False → check and apply
-SKIP_NAMES         folder or file names to ignore during traversal
-BLACK_LINE_LENGTH  max line length passed to black
+Outputs:
+    1. Log file (e.g., `format_check.log` in `LOG_DIRECTORY`): Contains detailed stdout/stderr
+       from `isort` and `black` for each processed file, including diffs if
+       changes are needed or were applied. Also includes a summary of files processed,
+       files needing changes, and files fixed.
+    2. Modified Python files: If `READ_ONLY` is False, Python files within the
+       `TARGET_DIRECTORY` are modified in-place by `isort` (for import sorting)
+       and `black` (for code formatting) to conform to defined styles.
+    3. Console output: Status messages indicating progress, the files being processed,
+       and a final summary of the formatting results.
 
-Usage
------
-$ python format_checker.py
-
-Requires isort ≥ 5 and black ≥ 24 to be discoverable on PATH.
+Dependencies:
+    1. os (standard library)
+    2. subprocess (standard library)
+    3. sys (standard library)
+    4. External command-line tools:
+        - `isort` (version >= 5 recommended)
+        - `black` (version >= 24 recommended)
+       (These tools must be installed and accessible on the system's PATH.)
 """
 
 import os
