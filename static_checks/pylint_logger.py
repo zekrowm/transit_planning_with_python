@@ -1,29 +1,58 @@
 """
-pylint_logger.py
+Script Name:
+    pylint_logger.py
 
-This script will:
-1) Gather all .py files from FILES_OR_FOLDERS.
-2) Skip any paths found in SKIP_PATHS (folder or file).
-3) Run pylint on each remaining file.
-4) Run isort in *check‑only* mode with a diff to detect unsorted imports.
-5) Log detailed stdout/stderr from both tools to a timestamped .log file.
-6) Generate an Excel summary with:
-   - Script name
-   - Immediate parent folder
-   - Pylint score
-   - Number of pylint issues
-   - Needs Isort Fix (Yes/No)
-   - Docstring OK (Yes/No)
-   - Full file path
-   - Stderr (if any)
-   ...and save it to a timestamped .xlsx in OUTPUT_FOLDER.
+Purpose:
+    This script performs static analysis on Python files using Pylint and isort.
+    It gathers all .py files from specified locations, skips excluded paths,
+    and then for each file:
+    1. Runs `pylint` to assess code quality and identify issues.
+    2. Runs `isort` in check-only mode with a diff to detect unsorted imports.
+    3. Validates the module-level docstring against a defined standard, checking for
+       the presence and order of specific headers (Script Name, Purpose, Inputs, Outputs, Dependencies).
+    The script logs detailed stdout/stderr from both tools to a timestamped .log file
+    and generates an Excel summary (.xlsx) of the findings.
 
-CONFIGURATION:
-    - FILES_OR_FOLDERS:           A list of .py files and/or folders
-    - SKIP_PATHS:                 A list of folders or files you want to exclude
-    - OUTPUT_FOLDER:              Where to write the .xlsx and .log files
-    - LOG_LEVEL:                  Logging detail level (INFO, DEBUG, etc.)
-    - DETAILED_LOG_FILENAME_PREFIX: Prefix for the .log file name
+Inputs:
+    1. List of Python files and/or folder paths to scan (specified by `FILES_OR_FOLDERS` list in the script).
+    2. List of file or folder paths to skip during scanning (specified by `SKIP_PATHS` list in the script).
+    3. Configuration constants defined within the script:
+        - `OUTPUT_FOLDER`: Directory path for saving log and Excel summary files.
+        - `LOG_LEVEL`: Logging level for console output (e.g., `logging.INFO`).
+        - `DETAILED_LOG_FILENAME_PREFIX`: Prefix for the detailed log file name.
+        - `REQUIRED_DOC_HEADERS`: Tuple of strings defining mandatory headers for module docstrings.
+
+Outputs:
+    1. Detailed Log File: A timestamped .log file (e.g., `lint_detailed_log_YYYYMMDD_HHMMSS.log`)
+       in `OUTPUT_FOLDER`, containing the complete stdout and stderr from `pylint` and `isort`
+       for each processed file.
+    2. Excel Summary File: A timestamped .xlsx file (e.g., `lint_results_YYYYMMDD_HHMMSS.xlsx`)
+       in `OUTPUT_FOLDER`, with a sheet "Lint Summary" detailing for each file:
+        - Script Name
+        - Immediate Parent Folder
+        - Pylint Score
+        - Number of Pylint Issues
+        - Needs Isort Fix (Yes/No)
+        - Docstring OK (Yes/No)
+        - Full File Path
+        - Combined Stderr from tools (if any)
+    3. Console output: Status messages, progress updates, and a summary of the linting process.
+
+Dependencies:
+    1. Python standard libraries:
+        - `datetime` (for timestamping)
+        - `logging` (for console and file logging)
+        - `os` (for file and path operations)
+        - `pathlib` (for path manipulation)
+        - `re` (for parsing Pylint output)
+        - `subprocess` (for running external tools)
+        - `sys` (for system-specific parameters and functions)
+        - `ast` (for parsing Python code to check docstrings)
+        - `typing` (for type hints)
+    2. `openpyxl` (for writing Excel files).
+    3. External command-line tools:
+        - `pylint`: Must be installed and accessible (e.g., via `python -m pylint`).
+        - `isort`: Must be installed and accessible (e.g., via `python -m isort`).
 """
 
 from __future__ import annotations
