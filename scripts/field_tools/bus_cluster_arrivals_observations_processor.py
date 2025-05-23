@@ -53,6 +53,12 @@ OUTPUT_CSV_PREFIX = "arrival_performance_summary"
 
 TIME_EXTRACT_RE = re.compile(r"(\d{1,2})\s*[:]?(\d{2})")
 
+CORE_EVENT_COLS: list[str] = [
+    "route_short_name",
+    "trip_headsign",
+    "stop_id",      #  ← new
+    "stop_name",    #  ← new
+]
 
 # =============================================================================
 # HELPERS
@@ -195,37 +201,47 @@ def longify_events(df: pd.DataFrame) -> pd.DataFrame:
     """
     Explode arrivals & departures into one-event-per-row *long* format.
 
-    No rows are dropped.  An ``invalid_reason`` column explains problems,
-    and only rows with a blank reason receive a numeric ``diff_min``.
+    • No rows are dropped.  
+    • `invalid_reason` explains any problems; only rows with a blank
+      reason receive a numeric `diff_min`.  
+    • NOW RETAINS `stop_id` and `stop_name` so users can see which
+      cluster each event belongs to.
     """
     parts: list[pd.DataFrame] = []
     for evt, (sched_col, act_col) in EVENT_MAP.items():
+        cols_needed = CORE_EVENT_COLS + [sched_col, act_col]
+
         part = (
-            df[["route_short_name", "trip_headsign", sched_col, act_col]]
+            df[cols_needed]
             .copy()
-            .rename(columns={sched_col: "sched_time", act_col: "act_time"})
+            .rename(
+                columns={
+                    sched_col: "sched_time",
+                    act_col: "act_time",
+                }
+            )
             .assign(event_type=evt)
         )
         parts.append(part)
 
     long_df = pd.concat(parts, ignore_index=True)
 
-    # ❷ Work out (in-)validity *before* any maths ----------------------------
+    # Work out (in-)validity before any maths -------------------------------
     long_df["invalid_reason"] = long_df.apply(
         lambda r: _get_invalid_reason(r["act_time"], r["sched_time"]),
         axis=1,
     )
     valid_mask = long_df["invalid_reason"] == ""
 
-    # ❸ Compute diffs only where both times parsed OK ------------------------
+    # Compute diffs only where both times parsed OK --------------------------
     long_df.loc[valid_mask, "diff_min"] = compute_diff(
         long_df.loc[valid_mask, "act_time"],
         long_df.loc[valid_mask, "sched_time"],
     )
     long_df.loc[~valid_mask, "diff_min"] = pd.NA
 
-    # Flags/categorisation (unchanged) ---------------------------------------
-    long_df["on_time"] = flag_on_time(long_df["diff_min"])
+    # Flags / categorisation --------------------------------------------------
+    long_df["on_time"]     = flag_on_time(long_df["diff_min"])
     long_df["punctuality"] = long_df["diff_min"].apply(classify_punctuality)
 
     return long_df.reset_index(drop=True)
