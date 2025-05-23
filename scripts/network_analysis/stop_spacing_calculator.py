@@ -290,7 +290,6 @@ def build_directed_network_with_stops(roads_gdf, snapped_stops_gdf, oneway_col="
 
         # Handle both LineString and MultiLineString geometries
         lines = geom.geoms if geom.geom_type == "MultiLineString" else [geom]
-
         for line in lines:
             coords = list(line.coords)
             for i in range(len(coords) - 1):
@@ -306,17 +305,18 @@ def build_directed_network_with_stops(roads_gdf, snapped_stops_gdf, oneway_col="
                     G.add_edge(end, start, weight=length, geometry=seg_line)
 
     # 2. Connect each snapped stop to the nearest road segment endpoints
-    roads_union = roads_gdf.unary_union  # merged geometry
+    roads_union = roads_gdf.unary_union
 
-
-def find_nearest_segment_and_endpoints(stop_pt, roads_union):
+    def find_nearest_segment_and_endpoints(stop_pt, roads_union):
         """
-        Returns the nearest linestring from roads and the endpoints of the sub-segment
-        where the stop lies.
+        Returns the nearest LineString from roads and the two endpoints
+        of the segment on which the stop lies.
         """
         nearest_on_line = roads_union.interpolate(roads_union.project(stop_pt))
         min_dist = float("inf")
         best_line = None
+
+        # Find the actual linestring in roads_gdf closest to the stop
         for row in roads_gdf.itertuples():
             geom = row.geometry
             these_lines = geom.geoms if geom.geom_type == "MultiLineString" else [geom]
@@ -325,6 +325,7 @@ def find_nearest_segment_and_endpoints(stop_pt, roads_union):
                 if dist < min_dist:
                     min_dist = dist
                     best_line = single_line
+
         if best_line is not None:
             coords = list(best_line.coords)
             param_on_line = best_line.project(stop_pt)
@@ -334,11 +335,13 @@ def find_nearest_segment_and_endpoints(stop_pt, roads_union):
                 seg_len = sub_line.length
                 if cumulative + seg_len >= param_on_line:
                     return best_line, coords[i], coords[i+1]
-                else:
-                    cumulative += seg_len
+                cumulative += seg_len
+            # fallback to last segment
             return best_line, coords[-2], coords[-1]
+
         return None, None, None
 
+    # Attach each snapped stop into the graph
     for idx, row in snapped_stops_gdf.iterrows():
         stop_pt = row.geometry
         stop_node = (stop_pt.x, stop_pt.y)
@@ -346,13 +349,13 @@ def find_nearest_segment_and_endpoints(stop_pt, roads_union):
             G.add_node(stop_node)
 
         best_line, A, B = find_nearest_segment_and_endpoints(stop_pt, roads_union)
-        if not best_line or not A or not B:
+        if not best_line or A is None or B is None:
             continue
 
         distA = stop_pt.distance(Point(A))
         distB = stop_pt.distance(Point(B))
 
-        # Determine oneway logic (naively)
+        # Determine oneway logic by inspecting the original roads_gdf
         oneway_value = 'N'
         for rrow in roads_gdf.itertuples():
             if rrow.geometry.equals(best_line):
