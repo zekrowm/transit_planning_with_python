@@ -1,0 +1,46 @@
+name: auto_format_black_isort
+
+on:
+  push:            # run on every push
+    branches: [ "main" ]     # adjust if you use a different default branch
+  workflow_dispatch:
+
+permissions:
+  contents: write            # needed so the Action can push commits
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # we must have history to push back
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install formatters
+        run: |
+          python -m pip install --upgrade pip
+          pip install black isort
+
+      - name: Run Black + isort
+        run: |
+          black .
+          isort . --profile black
+
+      - name: Commit & push (if needed)
+        run: |
+          if [[ $(git status --porcelain) ]]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -am "chore: auto-format with Black & isort [skip ci]"
+            git push
+          else
+            echo "Nothing to commit – code is already formatted."
+          fi
