@@ -156,6 +156,29 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     return df.reset_index(drop=True)
 
+def _get_invalid_reason(
+    act_time: str | float | int | None,
+    sched_time: str | float | int | None,
+) -> str:
+    """
+    Return a concise text explaining why an event is invalid.
+    Empty string ⇒ the row is valid.
+    """
+    reasons: list[str] = []
+
+    # Actual time checks -----------------------------------------------------
+    if is_placeholder(act_time):
+        reasons.append("blank/placeholder act_time")
+    elif time_str_to_minutes(act_time) is None:
+        reasons.append("bad act_time format")
+
+    # Scheduled time checks --------------------------------------------------
+    if is_placeholder(sched_time):
+        reasons.append("blank/placeholder sched_time")
+    elif time_str_to_minutes(sched_time) is None:
+        reasons.append("bad sched_time format")
+
+    return "; ".join(reasons)
 
 # -----------------------------------------------------------------------------
 # 1-row = 1-event **long-format** transformer
@@ -170,8 +193,8 @@ def longify_events(df: pd.DataFrame) -> pd.DataFrame:
     """
     Explode arrivals & departures into one-event-per-row *long* format.
 
-    Rows whose *act_time* is a placeholder / lacks digits are dropped.
-    Adds ``diff_min``, ``on_time`` flag, and ``punctuality`` category.
+    No rows are dropped.  An ``invalid_reason`` column explains problems,
+    and only rows with a blank reason receive a numeric ``diff_min``.
     """
     parts: list[pd.DataFrame] = []
     for evt, (sched_col, act_col) in EVENT_MAP.items():
@@ -185,16 +208,25 @@ def longify_events(df: pd.DataFrame) -> pd.DataFrame:
 
     long_df = pd.concat(parts, ignore_index=True)
 
-    # Keep only rows whose *act_time* is a real timestamp
-    mask_valid_act = long_df["act_time"].apply(lambda v: not is_placeholder(v))
-    long_df = long_df[mask_valid_act].reset_index(drop=True)
+    # ❷ Work out (in-)validity *before* any maths ----------------------------
+    long_df["invalid_reason"] = long_df.apply(
+        lambda r: _get_invalid_reason(r["act_time"], r["sched_time"]),
+        axis=1,
+    )
+    valid_mask = long_df["invalid_reason"] == ""
 
-    # Compute diff, flags, and category
-    long_df["diff_min"] = compute_diff(long_df["act_time"], long_df["sched_time"])
-    long_df["on_time"] = flag_on_time(long_df["diff_min"])
+    # ❸ Compute diffs only where both times parsed OK ------------------------
+    long_df.loc[valid_mask, "diff_min"] = compute_diff(
+        long_df.loc[valid_mask, "act_time"],
+        long_df.loc[valid_mask, "sched_time"],
+    )
+    long_df.loc[~valid_mask, "diff_min"] = pd.NA
+
+    # Flags/categorisation (unchanged) ---------------------------------------
+    long_df["on_time"]     = flag_on_time(long_df["diff_min"])
     long_df["punctuality"] = long_df["diff_min"].apply(classify_punctuality)
 
-    return long_df
+    return long_df.reset_index(drop=True)
 
 
 # -----------------------------------------------------------------------------
