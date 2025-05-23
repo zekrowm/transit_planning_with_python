@@ -22,18 +22,6 @@ Dependencies:
     1. Libraries: os, geopandas, pandas, rapidfuzz, shapely
 """
 
-GTFS Bus Bay Cluster Validation
-
-This module validates GTFS bus arrival data by checking clusters of bus stops
-for consistency. Planners can use this to check proposed field check bus stop
-clusters or bus bay conflict check clusters. It identifies potential errors
-like similar stop names, nearby excluded stops, distant included stops,
-and stops with different names.
-
-Results are exported as Excel files and shapefiles for further analysis
-and visual inspection.
-"""
-
 import os
 
 import geopandas as gpd
