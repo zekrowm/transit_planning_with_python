@@ -40,9 +40,7 @@ import pandas as pd
 # =============================================================================
 
 # Shapefile of Districts (already in or to be projected to EPSG:2248, for example)
-DISTRICTS_SHP = (
-    r"Path\To\Your\Districts.shp"
-)
+DISTRICTS_SHP = r"Path\To\Your\Districts.shp"
 
 # Path to GTFS folder on G: drive
 GTFS_DIR = r"Path\To\Your\GTFS_data"
@@ -55,14 +53,10 @@ STOP_TIMES_FILE = "stop_times.txt"
 BUFFER_DISTANCE = 1320
 
 # Final Excel output
-OUTPUT_EXCEL = (
-    r"Path\To\Your\Output_folder"
-)
+OUTPUT_EXCEL = r"Path\To\Your\Output_folder"
 
 # Workspace folder (if you need to write intermediate shapefiles, place them here)
-WORKSPACE_FOLDER = (
-    r"Path\To\Your\Temp_folder"
-)
+WORKSPACE_FOLDER = r"Path\To\Your\Temp_folder"
 
 # Example CRS for Maryland State Plane, in feet
 # EPSG:2248 => NAD83 / Maryland (ftUS)
@@ -74,6 +68,7 @@ DISTRICT_FIELD = "DISTRICT"
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_dir):
     """
@@ -191,8 +186,12 @@ def build_route_district_matrix(gtfs_data, intersect_gdf, district_field="DISTRI
                 route_to_districts.setdefault(rt_id, set()).update(these_districts)
 
     # Build final matrix with route_short_name as rows, each district as a column
-    all_route_ids = sorted(route_to_districts.keys(), key=lambda rid: route_id_to_name.get(rid, "zzz"))
-    all_districts = sorted({dist for dset in route_to_districts.values() for dist in dset})
+    all_route_ids = sorted(
+        route_to_districts.keys(), key=lambda rid: route_id_to_name.get(rid, "zzz")
+    )
+    all_districts = sorted(
+        {dist for dset in route_to_districts.values() for dist in dset}
+    )
 
     matrix_data = []
     for route_id in all_route_ids:
@@ -211,13 +210,14 @@ def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
     """
     Write the DataFrame to an Excel file (using openpyxl).
     """
-    with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name=sheet_name, index=False)
 
 
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """
@@ -240,8 +240,7 @@ def main():
 
     # 3) Create a projected GeoDataFrame of stops
     stops_projected_gdf = create_projected_stops_gdf(
-        stops_df=gtfs_data["stops"],
-        epsg_out=TARGET_EPSG
+        stops_df=gtfs_data["stops"], epsg_out=TARGET_EPSG
     )
 
     # 4) Buffer the stops
@@ -252,9 +251,7 @@ def main():
 
     # 6) Build route vs. district matrix using the configured district field
     df_matrix = build_route_district_matrix(
-        gtfs_data=gtfs_data,
-        intersect_gdf=intersect_gdf,
-        district_field=DISTRICT_FIELD
+        gtfs_data=gtfs_data, intersect_gdf=intersect_gdf, district_field=DISTRICT_FIELD
     )
 
     # 7) Write to Excel

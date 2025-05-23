@@ -48,14 +48,21 @@ OUTPUT_DIR = r"\\Path\To\Your\Output_Folder"
 ROUTES_OF_INTEREST: List[str] = []
 
 # If FILTER_OUT_BRANCHES is non-empty, rows with Branch in this list will be excluded.
-FILTER_OUT_BRANCHES: List[str] = ["9999A ", "9999B", "9999C ", "STRGH ", "STRGR ", "STRGW "]
+FILTER_OUT_BRANCHES: List[str] = [
+    "9999A ",
+    "9999B",
+    "9999C ",
+    "STRGH ",
+    "STRGR ",
+    "STRGW ",
+]
 
 # Set to True to aggregate by [Branch, Direction], or False to aggregate by [Branch] only.
 AGGREGATE_BY_DIRECTION = True
 
 # OTP performance standard (percentage)
 # Any group with on_time_pct < this value will be flagged
-OTP_STANDARD_PCT = 85 # Adjust if needed
+OTP_STANDARD_PCT = 85  # Adjust if needed
 
 # OTP Aggregation Options:
 # If True, use aggregated counts (sum counts then compute percentages).
@@ -136,7 +143,9 @@ def filter_by_branch(
     return df_filtered
 
 
-def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd.DataFrame:
+def create_aggregations(
+    df: pd.DataFrame, group_by_direction: bool = True
+) -> pd.DataFrame:
     """
     Aggregate running-time and OTP metrics by route (Branch) or route + Direction.
 
@@ -166,11 +175,17 @@ def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd
     # -----------------------------------------------------------------
     agg_dict: dict[str, tuple[str, str]] = {}
     if "Average Scheduled Running Time (min)" in df.columns:
-        agg_dict["avg_scheduled_minutes"] = ("Average Scheduled Running Time (min)", "mean")
+        agg_dict["avg_scheduled_minutes"] = (
+            "Average Scheduled Running Time (min)",
+            "mean",
+        )
     if "Average Actual Running Time (min)" in df.columns:
         agg_dict["avg_actual_minutes"] = ("Average Actual Running Time (min)", "mean")
     if "Average Running Time Deviation (min)" in df.columns:
-        agg_dict["avg_deviation_minutes"] = ("Average Running Time Deviation (min)", "mean")
+        agg_dict["avg_deviation_minutes"] = (
+            "Average Running Time Deviation (min)",
+            "mean",
+        )
     if "Average Start Delta (min)" in df.columns:
         agg_dict["avg_start_delta_minutes"] = ("Average Start Delta (min)", "mean")
 
@@ -179,7 +194,12 @@ def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd
     # -----------------------------------------------------------------
     # OTP metrics
     # -----------------------------------------------------------------
-    otp_cols = {SUM_EARLY_COLUMN, SUM_LATE_COLUMN, SUM_ON_TIME_COLUMN, "Calculated Total Trips"}
+    otp_cols = {
+        SUM_EARLY_COLUMN,
+        SUM_LATE_COLUMN,
+        SUM_ON_TIME_COLUMN,
+        "Calculated Total Trips",
+    }
     if otp_cols.issubset(df.columns):
         if AGGREGATE_OTP_USING_COUNTS:
             # Sum counts first, then compute percentages
@@ -196,7 +216,9 @@ def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd
             otp_agg["early_pct"] = (
                 otp_agg["total_early"] / otp_agg["total_trips"] * 100
             ).round(1)
-            otp_agg["late_pct"] = (otp_agg["total_late"] / otp_agg["total_trips"] * 100).round(1)
+            otp_agg["late_pct"] = (
+                otp_agg["total_late"] / otp_agg["total_trips"] * 100
+            ).round(1)
             otp_agg["on_time_pct"] = (
                 otp_agg["total_on_time"] / otp_agg["total_trips"] * 100
             ).round(1)
@@ -292,7 +314,9 @@ def main():
             parse_seconds_to_minutes
         )
     if START_DELTA_COLUMN in df.columns:
-        df["Average Start Delta (min)"] = df[START_DELTA_COLUMN].apply(parse_time_string_to_minutes)
+        df["Average Start Delta (min)"] = df[START_DELTA_COLUMN].apply(
+            parse_time_string_to_minutes
+        )
 
     # 3. Calculate total trips using the sum of early, late, and on-time counts
     otp_cols = {SUM_EARLY_COLUMN, SUM_LATE_COLUMN, SUM_ON_TIME_COLUMN}

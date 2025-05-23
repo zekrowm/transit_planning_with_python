@@ -147,7 +147,9 @@ def load_and_merge_shapefiles(shapefile_paths: list[str]) -> gpd.GeoDataFrame:
     """
     logging.info("Loading shapefiles...")
     gdf_list = [gpd.read_file(shp) for shp in shapefile_paths]
-    merged = gpd.GeoDataFrame(pd.concat(gdf_list, ignore_index=True), crs=gdf_list[0].crs)
+    merged = gpd.GeoDataFrame(
+        pd.concat(gdf_list, ignore_index=True), crs=gdf_list[0].crs
+    )
     logging.info("Shapefiles loaded and merged.")
     return merged
 
@@ -206,7 +208,9 @@ def load_csv_data(
     logging.info("Loading CSV data from paths: %s", file_paths)
     df_list = []
     for file in file_paths:
-        df_temp = pd.read_csv(file, skiprows=skiprows, dtype=dtype_map, compression=compression)
+        df_temp = pd.read_csv(
+            file, skiprows=skiprows, dtype=dtype_map, compression=compression
+        )
         if column_renames:
             df_temp.rename(columns=column_renames, inplace=True)
         if columns_to_keep:
@@ -214,7 +218,9 @@ def load_csv_data(
         df_list.append(df_temp)
 
     concatenated_df = pd.concat(df_list, ignore_index=True)
-    logging.info("CSV data loaded and concatenated; final shape: %s", concatenated_df.shape)
+    logging.info(
+        "CSV data loaded and concatenated; final shape: %s", concatenated_df.shape
+    )
     return concatenated_df
 
 
@@ -323,7 +329,9 @@ def main():
 
     # 1) Load and filter shapefiles by FIPS
     merged_gdf = load_and_merge_shapefiles(BLOCK_SHP_FILES)
-    filtered_gdf = filter_geo_data_by_fips(merged_gdf, "STATEFP20", "COUNTYFP20", FIPS_TO_FILTER)
+    filtered_gdf = filter_geo_data_by_fips(
+        merged_gdf, "STATEFP20", "COUNTYFP20", FIPS_TO_FILTER
+    )
     plot_geodataframe(filtered_gdf, "Shapefile Plot - Filtered by FIPS")
 
     # 2) Load mandatory block-level data: population (P1), household (H9), jobs (JT00)
@@ -465,7 +473,9 @@ def main():
         df_ethnicity["minority"] = df_ethnicity[
             ["black", "native", "asian", "pac_isl", "other", "multi"]
         ].sum(axis=1)
-        df_ethnicity["perc_minority"] = df_ethnicity["minority"] / df_ethnicity["total_pop"]
+        df_ethnicity["perc_minority"] = (
+            df_ethnicity["minority"] / df_ethnicity["total_pop"]
+        )
         df_ethnicity["FIPS_code"] = df_ethnicity["GEO_ID"].str[9:14]
         df_ethnicity.drop(["total_pop"], axis=1, inplace=True)
 
@@ -519,10 +529,15 @@ def main():
             "otheretc_engnwell",
         ]
         df_language[lep_cols] = (
-            df_language[lep_cols].apply(pd.to_numeric, errors="coerce").fillna(0).astype(int)
+            df_language[lep_cols]
+            .apply(pd.to_numeric, errors="coerce")
+            .fillna(0)
+            .astype(int)
         )
         df_language["all_nwell"] = df_language[lep_cols].sum(axis=1)
-        df_language["perc_lep"] = df_language["all_nwell"] / df_language["total_lang_pop"]
+        df_language["perc_lep"] = (
+            df_language["all_nwell"] / df_language["total_lang_pop"]
+        )
         df_language["perc_lep"].replace([float("inf"), -float("inf")], 0, inplace=True)
         df_language["perc_lep"] = df_language["perc_lep"].fillna(0).round(3)
 
@@ -565,12 +580,16 @@ def main():
                 "veh_2_hh_4p",
             ],
         )
-        df_vehicle["all_lo_veh_hh"] = df_vehicle[["veh_0_all_hh", "veh_1_all_hh"]].sum(axis=1)
+        df_vehicle["all_lo_veh_hh"] = df_vehicle[["veh_0_all_hh", "veh_1_all_hh"]].sum(
+            axis=1
+        )
         df_vehicle["perc_lo_veh"] = df_vehicle["all_lo_veh_hh"] / df_vehicle["all_hhs"]
         df_vehicle["perc_0_veh"] = df_vehicle["veh_0_all_hh"] / df_vehicle["all_hhs"]
         df_vehicle["perc_1_veh"] = df_vehicle["veh_1_all_hh"] / df_vehicle["all_hhs"]
         df_vehicle["perc_veh_1_hh_1"] = df_vehicle["veh_1_hh_1"] / df_vehicle["all_hhs"]
-        df_vehicle["perc_lo_veh_mod"] = df_vehicle["perc_lo_veh"] - df_vehicle["perc_veh_1_hh_1"]
+        df_vehicle["perc_lo_veh_mod"] = (
+            df_vehicle["perc_lo_veh"] - df_vehicle["perc_veh_1_hh_1"]
+        )
         df_vehicle["perc_lo_veh_mod"] = df_vehicle["perc_lo_veh_mod"].round(3)
 
     # --- Age ---
@@ -734,7 +753,9 @@ def main():
         "all_lo_veh_hh",
     ]
     df_tracts.drop(
-        columns=[c for c in columns_to_drop if c in df_tracts], inplace=True, errors="ignore"
+        columns=[c for c in columns_to_drop if c in df_tracts],
+        inplace=True,
+        errors="ignore",
     )
 
     # Clean tract_id for merging
@@ -744,7 +765,11 @@ def main():
     # 6) Merge block and tract data
     if not df_tracts.empty:
         df_combined = pd.merge(
-            df_blocks, df_tracts, left_on="tract_id_synth", right_on="tract_id_clean", how="outer"
+            df_blocks,
+            df_tracts,
+            left_on="tract_id_synth",
+            right_on="tract_id_clean",
+            how="outer",
         )
     else:
         df_combined = df_blocks.copy()
@@ -756,7 +781,9 @@ def main():
 
     # 8) Filter final data by the relevant FIPS codes
     df_combined["FIPS_code"] = df_combined["GEO_ID"].str[9:14]
-    df_filtered_blocks = df_combined[df_combined["FIPS_code"].isin(FIPS_TO_FILTER)].copy()
+    df_filtered_blocks = df_combined[
+        df_combined["FIPS_code"].isin(FIPS_TO_FILTER)
+    ].copy()
 
     # Convert ExtensionArray dtypes to float64 if needed
     for column in df_filtered_blocks.columns:

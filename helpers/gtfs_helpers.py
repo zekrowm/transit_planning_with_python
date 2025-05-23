@@ -6,6 +6,7 @@ Reusable utility functions for GTFS data processing scripts.
 Includes common GTFS data loaders, validators, and formatting helpers.
 """
 
+
 def load_gtfs_data(files=None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from a path defined externally
@@ -40,9 +41,7 @@ def load_gtfs_data(files=None, dtype=str):
         RuntimeError: For any unexpected error during loading.
     """
     if not os.path.exists(GTFS_FOLDER_PATH):
-        raise FileNotFoundError(
-            f"The directory '{GTFS_FOLDER_PATH}' does not exist."
-        )
+        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
 
     if files is None:
         files = [
@@ -58,11 +57,12 @@ def load_gtfs_data(files=None, dtype=str):
             "feed_info.txt",
             "frequencies.txt",
             "shapes.txt",
-            "transfers.txt"
+            "transfers.txt",
         ]
 
     missing = [
-        file_name for file_name in files
+        file_name
+        for file_name in files
         if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
     ]
     if missing:
@@ -80,19 +80,13 @@ def load_gtfs_data(files=None, dtype=str):
             print(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
-            raise ValueError(
-                f"Parser error in '{file_name}': {exc}"
-            ) from exc
+            raise ValueError(f"Parser error in '{file_name}': {exc}") from exc
 
         except Exception as exc:
             # Use a more specific error class than bare Exception (e.g., RuntimeError)
-            raise RuntimeError(
-                f"Error loading '{file_name}': {exc}"
-            ) from exc
+            raise RuntimeError(f"Error loading '{file_name}': {exc}") from exc
 
     return data

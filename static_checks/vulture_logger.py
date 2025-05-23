@@ -21,13 +21,13 @@ CONFIGURATION:
 
 from __future__ import annotations
 
-from datetime import datetime
 import logging
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from openpyxl import Workbook
@@ -41,21 +41,21 @@ FILES_OR_FOLDERS: List[str] = [
     # Example: mix .py files and/or folders
     # r"C:\Path\to\your\python_project_folder",
     # r"C:\Path\to\another_script.py",
-    r"C:\Temp\TestScripts", # Replace with your actual paths
+    r"C:\Temp\TestScripts",  # Replace with your actual paths
 ]
 
 SKIP_PATHS: List[str] = [
     # r"C:\Path\to\folder_to_skip",
     # r"C:\Path\to\file_to_skip.py",
     r"C:\Path\to\your\python_project_folder\venv",
-    r"C:\Temp\TestScripts\skip_this_script.py", # Replace with your actual paths
+    r"C:\Temp\TestScripts\skip_this_script.py",  # Replace with your actual paths
 ]
 
-OUTPUT_FOLDER: str = r"C:\Temp\VultureReports" # Replace with your desired output path
+OUTPUT_FOLDER: str = r"C:\Temp\VultureReports"  # Replace with your desired output path
 
 LOG_LEVEL: int = logging.INFO  # set to logging.DEBUG for more detail
 DETAILED_LOG_FILENAME_PREFIX: str = "vulture_detailed_log"
-VULTURE_MIN_CONFIDENCE: int = 60 # Vulture's default is 60
+VULTURE_MIN_CONFIDENCE: int = 60  # Vulture's default is 60
 
 # ==================================================================================================
 # LOGGING SETUP
@@ -71,7 +71,10 @@ console_logger = logging.getLogger(__name__)
 # FUNCTIONS
 # ==================================================================================================
 
-def setup_detailed_logger(output_folder: str, filename_prefix: str, log_level: int) -> Tuple[logging.Logger, str]:
+
+def setup_detailed_logger(
+    output_folder: str, filename_prefix: str, log_level: int
+) -> Tuple[logging.Logger, str]:
     """Create a dedicated file logger and return (logger, log_filepath)."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_filename = f"{filename_prefix}_{timestamp}.log"
@@ -84,7 +87,7 @@ def setup_detailed_logger(output_folder: str, filename_prefix: str, log_level: i
     detail_logger.handlers.clear()
 
     file_handler = logging.FileHandler(log_filepath, mode="w", encoding="utf-8")
-    file_handler.setFormatter(logging.Formatter("%(message)s")) # Log raw tool output
+    file_handler.setFormatter(logging.Formatter("%(message)s"))  # Log raw tool output
     detail_logger.addHandler(file_handler)
 
     return detail_logger, log_filepath
@@ -109,9 +112,13 @@ def is_skipped(path_str: str, skip_list: List[str]) -> bool:
             return True
     return False
 
+
 # --------------------------- Vulture helpers ------------------------------------------------------
 
-def run_vulture_on_file(py_file: str, min_confidence: int) -> Tuple[str | None, str | None]:
+
+def run_vulture_on_file(
+    py_file: str, min_confidence: int
+) -> Tuple[str | None, str | None]:
     """Run Vulture and return (stdout, stderr)."""
     try:
         command = [
@@ -129,18 +136,22 @@ def run_vulture_on_file(py_file: str, min_confidence: int) -> Tuple[str | None, 
             text=True,
             encoding="utf-8",
             errors="replace",
-            check=False, # Vulture exits with non-zero if dead code is found
+            check=False,  # Vulture exits with non-zero if dead code is found
         )
         return proc.stdout, proc.stderr
     except FileNotFoundError:
-        console_logger.error("python -m vulture not found. Is Vulture installed and in your PATH?")
+        console_logger.error(
+            "python -m vulture not found. Is Vulture installed and in your PATH?"
+        )
         return None, "Execution Error: Vulture not found."
     except Exception as exc:
         console_logger.error("Unexpected error running Vulture on %s: %s", py_file, exc)
         return None, f"Execution Error: {exc}"
 
 
-def parse_vulture_output(vulture_stdout: str | None, file_being_scanned: str) -> List[Dict[str, str]]:
+def parse_vulture_output(
+    vulture_stdout: str | None, file_being_scanned: str
+) -> List[Dict[str, str]]:
     """
     Parse Vulture's stdout to extract dead code items.
     Example line: C:\Path\file.py:10: unused variable 'x' (60% confidence)
@@ -152,39 +163,45 @@ def parse_vulture_output(vulture_stdout: str | None, file_being_scanned: str) ->
     # Regex to capture: path (optional), line, item description, confidence
     # Vulture output might sometimes include the full path again, or just line:item (confidence)
     # Making the path part flexible.
-    item_re = re.compile(
-        r"^(?:.+?:)?(\d+):\s*(.+?)\s*\((\d+%)\s*confidence\)$"
-    )
+    item_re = re.compile(r"^(?:.+?:)?(\d+):\s*(.+?)\s*\((\d+%)\s*confidence\)$")
 
     for line in vulture_stdout.strip().splitlines():
         line = line.strip()
         match = item_re.match(line)
         if match:
             line_num, item_desc, confidence_str = match.groups()
-            found_items.append({
-                "file_path": file_being_scanned, # Use the path of the file Vulture was run on
-                "line": line_num,
-                "item": item_desc.strip(),
-                "confidence": confidence_str,
-            })
-        elif line: # Non-empty line that didn't match, could be an error or other message from Vulture
+            found_items.append(
+                {
+                    "file_path": file_being_scanned,  # Use the path of the file Vulture was run on
+                    "line": line_num,
+                    "item": item_desc.strip(),
+                    "confidence": confidence_str,
+                }
+            )
+        elif (
+            line
+        ):  # Non-empty line that didn't match, could be an error or other message from Vulture
             console_logger.debug("Unparsed Vulture output line: %s", line)
             # You could decide to include these in stderr or a separate notes field
     return found_items
+
 
 # ==================================================================================================
 # MAIN VULTURE WORKFLOW
 # ==================================================================================================
 
+
 def scan_for_dead_code_and_create_outputs(
     files_or_folders: List[str],
     skip_list: List[str],
     output_folder: str,
-    min_confidence: int
+    min_confidence: int,
 ) -> None:
     """Run Vulture, log details, build Excel summary."""
     detail_logger, log_filepath = setup_detailed_logger(
-        output_folder, DETAILED_LOG_FILENAME_PREFIX, logging.DEBUG # Log all Vulture output
+        output_folder,
+        DETAILED_LOG_FILENAME_PREFIX,
+        logging.DEBUG,  # Log all Vulture output
     )
     console_logger.info("Detailed Vulture log: %s", log_filepath)
 
@@ -215,8 +232,11 @@ def scan_for_dead_code_and_create_outputs(
         return
 
     console_logger.info("Scanning %d Python file(s) with Vulture...", len(final_files))
-    detail_logger.info("Scanning %d Python file(s) with Vulture (min_confidence=%d%%)...", len(final_files), min_confidence)
-
+    detail_logger.info(
+        "Scanning %d Python file(s) with Vulture (min_confidence=%d%%)...",
+        len(final_files),
+        min_confidence,
+    )
 
     # -------------------------------------------------------------------------
     # Scan each file with Vulture
@@ -230,15 +250,22 @@ def scan_for_dead_code_and_create_outputs(
         detail_logger.info("Time: %s", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         detail_logger.info("=" * 80 + "\n")
 
-        stdout_vulture, stderr_vulture = run_vulture_on_file(py_file.as_posix(), min_confidence)
+        stdout_vulture, stderr_vulture = run_vulture_on_file(
+            py_file.as_posix(), min_confidence
+        )
 
         detail_logger.info("--- Vulture STDOUT ---\n%s", stdout_vulture or "<empty>")
-        if stderr_vulture: # Vulture often uses stderr for info messages even on success
+        if (
+            stderr_vulture
+        ):  # Vulture often uses stderr for info messages even on success
             detail_logger.info("\n--- Vulture STDERR ---\n%s", stderr_vulture)
 
         dead_code_items = parse_vulture_output(stdout_vulture, py_file.as_posix())
         formatted_dead_code = "; ".join(
-            [f"{item['item']} (line {item['line']}, {item['confidence']})" for item in dead_code_items]
+            [
+                f"{item['item']} (line {item['line']}, {item['confidence']})"
+                for item in dead_code_items
+            ]
         )
 
         results_summary.append(
@@ -247,7 +274,9 @@ def scan_for_dead_code_and_create_outputs(
                 "immediate_folder": py_file.parent.name,
                 "full_path": py_file.as_posix(),
                 "dead_code_items_count": len(dead_code_items),
-                "dead_code_details": formatted_dead_code if dead_code_items else "None found",
+                "dead_code_details": (
+                    formatted_dead_code if dead_code_items else "None found"
+                ),
                 "vulture_stderr": stderr_vulture.strip() if stderr_vulture else "",
             }
         )
@@ -297,10 +326,10 @@ def scan_for_dead_code_and_create_outputs(
                     cell_length = len(str(cell.value))
                     if cell_length > max_length:
                         max_length = cell_length
-            except: # pylint: disable=bare-except
+            except:  # pylint: disable=bare-except
                 pass
-        adjusted_width = (max_length + 2)
-        ws.column_dimensions[column].width = min(adjusted_width, 70) # Cap width
+        adjusted_width = max_length + 2
+        ws.column_dimensions[column].width = min(adjusted_width, 70)  # Cap width
 
     excel_name = f"vulture_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     excel_path = Path(output_folder) / excel_name
@@ -311,7 +340,6 @@ def scan_for_dead_code_and_create_outputs(
     except Exception as e:
         console_logger.error("Failed to save Excel file: %s", e)
         detail_logger.error("Failed to save Excel file: %s", e)
-
 
     # Close file handlers for the detail_logger
     for handler in detail_logger.handlers:
@@ -325,30 +353,40 @@ def scan_for_dead_code_and_create_outputs(
 # MAIN
 # ==================================================================================================
 
+
 def main_cli() -> None:
     """Main command-line interface function."""
     # Ensure output folder exists
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
 
     scan_for_dead_code_and_create_outputs(
-        FILES_OR_FOLDERS,
-        SKIP_PATHS,
-        OUTPUT_FOLDER,
-        VULTURE_MIN_CONFIDENCE
+        FILES_OR_FOLDERS, SKIP_PATHS, OUTPUT_FOLDER, VULTURE_MIN_CONFIDENCE
     )
 
 
 if __name__ == "__main__":
     # For testing: Create dummy files and folders if they don't exist
     # You would remove this in your actual usage
-    if FILES_OR_FOLDERS == [r"C:\Temp\TestScripts"]: # Only if using default example path
+    if FILES_OR_FOLDERS == [
+        r"C:\Temp\TestScripts"
+    ]:  # Only if using default example path
         Path(r"C:\Temp\TestScripts").mkdir(parents=True, exist_ok=True)
         Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
-        with open(r"C:\Temp\TestScripts\sample_script_1.py", "w", encoding="utf-8") as f:
-            f.write("import os\n\ndef unused_function():\n    pass\n\nMY_UNUSED_VAR = 123\n\nprint('Hello')\n")
-        with open(r"C:\Temp\TestScripts\sample_script_2.py", "w", encoding="utf-8") as f:
-            f.write("def used_function():\n    print('This is used')\n\nused_function()\n")
-        with open(r"C:\Temp\TestScripts\skip_this_script.py", "w", encoding="utf-8") as f:
+        with open(
+            r"C:\Temp\TestScripts\sample_script_1.py", "w", encoding="utf-8"
+        ) as f:
+            f.write(
+                "import os\n\ndef unused_function():\n    pass\n\nMY_UNUSED_VAR = 123\n\nprint('Hello')\n"
+            )
+        with open(
+            r"C:\Temp\TestScripts\sample_script_2.py", "w", encoding="utf-8"
+        ) as f:
+            f.write(
+                "def used_function():\n    print('This is used')\n\nused_function()\n"
+            )
+        with open(
+            r"C:\Temp\TestScripts\skip_this_script.py", "w", encoding="utf-8"
+        ) as f:
             f.write("SHOULD_BE_SKIPPED = True\n")
 
     main_cli()

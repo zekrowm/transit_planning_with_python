@@ -36,7 +36,7 @@ SKIP_PATHS: List[str] = [
 
 OUTPUT_FOLDER: str = r"C:\Path\to\Your\Logs\Folder"
 
-LOG_LEVEL: int = logging.INFO          # use logging.DEBUG for more detail
+LOG_LEVEL: int = logging.INFO  # use logging.DEBUG for more detail
 DETAILED_LOG_FILENAME_PREFIX = "mypy_detailed_log"
 
 # Extra mypy flags (e.g. ["--ignore-missing-imports"])
@@ -57,7 +57,9 @@ console_logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-def setup_detailed_logger(out_folder: str, prefix: str, level: int) -> Tuple[logging.Logger, str]:
+def setup_detailed_logger(
+    out_folder: str, prefix: str, level: int
+) -> Tuple[logging.Logger, str]:
     """Return (dedicated file logger, log_filepath)."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path = Path(out_folder).expanduser().resolve()
@@ -104,8 +106,15 @@ def run_mypy(py_file: str) -> Tuple[str | None, str | None]:
     """Run mypy; return (stdout, stderr)."""
     try:
         proc = subprocess.run(
-            [sys.executable, "-m", "mypy", "--show-error-codes", "--no-color-output",
-             *MYPY_ADDITIONAL_ARGS, py_file],
+            [
+                sys.executable,
+                "-m",
+                "mypy",
+                "--show-error-codes",
+                "--no-color-output",
+                *MYPY_ADDITIONAL_ARGS,
+                py_file,
+            ],
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -138,12 +147,16 @@ def parse_mypy(stdout: str | None) -> Tuple[int, bool]:
 # =============================================================================
 
 
-def run_checks(files_or_folders: List[str], skip_list: List[str], out_folder: str) -> int:
+def run_checks(
+    files_or_folders: List[str], skip_list: List[str], out_folder: str
+) -> int:
     """
     Run mypy on each target file, create Excel + log.
     Returns the number of files with mypy errors.
     """
-    detail_logger, log_fp = setup_detailed_logger(out_folder, DETAILED_LOG_FILENAME_PREFIX, LOG_LEVEL)
+    detail_logger, log_fp = setup_detailed_logger(
+        out_folder, DETAILED_LOG_FILENAME_PREFIX, LOG_LEVEL
+    )
     console_logger.info("Detailed mypy log: %s", log_fp)
 
     # -------- collect .py files
@@ -220,7 +233,9 @@ def run_checks(files_or_folders: List[str], skip_list: List[str], out_folder: st
             ]
         )
     for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = max(len(str(c.value or "")) for c in col) + 2
+        ws.column_dimensions[col[0].column_letter].width = (
+            max(len(str(c.value or "")) for c in col) + 2
+        )
 
     excel_path = Path(out_folder) / f"mypy_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
     wb.save(excel_path)
@@ -229,9 +244,13 @@ def run_checks(files_or_folders: List[str], skip_list: List[str], out_folder: st
     # -------- overall summary / exit code
     files_with_errors = sum(1 for r in results if r["errors"] > 0)
     if files_with_errors == 0:
-        console_logger.info("✅ Success: no mypy issues found in %d files.", len(results))
+        console_logger.info(
+            "✅ Success: no mypy issues found in %d files.", len(results)
+        )
     else:
-        console_logger.warning("❌ %d of %d file(s) have mypy errors.", files_with_errors, len(results))
+        console_logger.warning(
+            "❌ %d of %d file(s) have mypy errors.", files_with_errors, len(results)
+        )
 
     for h in detail_logger.handlers:
         h.close()

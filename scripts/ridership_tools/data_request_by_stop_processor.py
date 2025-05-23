@@ -45,8 +45,8 @@ OUTPUT_FILE_SUFFIX = "_processed"
 OUTPUT_FILE_EXTENSION = ".xlsx"
 
 # ROUTES = keep-only list   |  ROUTES_EXCLUDE = toss-out list
-ROUTES = []              # keep these (leave empty → keep all)
-ROUTES_EXCLUDE = []      # drop these (leave empty → drop none)
+ROUTES = []  # keep these (leave empty → keep all)
+ROUTES_EXCLUDE = []  # drop these (leave empty → drop none)
 
 # Optional STOP_IDS filter list
 STOP_IDS = [1001, 2002, 3003]  # keep these (leave empty → keep all)
@@ -71,7 +71,14 @@ APPLY_ROUNDING = True
 # get rounded to 1 decimal place only if APPLY_ROUNDING = True.
 AGGREGATE_BIN_RANGES = False
 
-REQUIRED_COLUMNS = ["TIME_PERIOD", "ROUTE_NAME", "STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL"]
+REQUIRED_COLUMNS = [
+    "TIME_PERIOD",
+    "ROUTE_NAME",
+    "STOP",
+    "STOP_ID",
+    "BOARD_ALL",
+    "ALIGHT_ALL",
+]
 COLUMNS_TO_RETAIN = ["ROUTE_NAME", "STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL"]
 
 # -----------------------------------------------------------------------------
@@ -87,7 +94,9 @@ def bin_ridership_value(value):
         return "0-4.9"
     if value < 25:
         return "5-24.9"
-    return "25 or more"  # Removed unnecessary `elif` and final `else` per no-else-return.
+    return (
+        "25 or more"  # Removed unnecessary `elif` and final `else` per no-else-return.
+    )
 
 
 def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
@@ -110,16 +119,17 @@ def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
     subset["ROUTE_NAME"] = subset["ROUTE_NAME"].astype(str).str.strip()
 
     aggregated = (
-        subset
-        .groupby(["STOP", "STOP_ID"], as_index=False)
-        .agg({
-            "BOARD_ALL":  "sum",
-            "ALIGHT_ALL": "sum",
-            "ROUTE_NAME": lambda x: ", ".join(sorted(x.unique())),
-        })
+        subset.groupby(["STOP", "STOP_ID"], as_index=False)
+        .agg(
+            {
+                "BOARD_ALL": "sum",
+                "ALIGHT_ALL": "sum",
+                "ROUTE_NAME": lambda x: ", ".join(sorted(x.unique())),
+            }
+        )
         .rename(
             columns={
-                "BOARD_ALL":  "BOARD_ALL_TOTAL",
+                "BOARD_ALL": "BOARD_ALL_TOTAL",
                 "ALIGHT_ALL": "ALIGHT_ALL_TOTAL",
                 "ROUTE_NAME": "ROUTES",
             }
@@ -191,7 +201,9 @@ def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggreg
                 df_agg.to_excel(writer, sheet_name=period, index=False)
 
             # Always write the all-time aggregated data
-            all_time_aggregated.to_excel(writer, sheet_name="All Time Periods", index=False)
+            all_time_aggregated.to_excel(
+                writer, sheet_name="All Time Periods", index=False
+            )
 
             writer.save()
 
@@ -236,16 +248,14 @@ def process_aggregations(filtered_data: pd.DataFrame):
     This wrapper now forces ROUTE_NAME to str *once* so every downstream use
     (original sheet as well as any future aggregations) is safe.
     """
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     # 0) Make ROUTE_NAME consistently string *before* any aggregation
-    # ------------------------------------------------------------------  
-    filtered_data["ROUTE_NAME"] = (
-        filtered_data["ROUTE_NAME"].astype(str).str.strip()
-    )
+    # ------------------------------------------------------------------
+    filtered_data["ROUTE_NAME"] = filtered_data["ROUTE_NAME"].astype(str).str.strip()
 
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     # 1) Build time-period subsets if TIME_PERIODS is non-empty
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     peak_data_dict = {}
     if TIME_PERIODS:
         for period in TIME_PERIODS:
@@ -253,9 +263,9 @@ def process_aggregations(filtered_data: pd.DataFrame):
             subset = filtered_data[filtered_data["TIME_PERIOD"] == period_upper]
             peak_data_dict[period] = subset[COLUMNS_TO_RETAIN]
 
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     # 2) Aggregate data (all-time and by time period)
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     all_time_aggregated = aggregate_by_stop(filtered_data)
 
     aggregated_peaks = {}
@@ -263,17 +273,17 @@ def process_aggregations(filtered_data: pd.DataFrame):
         for period, data_subset in peak_data_dict.items():
             aggregated_peaks[period] = aggregate_by_stop(data_subset)
 
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     # 3) Round the original ridership columns if requested
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     if APPLY_ROUNDING:
-        filtered_data[["BOARD_ALL", "ALIGHT_ALL"]] = (
-            filtered_data[["BOARD_ALL", "ALIGHT_ALL"]].round(1)
-        )
+        filtered_data[["BOARD_ALL", "ALIGHT_ALL"]] = filtered_data[
+            ["BOARD_ALL", "ALIGHT_ALL"]
+        ].round(1)
 
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     # 4) Format aggregated columns (rounding or binning)
-    # ------------------------------------------------------------------  
+    # ------------------------------------------------------------------
     all_dfs = [all_time_aggregated] + list(aggregated_peaks.values())
     for df_agg in all_dfs:
         if AGGREGATE_BIN_RANGES:
@@ -282,9 +292,9 @@ def process_aggregations(filtered_data: pd.DataFrame):
                 df_agg[col] = df_agg[col].apply(bin_ridership_value)
         elif APPLY_ROUNDING:
             # Otherwise, if rounding is desired, do decimal rounding
-            df_agg[["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]] = (
-                df_agg[["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]].round(1)
-            )
+            df_agg[["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]] = df_agg[
+                ["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]
+            ].round(1)
 
     return filtered_data, aggregated_peaks, all_time_aggregated
 
@@ -318,14 +328,18 @@ def main():
         ridership_df,
         routes=ROUTES,
         stop_ids=STOP_IDS,
-        routes_exclude=ROUTES_EXCLUDE,   # <-- NEW ARG
+        routes_exclude=ROUTES_EXCLUDE,  # <-- NEW ARG
     )
-        
+
     # Standardize 'TIME_PERIOD' values
-    filtered_data["TIME_PERIOD"] = filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
+    filtered_data["TIME_PERIOD"] = (
+        filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
+    )
 
     # Process and retrieve final aggregated data
-    final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(filtered_data)
+    final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(
+        filtered_data
+    )
 
     # Write the data to Excel
     write_to_excel(output_file, final_filtered, aggregated_peaks, all_time_aggregated)

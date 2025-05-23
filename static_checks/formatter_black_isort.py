@@ -42,8 +42,8 @@ import sys
 # ==================================================================================================
 
 TARGET_DIRECTORY = r"C:\Your\Input\Folder\Path"  # <<< UPDATE THIS PATH
-LOG_DIRECTORY = r"C:\Your\Output\Folder\Path" # <<< UPDATE THIS PATH
-LOG_FILENAME = os.path.join(LOG_DIRECTORY, "format_check.log") # Generic log file name
+LOG_DIRECTORY = r"C:\Your\Output\Folder\Path"  # <<< UPDATE THIS PATH
+LOG_FILENAME = os.path.join(LOG_DIRECTORY, "format_check.log")  # Generic log file name
 
 # Set to True to only check files and log diffs (no modifications).
 # Set to False to check files, log diffs, and apply formatting/sorting changes.
@@ -76,7 +76,10 @@ except OSError as e:
 # HELPER FUNCTION
 # --------------------------------------------------------------------------------------------------
 
-def process_file_with_tool(tool_name, check_cmd_args, fix_cmd_args, py_file, log_file, read_only_mode):
+
+def process_file_with_tool(
+    tool_name, check_cmd_args, fix_cmd_args, py_file, log_file, read_only_mode
+):
     """
     Processes a file with a given tool (check and optionally fix).
 
@@ -116,29 +119,33 @@ def process_file_with_tool(tool_name, check_cmd_args, fix_cmd_args, py_file, log
         error_msg = f"Error: '{tool_name}' command not found. Please ensure it is installed and available in PATH.\n"
         print(error_msg, file=sys.stderr)
         log_file.write(error_msg)
-        return False, False, True, True # error_occurred, critical_tool_not_found
+        return False, False, True, True  # error_occurred, critical_tool_not_found
     except Exception as e:
         error_msg = f"Unexpected error running {tool_name} check on {py_file}: {e}\n"
         print(error_msg, file=sys.stderr)
         log_file.write(error_msg)
-        return False, False, True, False # error_occurred
+        return False, False, True, False  # error_occurred
 
     # --- Analyze check_process results ---
-    if check_process.returncode == 0: # Exit code 0: OK, no changes needed
+    if check_process.returncode == 0:  # Exit code 0: OK, no changes needed
         log_file.write(f"Status ({tool_name}): OK (Already compliant)\n")
-    elif check_process.returncode == 1: # Exit code 1: Needs changes
+    elif check_process.returncode == 1:  # Exit code 1: Needs changes
         needs_change = True
         log_file.write(f"Status ({tool_name}): Needs changes\n")
         log_file.write("Diff proposal:\n")
-        log_file.write(check_process.stdout) # Diff is printed to stdout by both tools
-        if check_process.stderr: # Log stderr from check if any (e.g., black might mention files it would change)
+        log_file.write(check_process.stdout)  # Diff is printed to stdout by both tools
+        if (
+            check_process.stderr
+        ):  # Log stderr from check if any (e.g., black might mention files it would change)
             log_file.write(f"{tool_name} check stderr:\n")
             log_file.write(check_process.stderr)
         log_file.write("\n")
 
         if not read_only_mode:
             print(f"    Applying {tool_name} to: {py_file}")
-            log_file.write(f"Attempting {tool_name} modifications (Read & Modify Mode):\n")
+            log_file.write(
+                f"Attempting {tool_name} modifications (Read & Modify Mode):\n"
+            )
             try:
                 fix_process = subprocess.run(
                     fix_cmd_args + [py_file],
@@ -149,48 +156,68 @@ def process_file_with_tool(tool_name, check_cmd_args, fix_cmd_args, py_file, log
                 )
 
                 # Log output from the fix command
-                if fix_process.stdout: # Black "reformatted file", isort is usually silent on stdout for fix
+                if (
+                    fix_process.stdout
+                ):  # Black "reformatted file", isort is usually silent on stdout for fix
                     log_file.write(f"{tool_name} fix stdout:\n{fix_process.stdout}\n")
-                if fix_process.stderr: # Black "X files reformatted", isort "Fixing file.py"
+                if (
+                    fix_process.stderr
+                ):  # Black "X files reformatted", isort "Fixing file.py"
                     log_file.write(f"{tool_name} fix stderr:\n{fix_process.stderr}\n")
 
                 if fix_process.returncode != 0:
-                    log_file.write(f"Reformatting with {tool_name} returned non-zero exit code: {fix_process.returncode}\n")
+                    log_file.write(
+                        f"Reformatting with {tool_name} returned non-zero exit code: {fix_process.returncode}\n"
+                    )
                     error_occurred = True
                 else:
-                    log_file.write(f"Status ({tool_name}): Modifications applied successfully.\n")
+                    log_file.write(
+                        f"Status ({tool_name}): Modifications applied successfully.\n"
+                    )
                     change_applied = True
-            except FileNotFoundError: # Should not happen if check worked, but as a safeguard
+            except (
+                FileNotFoundError
+            ):  # Should not happen if check worked, but as a safeguard
                 error_msg = f"Error: '{tool_name}' command not found during reformatting attempt.\n"
                 print(error_msg, file=sys.stderr)
                 log_file.write(error_msg)
                 error_occurred = True
-                critical_tool_not_found = True # If tool vanishes between check and fix
+                critical_tool_not_found = True  # If tool vanishes between check and fix
             except Exception as e:
-                error_msg = f"Unexpected error running {tool_name} reformat on {py_file}: {e}\n"
+                error_msg = (
+                    f"Unexpected error running {tool_name} reformat on {py_file}: {e}\n"
+                )
                 print(error_msg, file=sys.stderr)
                 log_file.write(error_msg)
                 error_occurred = True
-        else: # READ_ONLY is True
-            log_file.write(f"Status ({tool_name}): Read-Only Mode - No changes applied.\n")
-    else: # Other non-zero return codes from check (e.g., 123 for black internal error)
+        else:  # READ_ONLY is True
+            log_file.write(
+                f"Status ({tool_name}): Read-Only Mode - No changes applied.\n"
+            )
+    else:  # Other non-zero return codes from check (e.g., 123 for black internal error)
         error_occurred = True
-        log_file.write(f"Status ({tool_name}): Error during check (exit code {check_process.returncode})\n")
+        log_file.write(
+            f"Status ({tool_name}): Error during check (exit code {check_process.returncode})\n"
+        )
         log_file.write(f"{tool_name} check stdout:\n{check_process.stdout}\n")
         log_file.write(f"{tool_name} check stderr:\n{check_process.stderr}\n")
 
-    log_file.write("\n") # Extra newline after this tool's section for the file
+    log_file.write("\n")  # Extra newline after this tool's section for the file
     return needs_change, change_applied, error_occurred, critical_tool_not_found
+
 
 # --------------------------------------------------------------------------------------------------
 # MAIN PROCESS
 # --------------------------------------------------------------------------------------------------
 
+
 def main():
     py_files = []
     print(f"Searching for .py files in: {TARGET_DIRECTORY}")
     print(f"Skipping names: {SKIP_NAMES}")
-    print(f"Run Mode: {'Read-Only (check only)' if READ_ONLY else 'Read & Modify (check and apply)'}")
+    print(
+        f"Run Mode: {'Read-Only (check only)' if READ_ONLY else 'Read & Modify (check and apply)'}"
+    )
 
     for root, dirs, files in os.walk(TARGET_DIRECTORY, topdown=True):
         dirs[:] = [d for d in dirs if d not in SKIP_NAMES]
@@ -204,12 +231,17 @@ def main():
         try:
             with open(LOG_FILENAME, "w", encoding="utf-8") as log_file:
                 log_file.write(f"Formatter Log - Target: {TARGET_DIRECTORY}\n")
-                log_file.write(f"Mode: {'Read-Only' if READ_ONLY else 'Read & Modify'}\n")
+                log_file.write(
+                    f"Mode: {'Read-Only' if READ_ONLY else 'Read & Modify'}\n"
+                )
                 log_file.write("=" * 80 + "\n\n")
                 log_file.write("No Python files found or all were skipped.\n")
             print(f"Log file created/emptied: {LOG_FILENAME}")
         except IOError as e:
-            print(f"Error writing initial message to log file '{LOG_FILENAME}': {e}", file=sys.stderr)
+            print(
+                f"Error writing initial message to log file '{LOG_FILENAME}': {e}",
+                file=sys.stderr,
+            )
         return
 
     print(f"Found {len(py_files)} Python files to process.")
@@ -229,7 +261,9 @@ def main():
     try:
         with open(LOG_FILENAME, "w", encoding="utf-8") as log_file:
             log_file.write(f"Formatter Log - Target: {TARGET_DIRECTORY}\n")
-            log_file.write(f"Mode: {'Read-Only (check only)' if READ_ONLY else 'Read & Modify (check and apply)'}\n")
+            log_file.write(
+                f"Mode: {'Read-Only (check only)' if READ_ONLY else 'Read & Modify (check and apply)'}\n"
+            )
             log_file.write("=" * 80 + "\n\n")
 
             for py_file in py_files:
@@ -240,11 +274,20 @@ def main():
                 if not isort_tool_missing:
                     isort_check_cmd = ["isort", "--check", "--diff"]
                     isort_fix_cmd = ["isort"]
-                    needs_sorting, sorted_applied, isort_err, isort_missing = process_file_with_tool(
-                        "isort", isort_check_cmd, isort_fix_cmd, py_file, log_file, READ_ONLY
+                    needs_sorting, sorted_applied, isort_err, isort_missing = (
+                        process_file_with_tool(
+                            "isort",
+                            isort_check_cmd,
+                            isort_fix_cmd,
+                            py_file,
+                            log_file,
+                            READ_ONLY,
+                        )
                     )
                     if isort_missing:
-                        isort_tool_missing = True # Stop trying to run isort if not found
+                        isort_tool_missing = (
+                            True  # Stop trying to run isort if not found
+                        )
                     if isort_err:
                         isort_files_with_errors += 1
                     if needs_sorting:
@@ -255,16 +298,30 @@ def main():
                     log_file.write(f"--- isort processing for: {py_file} ---\n")
                     log_file.write("Skipping isort: command was not found earlier.\n\n")
 
-
                 # --- Step 2: Run black ---
                 if not black_tool_missing:
-                    black_check_cmd = ["black", "--check", "--diff", "--line-length", BLACK_LINE_LENGTH]
+                    black_check_cmd = [
+                        "black",
+                        "--check",
+                        "--diff",
+                        "--line-length",
+                        BLACK_LINE_LENGTH,
+                    ]
                     black_fix_cmd = ["black", "--line-length", BLACK_LINE_LENGTH]
-                    needs_reformat, reformat_applied, black_err, black_missing = process_file_with_tool(
-                        "black", black_check_cmd, black_fix_cmd, py_file, log_file, READ_ONLY
+                    needs_reformat, reformat_applied, black_err, black_missing = (
+                        process_file_with_tool(
+                            "black",
+                            black_check_cmd,
+                            black_fix_cmd,
+                            py_file,
+                            log_file,
+                            READ_ONLY,
+                        )
                     )
                     if black_missing:
-                        black_tool_missing = True # Stop trying to run black if not found
+                        black_tool_missing = (
+                            True  # Stop trying to run black if not found
+                        )
                     if black_err:
                         black_files_with_errors += 1
                     if needs_reformat:
@@ -275,7 +332,9 @@ def main():
                     log_file.write(f"--- black processing for: {py_file} ---\n")
                     log_file.write("Skipping black: command was not found earlier.\n\n")
 
-                log_file.write("-" * 60 + "\n\n") # Separator after all tools for a file
+                log_file.write(
+                    "-" * 60 + "\n\n"
+                )  # Separator after all tools for a file
 
             # --- Write Summary ---
             log_file.write("=" * 80 + "\n")
@@ -285,31 +344,61 @@ def main():
             # isort Summary
             log_file.write("isort Summary:\n")
             if isort_tool_missing:
-                log_file.write(" - isort command not found. All isort operations skipped.\n")
+                log_file.write(
+                    " - isort command not found. All isort operations skipped.\n"
+                )
             else:
-                log_file.write(f" - {isort_files_needing_sorting} file(s) needed import sorting.\n")
+                log_file.write(
+                    f" - {isort_files_needing_sorting} file(s) needed import sorting.\n"
+                )
                 if READ_ONLY:
-                    log_file.write("   - Running in Read-Only mode: No files were sorted by this script.\n")
+                    log_file.write(
+                        "   - Running in Read-Only mode: No files were sorted by this script.\n"
+                    )
                 else:
-                    log_file.write(f"   - {isort_files_sorted} file(s) had imports successfully sorted.\n")
-                    if isort_files_needing_sorting > isort_files_sorted and not READ_ONLY:
-                        log_file.write(f"   - Note: {isort_files_needing_sorting - isort_files_sorted} file(s) needed sorting but encountered errors or were not fixed.\n")
-                log_file.write(f" - {isort_files_with_errors} file(s) encountered errors during isort processing.\n")
+                    log_file.write(
+                        f"   - {isort_files_sorted} file(s) had imports successfully sorted.\n"
+                    )
+                    if (
+                        isort_files_needing_sorting > isort_files_sorted
+                        and not READ_ONLY
+                    ):
+                        log_file.write(
+                            f"   - Note: {isort_files_needing_sorting - isort_files_sorted} file(s) needed sorting but encountered errors or were not fixed.\n"
+                        )
+                log_file.write(
+                    f" - {isort_files_with_errors} file(s) encountered errors during isort processing.\n"
+                )
             log_file.write("\n")
 
             # black Summary
             log_file.write("black Summary:\n")
             if black_tool_missing:
-                log_file.write(" - black command not found. All black operations skipped.\n")
+                log_file.write(
+                    " - black command not found. All black operations skipped.\n"
+                )
             else:
-                log_file.write(f" - {black_files_needing_reformat} file(s) needed reformatting by black.\n")
+                log_file.write(
+                    f" - {black_files_needing_reformat} file(s) needed reformatting by black.\n"
+                )
                 if READ_ONLY:
-                    log_file.write("   - Running in Read-Only mode: No files were reformatted by this script.\n")
+                    log_file.write(
+                        "   - Running in Read-Only mode: No files were reformatted by this script.\n"
+                    )
                 else:
-                    log_file.write(f"   - {black_files_reformatted} file(s) were successfully reformatted by black.\n")
-                    if black_files_needing_reformat > black_files_reformatted and not READ_ONLY:
-                         log_file.write(f"   - Note: {black_files_needing_reformat - black_files_reformatted} file(s) needed reformatting but encountered errors or were not fixed.\n")
-                log_file.write(f" - {black_files_with_errors} file(s) encountered errors during black processing.\n")
+                    log_file.write(
+                        f"   - {black_files_reformatted} file(s) were successfully reformatted by black.\n"
+                    )
+                    if (
+                        black_files_needing_reformat > black_files_reformatted
+                        and not READ_ONLY
+                    ):
+                        log_file.write(
+                            f"   - Note: {black_files_needing_reformat - black_files_reformatted} file(s) needed reformatting but encountered errors or were not fixed.\n"
+                        )
+                log_file.write(
+                    f" - {black_files_with_errors} file(s) encountered errors during black processing.\n"
+                )
 
     except IOError as e:
         print(f"Error writing to log file '{LOG_FILENAME}': {e}", file=sys.stderr)
@@ -318,7 +407,9 @@ def main():
     # --- Final Console Output ---
     print("-" * 40)
     print(f"Formatting check completed. Processed {len(py_files)} files.")
-    print(f"Run Mode: {'Read-Only (check only)' if READ_ONLY else 'Read & Modify (check and apply)'}")
+    print(
+        f"Run Mode: {'Read-Only (check only)' if READ_ONLY else 'Read & Modify (check and apply)'}"
+    )
     print("-" * 40)
 
     # isort console summary
@@ -328,16 +419,24 @@ def main():
     else:
         if isort_files_needing_sorting > 0:
             if READ_ONLY:
-                print(f"  {isort_files_needing_sorting} file(s) would need import sorting (no changes applied).")
+                print(
+                    f"  {isort_files_needing_sorting} file(s) would need import sorting (no changes applied)."
+                )
             else:
                 print(f"  {isort_files_needing_sorting} file(s) needed import sorting.")
-                print(f"  {isort_files_sorted} file(s) had imports successfully sorted.")
+                print(
+                    f"  {isort_files_sorted} file(s) had imports successfully sorted."
+                )
                 if isort_files_needing_sorting > isort_files_sorted:
-                    print(f"  {isort_files_needing_sorting - isort_files_sorted} file(s) could not be sorted due to errors.")
+                    print(
+                        f"  {isort_files_needing_sorting - isort_files_sorted} file(s) could not be sorted due to errors."
+                    )
         else:
             print("  All checked files already had correctly sorted imports.")
         if isort_files_with_errors > 0:
-            print(f"  {isort_files_with_errors} file(s) encountered errors during isort processing.")
+            print(
+                f"  {isort_files_with_errors} file(s) encountered errors during isort processing."
+            )
     print("-" * 40)
 
     # black console summary
@@ -347,16 +446,26 @@ def main():
     else:
         if black_files_needing_reformat > 0:
             if READ_ONLY:
-                print(f"  {black_files_needing_reformat} file(s) would need reformatting by black (no changes applied).")
+                print(
+                    f"  {black_files_needing_reformat} file(s) would need reformatting by black (no changes applied)."
+                )
             else:
-                print(f"  {black_files_needing_reformat} file(s) needed reformatting by black.")
-                print(f"  {black_files_reformatted} file(s) were successfully reformatted by black.")
+                print(
+                    f"  {black_files_needing_reformat} file(s) needed reformatting by black."
+                )
+                print(
+                    f"  {black_files_reformatted} file(s) were successfully reformatted by black."
+                )
                 if black_files_needing_reformat > black_files_reformatted:
-                     print(f"  {black_files_needing_reformat - black_files_reformatted} file(s) could not be reformatted by black due to errors.")
+                    print(
+                        f"  {black_files_needing_reformat - black_files_reformatted} file(s) could not be reformatted by black due to errors."
+                    )
         else:
             print("  All checked files were already correctly black-formatted.")
         if black_files_with_errors > 0:
-            print(f"  {black_files_with_errors} file(s) encountered errors during black processing.")
+            print(
+                f"  {black_files_with_errors} file(s) encountered errors during black processing."
+            )
 
     print("-" * 40)
     print(f"See '{LOG_FILENAME}' for detailed logs and diffs.")

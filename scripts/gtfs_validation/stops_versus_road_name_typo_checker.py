@@ -47,7 +47,9 @@ GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
 STOPS_FILENAME = "stops.txt"
 STOPS_PATH = os.path.join(GTFS_FOLDER, STOPS_FILENAME)
 
-ROADWAYS_PATH = r"path\to\your\roadways.shp"  # Replace with your roadways shapefile path
+ROADWAYS_PATH = (
+    r"path\to\your\roadways.shp"  # Replace with your roadways shapefile path
+)
 
 # Output settings
 OUTPUT_DIR = r"path\to\output\directory"  # Replace with your desired output directory
@@ -66,7 +68,13 @@ BUFFER_DISTANCE_VALUE = 50
 BUFFER_DISTANCE_UNIT = "feet"  # 'feet' or 'meters'
 
 # Roadway Shapefile Column Configuration
-REQUIRED_COLUMNS_ROADWAY = ["RW_PREFIX", "RW_TYPE_US", "RW_SUFFIX", "RW_SUFFIX_", "FULLNAME"]
+REQUIRED_COLUMNS_ROADWAY = [
+    "RW_PREFIX",
+    "RW_TYPE_US",
+    "RW_SUFFIX",
+    "RW_SUFFIX_",
+    "FULLNAME",
+]
 
 DESCRIPTIONS_ROADWAY = {
     "RW_PREFIX": "Directional prefix (e.g., 'N' in 'N Washington St')",
@@ -128,7 +136,9 @@ def load_stops(stops_path):
     """
     required_columns_stops = ["stop_id", "stop_name", "stop_lat", "stop_lon"]
     stops_df = pd.read_csv(stops_path, dtype=str)
-    missing_cols = [col for col in required_columns_stops if col not in stops_df.columns]
+    missing_cols = [
+        col for col in required_columns_stops if col not in stops_df.columns
+    ]
     if missing_cols:
         raise ValueError(
             "The following required columns are missing in stops.txt: %s" % missing_cols
@@ -165,11 +175,14 @@ def map_roadway_columns(roadways_gdf):
         if col in roadways_gdf.columns:
             column_mapping[col] = col
         else:
-            logging.warning("The column '%s' is missing from the roadway shapefile.", col)
+            logging.warning(
+                "The column '%s' is missing from the roadway shapefile.", col
+            )
             logging.info("Description: %s", DESCRIPTIONS_ROADWAY[col])
             logging.info("Available columns: %s", roadways_gdf.columns.tolist())
             new_col = input(
-                f"Please enter the correct column name for '{col}' " "(or leave blank to skip): "
+                f"Please enter the correct column name for '{col}' "
+                "(or leave blank to skip): "
             ).strip()
             while new_col and new_col not in roadways_gdf.columns:
                 logging.warning(
@@ -202,7 +215,9 @@ def extract_modifiers(roadways_gdf, column_mapping_roadway):
             unique_vals = roadways_gdf[mapped_field].dropna().unique()
             modifiers.update(unique_vals)
     modifiers = set(
-        str(mod).lower().strip() for mod in modifiers if pd.notnull(mod) and str(mod).strip()
+        str(mod).lower().strip()
+        for mod in modifiers
+        if pd.notnull(mod) and str(mod).strip()
     )
     return modifiers
 
@@ -252,7 +267,9 @@ def extract_street_names(stop_name, modifiers):
     return [normalize_street_name(street, modifiers) for street in streets if street]
 
 
-def compare_stop_to_roads(stop_id, stop_name, stop_streets, road_names, roads_gdf, threshold):
+def compare_stop_to_roads(
+    stop_id, stop_name, stop_streets, road_names, roads_gdf, threshold
+):
     """
     Compare each portion of the stop name to known road names via fuzzy matching.
     """
@@ -260,7 +277,9 @@ def compare_stop_to_roads(stop_id, stop_name, stop_streets, road_names, roads_gd
     for street in stop_streets:
         if street in road_names:
             continue
-        match_tuples = process.extract(street, road_names, scorer=fuzz.token_set_ratio, limit=3)
+        match_tuples = process.extract(
+            street, road_names, scorer=fuzz.token_set_ratio, limit=3
+        )
         for match_clean, score, _ in match_tuples:
             if threshold <= score < 100:
                 original_matches = roads_gdf.loc[
@@ -295,9 +314,13 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshol
         )
         potential_typos.extend(typos)
 
-    logging.info("Total potential typos found before deduplication: %d", len(potential_typos))
+    logging.info(
+        "Total potential typos found before deduplication: %d", len(potential_typos)
+    )
     typos_df = pd.DataFrame(potential_typos)
-    typos_df_sorted = typos_df.sort_values(by="similarity_score", ascending=False).drop_duplicates()
+    typos_df_sorted = typos_df.sort_values(
+        by="similarity_score", ascending=False
+    ).drop_duplicates()
     return typos_df_sorted
 
 
@@ -336,12 +359,16 @@ def main():
 
     # Validate the existence of the GTFS stops file.
     if not os.path.isfile(STOPS_PATH):
-        raise FileNotFoundError("'stops.txt' not found in the GTFS folder: %s" % GTFS_FOLDER)
+        raise FileNotFoundError(
+            "'stops.txt' not found in the GTFS folder: %s" % GTFS_FOLDER
+        )
 
     # Determine CRS unit and compute the appropriate buffer distance.
     crs_unit = get_crs_unit(TARGET_CRS)
     if crs_unit is None:
-        raise ValueError("Unable to determine the CRS unit. Please check the TARGET_CRS.")
+        raise ValueError(
+            "Unable to determine the CRS unit. Please check the TARGET_CRS."
+        )
 
     logging.info("Target CRS (%s) uses '%s' as its linear unit.", TARGET_CRS, crs_unit)
     supported_units = ["feet", "meters", "metre", "us survey foot"]
@@ -380,7 +407,10 @@ def main():
 
     # Map the roadway shapefile columns.
     column_mapping_roadway = map_roadway_columns(roadways_gdf)
-    if "FULLNAME" not in column_mapping_roadway or not column_mapping_roadway["FULLNAME"]:
+    if (
+        "FULLNAME" not in column_mapping_roadway
+        or not column_mapping_roadway["FULLNAME"]
+    ):
         raise ValueError("The 'FULLNAME' column is required in the roadway shapefile.")
     roadways_gdf = roadways_gdf.rename(columns=column_mapping_roadway)
 
@@ -406,7 +436,9 @@ def main():
     typos_df_sorted = process_typos(
         stops_gdf, roadways_gdf, modifiers, road_names_clean, SIMILARITY_THRESHOLD
     )
-    logging.info("Total potential typos after deduplication: %d", typos_df_sorted.shape[0])
+    logging.info(
+        "Total potential typos after deduplication: %d", typos_df_sorted.shape[0]
+    )
 
     if typos_df_sorted.empty:
         logging.info("No potential typos found.")

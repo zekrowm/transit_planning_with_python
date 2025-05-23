@@ -39,8 +39,8 @@ import pandas as pd
 INPUT_FILE = r"\\Path\To\Runtime Trip Level - MM-DD-YYYY.csv"
 OUTPUT_DIR = r"\\Path\To\Your\Output_Folder"
 
-PCT_THRESHOLD: float = 10.0    # flag if |% deviation| > this
-MIN_THRESHOLD: float = 10.0    # flag if |deviation|   > this (minutes)
+PCT_THRESHOLD: float = 10.0  # flag if |% deviation| > this
+MIN_THRESHOLD: float = 10.0  # flag if |deviation|   > this (minutes)
 
 WEIGHTED_AVERAGE: bool = False  # False = simple mean (default)
 
@@ -53,15 +53,16 @@ SUMMARY_CSV_NAME = "route_direction_summary.csv"
 
 COLUMN_ALIASES: dict[str, list[str]] = {
     # logical name → preferred + fall-backs in incoming files
-    "route":                 ["Route", "Branch"],
-    "direction":             ["Direction"],
-    "scheduled_time_raw":    ["Average Scheduled Running Time"],
-    "scheduled_time_min":    ["Average Scheduled Running Time (min)"],
-    "actual_time_raw":       ["Average Actual Running Time"],
-    "actual_time_min":       ["Average Actual Running Time (min)"],
-    "deviation_time_min":    ["Average Running Time Deviation (min)"],
-    "count_trip":            ["Count Trip"],
+    "route": ["Route", "Branch"],
+    "direction": ["Direction"],
+    "scheduled_time_raw": ["Average Scheduled Running Time"],
+    "scheduled_time_min": ["Average Scheduled Running Time (min)"],
+    "actual_time_raw": ["Average Actual Running Time"],
+    "actual_time_min": ["Average Actual Running Time (min)"],
+    "deviation_time_min": ["Average Running Time Deviation (min)"],
+    "count_trip": ["Count Trip"],
 }
+
 
 def first_existing(df: pd.DataFrame, names: list[str]) -> str | None:
     """Return the first column name that exists in *df* (or None)."""
@@ -74,6 +75,7 @@ def first_existing(df: pd.DataFrame, names: list[str]) -> str | None:
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def parse_time_to_minutes(value) -> float:
     """
@@ -262,4 +264,7 @@ if __name__ == "__main__":
         f"Flagged when |deviation| > {MIN_THRESHOLD} min "
         f"OR |% deviation| > {PCT_THRESHOLD}%."
     )
-    print("Aggregation uses", "weighted averages." if WEIGHTED_AVERAGE else "simple averages.")
+    print(
+        "Aggregation uses",
+        "weighted averages." if WEIGHTED_AVERAGE else "simple averages.",
+    )

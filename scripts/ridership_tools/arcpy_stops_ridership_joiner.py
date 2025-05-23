@@ -54,19 +54,15 @@ POLYGON_WITH_RIDERSHIP_SHP = os.path.join(OUTPUT_FOLDER, "polygon_with_ridership
 # FIELDS & JOIN KEYS -------------------------------------------------------
 # 1. Key fields in the bus stops data:
 GTFS_KEY_FIELD = "stop_code"  # GTFS "unique" stop identifier
-SHAPE_KEY_FIELD = "StopId"    # Shapefile "unique" stop identifier
+SHAPE_KEY_FIELD = "StopId"  # Shapefile "unique" stop identifier
 
 # 2. Additional useful fields in GTFS or shapefile:
-GTFS_SECONDARY_ID_FIELD = "stop_id"   # For reference, e.g. "stop_id" in stops.txt
+GTFS_SECONDARY_ID_FIELD = "stop_id"  # For reference, e.g. "stop_id" in stops.txt
 SHAPE_SECONDARY_ID_FIELD = "StopNum"  # For reference, e.g. "StopNum" in shapefile
 
 # 3. Polygon fields to export (and optional join field):
-POLYGON_JOIN_FIELD = "GEOID"    # e.g., Census GEOID
-POLYGON_FIELDS_TO_KEEP = [
-    "NAME",
-    "GEOID",
-    "GEOIDFQ"
-]   # Must include the join field
+POLYGON_JOIN_FIELD = "GEOID"  # e.g., Census GEOID
+POLYGON_FIELDS_TO_KEEP = ["NAME", "GEOID", "GEOIDFQ"]  # Must include the join field
 
 # ENVIRONMENT & FLAGS ------------------------------------------------------
 IS_GTFS_INPUT = BUS_STOPS_INPUT.lower().endswith(".txt")
@@ -98,7 +94,7 @@ def create_bus_stops_feature_class():
             out_feature_class=GTFS_STOPS_FC,
             x_field="stop_lon",
             y_field="stop_lat",
-            coordinate_system=arcpy.SpatialReference(4326)  # WGS84
+            coordinate_system=arcpy.SpatialReference(4326),  # WGS84
         )
         print(f"GTFS stops feature class created at:\n{GTFS_STOPS_FC}")
         bus_stops_fc = GTFS_STOPS_FC
@@ -107,7 +103,7 @@ def create_bus_stops_feature_class():
         fields_to_export = [
             GTFS_KEY_FIELD,
             GTFS_SECONDARY_ID_FIELD,
-            "stop_name"
+            "stop_name",
         ] + extra_fields
 
     else:
@@ -138,13 +134,14 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export):
             out_feature_class=JOINED_FC,
             join_operation="JOIN_ONE_TO_ONE",
             join_type="KEEP_ALL",
-            match_option="INTERSECT"
+            match_option="INTERSECT",
         )
         print(f"Spatial join completed. Joined feature class created at:\n{JOINED_FC}")
 
         # Export joined data to CSV
-        with arcpy.da.SearchCursor(JOINED_FC, fields_to_export) as cursor, \
-             open(OUTPUT_CSV, 'w', newline='', encoding='utf-8') as csvfile:
+        with arcpy.da.SearchCursor(JOINED_FC, fields_to_export) as cursor, open(
+            OUTPUT_CSV, "w", newline="", encoding="utf-8"
+        ) as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(fields_to_export)
             for row in cursor:
@@ -155,8 +152,9 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export):
     else:
         print("POLYGON_LAYER is empty. Skipping spatial join.")
         # Export the bus stops feature class to CSV so that merge can still work.
-        with arcpy.da.SearchCursor(bus_stops_fc, fields_to_export) as cursor, \
-             open(OUTPUT_CSV, 'w', newline='', encoding='utf-8') as csvfile:
+        with arcpy.da.SearchCursor(bus_stops_fc, fields_to_export) as cursor, open(
+            OUTPUT_CSV, "w", newline="", encoding="utf-8"
+        ) as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(fields_to_export)
             for row in cursor:
@@ -177,14 +175,14 @@ def read_and_filter_ridership_data():
     # Optional route filter
     if ROUTE_FILTER_LIST:
         initial_count = len(df_excel)
-        df_excel = df_excel[df_excel['ROUTE_NAME'].isin(ROUTE_FILTER_LIST)]
+        df_excel = df_excel[df_excel["ROUTE_NAME"].isin(ROUTE_FILTER_LIST)]
         print(f"Filtered Excel data to routes in {ROUTE_FILTER_LIST}.")
         print(f"Records reduced from {initial_count} to {len(df_excel)}.")
     else:
         print("No route filter applied.")
 
     # Calculate TOTAL
-    df_excel['TOTAL'] = df_excel['XBOARDINGS'] + df_excel['XALIGHTINGS']
+    df_excel["TOTAL"] = df_excel["XBOARDINGS"] + df_excel["XALIGHTINGS"]
     return df_excel
 
 
@@ -201,25 +199,17 @@ def merge_ridership_and_csv(df_excel, fields_to_export):
 
     # Merge on appropriate key (GTFS vs. shapefile)
     if IS_GTFS_INPUT:
-        df_excel['STOP_ID'] = df_excel['STOP_ID'].astype(str)
+        df_excel["STOP_ID"] = df_excel["STOP_ID"].astype(str)
         df_csv[GTFS_KEY_FIELD] = df_csv[GTFS_KEY_FIELD].astype(str)
         df_joined = pd.merge(
-            df_excel,
-            df_csv,
-            left_on='STOP_ID',
-            right_on=GTFS_KEY_FIELD,
-            how='inner'
+            df_excel, df_csv, left_on="STOP_ID", right_on=GTFS_KEY_FIELD, how="inner"
         )
         key_field = GTFS_KEY_FIELD
     else:
-        df_excel['STOP_ID'] = df_excel['STOP_ID'].astype(str)
+        df_excel["STOP_ID"] = df_excel["STOP_ID"].astype(str)
         df_csv[SHAPE_KEY_FIELD] = df_csv[SHAPE_KEY_FIELD].astype(str)
         df_joined = pd.merge(
-            df_excel,
-            df_csv,
-            left_on='STOP_ID',
-            right_on=SHAPE_KEY_FIELD,
-            how='inner'
+            df_excel, df_csv, left_on="STOP_ID", right_on=SHAPE_KEY_FIELD, how="inner"
         )
         key_field = SHAPE_KEY_FIELD
 
@@ -247,22 +237,24 @@ def filter_matched_bus_stops(current_fc, df_joined, key_field):
     field_delimited = arcpy.AddFieldDelimiters(current_fc, key_field)
 
     # Prepare values for WHERE clause based on field type
-    if field_type in ['String', 'Guid', 'Date']:
+    if field_type in ["String", "Guid", "Date"]:
         formatted_keys = []
         for k in matched_keys:
             escaped = k.replace("'", "''")
             formatted_keys.append(f"'{escaped}'")
-    elif field_type in ['Integer', 'SmallInteger', 'Double', 'Single', 'OID']:
+    elif field_type in ["Integer", "SmallInteger", "Double", "Single", "OID"]:
         formatted_keys = [str(k) for k in matched_keys]
     else:
-        print(f"Unsupported field type '{field_type}' for field '{key_field}'. Exiting.")
+        print(
+            f"Unsupported field type '{field_type}' for field '{key_field}'. Exiting."
+        )
         exit()
 
     # Due to potential large number of keys, split into chunks
     chunk_size = 999
     where_clauses = []
     for i in range(0, len(formatted_keys), chunk_size):
-        chunk = formatted_keys[i:i + chunk_size]
+        chunk = formatted_keys[i : i + chunk_size]
         clause = f"{field_delimited} IN ({', '.join(chunk)})"
         where_clauses.append(clause)
 
@@ -270,7 +262,9 @@ def filter_matched_bus_stops(current_fc, df_joined, key_field):
     print(f"Constructed WHERE clause (first 200 chars): {full_where_clause[:200]}...")
 
     try:
-        arcpy.SelectLayerByAttribute_management("joined_lyr", "NEW_SELECTION", full_where_clause)
+        arcpy.SelectLayerByAttribute_management(
+            "joined_lyr", "NEW_SELECTION", full_where_clause
+        )
     except arcpy.ExecuteError:
         print("Failed SelectLayerByAttribute. Check WHERE clause syntax.")
         print(f"WHERE clause attempted: {full_where_clause}")
@@ -297,7 +291,7 @@ def update_bus_stops_ridership(current_fc, df_joined, key_field):
     ridership_fields = [
         ("XBOARD", "DOUBLE"),
         ("XALIGHT", "DOUBLE"),
-        ("XTOTAL", "DOUBLE")
+        ("XTOTAL", "DOUBLE"),
     ]
 
     existing_fields = [f.name for f in arcpy.ListFields(current_fc)]
@@ -313,18 +307,20 @@ def update_bus_stops_ridership(current_fc, df_joined, key_field):
         code = row[key_field] if not pd.isna(row[key_field]) else None
         if code is not None:
             stop_ridership_dict[str(code)] = {
-                'XBOARD': row['XBOARDINGS'],
-                'XALIGHT': row['XALIGHTINGS'],
-                'XTOTAL': row['TOTAL']
+                "XBOARD": row["XBOARDINGS"],
+                "XALIGHT": row["XALIGHTINGS"],
+                "XTOTAL": row["TOTAL"],
             }
 
-    with arcpy.da.UpdateCursor(current_fc, [key_field, "XBOARD", "XALIGHT", "XTOTAL"]) as cursor:
+    with arcpy.da.UpdateCursor(
+        current_fc, [key_field, "XBOARD", "XALIGHT", "XTOTAL"]
+    ) as cursor:
         for r in cursor:
             code_val = str(r[0])
             if code_val in stop_ridership_dict:
-                r[1] = stop_ridership_dict[code_val]['XBOARD']
-                r[2] = stop_ridership_dict[code_val]['XALIGHT']
-                r[3] = stop_ridership_dict[code_val]['XTOTAL']
+                r[1] = stop_ridership_dict[code_val]["XBOARD"]
+                r[2] = stop_ridership_dict[code_val]["XALIGHT"]
+                r[3] = stop_ridership_dict[code_val]["XTOTAL"]
             else:
                 # Should not occur if we've filtered for matched features
                 r[1], r[2], r[3] = 0, 0, 0
@@ -344,11 +340,9 @@ def aggregate_ridership(df_joined):
         return
 
     # Group by the designated polygon join field, e.g. "GEOID"
-    df_agg = df_joined.groupby(POLYGON_JOIN_FIELD, as_index=False).agg({
-        "XBOARDINGS": "sum",
-        "XALIGHTINGS": "sum",
-        "TOTAL":       "sum"
-    })
+    df_agg = df_joined.groupby(POLYGON_JOIN_FIELD, as_index=False).agg(
+        {"XBOARDINGS": "sum", "XALIGHTINGS": "sum", "TOTAL": "sum"}
+    )
     print(f"Ridership data aggregated by {POLYGON_JOIN_FIELD}.")
 
     # ─── Export aggregated ridership spreadsheet ───
@@ -362,10 +356,12 @@ def aggregate_ridership(df_joined):
     agg_fields = [
         ("XBOARD_SUM", "DOUBLE"),
         ("XALITE_SUM", "DOUBLE"),
-        ("TOTAL_SUM",  "DOUBLE")
+        ("TOTAL_SUM", "DOUBLE"),
     ]
 
-    existing_fields_blocks = [f.name for f in arcpy.ListFields(POLYGON_WITH_RIDERSHIP_SHP)]
+    existing_fields_blocks = [
+        f.name for f in arcpy.ListFields(POLYGON_WITH_RIDERSHIP_SHP)
+    ]
     for f_name, f_type in agg_fields:
         if f_name not in existing_fields_blocks:
             arcpy.management.AddField(POLYGON_WITH_RIDERSHIP_SHP, f_name, f_type)
@@ -377,14 +373,14 @@ def aggregate_ridership(df_joined):
         row[POLYGON_JOIN_FIELD]: {
             "XBOARD_SUM": row["XBOARDINGS"],
             "XALITE_SUM": row["XALIGHTINGS"],
-            "TOTAL_SUM":  row["TOTAL"]
+            "TOTAL_SUM": row["TOTAL"],
         }
         for _, row in df_agg.iterrows()
     }
 
     with arcpy.da.UpdateCursor(
         POLYGON_WITH_RIDERSHIP_SHP,
-        [POLYGON_JOIN_FIELD, "XBOARD_SUM", "XALITE_SUM", "TOTAL_SUM"]
+        [POLYGON_JOIN_FIELD, "XBOARD_SUM", "XALITE_SUM", "TOTAL_SUM"],
     ) as cursor:
         for rec in cursor:
             geoid = rec[0]
@@ -419,14 +415,8 @@ def process_stops_for_single_run():
 
     # ─── AGGREGATE PER STOP (network‑wide) ───
     # Collapse any multi‑route rows down to one row per STOP_ID
-    df_excel = (
-        df_excel
-        .groupby("STOP_ID", as_index=False)
-        .agg({
-            "XBOARDINGS":  "sum",
-            "XALIGHTINGS": "sum",
-            "TOTAL":       "sum"
-        })
+    df_excel = df_excel.groupby("STOP_ID", as_index=False).agg(
+        {"XBOARDINGS": "sum", "XALIGHTINGS": "sum", "TOTAL": "sum"}
     )
 
     # Export the intermediate aggregated ridership spreadsheet
@@ -480,13 +470,13 @@ def main():
         df_excel = read_and_filter_ridership_data()
 
         # Identify unique routes
-        unique_routes = df_excel['ROUTE_NAME'].unique()
+        unique_routes = df_excel["ROUTE_NAME"].unique()
         print(f"Found the following unique routes: {unique_routes}")
 
         # For each route, merge, filter, and export a shapefile
         for route in unique_routes:
             print(f"\n=== Processing route: {route} ===")
-            df_route = df_excel[df_excel['ROUTE_NAME'] == route].copy()
+            df_route = df_excel[df_excel["ROUTE_NAME"] == route].copy()
             if df_route.empty:
                 print(f"No ridership data for route {route}. Skipping.")
                 continue
@@ -516,20 +506,20 @@ def main():
             chunk_size = 999
             where_clauses = []
             for i in range(0, len(matched_keys), chunk_size):
-                chunk = matched_keys[i:i + chunk_size]
+                chunk = matched_keys[i : i + chunk_size]
                 # Quote or not quote based on field type if needed.
                 # Here we'll assume string type for simplicity:
-                chunk_str = ', '.join(f"'{k}'" for k in chunk)
+                chunk_str = ", ".join(f"'{k}'" for k in chunk)
                 where_clauses.append(f"{field_delimited} IN ({chunk_str})")
 
             route_where_clause = " OR ".join(where_clauses)
             arcpy.SelectLayerByAttribute_management(
-                "joined_lyr_route",
-                "NEW_SELECTION",
-                route_where_clause
+                "joined_lyr_route", "NEW_SELECTION", route_where_clause
             )
 
-            selected_count = int(arcpy.GetCount_management("joined_lyr_route").getOutput(0))
+            selected_count = int(
+                arcpy.GetCount_management("joined_lyr_route").getOutput(0)
+            )
             if selected_count == 0:
                 print(f"No bus stops found in FC for route {route}. Skipping.")
                 continue

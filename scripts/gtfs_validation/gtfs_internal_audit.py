@@ -52,26 +52,27 @@ except ModuleNotFoundError:  # pragma: no cover
 # CONFIGURATION
 # =============================================================================
 
-GTFS_PATH = Path(r"\\Path\To\Your\GTFS_Folder")                   # Edit Path
+GTFS_PATH = Path(r"\\Path\To\Your\GTFS_Folder")  # Edit Path
 OUTPUT_PATH: Path | None = Path(r"\\Path\To\Your\Output_Folder")  # Edit Path
 
 # Route filtering (by route_short_name)
-FILTER_IN_ROUTES: List[str] = []              # analyse only these
-FILTER_OUT_ROUTES: List[str] = ["9999A", "9999B", "9999C"] # Edit as needed
+FILTER_IN_ROUTES: List[str] = []  # analyse only these
+FILTER_OUT_ROUTES: List[str] = ["9999A", "9999B", "9999C"]  # Edit as needed
 
 # Thresholds (internal checks)
-SHAPE_DISTANCE_THRESHOLD_FT = 328            # ~100 m ≈ 328 ft
-UNREALISTIC_SPEED_MPH       = 60.0           # flag anything > 60 mph
-LONG_GAP_MIN                = 60             # minutes
+SHAPE_DISTANCE_THRESHOLD_FT = 328  # ~100 m ≈ 328 ft
+UNREALISTIC_SPEED_MPH = 60.0  # flag anything > 60 mph
+LONG_GAP_MIN = 60  # minutes
 
 # -----------------------------------------------------------------------------
 
-DEG_TO_MILES = 69.172                         # rough miles per degree
+DEG_TO_MILES = 69.172  # rough miles per degree
 DEG_TO_FEET = DEG_TO_MILES * 5280
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     dfs: Dict[str, pd.DataFrame] = {}
@@ -86,7 +87,9 @@ def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     return dfs
 
 
-def safe_write(df: pd.DataFrame, out_dir: Path, fname: str, *, write_empty: bool = False) -> None:
+def safe_write(
+    df: pd.DataFrame, out_dir: Path, fname: str, *, write_empty: bool = False
+) -> None:
     """
     Write *fname* to *out_dir*.
 
@@ -108,10 +111,10 @@ def safe_write(df: pd.DataFrame, out_dir: Path, fname: str, *, write_empty: bool
     out_path = out_dir / fname
 
     if df.empty:
-        if write_empty:            # keep old behaviour when explicitly asked
+        if write_empty:  # keep old behaviour when explicitly asked
             out_path.touch(exist_ok=True)
             logging.info("✓ %s: no issues found (empty file created).", tag)
-        else:                      # new default: skip creating the file
+        else:  # new default: skip creating the file
             logging.info("✓ %s: no issues found (file skipped).", tag)
         return
 
@@ -120,13 +123,14 @@ def safe_write(df: pd.DataFrame, out_dir: Path, fname: str, *, write_empty: bool
 
 
 def haversine_miles(lat1, lon1, lat2, lon2) -> float:
-    from math import radians, sin, cos, sqrt, atan2
+    from math import atan2, cos, radians, sin, sqrt
 
     R_MI = 3958.8
     dlat, dlon = radians(lat2 - lat1), radians(lon2 - lon1)
-    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(
-        dlon / 2
-    ) ** 2
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    )
     return 2 * R_MI * atan2(sqrt(a), sqrt(1 - a))
 
 
@@ -161,7 +165,9 @@ def build_route_id_set(routes: pd.DataFrame) -> Set[str]:
         df = df[~df["route_short_name"].isin(FILTER_OUT_ROUTES)]
         missing_out = set(FILTER_OUT_ROUTES) - set(routes["route_short_name"])
         if missing_out:
-            logging.info("FILTER_OUT_ROUTES not present in feed: %s", ", ".join(missing_out))
+            logging.info(
+                "FILTER_OUT_ROUTES not present in feed: %s", ", ".join(missing_out)
+            )
 
     selected = set(df["route_id"])
     if not selected:
@@ -202,7 +208,9 @@ def shapes_far_from_stops(
     stops: pd.DataFrame,
 ) -> pd.DataFrame:
     if sgeom is None or shapes.empty:
-        logging.warning("Shapely not installed or shapes.txt missing – skipping rule 4.")
+        logging.warning(
+            "Shapely not installed or shapes.txt missing – skipping rule 4."
+        )
         return pd.DataFrame()
 
     shapes = shapes.astype({"shape_pt_lat": float, "shape_pt_lon": float})
@@ -317,6 +325,7 @@ def bad_stop_sequences(stop_times: pd.DataFrame) -> pd.DataFrame:
 # MAIN
 # =============================================================================
 
+
 def main(gtfs_path: Path, out_path: Path) -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -331,11 +340,18 @@ def main(gtfs_path: Path, out_path: Path) -> None:
     # Load all the required GTFS tables
     dfs = read_txts(
         gtfs_path,
-        "stops", "stop_times", "routes", "trips", "shapes",
+        "stops",
+        "stop_times",
+        "routes",
+        "trips",
+        "shapes",
     )
     stops, stop_times, routes, trips, shapes = (
-        dfs["stops"], dfs["stop_times"], dfs["routes"],
-        dfs["trips"], dfs["shapes"],
+        dfs["stops"],
+        dfs["stop_times"],
+        dfs["routes"],
+        dfs["trips"],
+        dfs["shapes"],
     )
 
     # Verify required columns
@@ -350,14 +366,15 @@ def main(gtfs_path: Path, out_path: Path) -> None:
         if missing:
             logging.error(
                 "%s.txt missing required columns: %s – aborting validation.",
-                fname, ", ".join(missing),
+                fname,
+                ", ".join(missing),
             )
             return
 
     # Apply route filters early
     selected_route_ids = build_route_id_set(routes)
-    routes     = routes[routes.route_id.isin(selected_route_ids)]
-    trips      = trips[trips.route_id.isin(selected_route_ids)]
+    routes = routes[routes.route_id.isin(selected_route_ids)]
+    trips = trips[trips.route_id.isin(selected_route_ids)]
     stop_times = stop_times[stop_times.trip_id.isin(trips.trip_id)]
 
     if not shapes.empty and "shape_id" in trips.columns:
@@ -365,14 +382,17 @@ def main(gtfs_path: Path, out_path: Path) -> None:
 
     # Run each rule and collect its DataFrame
     reports = [
-        ("orphan_stops.csv",           orphan_stops(stops, stop_times)),
-        ("unused_routes.csv",          unused_routes(routes, trips)),
-        ("unused_trips.csv",           unused_trips(trips, stop_times)),
-        ("isolated_trips.csv",         isolated_trips(stop_times)),
-        ("shapes_far_from_stops.csv",  shapes_far_from_stops(trips, shapes, stop_times, stops)),
-        ("hanging_segments.csv",       hanging_segments(stop_times, stops)),
-        ("unrealistic_timings.csv",    unrealistic_timings(stop_times, stops)),
-        ("bad_stop_sequences.csv",     bad_stop_sequences(stop_times)),
+        ("orphan_stops.csv", orphan_stops(stops, stop_times)),
+        ("unused_routes.csv", unused_routes(routes, trips)),
+        ("unused_trips.csv", unused_trips(trips, stop_times)),
+        ("isolated_trips.csv", isolated_trips(stop_times)),
+        (
+            "shapes_far_from_stops.csv",
+            shapes_far_from_stops(trips, shapes, stop_times, stops),
+        ),
+        ("hanging_segments.csv", hanging_segments(stop_times, stops)),
+        ("unrealistic_timings.csv", unrealistic_timings(stop_times, stops)),
+        ("bad_stop_sequences.csv", bad_stop_sequences(stop_times)),
     ]
 
     # Write them all out with the updated safe_write signature

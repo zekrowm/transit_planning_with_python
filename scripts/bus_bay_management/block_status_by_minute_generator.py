@@ -136,7 +136,9 @@ def load_gtfs_data(files=None, dtype=str):
         if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
     ]
     if missing:
-        raise FileNotFoundError(f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}")
+        raise FileNotFoundError(
+            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        )
 
     # Load files into DataFrames
     data = {}
@@ -170,7 +172,9 @@ def validate_folders(input_path, output_path):
     is created if it does not already exist.
     """
     if not os.path.isdir(input_path):
-        raise NotADirectoryError(f"Input path does not exist or is not a directory: {input_path}")
+        raise NotADirectoryError(
+            f"Input path does not exist or is not a directory: {input_path}"
+        )
     os.makedirs(output_path, exist_ok=True)
 
 
@@ -346,7 +350,16 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
             if dep < minute < next_arr:
                 # Check if same or different trip
                 if trip_id == next_trip_id:
-                    return ("TRAVELING BETWEEN STOPS", None, None, None, None, trip_id, None, 0)
+                    return (
+                        "TRAVELING BETWEEN STOPS",
+                        None,
+                        None,
+                        None,
+                        None,
+                        trip_id,
+                        None,
+                        0,
+                    )
 
                 # Different trip => dwell/layover/deadhead
                 new_status, fill_stop_id, fill_stop_name = _status_for_different_trip(
@@ -528,7 +541,9 @@ def _row_for_inactive(minute, block_id, all_trips):
             if (prev_trip_info is None) or (trip_obj["end"] > prev_trip_info["end"]):
                 prev_trip_info = trip_obj
         if trip_obj["start"] > minute:
-            if (next_trip_info is None) or (trip_obj["start"] < next_trip_info["start"]):
+            if (next_trip_info is None) or (
+                trip_obj["start"] < next_trip_info["start"]
+            ):
                 next_trip_info = trip_obj
 
     # Distinguish dwell, layover, or inactive
@@ -600,7 +615,9 @@ def _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters):
                     next_minute = minute + TIME_INTERVAL_MINUTES
                     if next_minute <= chosen_trip["end"]:
                         next_status = get_status_for_minute(
-                            next_minute, chosen_trip["stop_times_sequence"], bus_stop_clusters
+                            next_minute,
+                            chosen_trip["stop_times_sequence"],
+                            bus_stop_clusters,
                         )[0]
                         if next_status == "DEPART":
                             status = "LOADING"
@@ -669,7 +686,9 @@ def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
 
     # Convert times to minutes
     stop_times_df["arrival_min"] = stop_times_df["arrival_time"].apply(time_to_minutes)
-    stop_times_df["departure_min"] = stop_times_df["departure_time"].apply(time_to_minutes)
+    stop_times_df["departure_min"] = stop_times_df["departure_time"].apply(
+        time_to_minutes
+    )
     # Keep only stop_times for the trips that survived
     stop_times_df = stop_times_df[stop_times_df["trip_id"].isin(trips_df["trip_id"])]
 
@@ -684,7 +703,9 @@ def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
     stops_merge_cols = ["stop_id", "stop_name", "stop_code"]
     if "timepoint" in stops_df.columns:
         stops_merge_cols.append("timepoint")
-    merged_df = pd.merge(merged_df, stops_df[stops_merge_cols], on="stop_id", how="left")
+    merged_df = pd.merge(
+        merged_df, stops_df[stops_merge_cols], on="stop_id", how="left"
+    )
 
     # Mark first/last stops
     merged_df = mark_first_and_last_stops(merged_df)
@@ -698,8 +719,12 @@ def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
         )
 
     # Force first/last to timepoint=2 if it was 0
-    merged_df.loc[(merged_df["is_first_stop"]) & (merged_df["timepoint"] == 0), "timepoint"] = 2
-    merged_df.loc[(merged_df["is_last_stop"]) & (merged_df["timepoint"] == 0), "timepoint"] = 2
+    merged_df.loc[
+        (merged_df["is_first_stop"]) & (merged_df["timepoint"] == 0), "timepoint"
+    ] = 2
+    merged_df.loc[
+        (merged_df["is_last_stop"]) & (merged_df["timepoint"] == 0), "timepoint"
+    ] = 2
 
     # Block-level filtering based on route_short_name, stop_id, stop_code
     if ROUTE_SHORTNAME_FILTER or STOP_ID_FILTER or STOP_CODE_FILTER:
@@ -754,7 +779,10 @@ def run_step1_gtfs_to_blocks():
         print("Merging routes.txt with trips ...")
         if "route_short_name" not in trips_df.columns:
             trips_df = pd.merge(
-                trips_df, routes_df[["route_id", "route_short_name"]], on="route_id", how="left"
+                trips_df,
+                routes_df[["route_id", "route_short_name"]],
+                on="route_id",
+                how="left",
             )
     else:
         print("WARNING: No routes.txt found or missing route_short_name column.")
@@ -784,7 +812,9 @@ def run_step1_gtfs_to_blocks():
             )
             continue
 
-        block_schedule_df = process_block(block_data, blk_id, timeline, BUS_STOP_CLUSTERS_STEP1)
+        block_schedule_df = process_block(
+            block_data, blk_id, timeline, BUS_STOP_CLUSTERS_STEP1
+        )
         block_schedule_df.sort_values("Timestamp", inplace=True)
 
         block_route_ids = block_data["route_id"].dropna().unique()

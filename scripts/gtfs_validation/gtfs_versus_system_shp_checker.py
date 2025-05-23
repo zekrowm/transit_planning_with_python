@@ -71,7 +71,12 @@ def load_gtfs_data(gtfs_dir):
     stop_times_txt_path = os.path.join(gtfs_dir, "stop_times.txt")
 
     # Verify required files exist
-    for file_path in [routes_txt_path, stops_txt_path, trips_txt_path, stop_times_txt_path]:
+    for file_path in [
+        routes_txt_path,
+        stops_txt_path,
+        trips_txt_path,
+        stop_times_txt_path,
+    ]:
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"Required GTFS file not found: {file_path}")
 
@@ -98,7 +103,9 @@ def load_shapefile(shp_path, input_crs):
 
 def preprocess_data(routes_df, shp_df, route_number_col):
     """Ensure route columns are strings and cleaned for merging."""
-    routes_df["route_short_name_str"] = routes_df["route_short_name"].astype(str).str.strip()
+    routes_df["route_short_name_str"] = (
+        routes_df["route_short_name"].astype(str).str.strip()
+    )
     shp_df[route_number_col + "_str"] = (
         shp_df[route_number_col].astype(str).str.strip().str.replace(" ", "")
     )
@@ -118,7 +125,9 @@ def merge_and_score(routes_df, shp_df, route_number_col, route_name_col):
 
     # Similarity scores
     merged_df["short_name_score"] = merged_df.apply(
-        lambda x: fuzz.ratio(str(x["route_short_name_str"]), str(x[route_number_col + "_str"])),
+        lambda x: fuzz.ratio(
+            str(x["route_short_name_str"]), str(x[route_number_col + "_str"])
+        ),
         axis=1,
     )
     merged_df["long_name_score"] = merged_df.apply(
@@ -135,19 +144,27 @@ def export_comparison(merged_df, output_dir):
     total_short_names = len(merged_df)
     exact_short_name_matches = merged_df["short_name_exact_match"].sum()
     if total_short_names > 0:
-        percentage_short_name_matches = (exact_short_name_matches / total_short_names) * 100
+        percentage_short_name_matches = (
+            exact_short_name_matches / total_short_names
+        ) * 100
     else:
         percentage_short_name_matches = 0
 
     total_long_names = len(merged_df)
     exact_long_name_matches = merged_df["long_name_exact_match"].sum()
     if total_long_names > 0:
-        percentage_long_name_matches = (exact_long_name_matches / total_long_names) * 100
+        percentage_long_name_matches = (
+            exact_long_name_matches / total_long_names
+        ) * 100
     else:
         percentage_long_name_matches = 0
 
-    print(f"\nPercentage of exact matches for short names: {percentage_short_name_matches:.2f}%")
-    print(f"Percentage of exact matches for long names: {percentage_long_name_matches:.2f}%")
+    print(
+        f"\nPercentage of exact matches for short names: {percentage_short_name_matches:.2f}%"
+    )
+    print(
+        f"Percentage of exact matches for long names: {percentage_long_name_matches:.2f}%"
+    )
 
     output_csv_path = os.path.join(output_dir, "gtfs_shp_comparison.csv")
     merged_df.to_csv(output_csv_path, index=False)
@@ -160,7 +177,9 @@ def convert_stops_to_gdf(stops_df, input_crs):
     stops_df["stop_lat"] = pd.to_numeric(stops_df["stop_lat"], errors="coerce")
     stops_df["stop_lon"] = pd.to_numeric(stops_df["stop_lon"], errors="coerce")
     stops_df = stops_df.dropna(subset=["stop_lat", "stop_lon"])
-    stops_df["geometry"] = [Point(xy) for xy in zip(stops_df["stop_lon"], stops_df["stop_lat"])]
+    stops_df["geometry"] = [
+        Point(xy) for xy in zip(stops_df["stop_lon"], stops_df["stop_lat"])
+    ]
     stops_gdf = gpd.GeoDataFrame(stops_df, geometry="geometry", crs=input_crs)
     return stops_gdf
 
@@ -209,10 +228,16 @@ def identify_problem_stops(
     """
     # Process matched routes
     matched_trips = trips_df[trips_df["route_id"].isin(matched_routes["route_id"])]
-    matched_stop_times = stop_times_df[stop_times_df["trip_id"].isin(matched_trips["trip_id"])]
-    matched_stops = stops_df[stops_df["stop_id"].isin(matched_stop_times["stop_id"])].copy()
+    matched_stop_times = stop_times_df[
+        stop_times_df["trip_id"].isin(matched_trips["trip_id"])
+    ]
+    matched_stops = stops_df[
+        stops_df["stop_id"].isin(matched_stop_times["stop_id"])
+    ].copy()
     matched_stops_gdf = convert_stops_to_gdf(matched_stops, input_crs)
-    matched_stops_gdf, shp_df = prepare_geometries(matched_stops_gdf, shp_df, projected_crs)
+    matched_stops_gdf, shp_df = prepare_geometries(
+        matched_stops_gdf, shp_df, projected_crs
+    )
 
     # Merge matched_routes with route geometries
     route_geometry_table = matched_routes.merge(
@@ -229,9 +254,13 @@ def identify_problem_stops(
         matched_trips[["trip_id", "route_id"]], on="trip_id", how="left"
     )
 
-    stop_route_pairs = matched_stop_times_trips[["stop_id", "route_id"]].drop_duplicates()
+    stop_route_pairs = matched_stop_times_trips[
+        ["stop_id", "route_id"]
+    ].drop_duplicates()
     stop_route_pairs = stop_route_pairs.merge(
-        matched_stops_gdf[["stop_id", "geometry", "stop_name"]], on="stop_id", how="left"
+        matched_stops_gdf[["stop_id", "geometry", "stop_name"]],
+        on="stop_id",
+        how="left",
     )
     stop_route_pairs = stop_route_pairs.merge(
         route_geometry_table[["route_id", "route_geometry"]], on="route_id", how="left"
@@ -249,7 +278,9 @@ def identify_problem_stops(
     )
 
     # Identify stops not within allowance
-    stops_not_within_allowance = stop_route_pairs[~stop_route_pairs["within_allowance"]].copy()
+    stops_not_within_allowance = stop_route_pairs[
+        ~stop_route_pairs["within_allowance"]
+    ].copy()
     stops_not_within_allowance["reason"] = f"Not within {distance_allowance} feet"
 
     # Which route_ids have out-of-buffer stops?
@@ -263,12 +294,18 @@ def identify_problem_stops(
     unmatched_route_ids = set(all_route_ids) - set(matched_route_ids)
 
     unmatched_trips = trips_df[trips_df["route_id"].isin(unmatched_route_ids)]
-    unmatched_stop_times = stop_times_df[stop_times_df["trip_id"].isin(unmatched_trips["trip_id"])]
-    unmatched_stops = stops_df[stops_df["stop_id"].isin(unmatched_stop_times["stop_id"])].copy()
+    unmatched_stop_times = stop_times_df[
+        stop_times_df["trip_id"].isin(unmatched_trips["trip_id"])
+    ]
+    unmatched_stops = stops_df[
+        stops_df["stop_id"].isin(unmatched_stop_times["stop_id"])
+    ].copy()
     unmatched_stops_gdf = convert_stops_to_gdf(unmatched_stops, input_crs)
     unmatched_stops_gdf = unmatched_stops_gdf.to_crs(projected_crs)
     unmatched_stops_gdf["reason"] = "No matching route"
-    unmatched_stops_gdf["distance_to_route_feet"] = None  # No route to calculate distance
+    unmatched_stops_gdf["distance_to_route_feet"] = (
+        None  # No route to calculate distance
+    )
 
     # Build a DataFrame of all stops vs the routes they serve (by short name)
     stop_times_trips = stop_times_df[["stop_id", "trip_id"]].merge(
@@ -278,7 +315,9 @@ def identify_problem_stops(
         routes_df[["route_id", "route_short_name"]], on="route_id", how="left"
     )
     stop_routes_df = (
-        stop_times_trips_routes.groupby("stop_id")["route_short_name"].unique().reset_index()
+        stop_times_trips_routes.groupby("stop_id")["route_short_name"]
+        .unique()
+        .reset_index()
     )
     stop_routes_df["routes_serving_stop"] = stop_routes_df["route_short_name"].apply(
         lambda x: ", ".join(map(str, x))
@@ -291,7 +330,9 @@ def identify_problem_stops(
     )
 
     # Merge route-serving info into unmatched stops
-    unmatched_stops_gdf = unmatched_stops_gdf.merge(stop_routes_df, on="stop_id", how="left")
+    unmatched_stops_gdf = unmatched_stops_gdf.merge(
+        stop_routes_df, on="stop_id", how="left"
+    )
 
     # Combine out-of-buffer stops + unmatched stops
     problem_stops_gdf = pd.concat(
@@ -324,10 +365,14 @@ def identify_problem_stops(
     )
 
     # Drop duplicates
-    problem_stops_gdf = problem_stops_gdf.drop_duplicates(subset=["stop_id", "route_id"])
+    problem_stops_gdf = problem_stops_gdf.drop_duplicates(
+        subset=["stop_id", "route_id"]
+    )
 
     # Convert to a GeoDataFrame
-    problem_stops_gdf = gpd.GeoDataFrame(problem_stops_gdf, geometry="geometry", crs=projected_crs)
+    problem_stops_gdf = gpd.GeoDataFrame(
+        problem_stops_gdf, geometry="geometry", crs=projected_crs
+    )
     problem_stops_gdf = problem_stops_gdf.to_crs(output_crs)
 
     return problem_stops_gdf, routes_with_stops_outside_buffer, route_geometry_table
@@ -351,7 +396,9 @@ def main():
     routes_df, shp_df = preprocess_data(routes_df, shp_df, ROUTE_NUMBER_COLUMN)
 
     # Merge data and compute similarity scores
-    merged_df = merge_and_score(routes_df, shp_df, ROUTE_NUMBER_COLUMN, ROUTE_NAME_COLUMN)
+    merged_df = merge_and_score(
+        routes_df, shp_df, ROUTE_NUMBER_COLUMN, ROUTE_NAME_COLUMN
+    )
 
     # Print percentages and export merged comparison
     merged_df = export_comparison(merged_df, OUTPUT_DIR)
@@ -390,9 +437,13 @@ def main():
         merged_df["has_stops_outside_buffer"] = merged_df["route_id"].isin(
             routes_with_stops_outside_buffer
         )
-        updated_comparison_csv = os.path.join(OUTPUT_DIR, "gtfs_shp_comparison_with_flags.csv")
+        updated_comparison_csv = os.path.join(
+            OUTPUT_DIR, "gtfs_shp_comparison_with_flags.csv"
+        )
         merged_df.to_csv(updated_comparison_csv, index=False)
-        print(f"Updated comparison with buffer flags exported to {updated_comparison_csv}")
+        print(
+            f"Updated comparison with buffer flags exported to {updated_comparison_csv}"
+        )
 
     # --------------------------------------------------------------------
     # 3) Export an Excel file of problem stops (with route_short_name and distance)
@@ -400,7 +451,9 @@ def main():
     # Merge to get route_short_name for each route_id
     # (Unmatched stops will have route_id == None => route_short_name is NaN)
     problem_stops_export = problem_stops_gdf.merge(
-        route_geometry_table[["route_id", "route_short_name"]], on="route_id", how="left"
+        route_geometry_table[["route_id", "route_short_name"]],
+        on="route_id",
+        how="left",
     )
 
     # Reorder columns for clarity
@@ -426,7 +479,9 @@ def main():
             route_geom = route_row["route_geometry"].values[0]
 
             # Filter problem stops for this route_id
-            route_problem_stops = problem_stops_gdf[problem_stops_gdf["route_id"] == rid]
+            route_problem_stops = problem_stops_gdf[
+                problem_stops_gdf["route_id"] == rid
+            ]
 
             # Print route-specific warning
             warning_msg = (
@@ -465,7 +520,9 @@ def main():
                 f"WARNING: Visualization for Route {route_short_name} exported to {warning_jpeg_path}"
             )
     else:
-        print("No stops found outside the buffer allowance. No per-route warning plots created.")
+        print(
+            "No stops found outside the buffer allowance. No per-route warning plots created."
+        )
 
 
 if __name__ == "__main__":

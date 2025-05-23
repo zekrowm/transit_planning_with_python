@@ -28,14 +28,14 @@ CONFIGURATION:
 
 from __future__ import annotations
 
-from datetime import datetime
+import ast  # ← NEW: for parsing module‑level docstrings
 import logging
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
-import ast  # ← NEW: for parsing module‑level docstrings
+from datetime import datetime
+from pathlib import Path
 from typing import List, Tuple
 
 from openpyxl import Workbook
@@ -83,7 +83,10 @@ console_logger = logging.getLogger(__name__)
 # FUNCTIONS
 # ==================================================================================================
 
-def setup_detailed_logger(output_folder: str, filename_prefix: str, log_level: int) -> Tuple[logging.Logger, str]:
+
+def setup_detailed_logger(
+    output_folder: str, filename_prefix: str, log_level: int
+) -> Tuple[logging.Logger, str]:
     """Create a dedicated file logger and return (logger, log_filepath)."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_filename = f"{filename_prefix}_{timestamp}.log"
@@ -121,7 +124,9 @@ def is_skipped(path_str: str, skip_list: List[str]) -> bool:
             return True
     return False
 
+
 # ---------------------------  Docstring helpers ---------------------------------------------------
+
 
 def docstring_is_valid(py_file: str) -> bool:
     """
@@ -139,7 +144,7 @@ def docstring_is_valid(py_file: str) -> bool:
     if not doc:
         return False
 
-    lines   = [ln.strip().lower() for ln in doc.splitlines() if ln.strip()]
+    lines = [ln.strip().lower() for ln in doc.splitlines() if ln.strip()]
     headers = [h.lower() for h in REQUIRED_DOC_HEADERS]
 
     idx = 0
@@ -150,7 +155,9 @@ def docstring_is_valid(py_file: str) -> bool:
                 return True  # saw every header in correct order
     return False
 
+
 # ---------------------------  Pylint helpers ------------------------------------------------------
+
 
 def run_pylint_on_file(py_file: str) -> Tuple[str | None, str | None]:
     """Run pylint and return (stdout, stderr)."""
@@ -191,7 +198,9 @@ def parse_pylint_output(stdout_text: str | None) -> Tuple[float, int]:
                 console_logger.debug("Could not parse pylint score from: %s", line)
     return score, issues
 
+
 # ----------------------------  isort helpers ------------------------------------------------------
+
 
 def run_isort_check_on_file(py_file: str) -> Tuple[str | None, str | None, bool]:
     """
@@ -220,9 +229,14 @@ def run_isort_check_on_file(py_file: str) -> Tuple[str | None, str | None, bool]
 # MAIN LINTING WORKFLOW
 # ==================================================================================================
 
-def lint_and_create_outputs(files_or_folders: List[str], skip_list: List[str], output_folder: str) -> None:
+
+def lint_and_create_outputs(
+    files_or_folders: List[str], skip_list: List[str], output_folder: str
+) -> None:
     """Run pylint + isort, log details, build Excel summary."""
-    detail_logger, log_filepath = setup_detailed_logger(output_folder, DETAILED_LOG_FILENAME_PREFIX, LOG_LEVEL)
+    detail_logger, log_filepath = setup_detailed_logger(
+        output_folder, DETAILED_LOG_FILENAME_PREFIX, LOG_LEVEL
+    )
     console_logger.info("Detailed lint log: %s", log_filepath)
 
     # -------------------------------------------------------------------------
@@ -348,6 +362,7 @@ def lint_and_create_outputs(files_or_folders: List[str], skip_list: List[str], o
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:  # pylint: disable=missing-function-docstring
     lint_and_create_outputs(FILES_OR_FOLDERS, SKIP_PATHS, OUTPUT_FOLDER)

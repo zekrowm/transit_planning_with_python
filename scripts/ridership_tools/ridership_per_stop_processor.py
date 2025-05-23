@@ -19,10 +19,10 @@ import pandas as pd
 # =============================================================================
 
 # Path to the input Excel file
-INPUT_FILE_PATH = r'\\Your\File\Path\To\STOP_USAGE_(BY_STOP_NAME).XLSX'
+INPUT_FILE_PATH = r"\\Your\File\Path\To\STOP_USAGE_(BY_STOP_NAME).XLSX"
 
 # Path to the directory where output files will be saved
-OUTPUT_DIR = r'\\Your\Folder\Path\To\Output'
+OUTPUT_DIR = r"\\Your\Folder\Path\To\Output"
 
 # List of STOP_IDs to filter on. If empty, no filter is applied.
 STOP_FILTER_LIST = [1107, 2816, 6548]  # Example default
@@ -34,6 +34,7 @@ USE_ALIGHTINGS = True
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_data(excel_path):
     """
@@ -49,7 +50,7 @@ def filter_by_stops(data_frame, stop_ids):
     If stop_ids is empty, returns the original data_frame.
     """
     if stop_ids:
-        return data_frame[data_frame['STOP_ID'].isin(stop_ids)]
+        return data_frame[data_frame["STOP_ID"].isin(stop_ids)]
     return data_frame
 
 
@@ -57,7 +58,7 @@ def get_route_names(data_frame):
     """
     Returns a list of unique route names in the given DataFrame.
     """
-    return data_frame['ROUTE_NAME'].unique()
+    return data_frame["ROUTE_NAME"].unique()
 
 
 def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag):
@@ -66,40 +67,43 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
     and calculates totals and percentages for boardings and/or alightings.
     """
     # Filter the route
-    route_df = data_frame[data_frame['ROUTE_NAME'] == route_name].copy()
+    route_df = data_frame[data_frame["ROUTE_NAME"] == route_name].copy()
 
     # Determine which columns to aggregate
     agg_dict = {}
     if boardings_flag:
-        agg_dict['XBOARDINGS'] = 'sum'
+        agg_dict["XBOARDINGS"] = "sum"
     if alightings_flag:
-        agg_dict['XALIGHTINGS'] = 'sum'
+        agg_dict["XALIGHTINGS"] = "sum"
 
     # If neither boardings nor alightings is selected, return None
     if not agg_dict:
         return None
 
     # Aggregate data by STOP_ID and STOP_NAME
-    grouped = route_df.groupby(['STOP_ID', 'STOP_NAME'], as_index=False).agg(agg_dict)
+    grouped = route_df.groupby(["STOP_ID", "STOP_NAME"], as_index=False).agg(agg_dict)
 
     # Calculate totals
-    total_boardings = grouped['XBOARDINGS'].sum() if boardings_flag else 0
-    total_alightings = grouped['XALIGHTINGS'].sum() if alightings_flag else 0
+    total_boardings = grouped["XBOARDINGS"].sum() if boardings_flag else 0
+    total_alightings = grouped["XALIGHTINGS"].sum() if alightings_flag else 0
 
     # Calculate individual percentages for boardings and alightings
     if boardings_flag:
-        grouped['PCT_BOARDINGS'] = (grouped['XBOARDINGS'] / total_boardings
-                                    if total_boardings != 0 else 0.0)
+        grouped["PCT_BOARDINGS"] = (
+            grouped["XBOARDINGS"] / total_boardings if total_boardings != 0 else 0.0
+        )
     if alightings_flag:
-        grouped['PCT_ALIGHTINGS'] = (grouped['XALIGHTINGS'] / total_alightings
-                                     if total_alightings != 0 else 0.0)
+        grouped["PCT_ALIGHTINGS"] = (
+            grouped["XALIGHTINGS"] / total_alightings if total_alightings != 0 else 0.0
+        )
 
     # If both boardings and alightings are used, calculate a combined percentage
     if boardings_flag and alightings_flag:
-        grouped['XTOTAL'] = grouped['XBOARDINGS'] + grouped['XALIGHTINGS']
-        total_combined = grouped['XTOTAL'].sum()
-        grouped['PCT_TOTAL'] = (grouped['XTOTAL'] / total_combined
-                                if total_combined != 0 else 0.0)
+        grouped["XTOTAL"] = grouped["XBOARDINGS"] + grouped["XALIGHTINGS"]
+        total_combined = grouped["XTOTAL"].sum()
+        grouped["PCT_TOTAL"] = (
+            grouped["XTOTAL"] / total_combined if total_combined != 0 else 0.0
+        )
 
     return grouped
 
@@ -116,6 +120,7 @@ def save_route_data(route_data, route_name, output_directory):
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """
@@ -138,12 +143,17 @@ def main():
 
     # 3. Process each route
     for route_name in route_names:
-        route_data = aggregate_route_data(data_frame, route_name, USE_BOARDINGS, USE_ALIGHTINGS)
+        route_data = aggregate_route_data(
+            data_frame, route_name, USE_BOARDINGS, USE_ALIGHTINGS
+        )
         if route_data is not None and not route_data.empty:
             save_route_data(route_data, route_name, OUTPUT_DIR)
             print(f"Saved data for route '{route_name}' to {OUTPUT_DIR}")
         else:
-            print(f"No boardings/alightings selected or no data for route '{route_name}'")
+            print(
+                f"No boardings/alightings selected or no data for route '{route_name}'"
+            )
+
 
 if __name__ == "__main__":
     main()

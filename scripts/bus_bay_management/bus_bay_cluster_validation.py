@@ -58,6 +58,7 @@ DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
+
 def load_gtfs_data(files=None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from a path defined externally
@@ -117,7 +118,9 @@ def load_gtfs_data(files=None, dtype=str):
         if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
     ]
     if missing:
-        raise FileNotFoundError(f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}")
+        raise FileNotFoundError(
+            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        )
 
     data = {}
     for file_name in files:
@@ -144,6 +147,7 @@ def load_gtfs_data(files=None, dtype=str):
 # --------------------------------------------------------------------------------------------------
 # REGULAR FUNCTIONS
 # --------------------------------------------------------------------------------------------------
+
 
 def prepare_stops_gdf(crs_epsg):
     """
@@ -187,10 +191,14 @@ def initialize_clusters(stops_gdf, clusters_dict):
         }
 
         included_stop_ids = [
-            stop_id for stop_id_list in clusters_dict.values() for stop_id in stop_id_list
+            stop_id
+            for stop_id_list in clusters_dict.values()
+            for stop_id in stop_id_list
         ]
 
-        included_stops_global = stops_gdf[stops_gdf["stop_id"].isin(included_stop_ids)].copy()
+        included_stops_global = stops_gdf[
+            stops_gdf["stop_id"].isin(included_stop_ids)
+        ].copy()
         included_stops_global["cluster"] = None
 
         # Assign cluster names
@@ -199,7 +207,9 @@ def initialize_clusters(stops_gdf, clusters_dict):
                 included_stops_global["stop_id"].isin(stop_ids), "cluster"
             ] = cluster_name
 
-        excluded_stops_global = stops_gdf[~stops_gdf["stop_id"].isin(included_stop_ids)].copy()
+        excluded_stops_global = stops_gdf[
+            ~stops_gdf["stop_id"].isin(included_stop_ids)
+        ].copy()
         excluded_stops_global.reset_index(drop=True, inplace=True)
 
     return included_stops_global, excluded_stops_global, clusters_dict
@@ -235,9 +245,9 @@ def find_similar_stop_names(inc_stops, exc_stops, threshold):
         for _, score, idx in matches:
             if score >= threshold:
                 similar_stop = exc_stops.iloc[idx]
-                original_included_name = inc_stops[inc_stops["stop_name_lower"] == name][
-                    "stop_name"
-                ].iloc[0]
+                original_included_name = inc_stops[
+                    inc_stops["stop_name_lower"] == name
+                ]["stop_name"].iloc[0]
                 similar_stops.append(
                     {
                         "included_stop_name": original_included_name,
@@ -341,7 +351,9 @@ def find_different_named_included_stops(inc_stops, similarity_threshold):
     Find included stops in the same cluster whose name similarity is below similarity_threshold.
     """
     if inc_stops.empty:
-        return pd.DataFrame(columns=["stop_id", "stop_name", "cluster", "max_similarity_score"])
+        return pd.DataFrame(
+            columns=["stop_id", "stop_name", "cluster", "max_similarity_score"]
+        )
 
     different_named_stops = []
     clusters_list = inc_stops["cluster"].unique()
@@ -410,6 +422,7 @@ def save_to_excel(data_frame, filename, output_directory):
 # MAIN
 # ==================================================================================================
 
+
 def main():
     """
     Main entry point for the GTFS Bus Bay Cluster Validation script.
@@ -426,8 +439,8 @@ def main():
     stops_gdf = prepare_stops_gdf(DISTANCE_CRS_EPSG)
 
     # Split stops into included and excluded sets
-    included_stops_global, excluded_stops_global, updated_clusters = initialize_clusters(
-        stops_gdf, clusters
+    included_stops_global, excluded_stops_global, updated_clusters = (
+        initialize_clusters(stops_gdf, clusters)
     )
 
     # Perform analysis only if clusters are defined
@@ -455,14 +468,22 @@ def main():
     print(f"Number of similar name stops found: {len(similar_name_stops)}")
     print(f"Number of nearby excluded stops found: {len(nearby_excluded_stops)}")
     print(f"Number of distant included stops found: {len(distant_included_stops)}")
-    print(f"Number of different named included stops found: {len(different_named_included_stops)}")
+    print(
+        f"Number of different named included stops found: {len(different_named_included_stops)}"
+    )
 
     # Save outputs to Excel
-    save_to_excel(similar_name_stops, "excluded_stops_similar_names.xlsx", output_directory)
-    save_to_excel(nearby_excluded_stops, "excluded_stops_nearby.xlsx", output_directory)
-    save_to_excel(distant_included_stops, "included_stops_distant.xlsx", output_directory)
     save_to_excel(
-        different_named_included_stops, "included_stops_different_names.xlsx", output_directory
+        similar_name_stops, "excluded_stops_similar_names.xlsx", output_directory
+    )
+    save_to_excel(nearby_excluded_stops, "excluded_stops_nearby.xlsx", output_directory)
+    save_to_excel(
+        distant_included_stops, "included_stops_distant.xlsx", output_directory
+    )
+    save_to_excel(
+        different_named_included_stops,
+        "included_stops_different_names.xlsx",
+        output_directory,
     )
 
     # Export included, excluded, and all stops to shapefiles

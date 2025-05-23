@@ -149,17 +149,23 @@ def process_data(
         data_frame = data_frame[~data_frame["ROUTE_NAME"].isin(filter_out_routes)]
 
     # 2) Assign service period and calculate load factor
-    data_frame["SERVICE_PERIOD"] = data_frame["TRIP_START_TIME"].apply(assign_service_period)
+    data_frame["SERVICE_PERIOD"] = data_frame["TRIP_START_TIME"].apply(
+        assign_service_period
+    )
     data_frame["LOAD_FACTOR"] = data_frame["MAX_LOAD"] / bus_capacity
 
     # 5) Round load factor to specified decimals
     data_frame["LOAD_FACTOR"] = data_frame["LOAD_FACTOR"].round(decimals)
 
     # 3) Mark whether load factor is violated
-    data_frame["LOAD_FACTOR_VIOLATION"] = data_frame.apply(check_load_factor_violation, axis=1)
+    data_frame["LOAD_FACTOR_VIOLATION"] = data_frame.apply(
+        check_load_factor_violation, axis=1
+    )
 
     # 4) Add column for route limit type
-    data_frame["ROUTE_LIMIT_TYPE"] = data_frame["ROUTE_NAME"].apply(determine_limit_type)
+    data_frame["ROUTE_LIMIT_TYPE"] = data_frame["ROUTE_NAME"].apply(
+        determine_limit_type
+    )
 
     # Sort by 'LOAD_FACTOR' in descending order
     return data_frame.sort_values(by="LOAD_FACTOR", ascending=False)

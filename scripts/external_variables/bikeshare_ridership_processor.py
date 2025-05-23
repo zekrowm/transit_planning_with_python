@@ -111,7 +111,9 @@ def find_close_matches(station_name, valid_station_names, threshold):
     """
     Return the best fuzzy match for a station name from the valid_station_names list.
     """
-    matches = difflib.get_close_matches(station_name, valid_station_names, n=1, cutoff=threshold)
+    matches = difflib.get_close_matches(
+        station_name, valid_station_names, n=1, cutoff=threshold
+    )
     return matches[0] if matches else None
 
 
@@ -133,7 +135,9 @@ def rename_stations(data_frame):
         "21st NW & E St NW": "21st & E St NW",
     }
 
-    data_frame["start_station_name"] = data_frame["start_station_name"].replace(rename_dict)
+    data_frame["start_station_name"] = data_frame["start_station_name"].replace(
+        rename_dict
+    )
     data_frame["end_station_name"] = data_frame["end_station_name"].replace(rename_dict)
     return data_frame
 
@@ -159,8 +163,12 @@ def interactive_update_station_names(
         suggestion = find_close_matches(station, valid_station_names, threshold)
         if suggestion:
             if suggestion == station:
-                print(f"Station '{station}' appears identical to its fuzzy match suggestion.")
-                print("  -> If this is incorrect, please update manually in a mapping.\n")
+                print(
+                    f"Station '{station}' appears identical to its fuzzy match suggestion."
+                )
+                print(
+                    "  -> If this is incorrect, please update manually in a mapping.\n"
+                )
             else:
                 print(f"Suggestion: '{station}' -> '{suggestion}'")
                 try:
@@ -184,7 +192,9 @@ def filter_valid_stations(combined_data_frame, clipped_gdf):
     combined_data_frame["start_station_name"] = combined_data_frame[
         "start_station_name"
     ].str.strip()
-    combined_data_frame["end_station_name"] = combined_data_frame["end_station_name"].str.strip()
+    combined_data_frame["end_station_name"] = combined_data_frame[
+        "end_station_name"
+    ].str.strip()
     valid_stations = clipped_gdf["NAME"].str.strip().unique()
 
     # Filter trips where at least one station is in the valid list.
@@ -210,7 +220,9 @@ def filter_valid_stations(combined_data_frame, clipped_gdf):
 
     # Extract day of week and month for future analysis.
     filtered_data_frame["day_of_week"] = filtered_data_frame["started_at"].dt.day_name()
-    filtered_data_frame["month"] = filtered_data_frame["started_at"].dt.to_period("M").astype(str)
+    filtered_data_frame["month"] = (
+        filtered_data_frame["started_at"].dt.to_period("M").astype(str)
+    )
 
     return filtered_data_frame, valid_stations
 
@@ -221,13 +233,17 @@ def aggregate_monthly_trips(filtered_data_frame, valid_stations):
     monthly totals for each station plus a 'total_activity' column.
     """
     start_trip_counts = (
-        filtered_data_frame[filtered_data_frame["start_station_name"].isin(valid_stations)]
+        filtered_data_frame[
+            filtered_data_frame["start_station_name"].isin(valid_stations)
+        ]
         .groupby(["start_station_name", "month"])
         .size()
         .unstack(fill_value=0)
     )
     end_trip_counts = (
-        filtered_data_frame[filtered_data_frame["end_station_name"].isin(valid_stations)]
+        filtered_data_frame[
+            filtered_data_frame["end_station_name"].isin(valid_stations)
+        ]
         .groupby(["end_station_name", "month"])
         .size()
         .unstack(fill_value=0)
@@ -263,7 +279,8 @@ def _create_average_record(station, month_str, row_data):
 
     weekdays_num, saturdays_num, sundays_num = get_month_day_counts(year, mon)
     weekday_trip_count = sum(
-        row_data.get(day, 0) for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        row_data.get(day, 0)
+        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     )
     saturday_trip_count = row_data.get("Saturday", 0)
     sunday_trip_count = row_data.get("Sunday", 0)
@@ -354,7 +371,9 @@ def main():
         clipped_gdf = bikeshare_gdf
 
     valid_station_names = clipped_gdf["NAME"].str.strip().unique()
-    print(f"\nTotal unique station names within the study area: {len(valid_station_names)}")
+    print(
+        f"\nTotal unique station names within the study area: {len(valid_station_names)}"
+    )
 
     print("\nApplying fixed station name corrections...")
     combined_data_frame = rename_stations(combined_data_frame)
@@ -377,9 +396,13 @@ def main():
         .unique()
     )
 
-    print(f"\nUnique start station names not matching study area stops: {len(unmatched_start)}")
+    print(
+        f"\nUnique start station names not matching study area stops: {len(unmatched_start)}"
+    )
     print(unmatched_start)
-    print(f"\nUnique end station names not matching study area stops: {len(unmatched_end)}")
+    print(
+        f"\nUnique end station names not matching study area stops: {len(unmatched_end)}"
+    )
     print(unmatched_end)
 
     # Interactive fuzzy match
@@ -393,14 +416,16 @@ def main():
         combined_data_frame["start_station_name"] = combined_data_frame[
             "start_station_name"
         ].replace(update_mapping)
-        combined_data_frame["end_station_name"] = combined_data_frame["end_station_name"].replace(
-            update_mapping
-        )
+        combined_data_frame["end_station_name"] = combined_data_frame[
+            "end_station_name"
+        ].replace(update_mapping)
     else:
         print("No interactive updates applied.")
 
     # Filter trips to valid stations and aggregate.
-    filtered_data_frame, valid_stations = filter_valid_stations(combined_data_frame, clipped_gdf)
+    filtered_data_frame, valid_stations = filter_valid_stations(
+        combined_data_frame, clipped_gdf
+    )
     total_trip_counts = aggregate_monthly_trips(filtered_data_frame, valid_stations)
 
     print("\nAggregated trip counts by station and month:")
@@ -412,7 +437,9 @@ def main():
     except OSError as exc:
         print(f"Error exporting CSV: {exc}")
 
-    print("\nComputing daily averages (weekday, Saturday, Sunday) for each station by month...")
+    print(
+        "\nComputing daily averages (weekday, Saturday, Sunday) for each station by month..."
+    )
     averages_data_frame = compute_daily_averages(filtered_data_frame, valid_stations)
 
     print("\nDaily averages:")

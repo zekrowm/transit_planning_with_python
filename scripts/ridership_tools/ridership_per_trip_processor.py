@@ -23,11 +23,11 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE = r'\\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX'
-OUTPUT_FOLDER = r'\\Path\To\Your\Output\Folder'
+INPUT_FILE = r"\\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
+OUTPUT_FOLDER = r"\\Path\To\Your\Output\Folder"
 
 # User can indicate something like 'Weekday', 'Saturday', 'Sunday', etc.
-DATE_TYPE = 'Weekday'
+DATE_TYPE = "Weekday"
 
 # COLUMN CONFIGURATION --------------------------------------------------------
 
@@ -42,7 +42,7 @@ COLUMNS_CONFIG = [
     "TRIP_START_TIME: Start Time",
     "ROUTE_NAME: Route",
     "DIRECTION_NAME: Direction",
-    "PASSENGERS_ON: Passengers"
+    "PASSENGERS_ON: Passengers",
 ]
 
 # Process COLUMNS_CONFIG to produce COLUMNS_TO_RETAIN and COLUMN_RENAME_MAP.
@@ -72,19 +72,18 @@ ULTRA_LOW_THRESHOLD = 1  # e.g., 1 average rider
 
 # Column name to filter on (e.g. 'ROUTE_NAME' or 'DIRECTION_NAME').
 # If you don't want to filter, leave this as None or an empty string.
-FILTER_COLUMN_NAME = 'ROUTE_NAME'
+FILTER_COLUMN_NAME = "ROUTE_NAME"
 
 # If not empty, only rows whose FILTER_COLUMN_NAME is in this list will remain
-FILTER_IN_LIST = ["101", "202"
-]
+FILTER_IN_LIST = ["101", "202"]
 
 # If not empty, rows whose FILTER_COLUMN_NAME is in this list will be excluded
-FILTER_OUT_LIST = [
-]
+FILTER_OUT_LIST = []
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     """
@@ -128,7 +127,7 @@ def write_direction_sheet(
     date_type: str,
     create_charts: bool,
     flag_ultra_low: bool,
-    ultra_low_threshold: float
+    ultra_low_threshold: float,
 ) -> None:
     """
     Create a sheet in the given workbook for the specified direction,
@@ -156,17 +155,17 @@ def write_direction_sheet(
     ws = wb.create_sheet(title=direction_name)
 
     # Compute total ridership and the percentage share for each trip.
-    total_ridership = direction_df['PASSENGERS_ON'].sum()
+    total_ridership = direction_df["PASSENGERS_ON"].sum()
     # Compute as a fraction; then round the percentage to one decimal on the percent scale.
-    direction_df['Percent of Route Ridership'] = (
-        direction_df['PASSENGERS_ON'] / total_ridership if total_ridership != 0 else 0
+    direction_df["Percent of Route Ridership"] = (
+        direction_df["PASSENGERS_ON"] / total_ridership if total_ridership != 0 else 0
     ).apply(lambda x: round(100 * x, 1) / 100)
 
     # Round PASSENGERS_ON to 1 decimal.
-    direction_df['PASSENGERS_ON'] = direction_df['PASSENGERS_ON'].round(1)
+    direction_df["PASSENGERS_ON"] = direction_df["PASSENGERS_ON"].round(1)
 
     # Find the maximum ridership for bolding.
-    max_ridership = direction_df['PASSENGERS_ON'].max()
+    max_ridership = direction_df["PASSENGERS_ON"].max()
 
     # Write headers with optional renaming.
     headers = list(direction_df.columns)
@@ -194,18 +193,18 @@ def write_direction_sheet(
             if header == "Percent of Route Ridership":
                 cell.number_format = "0.0%"
         # Bold the row with the max ridership.
-        if row_data['PASSENGERS_ON'] == max_ridership:
+        if row_data["PASSENGERS_ON"] == max_ridership:
             for col_idx in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col_idx).font = Font(bold=True)
         # Optionally flag ultra-low ridership trips in red.
-        if flag_ultra_low and row_data['PASSENGERS_ON'] <= ultra_low_threshold:
+        if flag_ultra_low and row_data["PASSENGERS_ON"] <= ultra_low_threshold:
             for col_idx in range(1, len(headers) + 1):
                 original_font = ws.cell(row=row_idx, column=col_idx).font
                 ws.cell(row=row_idx, column=col_idx).font = Font(
                     name=original_font.name,
                     size=original_font.size,
                     bold=original_font.bold,
-                    color="FF0000"  # red
+                    color="FF0000",  # red
                 )
 
     # Optionally create a bar chart of ridership by trip time.
@@ -216,19 +215,23 @@ def write_direction_sheet(
         chart.y_axis.title = "Ridership"
 
         # Locate columns for PASSENGERS_ON and TRIP_START_TIME.
-        pass_on_col = headers.index('PASSENGERS_ON') + 1
-        time_col = headers.index('TRIP_START_TIME') + 1
+        pass_on_col = headers.index("PASSENGERS_ON") + 1
+        time_col = headers.index("TRIP_START_TIME") + 1
         min_row = 2
         max_row = direction_df.shape[0] + 1
 
         # Add data series to the chart.
-        values = Reference(ws, min_col=pass_on_col, min_row=min_row,
-                           max_col=pass_on_col, max_row=max_row)
+        values = Reference(
+            ws,
+            min_col=pass_on_col,
+            min_row=min_row,
+            max_col=pass_on_col,
+            max_row=max_row,
+        )
         chart.add_data(values, titles_from_data=False)
 
         # Set categories based on TRIP_START_TIME.
-        categories = Reference(ws, min_col=time_col, min_row=min_row,
-                               max_row=max_row)
+        categories = Reference(ws, min_col=time_col, min_row=min_row, max_row=max_row)
         chart.set_categories(categories)
 
         # Position the chart (e.g., two columns to the right of the data).
@@ -243,7 +246,7 @@ def create_route_workbook(
     date_type: str,
     create_charts: bool,
     flag_ultra_low: bool,
-    ultra_low_threshold: float
+    ultra_low_threshold: float,
 ) -> None:
     """
     Create a workbook for a given route, with sheets for each direction.
@@ -270,7 +273,7 @@ def create_route_workbook(
     wb.remove(default_sheet)
 
     # Group by direction and create a sheet for each.
-    for direction_name, direction_df in route_df.groupby('DIRECTION_NAME'):
+    for direction_name, direction_df in route_df.groupby("DIRECTION_NAME"):
         write_direction_sheet(
             wb=wb,
             direction_df=direction_df,
@@ -278,7 +281,7 @@ def create_route_workbook(
             date_type=date_type,
             create_charts=create_charts,
             flag_ultra_low=flag_ultra_low,
-            ultra_low_threshold=ultra_low_threshold
+            ultra_low_threshold=ultra_low_threshold,
         )
 
     output_path = os.path.join(output_folder, f"{route_name}.xlsx")
@@ -289,6 +292,7 @@ def create_route_workbook(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """
@@ -312,7 +316,7 @@ def main() -> None:
     create_output_folder(OUTPUT_FOLDER)
 
     # 4. For each route, generate a workbook
-    for route_name, route_df in df.groupby('ROUTE_NAME'):
+    for route_name, route_df in df.groupby("ROUTE_NAME"):
         create_route_workbook(
             route_name=str(route_name),
             route_df=route_df,
@@ -320,7 +324,7 @@ def main() -> None:
             date_type=DATE_TYPE,
             create_charts=CREATE_CHARTS,
             flag_ultra_low=FLAG_ULTRA_LOW,
-            ultra_low_threshold=ULTRA_LOW_THRESHOLD
+            ultra_low_threshold=ULTRA_LOW_THRESHOLD,
         )
 
 

@@ -27,35 +27,32 @@ Outputs:
 Dependencies:
         pandas, openpyxl, re, pathlib
 """
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
-
-import re
 
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
-OBSERVED_DATA_PATH = (
-    r"\\Path\To\Your\Field_Data_Folder"
-)
-ANALYSIS_RESULTS_PATH = (
-    r"\\Path\To\Your\Output_Folder"
-)
+OBSERVED_DATA_PATH = r"\\Path\To\Your\Field_Data_Folder"
+ANALYSIS_RESULTS_PATH = r"\\Path\To\Your\Output_Folder"
 
-EARLY_TOLERANCE_MIN = -1   # minutes early that STILL counts on-time
-LATE_TOLERANCE_MIN = 6     # minutes late  that STILL counts on-time
+EARLY_TOLERANCE_MIN = -1  # minutes early that STILL counts on-time
+LATE_TOLERANCE_MIN = 6  # minutes late  that STILL counts on-time
 
-PLACEHOLDER_PATTERN = r"[_X]{4,}"          # e.g. “____”, “__XXXX__”
-OUTPUT_EXCEL_NAME   = "arrival_performance_summary.xlsx"
-OUTPUT_CSV_PREFIX   = "arrival_performance_summary"
+PLACEHOLDER_PATTERN = r"[_X]{4,}"  # e.g. “____”, “__XXXX__”
+OUTPUT_EXCEL_NAME = "arrival_performance_summary.xlsx"
+OUTPUT_CSV_PREFIX = "arrival_performance_summary"
 
-TIME_EXTRACT_RE = re.compile(r'(\d{1,2})\s*[:]?(\d{2})')
+TIME_EXTRACT_RE = re.compile(r"(\d{1,2})\s*[:]?(\d{2})")
+
 
 # =============================================================================
 # HELPERS
@@ -89,22 +86,22 @@ def time_str_to_minutes(time_str: str | float | int | None) -> Optional[int]:
     int | None
         Minutes after 00:00, or *None* if no valid HH:MM pattern is found.
     """
-    if is_placeholder(time_str):                      # still screens out blanks/“____”
+    if is_placeholder(time_str):  # still screens out blanks/“____”
         return None
 
-    match = TIME_EXTRACT_RE.search(str(time_str))     # look for the first HHMM group
+    match = TIME_EXTRACT_RE.search(str(time_str))  # look for the first HHMM group
     if not match:
         return None
 
-    hh, mm = map(int, match.groups())                 # safe – both groups are digits
-    if 0 <= hh < 24 and 0 <= mm < 60:                 # sanity-check
+    hh, mm = map(int, match.groups())  # safe – both groups are digits
+    if 0 <= hh < 24 and 0 <= mm < 60:  # sanity-check
         return hh * 60 + mm
     return None
 
 
 def compute_diff(actual: pd.Series, scheduled: pd.Series) -> pd.Series:
     """Scheduled–actual difference (minutes)."""
-    actual_min    = actual.map(time_str_to_minutes)
+    actual_min = actual.map(time_str_to_minutes)
     scheduled_min = scheduled.map(time_str_to_minutes)
     return pd.to_numeric(actual_min) - pd.to_numeric(scheduled_min)
 
@@ -126,9 +123,11 @@ def classify_punctuality(diff: float | int | None) -> str | None:
 def flag_on_time(diff_series: pd.Series) -> pd.Series:
     """Return 'Y'/'N' on-time flag (kept for backward compatibility)."""
     return diff_series.apply(
-        lambda d: "Y"
-        if pd.notna(d) and EARLY_TOLERANCE_MIN <= d <= LATE_TOLERANCE_MIN
-        else "N"
+        lambda d: (
+            "Y"
+            if pd.notna(d) and EARLY_TOLERANCE_MIN <= d <= LATE_TOLERANCE_MIN
+            else "N"
+        )
     )
 
 
@@ -191,8 +190,8 @@ def longify_events(df: pd.DataFrame) -> pd.DataFrame:
     long_df = long_df[mask_valid_act].reset_index(drop=True)
 
     # Compute diff, flags, and category
-    long_df["diff_min"]    = compute_diff(long_df["act_time"], long_df["sched_time"])
-    long_df["on_time"]     = flag_on_time(long_df["diff_min"])
+    long_df["diff_min"] = compute_diff(long_df["act_time"], long_df["sched_time"])
+    long_df["on_time"] = flag_on_time(long_df["diff_min"])
     long_df["punctuality"] = long_df["diff_min"].apply(classify_punctuality)
 
     return long_df
@@ -265,7 +264,9 @@ def export_extra_dataframes(
     """Write valid/invalid diagnostic CSVs to *out_folder*."""
     ensure_output_folder(out_folder)
     valid_df.to_csv(Path(out_folder) / "observed_data_valid_events.csv", index=False)
-    invalid_df.to_csv(Path(out_folder) / "observed_data_invalid_events.csv", index=False)
+    invalid_df.to_csv(
+        Path(out_folder) / "observed_data_invalid_events.csv", index=False
+    )
 
 
 def export_results(
@@ -288,7 +289,10 @@ def export_results(
         # Autosize columns
         for col in ws.columns:
             max_len = (
-                max(len(str(cell.value)) if cell.value is not None else 0 for cell in col)
+                max(
+                    len(str(cell.value)) if cell.value is not None else 0
+                    for cell in col
+                )
                 + 2
             )
             ws.column_dimensions[col[0].column_letter].width = max_len

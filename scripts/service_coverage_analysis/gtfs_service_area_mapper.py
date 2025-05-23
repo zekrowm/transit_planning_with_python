@@ -32,8 +32,8 @@ import geopandas as gpd
 import networkx as nx
 import numpy as np
 import pandas as pd
-from scipy.spatial import cKDTree
 import shapely
+from scipy.spatial import cKDTree
 from shapely.geometry import LineString
 from shapely.ops import polygonize, unary_union
 
@@ -54,7 +54,9 @@ BUFFER_DISTANCE_FEET: float = 1320.0  # ¼ mile
 WORK_CRS: str = "EPSG:3857"  # metric – good for buffering
 EXPORT_CRS: str = "EPSG:4326"  # WGS-84 (GTFS default)
 
-NETWORK_SHP_PATH: str | None = r"Path\To\Your\Roadway_Centerlines.shp"  # ← leave None to disable
+NETWORK_SHP_PATH: str | None = (
+    r"Path\To\Your\Roadway_Centerlines.shp"  # ← leave None to disable
+)
 ISOCHRONE_MINUTES: int = 5  # travel-time cut-off, corresponds to 1,320 feet at 3.0 MPH
 DEFAULT_SPEED_MPH: float = 3.0  # applied when speed field missing (≈walking)
 NETWORK_SPEED_FIELD: str | None = (
@@ -101,9 +103,13 @@ def load_gtfs_data(
             "transfers.txt",
         ]
 
-    missing = [fn for fn in files if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, fn))]
+    missing = [
+        fn for fn in files if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, fn))
+    ]
     if missing:
-        raise FileNotFoundError(f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}")
+        raise FileNotFoundError(
+            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        )
 
     data: Dict[str, pd.DataFrame] = {}
     for fn in files:
@@ -161,7 +167,8 @@ def apply_filters(
 
     # Keep only stop_times referencing remaining trips *and* stops
     stop_times = stop_times[
-        stop_times["trip_id"].isin(trips["trip_id"]) & stop_times["stop_id"].isin(stops["stop_id"])
+        stop_times["trip_id"].isin(trips["trip_id"])
+        & stop_times["stop_id"].isin(stops["stop_id"])
     ]
 
     # Finally, only stops appearing in stop_times
@@ -231,7 +238,9 @@ def build_stop_route_direction_gdf(
         .merge(gdf_stops, on="stop_id")
     )
 
-    merged = merged.drop_duplicates(subset=["stop_id", "route_short_name", "direction_id"])
+    merged = merged.drop_duplicates(
+        subset=["stop_id", "route_short_name", "direction_id"]
+    )
     return gpd.GeoDataFrame(merged, geometry="geometry", crs="EPSG:4326")
 
 
@@ -285,11 +294,13 @@ def build_route_lines_gdf(
     # ↓ attach route_short_name + direction_id, then dissolve by both
     look = trips_has_shape[["shape_id", "route_id", "direction_id"]].drop_duplicates()
     gdf_lines = gdf_lines.merge(look, on="shape_id", how="left")
-    gdf_lines = gdf_lines.merge(routes[["route_id", "route_short_name"]], on="route_id", how="left")
-
-    return gdf_lines.dissolve(by=["route_short_name", "direction_id"], as_index=False).drop(
-        columns=["shape_id", "route_id"]
+    gdf_lines = gdf_lines.merge(
+        routes[["route_id", "route_short_name"]], on="route_id", how="left"
     )
+
+    return gdf_lines.dissolve(
+        by=["route_short_name", "direction_id"], as_index=False
+    ).drop(columns=["shape_id", "route_id"])
 
 
 def export_stops_by_direction(
@@ -314,7 +325,9 @@ def export_routes_by_direction(
 
     for direction, sub in gdf_routes.groupby("direction_id", dropna=False):
         dir_str = f"dir{int(direction) if pd.notna(direction) else 0}"
-        sub.to_crs(export_crs).to_file(os.path.join(output_dir, f"routes_{dir_str}.shp"))
+        sub.to_crs(export_crs).to_file(
+            os.path.join(output_dir, f"routes_{dir_str}.shp")
+        )
         print(f"✓ Exported routes ({dir_str})")
 
 
@@ -388,7 +401,9 @@ def build_network_graph_from_gdf(  # same logic as before, but no file I/O
             if not oneway:
                 graph.add_edge(v_xy, u_xy, weight=travel_time_s)
 
-    print(f"  ✔ graph has {graph.number_of_nodes():,} nodes / {graph.number_of_edges():,} edges")
+    print(
+        f"  ✔ graph has {graph.number_of_nodes():,} nodes / {graph.number_of_edges():,} edges"
+    )
     return graph
 
 
@@ -418,7 +433,9 @@ def generate_isochrone(
         return gpd.GeoSeries([], crs=export_crs)
 
     # 2️⃣  collect every traversed edge
-    reach_edges = {(u, v) for path in paths.values() for u, v in zip(path[:-1], path[1:])}
+    reach_edges = {
+        (u, v) for path in paths.values() for u, v in zip(path[:-1], path[1:])
+    }
     edge_lines = [LineString([u, v]) for u, v in reach_edges]
 
     # 3️⃣  buffer edges → union → polygonize → prune specks
@@ -509,12 +526,18 @@ def export_isochrones_by_direction(
             f"_iso{cutoff_min}min.shp"
         )
         gpd.GeoDataFrame(
-            {"route": [route or "None"], "dir_id": [direction], "minutes": [cutoff_min]},
+            {
+                "route": [route or "None"],
+                "dir_id": [direction],
+                "minutes": [cutoff_min],
+            },
             geometry=iso,
             crs=iso.crs,
         ).to_file(os.path.join(output_dir, fname))
 
-        print(f"✓ Exported isochrone ({route or 'None'} dir {direction}, ≤{cutoff_min} min)")
+        print(
+            f"✓ Exported isochrone ({route or 'None'} dir {direction}, ≤{cutoff_min} min)"
+        )
 
 
 def build_buffers_gdf(
@@ -587,7 +610,14 @@ def main() -> None:
 
     # keep a copy split by direction for later exports & isochrones
     gdf_stops_by_dir = gdf_buf[
-        ["stop_id", "stop_code", "stop_name", "route_short_name", "direction_id", "geometry"]
+        [
+            "stop_id",
+            "stop_code",
+            "stop_name",
+            "route_short_name",
+            "direction_id",
+            "geometry",
+        ]
     ].copy()
 
     # ── 3. route polylines -----------------------------------------------------

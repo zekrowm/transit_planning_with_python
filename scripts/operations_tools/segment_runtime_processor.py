@@ -85,7 +85,9 @@ def load_data(file_path: str) -> pd.DataFrame:
     return df
 
 
-def filter_routes(df: pd.DataFrame, routes_to_exclude=None, routes_to_include=None) -> pd.DataFrame:
+def filter_routes(
+    df: pd.DataFrame, routes_to_exclude=None, routes_to_include=None
+) -> pd.DataFrame:
     routes_to_exclude = routes_to_exclude or []
     routes_to_include = routes_to_include or []
 
@@ -297,7 +299,9 @@ def create_and_save_pivots(
                 pivot_table = pivot_table.round(1)
 
                 # 7) Build CSV filename
-                csv_filename = f"{dataset_label}_Route{route}_Dir{direction}_{sheet_suffix}.csv"
+                csv_filename = (
+                    f"{dataset_label}_Route{route}_Dir{direction}_{sheet_suffix}.csv"
+                )
                 csv_path = os.path.join(output_subdir, csv_filename)
 
                 pivot_table.to_csv(csv_path, index=True, float_format="%.1f")

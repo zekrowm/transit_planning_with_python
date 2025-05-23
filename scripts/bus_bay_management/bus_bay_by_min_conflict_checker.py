@@ -13,16 +13,16 @@ Purpose:
 Inputs:
     1. Block-level transit data spreadsheets (XLSX format) from the
        directory specified by BLOCK_OUTPUT_FOLDER.
-    2. Configuration constants defined in the script: 
+    2. Configuration constants defined in the script:
        CLUSTER_DEFINITIONS (stop IDs, bay types per cluster),
-    3. PRESENCE_STATUSES (statuses indicating bus presence), 
+    3. PRESENCE_STATUSES (statuses indicating bus presence),
        PASSENGER_SERVICE_STATUSES (statuses indicating bay occupancy).
 
 Outputs:
     1. Excel conflict analysis reports (one file per defined cluster)
        saved to the directory specified by CLUSTER_CONFLICT_OUTPUT_FOLDER.
-    2. Each report includes an 'AllStops' summary sheet and 
-       individual sheets for each stop/bay within the cluster, 
+    2. Each report includes an 'AllStops' summary sheet and
+       individual sheets for each stop/bay within the cluster,
        highlighting rows with detected conflicts (CLUSTER, STOP, BOTH).
 
 Dependencies:
@@ -87,6 +87,7 @@ PASSENGER_SERVICE_STATUSES = {"ARRIVE", "DEPART", "ARRIVE/DEPART", "LOADING"}
 # CAPACITY AND STOP-LIST BUILDING BASED ON BAY COUNTS
 # --------------------------------------------------------------------------------------------------
 
+
 def get_all_official_stops(cinfo):
     """
     Return a combined list of all official stops in this cluster
@@ -114,7 +115,9 @@ def build_cluster_capacities():
         n_triple = len(cinfo.get("triple_bay_stops", []))
         n_overflow = len(cinfo.get("overflow_bays", []))
 
-        cluster_cap = (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
+        cluster_cap = (
+            (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
+        )
         capacities[cname] = cluster_cap
     return capacities
 
@@ -143,6 +146,7 @@ def build_stop_capacities():
 # --------------------------------------------------------------------------------------------------
 # CORE CONFLICT-DETECTION LOGIC
 # --------------------------------------------------------------------------------------------------
+
 
 def normalize_stop_id(stop_id):
     """Convert stop IDs like '2956.0' -> '2956'. Handles NaN gracefully."""
@@ -254,6 +258,7 @@ def annotate_conflicts(df_in, cluster_conflicts, stop_conflicts):
 # I/O AND EXCEL WRITING LOGIC
 # --------------------------------------------------------------------------------------------------
 
+
 def gather_block_spreadsheets(block_folder):
     """
     Read all 'block_*.xlsx' spreadsheets from Step 1 in `block_folder`,
@@ -336,7 +341,9 @@ def run_step2_conflict_detection():
             continue
 
         safe_name = cname.replace(" ", "_")
-        out_path = os.path.join(CLUSTER_CONFLICT_OUTPUT_FOLDER, f"{safe_name}_Conflicts.xlsx")
+        out_path = os.path.join(
+            CLUSTER_CONFLICT_OUTPUT_FOLDER, f"{safe_name}_Conflicts.xlsx"
+        )
         print(f"Building conflict output for cluster '{cname}' => {out_path}")
 
         # Sort by timestamp, then by block or stop ID
@@ -347,10 +354,14 @@ def run_step2_conflict_detection():
             sub.to_excel(writer, sheet_name="AllStops", index=False)
 
             # Bold the conflict rows in "AllStops"
-            conflict_col_index = sub.columns.get_loc("ConflictType") + 1  # +1 for 1-based indexing
+            conflict_col_index = (
+                sub.columns.get_loc("ConflictType") + 1
+            )  # +1 for 1-based indexing
             worksheet_all = writer.sheets["AllStops"]
             for row_idx in range(2, len(sub) + 2):  # data starts on row 2
-                conflict_val = worksheet_all.cell(row=row_idx, column=conflict_col_index).value
+                conflict_val = worksheet_all.cell(
+                    row=row_idx, column=conflict_col_index
+                ).value
                 if conflict_val != "NONE":
                     # Bold entire row
                     for col_idx in range(1, len(sub.columns) + 1):
@@ -395,6 +406,7 @@ def run_step2_conflict_detection():
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main():
     """

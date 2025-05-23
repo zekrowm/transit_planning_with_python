@@ -63,13 +63,19 @@ def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFra
     Returns:
         pd.DataFrame: The loaded DataFrame.
     """
-    loaded_dataframe = pd.read_excel(input_file, sheet_name=sheet_name, header=header_rows)
+    loaded_dataframe = pd.read_excel(
+        input_file, sheet_name=sheet_name, header=header_rows
+    )
     print("Columns available:", loaded_dataframe.columns.tolist())
     return loaded_dataframe
 
 
 def filter_data(
-    input_dataframe: pd.DataFrame, date_col: tuple, price_col: tuple, start_date: str, end_date: str
+    input_dataframe: pd.DataFrame,
+    date_col: tuple,
+    price_col: tuple,
+    start_date: str,
+    end_date: str,
 ) -> pd.DataFrame:
     """
     Filter the DataFrame to include only the desired columns and rows within the
@@ -94,7 +100,9 @@ def filter_data(
     filtered_dataframe.columns = ["Date", "Weekly Central Atlantic Price"]
 
     # Convert the 'Date' column to datetime format.
-    filtered_dataframe["Date"] = pd.to_datetime(filtered_dataframe["Date"], errors="coerce")
+    filtered_dataframe["Date"] = pd.to_datetime(
+        filtered_dataframe["Date"], errors="coerce"
+    )
 
     # Filter rows based on the date range.
     mask = (filtered_dataframe["Date"] >= pd.to_datetime(start_date)) & (

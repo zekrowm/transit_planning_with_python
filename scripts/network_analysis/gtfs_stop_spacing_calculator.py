@@ -62,6 +62,7 @@ PROJECTED_CRS: str = "EPSG:2263"  # DC / MD StatePlane (US survey ft)
 # HELPER FUNCTIONS
 # =============================================================================
 
+
 def _ensure_output_folder(folder: str) -> Path:
     out = Path(folder)
     out.mkdir(parents=True, exist_ok=True)
@@ -154,9 +155,8 @@ def _build_stops_gdf(
         crs="EPSG:4326",
     ).to_crs(crs)
 
-    trip_attrs = (
-        trips[["trip_id", "route_id", "direction_id"]]
-        .merge(routes[["route_id", "route_short_name"]], on="route_id", how="left")
+    trip_attrs = trips[["trip_id", "route_id", "direction_id"]].merge(
+        routes[["route_id", "route_short_name"]], on="route_id", how="left"
     )
     merged = served[["trip_id", "stop_id"]].merge(trip_attrs, on="trip_id", how="left")
     agg = (
@@ -192,24 +192,18 @@ def _build_routes_gdf(
     gdf = gpd.GeoDataFrame(lines, geometry="geometry", crs="EPSG:4326").to_crs(crs)
 
     # keep direction_id
-    gdf = (
-        gdf.merge(
-            trips.drop_duplicates("shape_id")[["shape_id", "route_id", "direction_id"]],
-            on="shape_id",
-            how="left",
-        )
-        .merge(routes, on="route_id", how="left")
-    )
+    gdf = gdf.merge(
+        trips.drop_duplicates("shape_id")[["shape_id", "route_id", "direction_id"]],
+        on="shape_id",
+        how="left",
+    ).merge(routes, on="route_id", how="left")
 
     if union_shapes:
-        gdf = (
-            gdf.dissolve(
-                by=["route_id", "direction_id"],
-                as_index=False,
-                aggfunc={"route_short_name": "first", "route_long_name": "first"},
-            )
-            .explode(ignore_index=True)
-        )
+        gdf = gdf.dissolve(
+            by=["route_id", "direction_id"],
+            as_index=False,
+            aggfunc={"route_short_name": "first", "route_long_name": "first"},
+        ).explode(ignore_index=True)
 
     print(f"Routes GDF – built {len(gdf):,} shapes")
     return gdf
@@ -251,12 +245,14 @@ def _split_into_segments(
 
         for seg in pieces:
             if seg.length:
-                seg_records.append({
-                    "route_id": rid,
-                    "direction_id": drn,
-                    "route_short": r.get("route_short_name"),
-                    "geometry": seg,
-                })
+                seg_records.append(
+                    {
+                        "route_id": rid,
+                        "direction_id": drn,
+                        "route_short": r.get("route_short_name"),
+                        "geometry": seg,
+                    }
+                )
 
     seg_gdf = gpd.GeoDataFrame(seg_records, crs=crs)
     # length_ft in US survey feet if already projected, else convert from meters
@@ -284,6 +280,7 @@ def _export_segments_by_route_dir(seg_gdf: gpd.GeoDataFrame, out_dir: Path) -> N
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     print("STEP 0  Reading GTFS tables…")
@@ -315,8 +312,8 @@ def main() -> None:
 
     print("STEP 3  Splitting routes into stop-to-stop segments…")
     segs_gdf = _split_into_segments(routes_gdf, stops_gdf, PROJECTED_CRS)
-    _export(segs_gdf, out_dir, "segments")                 # master file
-    _export_segments_by_route_dir(segs_gdf, out_dir)       # one per route/dir
+    _export(segs_gdf, out_dir, "segments")  # master file
+    _export_segments_by_route_dir(segs_gdf, out_dir)  # one per route/dir
 
     print("\nAll done! Outputs in:", out_dir)
 

@@ -36,7 +36,9 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 # =============================================================================
 # CONFIGURATION
@@ -243,7 +245,9 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
                     group_sub.iloc[-1]["shape_dist_traveled"]
                     - group_sub.iloc[0]["shape_dist_traveled"]
                 )
-                trip_distances[trip_id_val] = convert_dist_to_miles(dist_val, INPUT_DISTANCE_UNIT)
+                trip_distances[trip_id_val] = convert_dist_to_miles(
+                    dist_val, INPUT_DISTANCE_UNIT
+                )
 
     # Build patterns
     patterns_list = []
@@ -259,7 +263,9 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
                 dist_str = "-"
             else:
                 if pd.notnull(shape_val) and pd.notnull(prev_dist_val):
-                    diff = convert_dist_to_miles(shape_val - prev_dist_val, INPUT_DISTANCE_UNIT)
+                    diff = convert_dist_to_miles(
+                        shape_val - prev_dist_val, INPUT_DISTANCE_UNIT
+                    )
                     dist_str = f"{diff:.2f}" if diff else ""
                 else:
                     dist_str = ""
@@ -406,7 +412,9 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
 # -----------------------------------------------------------------------------
 
 
-def find_master_trip_stops(route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df):
+def find_master_trip_stops(
+    route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df
+):
     """
     Among 'relevant_trips' for route+direction, find the trip with the most stops/timepoints.
     Return a list of (stop_id, stop_name).
@@ -422,7 +430,9 @@ def find_master_trip_stops(route_id_val, direction_id_val, relevant_trips, stop_
         return []
     best_trip_id = sizes.idxmax()
     best_group = st_sub[st_sub["trip_id"] == best_trip_id].sort_values("stop_sequence")
-    best_group = pd.merge(best_group, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
+    best_group = pd.merge(
+        best_group, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left"
+    )
 
     out_list = []
     for _, row in best_group.iterrows():
@@ -539,7 +549,9 @@ def fill_worksheet_for_direction(
         worksheet.column_dimensions[col_letter].width = 30
 
 
-def export_patterns_to_excel(pattern_records, routes_df, stop_times_df, stops_df, calendar_df=None):
+def export_patterns_to_excel(
+    pattern_records, routes_df, stop_times_df, stops_df, calendar_df=None
+):
     """
     For each (route_id, service_id), group patterns by direction, create a subfolder
     named for that service_id's days (if calendar.txt loaded), and save an Excel workbook
@@ -589,15 +601,26 @@ def export_patterns_to_excel(pattern_records, routes_df, stop_times_df, stops_df
                 merged_group = st_sub[st_sub["trip_id"] == best_tid]
                 merged_group = merged_group.sort_values("stop_sequence")
                 merged_group = pd.merge(
-                    merged_group, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left"
+                    merged_group,
+                    stops_df[["stop_id", "stop_name"]],
+                    on="stop_id",
+                    how="left",
                 )
                 master_stops = []
                 for _, rowz in merged_group.iterrows():
-                    master_stops.append((rowz["stop_id"], rowz.get("stop_name", "Unknown")))
+                    master_stops.append(
+                        (rowz["stop_id"], rowz.get("stop_name", "Unknown"))
+                    )
 
             sheet_title = f"Dir{direction_val}"
             fill_worksheet_for_direction(
-                workbook, sheet_title, short_name, direction_val, sid_val, recs_dir, master_stops
+                workbook,
+                sheet_title,
+                short_name,
+                direction_val,
+                sid_val,
+                recs_dir,
+                master_stops,
             )
 
         filename = f"{short_name}_{sid_val}_{SIGNUP_NAME}.xlsx"
@@ -640,7 +663,9 @@ def main():
             logging.warning("Could not load calendar.txt: %s", exc)
             calendar_df = None
     else:
-        logging.info("No calendar.txt found; subfolders will be 'calendar_<service_id>' only.")
+        logging.info(
+            "No calendar.txt found; subfolders will be 'calendar_<service_id>' only."
+        )
 
     try:
         gtfs_data = load_gtfs_files(INPUT_DIR)
@@ -669,7 +694,9 @@ def main():
         return
 
     compute_earliest_start_times(pattern_records, stop_times_df)
-    export_patterns_to_excel(pattern_records, routes_df, stop_times_df, stops_df, calendar_df)
+    export_patterns_to_excel(
+        pattern_records, routes_df, stop_times_df, stops_df, calendar_df
+    )
 
     logging.info("Processing complete.")
 

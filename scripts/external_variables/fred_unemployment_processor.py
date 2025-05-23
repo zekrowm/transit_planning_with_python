@@ -40,6 +40,7 @@ END_DATE = "2024-12-01"  # Replace with your desired end date
 CSV_FILE_PATH = r"C:\Path\To\Your\Downloaded\Unemployment_Data.csv"
 OUTPUT_FOLDER = r"C:\Path\To\Your\Output_Folder"
 
+
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
@@ -64,13 +65,17 @@ def load_data(csv_file_path: str) -> pd.DataFrame:
     return data_frame, series_column
 
 
-def filter_data(data_frame: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
+def filter_data(
+    data_frame: pd.DataFrame, start_date: str, end_date: str
+) -> pd.DataFrame:
     """
     Filters the DataFrame to include only rows between start_date and end_date.
     """
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
-    mask = (data_frame["observation_date"] >= start) & (data_frame["observation_date"] <= end)
+    mask = (data_frame["observation_date"] >= start) & (
+        data_frame["observation_date"] <= end
+    )
     return data_frame.loc[mask].copy()
 
 
@@ -95,7 +100,12 @@ def plot_continuous_line(
     os.makedirs(output_folder, exist_ok=True)
     output_path = os.path.join(output_folder, filename)
     plt.figure(figsize=(10, 6))
-    plt.plot(data_frame["observation_date"], data_frame[series_column], marker="o", linestyle="-")
+    plt.plot(
+        data_frame["observation_date"],
+        data_frame[series_column],
+        marker="o",
+        linestyle="-",
+    )
     plt.title(f"{series_column} Over Time")
     plt.xlabel("Observation Date")
     plt.ylabel(f"{series_column} (%)")
@@ -207,7 +217,9 @@ def main():
     )
 
     # Generate yearly comparison chart (with 3-letter month abbreviations)
-    plot_yearly_comparison(filtered_data_frame, series_column, OUTPUT_FOLDER, yearly_chart_filename)
+    plot_yearly_comparison(
+        filtered_data_frame, series_column, OUTPUT_FOLDER, yearly_chart_filename
+    )
 
 
 if __name__ == "__main__":
