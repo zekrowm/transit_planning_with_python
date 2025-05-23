@@ -156,6 +156,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     return df.reset_index(drop=True)
 
+
 def _get_invalid_reason(
     act_time: str | float | int | None,
     sched_time: str | float | int | None,
@@ -179,6 +180,7 @@ def _get_invalid_reason(
         reasons.append("bad sched_time format")
 
     return "; ".join(reasons)
+
 
 # -----------------------------------------------------------------------------
 # 1-row = 1-event **long-format** transformer
@@ -223,7 +225,7 @@ def longify_events(df: pd.DataFrame) -> pd.DataFrame:
     long_df.loc[~valid_mask, "diff_min"] = pd.NA
 
     # Flags/categorisation (unchanged) ---------------------------------------
-    long_df["on_time"]     = flag_on_time(long_df["diff_min"])
+    long_df["on_time"] = flag_on_time(long_df["diff_min"])
     long_df["punctuality"] = long_df["diff_min"].apply(classify_punctuality)
 
     return long_df.reset_index(drop=True)
