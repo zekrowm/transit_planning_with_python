@@ -1,18 +1,41 @@
 """
-Module for processing CLEVER runtime datasets to analyze transit running times by segment and trip.
+Script Name:
+    segment_runtime_processor.py
 
-This script supports multiple datasets (weekday, Saturday, Sunday, and other), reading data from CSV or Excel files,
-and exports pivot tables as CSV files organized by route, direction, and specified time metrics. It performs the following:
+Purpose:
+    Processes CLEVER runtime datasets to analyze transit running times by segment and trip.
+    This script supports multiple datasets (weekday, Saturday, Sunday, and other), reading data from CSV or Excel files,
+    and exports pivot tables as CSV files organized by route, direction, and specified time metrics. It performs the following:
 
-- Loads and filters input datasets based on inclusion/exclusion criteria for specific routes.
-- Converts runtime metrics from seconds to minutes.
-- Validates route segments for continuity, variation consistency, and absence of loops or branching.
-- Sorts segments into sequential order when valid.
-- Sorts individual trips chronologically by actual start times.
-- Creates pivot tables summarizing segment-level runtime metrics, rounded for readability.
-- Saves output CSVs into structured subdirectories by dataset type.
+    - Loads and filters input datasets based on inclusion/exclusion criteria for specific routes.
+    - Converts runtime metrics from seconds to minutes.
+    - Validates route segments for continuity, variation consistency, and absence of loops or branching.
+    - Sorts segments into sequential order when valid.
+    - Sorts individual trips chronologically by actual start times.
+    - Creates pivot tables summarizing segment-level runtime metrics, rounded for readability.
+    - Saves output CSVs into structured subdirectories by dataset type.
 
-Configuration options allow users to specify file paths, output directories, included/excluded routes, and time columns for processing.
+Inputs:
+    1. CLEVER runtime data files (CSV or Excel format) for different service periods (e.g., Weekday, Saturday, Sunday). File paths are specified by:
+        - WKDY_FILE_PATH
+        - SAT_FILE_PATH
+        - SUN_FILE_PATH
+        - OTHER_FILE_PATH
+    2. Configuration constants defined in the script:
+        - PARENT_OUTPUT_DIR: Base directory for saving output files.
+        - ROUTES_TO_EXCLUDE: List of 'Branch' names (routes) to exclude from analysis.
+        - ROUTES_TO_INCLUDE: List of 'Branch' names (routes) to include. If empty, all non-excluded routes are processed.
+        - TIME_COLUMNS: Dictionary mapping original time-related column names in the input data to their desired suffixes in the output pivot tables (e.g., {"Average Actual Running Time": "AvgActual(min)"}).
+
+Outputs:
+    1. CSV files: Pivot tables summarizing segment-level runtime metrics for each processed route, direction, and time column.
+       - These files are saved in structured subdirectories within PARENT_OUTPUT_DIR (e.g., 'wkdy/', 'sat/').
+       - Filenames are formatted as: {dataset_label}_Route{route}_Dir{direction}_{time_metric_suffix}.csv.
+    2. Console output: Status messages, warnings (e.g., for malformed segments, multiple variations), and progress updates during processing.
+
+Dependencies:
+    1. pandas
+    2. os (standard library)
 """
 
 import os
