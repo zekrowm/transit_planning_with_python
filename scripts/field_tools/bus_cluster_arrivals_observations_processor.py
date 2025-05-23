@@ -55,6 +55,8 @@ PLACEHOLDER_PATTERN = r"[_X]{4,}"          # e.g. “____”, “__XXXX__”
 OUTPUT_EXCEL_NAME   = "arrival_performance_summary.xlsx"
 OUTPUT_CSV_PREFIX   = "arrival_performance_summary"
 
+TIME_EXTRACT_RE = re.compile(r'(\d{1,2})\s*[:]?(\d{2})')
+
 # =============================================================================
 # HELPERS
 # =============================================================================
@@ -79,14 +81,25 @@ def is_placeholder(val: str | float | int | None) -> bool:
 
 
 def time_str_to_minutes(time_str: str | float | int | None) -> Optional[int]:
-    """Convert HH:MM string to minutes past midnight; return None if invalid."""
-    if is_placeholder(time_str):
+    """
+    Convert a variety of messy time strings to minutes past midnight.
+
+    Returns
+    -------
+    int | None
+        Minutes after 00:00, or *None* if no valid HH:MM pattern is found.
+    """
+    if is_placeholder(time_str):                      # still screens out blanks/“____”
         return None
-    try:
-        hh, mm, *_ = str(time_str).split(":")
-        return int(hh) * 60 + int(mm)
-    except (ValueError, IndexError):
+
+    match = TIME_EXTRACT_RE.search(str(time_str))     # look for the first HHMM group
+    if not match:
         return None
+
+    hh, mm = map(int, match.groups())                 # safe – both groups are digits
+    if 0 <= hh < 24 and 0 <= mm < 60:                 # sanity-check
+        return hh * 60 + mm
+    return None
 
 
 def compute_diff(actual: pd.Series, scheduled: pd.Series) -> pd.Series:
