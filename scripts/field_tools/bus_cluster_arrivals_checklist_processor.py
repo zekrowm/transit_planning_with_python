@@ -1,5 +1,31 @@
 """
-HOLD
+Script Name:
+        bus_cluster_arrivals_checklist_processor.py
+
+Purpose:
+        Processes observed transit arrival/departure data from input
+        files based on field data to analyze service punctuality.
+        Calculates schedule adherence against configurable on-time
+        tolerances and outputs summary reports.
+
+Inputs:
+        1. Directory path (`OBSERVED_DATA_PATH`) containing observed
+           transit data as .xlsx or .csv files.
+        2. Configuration constants in the script (e.g., on-time
+           tolerances `EARLY_TOLERANCE_MIN`, `LATE_TOLERANCE_MIN`;
+           input/output paths; `PLACEHOLDER_PATTERN`).
+
+Outputs:
+        1. Excel file (default: `arrival_performance_summary.xlsx`) with
+           punctuality summaries (overall, by route, by route/direction).
+        2. Corresponding CSV summary files (default prefix:
+           `arrival_performance_summary`).
+        3. Diagnostic CSV files (`observed_data_valid_events.csv`,
+           `observed_data_invalid_events.csv`) detailing processed events.
+        4. Console status messages during execution.
+
+Dependencies:
+        pandas, openpyxl, re, pathlib
 """
 # =============================================================================
 # CONFIGURATION
