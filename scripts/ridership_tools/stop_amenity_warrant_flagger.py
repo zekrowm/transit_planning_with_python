@@ -1,9 +1,45 @@
 """
-Flag bus stops that should receive amenity upgrades
- • Reads the ridership workbook you already have.
- • (Optionally) aggregates duplicate STOP_IDs.
- • Flags each stop that meets a ridership threshold AND is missing the amenity.
- • Writes a multi-sheet .xlsx using pandas + openpyxl
+Script Name:
+    stop_amenity_warrant_flagger.py
+
+Purpose:
+    Flags bus stops that may warrant amenity upgrades (shelter, bench, trash can, pad)
+    based on ridership thresholds. It reads ridership data and existing amenity
+    information from an Excel file, optionally aggregates data for stops with
+    duplicate IDs, and then identifies stops meeting specified ridership criteria
+    that currently lack the corresponding amenity.
+
+Inputs:
+    1. Ridership Excel file (RIDERSHIP_XLSX): An Excel workbook containing stop-level
+       ridership data and current amenity status. Key columns include:
+       - A ridership metric (specified by RIDERSHIP_FIELD, e.g., "XBOARDINGS").
+       - Stop identifiers (ID_FIELDS, e.g., "STOP_ID", "ROUTE_NAME", "STOP_NAME").
+       - Columns for each amenity indicating presence/absence (e.g., "SHELTER", "BENCH").
+         Expected values are 'Y' for yes, 'N' for no (or blank/NaN, treated as 'N').
+    2. Configuration constants defined in the script:
+        - RIDERSHIP_SHEET: The name or index of the sheet in the Excel file to read.
+        - OUTPUT_FOLDER: Path to the directory where the output Excel file will be saved.
+        - AMENITIES: A dictionary defining each amenity to check, its corresponding
+          column name in the input file, and the ridership threshold that warrants it.
+        - AGGREGATE_BY_STOP: Controls how duplicate STOP_IDs are handled ('auto', True, or False).
+        - STOP_ID_FIELD: The column name for the unique stop identifier used in aggregation.
+
+Outputs:
+    1. Excel file ('stops_needing_improvement.xlsx'): A multi-sheet workbook saved in OUTPUT_FOLDER.
+       - 'Raw Data': The original input data (with standardized amenity columns).
+       - 'All Flags': The processed data (aggregated if specified), including new boolean
+         flag columns (e.g., 'FLAG_SHELTER') indicating if an amenity is warranted
+         and missing, and a 'NEEDS_IMPROVEMENT' column if any amenity is flagged.
+       - Individual sheets for each amenity (e.g., 'Shelter', 'Bench'): These sheets
+         contain subsets of the 'All Flags' data, showing only the stops flagged for
+         that specific amenity.
+    2. Console output: Status messages, including the path to the output Excel file and
+       a note if stop data was aggregated.
+
+Dependencies:
+    1. pandas
+    2. os (standard library)
+    3. openpyxl (implicitly used by pandas for .xlsx writing)
 """
 
 # ==================================================================================================
