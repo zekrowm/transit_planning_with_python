@@ -56,9 +56,10 @@ TIME_EXTRACT_RE = re.compile(r"(\d{1,2})\s*[:]?(\d{2})")
 CORE_EVENT_COLS: list[str] = [
     "route_short_name",
     "trip_headsign",
-    "stop_id",      #  ← new
-    "stop_name",    #  ← new
+    "stop_id",  #  ← new
+    "stop_name",  #  ← new
 ]
+
 
 # =============================================================================
 # HELPERS
@@ -201,9 +202,9 @@ def longify_events(df: pd.DataFrame) -> pd.DataFrame:
     """
     Explode arrivals & departures into one-event-per-row *long* format.
 
-    • No rows are dropped.  
+    • No rows are dropped.
     • `invalid_reason` explains any problems; only rows with a blank
-      reason receive a numeric `diff_min`.  
+      reason receive a numeric `diff_min`.
     • NOW RETAINS `stop_id` and `stop_name` so users can see which
       cluster each event belongs to.
     """
@@ -241,7 +242,7 @@ def longify_events(df: pd.DataFrame) -> pd.DataFrame:
     long_df.loc[~valid_mask, "diff_min"] = pd.NA
 
     # Flags / categorisation --------------------------------------------------
-    long_df["on_time"]     = flag_on_time(long_df["diff_min"])
+    long_df["on_time"] = flag_on_time(long_df["diff_min"])
     long_df["punctuality"] = long_df["diff_min"].apply(classify_punctuality)
 
     return long_df.reset_index(drop=True)
