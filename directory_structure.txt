@@ -1,67 +1,74 @@
-transit_planning_with_python/
+transit_planning_with_python-main/
+├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md
 ├── directory_structure.txt
 ├── requirements.txt
 ├── .github/
 │   └── workflows/
+│       ├── auto_format_black_isort.yml
 │       └── pylint.yml
 ├── helpers/
 │   └── gtfs_helpers.py
-├── linting/
-│   ├── black_linter.py
-│   ├── file_tree_printer.py
-│   └── pylint_logger.py
-└── scripts/
-    ├── bus_bay_management/
-    │   ├── block_status_by_minute_generator.py
-    │   ├── bus_bay_by_min_conflict_checker.py
-    │   ├── bus_bay_cluster_validation.py
-    │   └── bus_bay_conflict_solver.py
-    ├── external_variables/
-    │   ├── bikeshare_ridership_processor.py
-    │   ├── eia_gas_price_processor.py
-    │   ├── fred_unemployment_processor.py
-    │   └── noaa_weather_processor.py
-    ├── field_tools/
-    │   ├── bus_block_stop_sequence_printable.py
-    │   ├── bus_cluster_arrivals_checklist_printable.py
-    │   └── site_visit_route_planner.py
-    ├── gtfs_exports/
-    │   ├── bus_schedule_exporter.py
-    │   ├── gtfs_shapefile_converter.py
-    │   └── stop_pattern_exporter.py
-    ├── gtfs_level_of_service/
-    │   ├── gtfs_service_change_history.py
-    │   ├── gtfs_trip_counts_reporter.py
-    │   └── headway_span_trips_calculator.py
-    ├── gtfs_validation/
-    │   ├── gtfs_versus_system_shp_checker.py
-    │   ├── stop_capitalization_suffix_checker.py
-    │   ├── stops_in_roadway_checker.py
-    │   └── stops_versus_road_name_typo_checker.py
-    ├── network_analysis/
-    │   ├── park_and_ride_accessibility.py
-    │   ├── route_direction_calculator.py
-    │   └── stop_spacing_calculator.py
-    ├── operations_tools/
-    │   ├── historical_otp_data_processor.py
-    │   ├── otp_per_trip_processor.py
-    │   ├── runtime_per_trip_processor.py
-    │   └── segment_runtime_processor.py
-    ├── ridership_tools/
-    │   ├── arcpy_stops_ridership_joiner.py
-    │   ├── data_request_by_stop_processor.py
-    │   ├── historical_ntd_data_processor.py
-    │   ├── load_factor_violation_flagger.py
-    │   ├── monthly_report_generator_from_ntd.py
-    │   ├── ridership_per_stop_processor.py
-    │   ├── ridership_per_trip_processor.py
-    │   └── stop_amenity_warrant_flagger.py
-    └── service_coverage_analysis/
-        ├── bus_route_district_matrix.py
-        ├── census_processing_csv_shp.py
-        ├── gtfs_demog_calculator.py
-        ├── gtfs_proximity_stops_and_routes.py
-        ├── gtfs_service_area_mapper.py
-        └── sites_served_counter.py
+├── scripts/
+│   ├── bus_bay_management/
+│   │   ├── block_status_by_minute_generator.py
+│   │   ├── bus_bay_by_min_conflict_checker.py
+│   │   ├── bus_bay_cluster_validation.py
+│   │   └── bus_bay_conflict_solver.py
+│   ├── external_variables/
+│   │   ├── bikeshare_ridership_processor.py
+│   │   ├── eia_gas_price_processor.py
+│   │   ├── fred_unemployment_processor.py
+│   │   └── noaa_weather_processor.py
+│   ├── field_tools/
+│   │   ├── bus_block_stop_sequence_printable.py
+│   │   ├── bus_cluster_arrivals_checklist_printable.py
+│   │   ├── bus_cluster_arrivals_observations_processor.py
+│   │   └── site_visit_route_planner.py
+│   ├── gtfs_exports/
+│   │   ├── bus_schedule_exporter.py
+│   │   ├── gtfs_shapefile_converter.py
+│   │   └── stop_pattern_exporter.py
+│   ├── gtfs_level_of_service/
+│   │   ├── gtfs_service_change_history.py
+│   │   ├── gtfs_trips_hourly_reporter.py
+│   │   └── headway_span_trips_calculator.py
+│   ├── gtfs_validation/
+│   │   ├── gtfs_internal_audit.py
+│   │   ├── gtfs_versus_system_shp_checker.py
+│   │   ├── stop_capitalization_suffix_checker.py
+│   │   ├── stops_in_roadway_checker.py
+│   │   └── stops_versus_road_name_typo_checker.py
+│   ├── network_analysis/
+│   │   ├── gtfs_stop_spacing_calculator.py
+│   │   ├── park_and_ride_accessibility.py
+│   │   ├── route_direction_calculator.py
+│   │   └── stop_spacing_calculator.py
+│   ├── operations_tools/
+│   │   ├── historical_otp_data_processor.py
+│   │   ├── otp_per_trip_processor.py
+│   │   ├── runtime_per_trip_processor.py
+│   │   └── segment_runtime_processor.py
+│   ├── ridership_tools/
+│   │   ├── arcpy_stops_ridership_joiner.py
+│   │   ├── data_request_by_stop_processor.py
+│   │   ├── historical_ntd_data_processor.py
+│   │   ├── load_factor_violation_flagger.py
+│   │   ├── monthly_report_generator_from_ntd.py
+│   │   ├── ridership_per_stop_processor.py
+│   │   ├── ridership_per_trip_processor.py
+│   │   └── stop_amenity_warrant_flagger.py
+│   └── service_coverage_analysis/
+│       ├── bus_route_district_matrix.py
+│       ├── census_processing_csv_shp.py
+│       ├── gtfs_demog_calculator.py
+│       ├── gtfs_proximity_stops_and_routes.py
+│       ├── gtfs_service_area_mapper.py
+│       └── sites_served_counter.py
+└── static_checks/
+    ├── file_tree_printer.py
+    ├── formatter_black_isort.py
+    ├── mypy_checker.py
+    ├── pylint_logger.py
+    └── vulture_logger.py
