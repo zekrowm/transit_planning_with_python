@@ -3,8 +3,38 @@ Script Name:
     mypy_checker.py
 
 Purpose:
-    Checks Python files with mypy, logs full output, and creates an Excel
-    summary.  If any file has mypy errors, the script ends with exit code 1.
+    Performs static type checking on Python files using mypy.
+    It scans specified files or folders, logs the full output from mypy,
+    and generates an Excel summary of the findings. The script will exit
+    with a status code of 1 if any mypy errors are detected, and 0 otherwise.
+
+Inputs:
+    1. Target Python files/folders (specified by `FILES_OR_FOLDERS` constant):
+       A list of paths to Python files or directories to be checked by mypy.
+    2. Skip paths (specified by `SKIP_PATHS` constant):
+       A list of file or directory paths to be excluded from checking.
+    3. Configuration constants defined within the script:
+       - `OUTPUT_FOLDER`: Directory path to save the detailed log and Excel summary.
+       - `LOG_LEVEL`: Logging level for console output (e.g., `logging.INFO`).
+       - `DETAILED_LOG_FILENAME_PREFIX`: Prefix for the detailed log file name.
+       - `MYPY_ADDITIONAL_ARGS`: A list of extra command-line arguments to pass to mypy.
+
+Outputs:
+    1. Detailed Log File: A timestamped .log file (e.g.,
+       `mypy_detailed_log_YYYYMMDD_HHMMSS.log`) in `OUTPUT_FOLDER`,
+       containing the complete stdout and stderr from mypy for each processed file.
+    2. Excel Summary File: A timestamped .xlsx file (e.g.,
+       `mypy_results_YYYYMMDD_HHMMSS.xlsx`) in `OUTPUT_FOLDER`,
+       with a sheet "mypy Summary" detailing for each file:
+       Script Name, Immediate Folder, # mypy Errors, Mypy Success, Full Path,
+       and Stderr (if any).
+    3. Console output: Status messages, progress updates, and a final summary of
+       the type checking results.
+    4. Exit Code: 1 if mypy errors are found, 0 otherwise.
+
+Dependencies:
+    - logging, os, re, subprocess, sys, datetime, pathlib, typing, openpyxl
+    - mypy (external command-line tool, must be installed and accessible)
 """
 
 from __future__ import annotations
