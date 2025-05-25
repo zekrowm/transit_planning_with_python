@@ -2,21 +2,41 @@
 Script Name:
     vulture_logger.py
 
-This script will:
-1) Gather all .py files from FILES_OR_FOLDERS.
-2) Skip any paths found in SKIP_PATHS (folder or file).
-3) Run Vulture on each remaining file to find dead code.
-4) Log detailed stdout/stderr from Vulture to a timestamped .log file.
-5) Generate an Excel summary with Vulture findings and save it to a
-   timestamped .xlsx in OUTPUT_FOLDER.
+Purpose:
+    Scans Python files using Vulture to detect dead (unused) code.
+    The script gathers .py files from specified target locations and
+    executes Vulture on each file. Finally, it logs the results and
+    generates an Excel summary report of Vulture's findings with
+    confidence levels.
 
-CONFIGURATION:
-    - FILES_OR_FOLDERS: A list of .py files and/or folders to scan.
-    - SKIP_PATHS:       A list of folders or files you want to exclude.
-    - OUTPUT_FOLDER:    Where to write the .xlsx and .log files.
-    - LOG_LEVEL:        Logging detail level (INFO, DEBUG, etc.).
-    - DETAILED_LOG_FILENAME_PREFIX: Prefix for the .log file name.
-    - VULTURE_MIN_CONFIDENCE: Minimum confidence level for Vulture to report an item (0-100).
+Inputs:
+    1. Target Python files/folders (specified by `FILES_OR_FOLDERS` constant):
+       A list of paths to Python files or directories to be scanned.
+    2. Skip paths (specified by `SKIP_PATHS` constant):
+       A list of file or directory paths to be excluded from the scan.
+    3. Configuration constants defined within the script:
+       - `OUTPUT_FOLDER`: Directory path to save the detailed log and Excel summary.
+       - `LOG_LEVEL`: Logging level for console output (e.g., `logging.INFO`).
+       - `DETAILED_LOG_FILENAME_PREFIX`: Prefix for the detailed log file name.
+       - `VULTURE_MIN_CONFIDENCE`: The minimum confidence level (0-100) for Vulture
+         to report an item as dead code.
+
+Outputs:
+    1. Detailed Log File: A timestamped .log file (e.g.,
+       `vulture_detailed_log_YYYYMMDD_HHMMSS.log`) in `OUTPUT_FOLDER`,
+       containing the complete stdout and stderr from Vulture for each
+       processed file.
+    2. Excel Summary File: A timestamped .xlsx file (e.g.,
+       `vulture_results_YYYYMMDD_HHMMSS.xlsx`) in `OUTPUT_FOLDER`,
+       with a sheet "Vulture Dead Code Summary" detailing for each file:
+       Script Name, Immediate Folder, Dead Code Items Count, Dead Code Details,
+       Vulture Stderr, and Full Path.
+    3. Console output: Status messages, progress updates, and a summary of
+       the dead code analysis.
+
+Dependencies:
+    - logging, os, re, subprocess, sys, datetime, pathlib, typing, openpyxl
+    - vulture (external command-line tool, must be installed and accessible)
 """
 
 from __future__ import annotations
