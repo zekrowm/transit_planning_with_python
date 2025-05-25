@@ -7,12 +7,13 @@ Includes common GTFS data loaders, validators, and formatting helpers.
 """
 
 
-def load_gtfs_data(files=None, dtype=str):
+def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
-    Loads GTFS files into pandas DataFrames from a path defined externally
-    (GTFS_FOLDER_PATH).
+    Loads GTFS files into pandas DataFrames from the specified directory.
+    This function uses the logging module for output.
 
     Parameters:
+        gtfs_folder_path (str): Path to the directory containing GTFS files.
         files (list[str], optional): GTFS filenames to load. Default is all
             standard GTFS files:
             [
@@ -36,12 +37,12 @@ def load_gtfs_data(files=None, dtype=str):
         dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
 
     Raises:
-        FileNotFoundError: If GTFS_FOLDER_PATH doesn't exist or if any required file is missing.
+        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
         ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For any unexpected error during loading.
+        RuntimeError: For OS errors during file reading.
     """
-    if not os.path.exists(GTFS_FOLDER_PATH):
-        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
     if files is None:
         files = [
@@ -63,30 +64,29 @@ def load_gtfs_data(files=None, dtype=str):
     missing = [
         file_name
         for file_name in files
-        if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise FileNotFoundError(
-            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        raise OSError(
+            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
         )
 
     data = {}
     for file_name in files:
         key = file_name.replace(".txt", "")
-        file_path = os.path.join(GTFS_FOLDER_PATH, file_name)
+        file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype)
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
             data[key] = df
-            print(f"Loaded {file_name} ({len(df)} records).")
+            logging.info(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(f"File '{file_name}' is empty.") from exc
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
-            raise ValueError(f"Parser error in '{file_name}': {exc}") from exc
-
-        except Exception as exc:
-            # Use a more specific error class than bare Exception (e.g., RuntimeError)
-            raise RuntimeError(f"Error loading '{file_name}': {exc}") from exc
+            raise ValueError(f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}") from exc
+        
+        except OSError as exc:
+            raise RuntimeError(f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}") from exc
 
     return data
