@@ -39,6 +39,8 @@ import pandas as pd
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 
+from helpers.gtfs_helpers import load_gtfs_data
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -64,83 +66,6 @@ MAX_COLUMN_WIDTH = 30
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
-
-
-def load_gtfs_data(files=None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from a path defined externally
-    (GTFS_FOLDER_PATH).
-
-    Parameters:
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files.
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
-
-    Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
-
-    Raises:
-        FileNotFoundError: If GTFS_FOLDER_PATH doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For any unexpected error during loading.
-    """
-    if not os.path.exists(GTFS_FOLDER_PATH):
-        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
-
-    if files is None:
-        files = [
-            "agency.txt",
-            "stops.txt",
-            "routes.txt",
-            "trips.txt",
-            "stop_times.txt",
-            "calendar.txt",
-            "calendar_dates.txt",
-            "fare_attributes.txt",
-            "fare_rules.txt",
-            "feed_info.txt",
-            "frequencies.txt",
-            "shapes.txt",
-            "transfers.txt",
-        ]
-
-    missing = [
-        file_name
-        for file_name in files
-        if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
-    ]
-    if missing:
-        raise FileNotFoundError(
-            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
-        )
-
-    data = {}
-    for file_name in files:
-        key = file_name.replace(".txt", "")
-        file_path = os.path.join(GTFS_FOLDER_PATH, file_name)
-        try:
-            df = pd.read_csv(file_path, dtype=dtype)
-            data[key] = df
-            print(f"Loaded {file_name} ({len(df)} records).")
-
-        except pd.errors.EmptyDataError as exc:
-            raise ValueError(f"File '{file_name}' is empty.") from exc
-
-        except pd.errors.ParserError as exc:
-            raise ValueError(f"Parser error in '{file_name}': {exc}") from exc
-
-        except (OSError, RuntimeError) as exc:
-            # catch known I/O or runtime-related errors more narrowly
-            raise RuntimeError(f"Error loading '{file_name}': {exc}") from exc
-
-        except Exception as exc:  # pylint: disable=broad-exception-caught
-            # If you must catch everything else:
-            raise RuntimeError(
-                f"Unexpected error loading '{file_name}': {exc}"
-            ) from exc
-
-    return data
-
 
 # -----------------------------------------------------------------------------
 # REGULAR FUNCTIONS
@@ -820,15 +745,15 @@ def main():
 
     # 1) Load GTFS data
     try:
-        data = load_gtfs_data(dtype=str)  # Standardized loader
+        data = load_gtfs_data(gtfs_folder_path=GTFS_FOLDER_PATH, dtype=str)  # Standardized loader
         print("Successfully loaded GTFS files.")
-    except FileNotFoundError as error:
+    except FileNotFoundError as error:  # Catches OSError from helper for missing directory/files
         print(f"Error: {error}")
         sys.exit(1)
-    except (pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+    except ValueError as error:  # Catches ValueError from helper for empty/parsing errors
         print(f"Error reading GTFS files: {error}")
         sys.exit(1)
-    except RuntimeError as error:
+    except RuntimeError as error:  # Catches RuntimeError from helper for other OS errors
         print(f"An unexpected error occurred while reading GTFS files: {error}")
         sys.exit(1)
 

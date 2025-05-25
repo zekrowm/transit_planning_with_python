@@ -46,6 +46,7 @@ import os
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
+from helpers.gtfs_helpers import load_gtfs_data
 from openpyxl.utils import get_column_letter
 
 # Configure logging (optional)
@@ -93,28 +94,6 @@ CALENDAR_FILTER_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 # -----------------------------------------------------------------------------
 # FUNCTIONS
 # -----------------------------------------------------------------------------
-
-
-def check_input_files(base_path, files):
-    """Ensure all required GTFS files exist in the input directory."""
-    if not os.path.exists(base_path):
-        raise FileNotFoundError(f"The input directory {base_path} does not exist.")
-    for file_name in files:
-        file_path = os.path.join(base_path, file_name)
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(
-                f"The required GTFS file {file_name} does not exist in {base_path}."
-            )
-
-
-def load_gtfs_data(base_path, files):
-    """Load GTFS files into Pandas DataFrames."""
-    data = {}
-    for file_name in files:
-        file_path = os.path.join(base_path, file_name)
-        data_name = file_name.replace(".txt", "")
-        data[data_name] = pd.read_csv(file_path)
-    return data
 
 
 def fix_time_format(time_str):
@@ -427,11 +406,9 @@ def main():
                 TIME_INTERVAL_MINUTES,
             )
 
-        # Check if all input files exist
-        check_input_files(BASE_INPUT_PATH, GTFS_FILES)
-
         # Load GTFS data
-        data = load_gtfs_data(BASE_INPUT_PATH, GTFS_FILES)
+        # The check_input_files function is removed as load_gtfs_data handles this.
+        data = load_gtfs_data(gtfs_folder_path=BASE_INPUT_PATH, files=GTFS_FILES)
 
         # Process data and export to Excel
         process_and_export(
@@ -442,13 +419,15 @@ def main():
             CALENDAR_FILTER_DAYS,
         )
 
-    except FileNotFoundError as fnf_error:
+    except FileNotFoundError as fnf_error:  # Catches OSErrors from load_gtfs_data for missing paths/files
         logging.error("File not found error: %s", fnf_error)
-    except pd.errors.ParserError as parse_error:
-        logging.error("Parsing error while reading GTFS files: %s", parse_error)
+    # pd.errors.ParserError is caught as ValueError by the helper.
+    # The existing ValueError catch-all below will handle it.
+    # except pd.errors.ParserError as parse_error:
+    #     logging.error("Parsing error while reading GTFS files: %s", parse_error)
     except PermissionError as perm_error:
         logging.error("Permission error: %s", perm_error)
-    except ValueError as ve:
+    except ValueError as ve: # Catches ValueErrors from load_gtfs_data (e.g. empty files, parse errors)
         logging.error("Value error: %s", ve)
 
 
