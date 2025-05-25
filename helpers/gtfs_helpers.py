@@ -81,12 +81,18 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             logging.info(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
+            raise ValueError(
+                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
+            ) from exc
 
         except pd.errors.ParserError as exc:
-            raise ValueError(f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}") from exc
-        
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
         except OSError as exc:
-            raise RuntimeError(f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}") from exc
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
 
     return data
