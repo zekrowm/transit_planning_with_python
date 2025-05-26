@@ -4,10 +4,10 @@ End-to-end smoke test for ``bus_schedule_exporter``.
 
 What the test does
 ------------------
-1. Builds a complete but miniature GTFS bundle (2 stops, 1 weekday trip).  
+1. Builds a complete but miniature GTFS bundle (2 stops, 1 weekday trip).
    • Core logic files (`stops.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`,
-     `calendar.txt`) contain real data.  
-   • The seven other spec files are written with **only a header row**.  
+     `calendar.txt`) contain real data.
+   • The seven other spec files are written with **only a header row**.
      That satisfies the exporter's loader without adding noise.
 2. Monkey-patches the exporter’s global paths so it reads the bundle from a
    temporary directory and writes output next to it.
@@ -121,6 +121,7 @@ def _write_dummy_gtfs(gtfs_dir: Path) -> None:
 # ------------------------------------------------------------------------------
 # 2. End-to-end test
 # ------------------------------------------------------------------------------
+
 
 def test_exporter_creates_excel(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
