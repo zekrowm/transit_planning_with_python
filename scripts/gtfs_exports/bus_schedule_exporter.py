@@ -31,10 +31,10 @@ Dependencies:
     os, re, sys, logging, collections (defaultdict), pandas, openpyxl
 """
 
+import logging
 import os
 import re
 import sys
-import logging
 from collections import defaultdict
 
 import pandas as pd
@@ -66,6 +66,7 @@ MAX_COLUMN_WIDTH = 30
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -241,13 +242,17 @@ def prepare_timepoints(stop_times):
     )
     if stop_times["stop_sequence"].isnull().any():
         # Using logging instead of print for consistency, though this could be print too.
-        logging.warning("Some 'stop_sequence' values could not be converted to numeric.")
+        logging.warning(
+            "Some 'stop_sequence' values could not be converted to numeric."
+        )
 
     if "timepoint" in stop_times.columns:
         timepoints = stop_times[stop_times["timepoint"] == "1"].copy()
         logging.info("Filtered STOP_TIMES to rows with timepoint=1.")
     else:
-        logging.warning("Warning: 'timepoint' column not found. Using all stops as timepoints.")
+        logging.warning(
+            "Warning: 'timepoint' column not found. Using all stops as timepoints."
+        )
         timepoints = stop_times
 
     return timepoints
@@ -285,7 +290,7 @@ def check_schedule_order(
             if current_time is None:
                 continue
             if last_time is not None and current_time < last_time:
-                logging.warning( # Changed print to logging.warning
+                logging.warning(  # Changed print to logging.warning
                     f"⚠️ Time order violation in Route '{route_short_name}', "
                     f"Schedule '{schedule_type}', Direction '{dir_id}', "
                     f"Trip '{row['Trip Headsign']}': '{stop}' time {time_str} "
@@ -306,7 +311,7 @@ def check_schedule_order(
             if current_time is None:
                 continue
             if last_time is not None and current_time < last_time:
-                logging.warning( # Changed print to logging.warning
+                logging.warning(  # Changed print to logging.warning
                     f"⚠️ Time order violation in Route '{route_short_name}', "
                     f"Schedule '{schedule_type}', Direction '{dir_id}', "
                     f"Stop '{stop}': time {time_str} is earlier than "
@@ -315,7 +320,9 @@ def check_schedule_order(
                 break
             last_time = current_time
     # Using logging.info for consistency
-    logging.info(f"✅ Schedule order check passed for Route '{route_short_name}', Schedule '{schedule_type}', Direction '{dir_id}'.")
+    logging.info(
+        f"✅ Schedule order check passed for Route '{route_short_name}', Schedule '{schedule_type}', Direction '{dir_id}'."
+    )
 
 
 def safe_check_schedule_order(
@@ -330,7 +337,7 @@ def safe_check_schedule_order(
             input_df, ordered_stop_names, route_short_name, schedule_type, dir_id
         )
     except (ValueError, TypeError, KeyError) as error:
-        logging.error( # Changed print to logging.error
+        logging.error(  # Changed print to logging.error
             f"❌ Skipping schedule order check for route '{route_short_name}', "
             f"schedule '{schedule_type}', direction '{dir_id}' due to error:\n  {error}"
         )
@@ -376,7 +383,7 @@ def map_service_id_to_schedule(service_row_local):
         elif served_set == daily:
             schedule_label = "Daily"
         else:
-            schedule_label = "Special" # Could be a custom name based on days
+            schedule_label = "Special"  # Could be a custom name based on days
     return schedule_label
 
 
@@ -424,22 +431,27 @@ def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
     """
     relevant_dir = relevant_trips_dir[relevant_trips_dir["direction_id"] == dir_id]
     if relevant_dir.empty:
-        logging.warning(f"Warning: No trips found for direction_id '{dir_id}'.") # Changed to logging
+        logging.warning(
+            f"Warning: No trips found for direction_id '{dir_id}'."
+        )  # Changed to logging
         return pd.DataFrame()
 
     dir_trip_ids = relevant_dir["trip_id"].unique()
     subset_tp = timepoints[timepoints["trip_id"].isin(dir_trip_ids)]
     if subset_tp.empty:
-        logging.warning(f"Warning: No stop times found for direction_id '{dir_id}'.") # Changed to logging
+        logging.warning(
+            f"Warning: No stop times found for direction_id '{dir_id}'."
+        )  # Changed to logging
         return pd.DataFrame()
 
     # Find the "master" trip with the most timepoints
     trip_sizes = subset_tp.groupby("trip_id").size()
-    if trip_sizes.empty: # Added check for empty trip_sizes
-        logging.warning(f"Warning: No trip sizes to determine master trip for direction_id '{dir_id}'.")
+    if trip_sizes.empty:  # Added check for empty trip_sizes
+        logging.warning(
+            f"Warning: No trip sizes to determine master trip for direction_id '{dir_id}'."
+        )
         return pd.DataFrame()
     master_trip_id = trip_sizes.idxmax()
-
 
     # Extract that trip’s stops in ascending sequence
     master_data = subset_tp[subset_tp["trip_id"] == master_trip_id].copy()
@@ -474,8 +486,10 @@ def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
             }
         )
 
-    if not rows_data: # Added check for empty rows_data
-        logging.warning(f"Warning: No rows_data for master trip stops for direction_id '{dir_id}'.")
+    if not rows_data:  # Added check for empty rows_data
+        logging.warning(
+            f"Warning: No rows_data for master trip stops for direction_id '{dir_id}'."
+        )
         return pd.DataFrame()
 
     out_df = pd.DataFrame(rows_data)
@@ -506,14 +520,16 @@ def process_single_trip(trip_id, trip_stop_times, master_trip_stops, master_dict
     trip_info_rows = trips_df[trips_df["trip_id"] == trip_id]
     if trip_info_rows.empty:
         logging.warning(f"Trip ID {trip_id} not found in trips_df. Skipping.")
-        return [None] * (3 + len(master_trip_stops) + 1) # Match expected row length
+        return [None] * (3 + len(master_trip_stops) + 1)  # Match expected row length
     trip_info = trip_info_rows.iloc[0]
 
     route_id = trip_info["route_id"]
 
     route_name_rows = routes_df[routes_df["route_id"] == route_id]["route_short_name"]
     if route_name_rows.empty:
-        logging.warning(f"Route ID {route_id} for trip {trip_id} not found in routes_df. Using 'Unknown Route'.")
+        logging.warning(
+            f"Route ID {route_id} for trip {trip_id} not found in routes_df. Using 'Unknown Route'."
+        )
         route_name_val = "Unknown Route"
     else:
         route_name_val = route_name_rows.values[0]
@@ -572,24 +588,30 @@ def process_single_trip(trip_id, trip_stop_times, master_trip_stops, master_dict
             # Ensure times are in HH:MM format before converting to timedelta
             formatted_24h_times = []
             for t in valid_24h_times:
-                if re.match(r"^\d{1,2}:\d{2}$", t): # Basic HH:MM check
-                     # For times like "25:00", split and create timedelta
-                    h, m = map(int, t.split(':'))
+                if re.match(r"^\d{1,2}:\d{2}$", t):  # Basic HH:MM check
+                    # For times like "25:00", split and create timedelta
+                    h, m = map(int, t.split(":"))
                     formatted_24h_times.append(pd.Timedelta(hours=h, minutes=m))
-                elif re.match(r"^\d{1,2}:\d{2}:\d{2}$", t): # HH:MM:SS check
+                elif re.match(r"^\d{1,2}:\d{2}:\d{2}$", t):  # HH:MM:SS check
                     formatted_24h_times.append(pd.to_timedelta(t))
                 else:
-                    logging.warning(f"Invalid time format for sort_time: {t} in trip {trip_id}. Skipping this time.")
+                    logging.warning(
+                        f"Invalid time format for sort_time: {t} in trip {trip_id}. Skipping this time."
+                    )
 
             if formatted_24h_times:
                 max_sort_time = max(formatted_24h_times)
-            else: # If all times were invalid
-                max_sort_time = pd.Timedelta(days=999) # Effectively last
+            else:  # If all times were invalid
+                max_sort_time = pd.Timedelta(days=999)  # Effectively last
         except (ValueError, TypeError) as e:
-            logging.error(f"Error converting times for sorting in trip {trip_id}: {valid_24h_times}. Error: {e}")
-            max_sort_time = pd.Timedelta(days=999) # Effectively last
+            logging.error(
+                f"Error converting times for sorting in trip {trip_id}: {valid_24h_times}. Error: {e}"
+            )
+            max_sort_time = pd.Timedelta(days=999)  # Effectively last
     else:
-        max_sort_time = pd.Timedelta(days=999) # Effectively last, for trips with no valid times
+        max_sort_time = pd.Timedelta(
+            days=999
+        )  # Effectively last, for trips with no valid times
 
     row_data = (
         [route_name_val, direction_id, trip_headsign] + schedule_times + [max_sort_time]
@@ -619,7 +641,9 @@ def process_trips_for_direction(params):
     sched_type = params["sched_type"]
 
     if trips_dir.empty or master_trip_stops.empty:
-        logging.info(f"No usable trips/stops for route '{route_short}', schedule '{sched_type}', direction '{dir_id}'. Skipping.") # Changed to logging
+        logging.info(
+            f"No usable trips/stops for route '{route_short}', schedule '{sched_type}', direction '{dir_id}'. Skipping."
+        )  # Changed to logging
         return pd.DataFrame()
 
     # Build a quick lookup so we know each stop_id's column index in final output
@@ -638,7 +662,9 @@ def process_trips_for_direction(params):
     group_mask = timepoints["trip_id"].isin(trips_dir["trip_id"])
     timepoints_dir = timepoints[group_mask].copy()
     if timepoints_dir.empty:
-        logging.info(f"No stop times for route '{route_short}', schedule '{sched_type}', direction '{dir_id}' in TIMEPOINTS. Skipping.") # Changed to logging
+        logging.info(
+            f"No stop times for route '{route_short}', schedule '{sched_type}', direction '{dir_id}' in TIMEPOINTS. Skipping."
+        )  # Changed to logging
         return pd.DataFrame()
 
     stop_names_ordered = master_trip_stops["final_stop_name"].tolist()
@@ -655,7 +681,7 @@ def process_trips_for_direction(params):
             master_dict=master_dict,
             ctx=ctx,
         )
-        if row_data[0] is not None: # Check if trip processing was skipped
+        if row_data[0] is not None:  # Check if trip processing was skipped
             rows.append(row_data)
 
     if not rows:
@@ -678,14 +704,16 @@ def export_to_excel_multiple_sheets(df_dict, out_file):
     using openpyxl.
     """
     if not df_dict:
-        logging.info(f"No data to export to {out_file}.") # Changed to logging
+        logging.info(f"No data to export to {out_file}.")  # Changed to logging
         return
 
     try:
         with pd.ExcelWriter(out_file, engine="openpyxl") as writer:
             for sheet_name, input_df in df_dict.items():
                 if input_df.empty:
-                    logging.info(f"No data for sheet '{sheet_name}'. Skipping.") # Changed to logging
+                    logging.info(
+                        f"No data for sheet '{sheet_name}'. Skipping."
+                    )  # Changed to logging
                     continue
 
                 input_df.to_excel(writer, index=False, sheet_name=sheet_name)
@@ -708,11 +736,14 @@ def export_to_excel_multiple_sheets(df_dict, out_file):
                         max_length = max(
                             len(str(cell.value)) for cell in column_cells if cell.value
                         )
-                    except (ValueError, TypeError): # Handles case where column might be all None or empty
-                        max_length = 10 # Default width
+                    except (
+                        ValueError,
+                        TypeError,
+                    ):  # Handles case where column might be all None or empty
+                        max_length = 10  # Default width
                     adjusted_width = min(max_length + 2, MAX_COLUMN_WIDTH)
                     worksheet.column_dimensions[col_letter].width = adjusted_width
-        logging.info(f"Data exported to {out_file}") # Changed to logging
+        logging.info(f"Data exported to {out_file}")  # Changed to logging
     except Exception as e:
         logging.error(f"Failed to export to Excel file {out_file}. Error: {e}")
 
@@ -758,7 +789,9 @@ def filter_calendar_df(calendar_df):
     if FILTER_SERVICE_IDS:
         calendar_df = calendar_df[calendar_df["service_id"].isin(FILTER_SERVICE_IDS)]
     if calendar_df.empty:
-        logging.warning("No service_ids found after applying FILTER_SERVICE_IDS. Exiting.") # Changed to logging
+        logging.warning(
+            "No service_ids found after applying FILTER_SERVICE_IDS. Exiting."
+        )  # Changed to logging
         return None
     return calendar_df
 
@@ -776,16 +809,22 @@ def process_route_service_combinations(ctx):
     # 1) Determine final routes to process
     all_routes = get_all_route_short_names(routes_df)
     final_routes = apply_in_out_filters(all_routes)
-    logging.info(f"Final route selection after filters: {final_routes}") # Changed to logging
+    logging.info(
+        f"Final route selection after filters: {final_routes}"
+    )  # Changed to logging
 
     # 2) For each route, build schedules by direction & service_id
     for route_short_name in final_routes:
-        logging.info(f"\nProcessing route '{route_short_name}'...") # Changed to logging
+        logging.info(
+            f"\nProcessing route '{route_short_name}'..."
+        )  # Changed to logging
         route_ids = routes_df[routes_df["route_short_name"] == route_short_name][
             "route_id"
         ]
         if route_ids.empty:
-            logging.error(f"Error: Route '{route_short_name}' not found in routes.txt.") # Changed to logging
+            logging.error(
+                f"Error: Route '{route_short_name}' not found in routes.txt."
+            )  # Changed to logging
             continue
 
         for _, service_row in calendar_df.iterrows():
@@ -803,16 +842,18 @@ def process_route_service_combinations(ctx):
                 & (trips_df["service_id"] == service_id)
             ]
             if relevant_trips.empty:
-                logging.info( # Changed to logging
+                logging.info(  # Changed to logging
                     f"  No trips for route='{route_short_name}' "
                     f"and service_id='{service_id}'."
                 )
                 continue
 
-            direction_ids_local = relevant_trips["direction_id"].dropna().unique() # Added dropna()
+            direction_ids_local = (
+                relevant_trips["direction_id"].dropna().unique()
+            )  # Added dropna()
             df_sheets = {}
             for dir_id in direction_ids_local:
-                logging.info( # Changed to logging
+                logging.info(  # Changed to logging
                     f"    Building direction_id '{dir_id}' "
                     f"for service_id='{service_id}'..."
                 )
@@ -820,7 +861,9 @@ def process_route_service_combinations(ctx):
                     dir_id, relevant_trips, timepoints_df, ctx["stops"]
                 )
                 if master_trip_stops.empty:
-                    logging.info(f"      No master trip stops for direction_id '{dir_id}'. Skipping this direction.")
+                    logging.info(
+                        f"      No master trip stops for direction_id '{dir_id}'. Skipping this direction."
+                    )
                     continue
 
                 params_dict = {
@@ -841,7 +884,6 @@ def process_route_service_combinations(ctx):
                 else:
                     logging.info(f"      No output data for direction_id '{dir_id}'.")
 
-
             if df_sheets:
                 schedule_type_safe = (
                     schedule_type.replace(" ", "_").replace("-", "_").replace("/", "_")
@@ -852,7 +894,7 @@ def process_route_service_combinations(ctx):
                 )
                 export_to_excel_multiple_sheets(df_sheets, out_file)
             else:
-                logging.info( # Changed to logging
+                logging.info(  # Changed to logging
                     f"  No data to export for service_id '{service_id}' "
                     f"on route '{route_short_name}'."
                 )
@@ -876,28 +918,31 @@ def main():
     # Configure basic logging
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     # 1) Load GTFS data
     try:
         # Use the new load_gtfs_data, passing GTFS_FOLDER_PATH
         data = load_gtfs_data(GTFS_FOLDER_PATH, dtype=str)
-        logging.info("Successfully loaded GTFS files overall.") # Main success message
-    except OSError as error: # Catches directory not found, missing files from new function
+        logging.info("Successfully loaded GTFS files overall.")  # Main success message
+    except (
+        OSError
+    ) as error:  # Catches directory not found, missing files from new function
         logging.error(f"GTFS data loading error (OS): {error}")
         sys.exit(1)
-    except ValueError as error: # Catches empty file, parser errors from new function
+    except ValueError as error:  # Catches empty file, parser errors from new function
         logging.error(f"GTFS data loading error (Value): {error}")
         sys.exit(1)
-    except RuntimeError as error: # Catches OS errors during file reading from new function
+    except (
+        RuntimeError
+    ) as error:  # Catches OS errors during file reading from new function
         logging.error(f"GTFS data loading error (Runtime): {error}")
         sys.exit(1)
-    except Exception as error: # Catch any other unexpected error during loading
+    except Exception as error:  # Catch any other unexpected error during loading
         logging.error(f"An unexpected error occurred while loading GTFS files: {error}")
         sys.exit(1)
-
 
     # 2) Filter service IDs if any
     if "calendar" not in data:
@@ -908,7 +953,7 @@ def main():
         # filter_calendar_df already logs a warning if it becomes empty.
         # We exit here because subsequent steps depend on it.
         logging.info("Exiting due to no service IDs to process.")
-        return # Exit main
+        return  # Exit main
 
     # 3) Prepare timepoints
     if "stop_times" not in data:
@@ -942,7 +987,9 @@ def main():
         process_route_service_combinations(ctx)
         logging.info("Script finished successfully.")
     except Exception as e:
-        logging.error(f"An error occurred during schedule processing: {e}", exc_info=True)
+        logging.error(
+            f"An error occurred during schedule processing: {e}", exc_info=True
+        )
         sys.exit(1)
 
 
