@@ -64,6 +64,7 @@ VALIDATE_TIMEPOINT_DISTANCE = True
 # NEW GTFS LOADING FUNCTION
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
@@ -154,6 +155,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
     return data
 
+
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # -----------------------------------------------------------------------------
@@ -179,7 +181,9 @@ def convert_dist_to_miles(distance, input_unit):
     try:
         num_distance = float(distance)
     except ValueError:
-        logging.warning(f"Could not convert distance '{distance}' to float. Returning as-is.")
+        logging.warning(
+            f"Could not convert distance '{distance}' to float. Returning as-is."
+        )
         return distance
 
     if input_unit.lower() == "feet":
@@ -217,7 +221,7 @@ def minutes_to_hhmm(minutes_val):
     """
     if minutes_val is None or pd.isna(minutes_val):
         return ""
-    total_minutes = int(round(minutes_val)) # Round to nearest minute
+    total_minutes = int(round(minutes_val))  # Round to nearest minute
     hours = total_minutes // 60
     mins = total_minutes % 60
     return f"{hours:02d}:{mins:02d}"
@@ -310,20 +314,21 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
         how="inner",
     )
     if "shape_dist_traveled" not in tmp.columns:
-        tmp["shape_dist_traveled"] = np.nan # Will be float due to np.nan
+        tmp["shape_dist_traveled"] = np.nan  # Will be float due to np.nan
 
     tmp = pd.merge(tmp, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
 
     # Ensure stop_sequence is numeric for correct sorting
-    if 'stop_sequence' in tmp.columns:
+    if "stop_sequence" in tmp.columns:
         # This conversion should ideally happen once after loading stop_times_df
         # but ensuring it here defensively if df is passed around.
-        if not pd.api.types.is_numeric_dtype(tmp['stop_sequence']):
-            tmp['stop_sequence'] = pd.to_numeric(tmp['stop_sequence'], errors='raise')
+        if not pd.api.types.is_numeric_dtype(tmp["stop_sequence"]):
+            tmp["stop_sequence"] = pd.to_numeric(tmp["stop_sequence"], errors="raise")
     else:
-        logging.error("generate_unique_patterns: 'stop_sequence' column missing in merged stop_times. Critical for sorting.")
+        logging.error(
+            "generate_unique_patterns: 'stop_sequence' column missing in merged stop_times. Critical for sorting."
+        )
         return {}
-
 
     tmp.sort_values(["trip_id", "stop_sequence"], inplace=True)
 
@@ -331,9 +336,9 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
     # timepoint column was converted to numeric earlier if it exists
     if EXPORT_TIMEPOINTS_ONLY and "timepoint" in tmp.columns:
         # Ensure 'timepoint' is numeric for comparison if not already
-        if not pd.api.types.is_numeric_dtype(tmp['timepoint']):
-             tmp['timepoint'] = pd.to_numeric(tmp['timepoint'], errors='coerce')
-        tmp = tmp[tmp["timepoint"] == 1] # Comparison with numeric 1
+        if not pd.api.types.is_numeric_dtype(tmp["timepoint"]):
+            tmp["timepoint"] = pd.to_numeric(tmp["timepoint"], errors="coerce")
+        tmp = tmp[tmp["timepoint"] == 1]  # Comparison with numeric 1
 
     # For distance validation
     trip_distances = {}
@@ -341,8 +346,13 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
         for trip_id_val, group_sub in tmp.groupby("trip_id"):
             # shape_dist_traveled was converted to numeric earlier if it exists
             # Ensure 'shape_dist_traveled' is numeric for comparison if not already
-            if 'shape_dist_traveled' in group_sub.columns and not pd.api.types.is_numeric_dtype(group_sub['shape_dist_traveled']):
-                group_sub['shape_dist_traveled'] = pd.to_numeric(group_sub['shape_dist_traveled'], errors='coerce')
+            if (
+                "shape_dist_traveled" in group_sub.columns
+                and not pd.api.types.is_numeric_dtype(group_sub["shape_dist_traveled"])
+            ):
+                group_sub["shape_dist_traveled"] = pd.to_numeric(
+                    group_sub["shape_dist_traveled"], errors="coerce"
+                )
 
             group_sub_dist_valid = group_sub.dropna(subset=["shape_dist_traveled"])
             if group_sub_dist_valid.empty:
@@ -361,22 +371,28 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
     for trip_id_val, group_sub in tmp.groupby("trip_id"):
         group_sub = group_sub.sort_values("stop_sequence")
         stops_for_trip = []
-        prev_dist_val = None # This will be a numeric type after first valid shape_dist_traveled
+        prev_dist_val = (
+            None  # This will be a numeric type after first valid shape_dist_traveled
+        )
 
         for _, row in group_sub.iterrows():
             stop_id_val = row["stop_id"]
             # shape_dist_traveled is numeric here (or NaN)
             shape_val = row["shape_dist_traveled"]
-            if prev_dist_val is None: # First stop in sequence for distance calc
+            if prev_dist_val is None:  # First stop in sequence for distance calc
                 dist_str = "-"
             else:
                 if pd.notnull(shape_val) and pd.notnull(prev_dist_val):
                     # Both are numeric, direct subtraction
                     diff_numeric = shape_val - prev_dist_val
-                    diff_miles = convert_dist_to_miles(diff_numeric, INPUT_DISTANCE_UNIT)
+                    diff_miles = convert_dist_to_miles(
+                        diff_numeric, INPUT_DISTANCE_UNIT
+                    )
                     if pd.notnull(diff_miles) and isinstance(diff_miles, (int, float)):
-                        dist_str = f"{diff_miles:.2f}" if diff_miles != 0 else "0.00" # represent zero distance
-                    else: # if conversion failed or returned non-numeric
+                        dist_str = (
+                            f"{diff_miles:.2f}" if diff_miles != 0 else "0.00"
+                        )  # represent zero distance
+                    else:  # if conversion failed or returned non-numeric
                         dist_str = ""
                 else:
                     dist_str = ""
@@ -390,13 +406,15 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
         if VALIDATE_TIMEPOINT_DISTANCE and EXPORT_TIMEPOINTS_ONLY:
             sum_seg = 0.0
             for _, dist_segment_str in stops_for_trip:
-                if is_number(dist_segment_str): # is_number checks if it can be float
+                if is_number(dist_segment_str):  # is_number checks if it can be float
                     sum_seg += float(dist_segment_str)
 
             full_trip_dist_miles = trip_distances.get(trip_id_val, None)
-            if (full_trip_dist_miles is not None and
-                isinstance(full_trip_dist_miles, (int, float)) and
-                abs(sum_seg - full_trip_dist_miles) > 0.02):
+            if (
+                full_trip_dist_miles is not None
+                and isinstance(full_trip_dist_miles, (int, float))
+                and abs(sum_seg - full_trip_dist_miles) > 0.02
+            ):
                 logging.warning(
                     "Trip %s sum of segments=%.2f vs. full=%.2f mismatch >0.02",
                     trip_id_val,
@@ -405,13 +423,15 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
                 )
 
         if group_sub.empty:
-            logging.warning(f"Empty group for trip_id {trip_id_val} in pattern generation.")
+            logging.warning(
+                f"Empty group for trip_id {trip_id_val} in pattern generation."
+            )
             continue
 
         first_row = group_sub.iloc[0]
         route_id_val = first_row["route_id"]
-        direction_id_val = first_row["direction_id"] # Will be string "0", "1" etc.
-        service_id_val = first_row["service_id"] # Will be string
+        direction_id_val = first_row["direction_id"]  # Will be string "0", "1" etc.
+        service_id_val = first_row["service_id"]  # Will be string
 
         patterns_list.append(
             {
@@ -455,8 +475,8 @@ def assign_pattern_ids(patterns_dict):
     group_map = defaultdict(list)
     for pattern_val in patterns_dict.values():
         route_id_val = pattern_val["route_id"]
-        dir_id_val = pattern_val["direction_id"] # string "0", "1"
-        srv_id_val = pattern_val["service_id"] # string
+        dir_id_val = pattern_val["direction_id"]  # string "0", "1"
+        srv_id_val = pattern_val["service_id"]  # string
         group_map[(route_id_val, srv_id_val, dir_id_val)].append(pattern_val)
 
     out = []
@@ -473,7 +493,7 @@ def assign_pattern_ids(patterns_dict):
                     "pattern_stops": pattern_rec["pattern_stops"],
                     "trip_count": pattern_rec["trip_count"],
                     "trip_ids": pattern_rec["trip_ids"],
-                    "pattern_id": idx, # numeric
+                    "pattern_id": idx,  # numeric
                 }
             )
     logging.info("Assigned pattern IDs to pattern records.")
@@ -491,23 +511,33 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
     of each trip in that pattern.
     """
     # arrival_time and departure_time are strings from load_gtfs_data(dtype=str)
-    if "arrival_time" not in stop_times_df.columns and "departure_time" not in stop_times_df.columns:
-        logging.warning("Cannot compute earliest start times: arrival_time and departure_time columns missing.")
+    if (
+        "arrival_time" not in stop_times_df.columns
+        and "departure_time" not in stop_times_df.columns
+    ):
+        logging.warning(
+            "Cannot compute earliest start times: arrival_time and departure_time columns missing."
+        )
         for rec in pattern_records:
             rec["earliest_time_minutes"] = None
             rec["earliest_time_str"] = ""
         return
 
     # Ensure stop_sequence is numeric for sorting (should have been done post-load)
-    if 'stop_sequence' in stop_times_df.columns and not pd.api.types.is_numeric_dtype(stop_times_df['stop_sequence']):
-        logging.warning("compute_earliest_start_times: stop_sequence in stop_times_df is not numeric. Attempting conversion.")
-        stop_times_df['stop_sequence'] = pd.to_numeric(stop_times_df['stop_sequence'], errors='raise')
-
+    if "stop_sequence" in stop_times_df.columns and not pd.api.types.is_numeric_dtype(
+        stop_times_df["stop_sequence"]
+    ):
+        logging.warning(
+            "compute_earliest_start_times: stop_sequence in stop_times_df is not numeric. Attempting conversion."
+        )
+        stop_times_df["stop_sequence"] = pd.to_numeric(
+            stop_times_df["stop_sequence"], errors="raise"
+        )
 
     stop_times_by_trip = stop_times_df.groupby("trip_id")
     for rec in pattern_records:
         trip_ids = rec["trip_ids"]
-        earliest_val = None # in minutes
+        earliest_val = None  # in minutes
         for t_id in trip_ids:
             if t_id not in stop_times_by_trip.groups:
                 continue
@@ -536,7 +566,7 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
             if earliest_val is None or this_min < earliest_val:
                 earliest_val = this_min
 
-        rec["earliest_time_minutes"] = earliest_val # float or None
+        rec["earliest_time_minutes"] = earliest_val  # float or None
         rec["earliest_time_str"] = minutes_to_hhmm(earliest_val)
 
 
@@ -559,8 +589,8 @@ def find_master_trip_stops(
     # timepoint column is numeric if it exists (after initial conversion)
     if "timepoint" in st_sub.columns and EXPORT_TIMEPOINTS_ONLY:
         # Ensure numeric for comparison
-        if not pd.api.types.is_numeric_dtype(st_sub['timepoint']):
-            st_sub['timepoint'] = pd.to_numeric(st_sub['timepoint'], errors='coerce')
+        if not pd.api.types.is_numeric_dtype(st_sub["timepoint"]):
+            st_sub["timepoint"] = pd.to_numeric(st_sub["timepoint"], errors="coerce")
         st_sub = st_sub[st_sub["timepoint"] == 1]
 
     sizes = st_sub.groupby("trip_id").size()
@@ -589,7 +619,7 @@ def forward_match_pattern_to_master(pattern_stops, master_stops):
     result = [""] * len(master_stops)
     i = 0  # master_stops index
     j = 0  # pattern_stops index
-    
+
     # The first stop of a pattern conceptually has no preceding segment *within that pattern*.
     # Its distance value in pattern_stops (e.g., "-") should be placed.
     # If pattern_stops[0] is ("stop_A", "-"), and master_stops[0] is ("stop_A", "Stop A Name"),
@@ -600,7 +630,7 @@ def forward_match_pattern_to_master(pattern_stops, master_stops):
         pat_sid, dist_str = pattern_stops[j]
 
         if master_sid == pat_sid:
-            result[i] = dist_str # Place the distance string from the pattern
+            result[i] = dist_str  # Place the distance string from the pattern
             i += 1
             j += 1
         else:
@@ -628,8 +658,8 @@ def fill_worksheet_for_direction(
     workbook,
     sheet_title,
     route_short_name,
-    direction_id_val, # string "0", "1"
-    service_id_val,   # string
+    direction_id_val,  # string "0", "1"
+    service_id_val,  # string
     pattern_records_dir,
     master_stops,
 ):
@@ -642,7 +672,11 @@ def fill_worksheet_for_direction(
         worksheet = workbook.create_sheet(title=f"{sheet_title[:28]}_X")
 
     if not master_stops:
-        worksheet.append([f"No master stops found for Route {route_short_name} Dir {direction_id_val}."])
+        worksheet.append(
+            [
+                f"No master stops found for Route {route_short_name} Dir {direction_id_val}."
+            ]
+        )
         return
 
     header = [
@@ -661,8 +695,8 @@ def fill_worksheet_for_direction(
         pattern_records_dir,
         key=lambda rec: (
             rec.get("earliest_time_minutes") is None,
-            rec.get("earliest_time_minutes", float('inf')),
-            rec.get("pattern_id", 0)
+            rec.get("earliest_time_minutes", float("inf")),
+            rec.get("pattern_id", 0),
         ),
     )
 
@@ -671,7 +705,9 @@ def fill_worksheet_for_direction(
         trip_count = rec["trip_count"]
         earliest_str = rec.get("earliest_time_str", "")
         pattern_stops_tuple = rec["pattern_stops"]
-        row_distances = forward_match_pattern_to_master(pattern_stops_tuple, master_stops)
+        row_distances = forward_match_pattern_to_master(
+            pattern_stops_tuple, master_stops
+        )
 
         row_data = [
             route_short_name,
@@ -686,9 +722,9 @@ def fill_worksheet_for_direction(
 
     for col_index, _ in enumerate(header, 1):
         col_letter = get_column_letter(col_index)
-        max_len = len(str(header[col_index-1]))
+        max_len = len(str(header[col_index - 1]))
         # Iterate through data for this column to find max length for slightly better auto-fit
-        for row_idx in range(2, worksheet.max_row + 1): # Start from data row 2
+        for row_idx in range(2, worksheet.max_row + 1):  # Start from data row 2
             cell_value = worksheet.cell(row=row_idx, column=col_index).value
             if cell_value is not None:
                 max_len = max(max_len, len(str(cell_value)))
@@ -697,7 +733,7 @@ def fill_worksheet_for_direction(
 
 def export_patterns_to_excel(
     pattern_records, routes_df, trips_df, stop_times_df, stops_df, calendar_df=None
-): # Added trips_df here
+):  # Added trips_df here
     """
     For each (route_id, service_id), group patterns by direction, create a subfolder
     and save an Excel workbook with one sheet per direction.
@@ -719,8 +755,15 @@ def export_patterns_to_excel(
         else:
             short_name = f"Route_{rid_val}"
             logging.warning(f"No route_short_name found for route_id {rid_val}.")
-        
-        sane_short_name = "".join(c if c.isalnum() or c in (' ', '_', '-') else '_' for c in str(short_name)).strip().replace(' ', '_')
+
+        sane_short_name = (
+            "".join(
+                c if c.isalnum() or c in (" ", "_", "-") else "_"
+                for c in str(short_name)
+            )
+            .strip()
+            .replace(" ", "_")
+        )
 
         folder_name = format_service_id_folder_name(sid_val, calendar_df)
         folder_path = os.path.join(OUTPUT_DIR, folder_name)
@@ -733,25 +776,37 @@ def export_patterns_to_excel(
             dir_map[d_id_val].append(rec_dir)
 
         if not dir_map:
-            logging.warning(f"No patterns to export for Route {sane_short_name}, Service ID {sid_val}.")
+            logging.warning(
+                f"No patterns to export for Route {sane_short_name}, Service ID {sid_val}."
+            )
             continue
 
         for direction_val_str, recs_for_direction in dir_map.items():
             all_trip_ids_for_master = set()
-            for pattern_rec in recs_for_direction: # recs_for_direction contains patterns for specific route,service,direction
+            for (
+                pattern_rec
+            ) in (
+                recs_for_direction
+            ):  # recs_for_direction contains patterns for specific route,service,direction
                 all_trip_ids_for_master.update(pattern_rec["trip_ids"])
-            
+
             # Filter trips_df for current route, service, direction to find master stops
             # Ensure IDs are strings for comparison, as they are loaded as such.
             relevant_trips_for_master = trips_df[
-                (trips_df["route_id"].astype(str) == rid_val) &
-                (trips_df["service_id"].astype(str) == sid_val) &
-                (trips_df["direction_id"].astype(str) == direction_val_str) &
-                (trips_df["trip_id"].isin(all_trip_ids_for_master)) # trip_id is already in the correct set
+                (trips_df["route_id"].astype(str) == rid_val)
+                & (trips_df["service_id"].astype(str) == sid_val)
+                & (trips_df["direction_id"].astype(str) == direction_val_str)
+                & (
+                    trips_df["trip_id"].isin(all_trip_ids_for_master)
+                )  # trip_id is already in the correct set
             ]
 
             current_master_stops = find_master_trip_stops(
-                rid_val, direction_val_str, relevant_trips_for_master, stop_times_df, stops_df
+                rid_val,
+                direction_val_str,
+                relevant_trips_for_master,
+                stop_times_df,
+                stops_df,
             )
 
             sheet_title = f"Dir{direction_val_str}"
@@ -766,12 +821,16 @@ def export_patterns_to_excel(
             )
 
         if not workbook.sheetnames:
-            logging.warning(f"Workbook for Route {sane_short_name}, Service {sid_val} is empty. Not saving.")
+            logging.warning(
+                f"Workbook for Route {sane_short_name}, Service {sid_val} is empty. Not saving."
+            )
             continue
 
         filename = f"{sane_short_name}_{sid_val}_{SIGNUP_NAME}.xlsx"
-        filename = "".join(c if c.isalnum() or c in ('.', '_', '-') else '_' for c in filename)
-        
+        filename = "".join(
+            c if c.isalnum() or c in (".", "_", "-") else "_" for c in filename
+        )
+
         full_filepath = os.path.join(folder_path, filename)
         try:
             workbook.save(full_filepath)
@@ -799,22 +858,32 @@ def main():
 
     # Load calendar.txt (optional)
     calendar_df = None
-    calendar_file_path = os.path.join(INPUT_DIR, "calendar.txt") # Using string literal
+    calendar_file_path = os.path.join(INPUT_DIR, "calendar.txt")  # Using string literal
     if os.path.exists(calendar_file_path):
         try:
             calendar_df = pd.read_csv(calendar_file_path, dtype=str)
             if calendar_df.empty and os.path.getsize(calendar_file_path) > 0:
-                 logging.warning(f"Loaded calendar.txt but it appears to have headers only or is malformed ({len(calendar_df)} records).")
+                logging.warning(
+                    f"Loaded calendar.txt but it appears to have headers only or is malformed ({len(calendar_df)} records)."
+                )
             elif not calendar_df.empty:
-                 logging.info(f"Loaded calendar.txt successfully ({len(calendar_df)} records).")
+                logging.info(
+                    f"Loaded calendar.txt successfully ({len(calendar_df)} records)."
+                )
             else:
-                 logging.info(f"calendar.txt ({calendar_file_path}) exists but is empty.")
-                 calendar_df = None
+                logging.info(
+                    f"calendar.txt ({calendar_file_path}) exists but is empty."
+                )
+                calendar_df = None
         except pd.errors.EmptyDataError:
-            logging.warning(f"calendar.txt ({calendar_file_path}) is empty. Proceeding without calendar day names.")
+            logging.warning(
+                f"calendar.txt ({calendar_file_path}) is empty. Proceeding without calendar day names."
+            )
             calendar_df = None
         except Exception as exc:
-            logging.warning(f"Could not load calendar.txt from {calendar_file_path}: {exc}")
+            logging.warning(
+                f"Could not load calendar.txt from {calendar_file_path}: {exc}"
+            )
             calendar_df = None
     else:
         logging.info(
@@ -822,10 +891,17 @@ def main():
         )
 
     # Load essential GTFS files using the new function
-    essential_files = ["stops.txt", "trips.txt", "stop_times.txt", "routes.txt"] # Using string literals
+    essential_files = [
+        "stops.txt",
+        "trips.txt",
+        "stop_times.txt",
+        "routes.txt",
+    ]  # Using string literals
     try:
         gtfs_data = load_gtfs_data(INPUT_DIR, files=essential_files, dtype=str)
-        logging.info("Loaded essential GTFS files successfully using new load_gtfs_data function.")
+        logging.info(
+            "Loaded essential GTFS files successfully using new load_gtfs_data function."
+        )
 
     except (OSError, ValueError, RuntimeError) as exc:
         logging.error(f"Failed to load essential GTFS files: {exc}")
@@ -837,33 +913,52 @@ def main():
     routes_df = gtfs_data.get("routes")
 
     if any(df is None for df in [stops_df, trips_df, stop_times_df, routes_df]):
-        logging.error("One or more essential GTFS DataFrames could not be loaded correctly. Exiting.")
+        logging.error(
+            "One or more essential GTFS DataFrames could not be loaded correctly. Exiting."
+        )
         return
     if any(df.empty for df in [stops_df, trips_df, stop_times_df, routes_df]):
         # Check which ones are empty for more specific logging
-        empty_files = [name for name, df in zip(["stops", "trips", "stop_times", "routes"], [stops_df, trips_df, stop_times_df, routes_df]) if df.empty]
-        logging.error(f"Essential GTFS DataFrame(s) are empty: {', '.join(empty_files)}. This may indicate issues with the input files. Exiting.")
+        empty_files = [
+            name
+            for name, df in zip(
+                ["stops", "trips", "stop_times", "routes"],
+                [stops_df, trips_df, stop_times_df, routes_df],
+            )
+            if df.empty
+        ]
+        logging.error(
+            f"Essential GTFS DataFrame(s) are empty: {', '.join(empty_files)}. This may indicate issues with the input files. Exiting."
+        )
         return
-
 
     # --- Type Conversions due to dtype=str from load_gtfs_data ---
-    if 'stop_sequence' in stop_times_df.columns:
-        stop_times_df['stop_sequence'] = pd.to_numeric(stop_times_df['stop_sequence'], errors='raise')
+    if "stop_sequence" in stop_times_df.columns:
+        stop_times_df["stop_sequence"] = pd.to_numeric(
+            stop_times_df["stop_sequence"], errors="raise"
+        )
     else:
-        logging.error("'stop_sequence' column is missing from stop_times.txt. This is critical. Exiting.")
+        logging.error(
+            "'stop_sequence' column is missing from stop_times.txt. This is critical. Exiting."
+        )
         return
 
-    if 'timepoint' in stop_times_df.columns:
-        stop_times_df['timepoint'] = pd.to_numeric(stop_times_df['timepoint'], errors='coerce')
-    
-    if 'shape_dist_traveled' in stop_times_df.columns:
-        stop_times_df['shape_dist_traveled'] = pd.to_numeric(stop_times_df['shape_dist_traveled'], errors='coerce')
-    # --- End Type Conversions ---
+    if "timepoint" in stop_times_df.columns:
+        stop_times_df["timepoint"] = pd.to_numeric(
+            stop_times_df["timepoint"], errors="coerce"
+        )
 
+    if "shape_dist_traveled" in stop_times_df.columns:
+        stop_times_df["shape_dist_traveled"] = pd.to_numeric(
+            stop_times_df["shape_dist_traveled"], errors="coerce"
+        )
+    # --- End Type Conversions ---
 
     filtered_trips = filter_trips(trips_df, routes_df, cal_ids=FILTER_IN_CALENDAR_IDS)
     if filtered_trips.empty:
-        logging.info("No trips after filtering. This may be expected based on filters. Exiting.") # Changed to info
+        logging.info(
+            "No trips after filtering. This may be expected based on filters. Exiting."
+        )  # Changed to info
         return
 
     patterns_dict = generate_unique_patterns(filtered_trips, stop_times_df, stops_df)
