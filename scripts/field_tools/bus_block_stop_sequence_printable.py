@@ -47,8 +47,8 @@ REQUIRED_GTFS_FILES = [
 ]
 
 # If you only want certain service IDs or route short names, specify them here:
-FILTER_SERVICE_IDS: list[str] = []         # e.g. ["WKD", "SAT"]
-FILTER_ROUTE_SHORT_NAMES: list[str] = []   # e.g. ["101", "202"]
+FILTER_SERVICE_IDS: list[str] = []  # e.g. ["WKD", "SAT"]
+FILTER_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["101", "202"]
 
 # Placeholder values for printing:
 MISSING_TIME = "________"
@@ -73,13 +73,15 @@ logging.basicConfig(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] | None = None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
     This function uses the logging module for output.
     """
-    import os
     import logging
+    import os
+
     import pandas as pd
 
     if not os.path.exists(gtfs_folder_path):
@@ -119,7 +121,9 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] | None = None, dtype=
             data[key] = df
             logging.info(f"Loaded {file_name} ({len(df)} records).")
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
+            raise ValueError(
+                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
+            ) from exc
         except pd.errors.ParserError as exc:
             raise ValueError(
                 f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
@@ -135,6 +139,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] | None = None, dtype=
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def time_to_seconds(time_str):
     """
@@ -173,6 +178,7 @@ def format_hhmm(total_seconds):
 # -----------------------------------------------------------------------------
 # OTHER FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def export_to_excel(data_frame, output_file):
     """
@@ -395,6 +401,7 @@ def export_blocks(stop_times_df):
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     print("========================================================")
