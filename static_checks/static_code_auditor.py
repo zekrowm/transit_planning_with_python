@@ -60,24 +60,24 @@ from openpyxl.utils import get_column_letter
 # ============================================================================
 
 FILES_OR_FOLDERS: List[str] = [
-    r"C:\Path\to\Main\Input\Folder", # Replace with your folder or file path
+    r"C:\Path\to\Main\Input\Folder",  # Replace with your folder or file path
 ]
 SKIP_PATHS: List[str] = [
     # e.g. r"C:\Path\to\project\venv",
 ]
 
-OUTPUT_FOLDER: str = r"C:\Path\to\Output\Folder" # Replace with your folder path
+OUTPUT_FOLDER: str = r"C:\Path\to\Output\Folder"  # Replace with your folder path
 LOG_LEVEL: int = logging.INFO
 
-ENABLE_MYPY:    bool = True
+ENABLE_MYPY: bool = True
 ENABLE_VULTURE: bool = True
-ENABLE_LINT:    bool = True  # pylint + isort + docstring
+ENABLE_LINT: bool = True  # pylint + isort + docstring
 
 # mypy
 MYPY_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--ignore-missing-imports"]
 
 # vulture
-VULTURE_MIN_CONFIDENCE: int = 60      # default is 60
+VULTURE_MIN_CONFIDENCE: int = 60  # default is 60
 
 # lint (pylint + isort + docstring)
 REQUIRED_DOC_HEADERS: Tuple[str, ...] = (
@@ -119,9 +119,7 @@ def setup_detailed_logger(
     return lg, logfile
 
 
-def gather_python_files(
-    paths: List[str], skip_list: List[str]
-) -> List[str]:
+def gather_python_files(paths: List[str], skip_list: List[str]) -> List[str]:
     """Collect .py files, respecting the skip list."""
     collected: List[str] = []
 
@@ -165,14 +163,24 @@ def run_mypy(files: List[str]) -> int:
 
     results = []
     for idx, py in enumerate(files, 1):
-        logger.info("\n%s\nFILE %d/%d → %s\n%s",
-                    "="*80, idx, len(files), py, "="*80)
+        logger.info(
+            "\n%s\nFILE %d/%d → %s\n%s", "=" * 80, idx, len(files), py, "=" * 80
+        )
         try:
             proc = subprocess.run(
-                [sys.executable, "-m", "mypy",
-                 "--show-error-codes", "--no-color-output",
-                 *MYPY_ADDITIONAL_ARGS, py],
-                capture_output=True, text=True, encoding="utf-8", errors="replace"
+                [
+                    sys.executable,
+                    "-m",
+                    "mypy",
+                    "--show-error-codes",
+                    "--no-color-output",
+                    *MYPY_ADDITIONAL_ARGS,
+                    py,
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             out, err = proc.stdout, proc.stderr
         except FileNotFoundError:
@@ -189,14 +197,16 @@ def run_mypy(files: List[str]) -> int:
         else:
             errors = len([l for l in (out or "").splitlines() if ": error:" in l])
 
-        results.append({
-            "script": Path(py).name,
-            "folder": Path(py).parent.name,
-            "path": py,
-            "errors": errors,
-            "success": "Yes" if errors == 0 else "No",
-            "stderr": err or "",
-        })
+        results.append(
+            {
+                "script": Path(py).name,
+                "folder": Path(py).parent.name,
+                "path": py,
+                "errors": errors,
+                "success": "Yes" if errors == 0 else "No",
+                "stderr": err or "",
+            }
+        )
 
     # Excel summary
     wb = Workbook()
@@ -204,11 +214,20 @@ def run_mypy(files: List[str]) -> int:
     ws.title = "mypy Summary"
     ws.append(["Script", "Folder", "# Errors", "Success", "Path", "Stderr"])
     for r in results:
-        ws.append([r["script"], r["folder"], r["errors"],
-                   r["success"], r["path"], r["stderr"]])
+        ws.append(
+            [
+                r["script"],
+                r["folder"],
+                r["errors"],
+                r["success"],
+                r["path"],
+                r["stderr"],
+            ]
+        )
     for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = \
-            min(max(len(str(c.value or "")) for c in col) + 2, 80)
+        ws.column_dimensions[col[0].column_letter].width = min(
+            max(len(str(c.value or "")) for c in col) + 2, 80
+        )
 
     xlsx = Path(OUTPUT_FOLDER) / f"mypy_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
     wb.save(xlsx)
@@ -230,13 +249,23 @@ def run_vulture(files: List[str]) -> int:
 
     summary = []
     for idx, py in enumerate(files, 1):
-        logger.info("\n%s\nFILE %d/%d → %s\n%s",
-                    "="*80, idx, len(files), py, "="*80)
+        logger.info(
+            "\n%s\nFILE %d/%d → %s\n%s", "=" * 80, idx, len(files), py, "=" * 80
+        )
         try:
             proc = subprocess.run(
-                [sys.executable, "-m", "vulture", py,
-                 "--min-confidence", str(VULTURE_MIN_CONFIDENCE)],
-                capture_output=True, text=True, encoding="utf-8", errors="replace"
+                [
+                    sys.executable,
+                    "-m",
+                    "vulture",
+                    py,
+                    "--min-confidence",
+                    str(VULTURE_MIN_CONFIDENCE),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             out, err = proc.stdout, proc.stderr
         except FileNotFoundError:
@@ -252,25 +281,29 @@ def run_vulture(files: List[str]) -> int:
             if m:
                 items.append(f"{m.group(2)} (line {m.group(1)}, {m.group(3)})")
 
-        summary.append({
-            "script": Path(py).name,
-            "folder": Path(py).parent.name,
-            "path": py,
-            "count": len(items),
-            "details": "; ".join(items) if items else "None",
-            "stderr": (err or "").strip(),
-        })
+        summary.append(
+            {
+                "script": Path(py).name,
+                "folder": Path(py).parent.name,
+                "path": py,
+                "count": len(items),
+                "details": "; ".join(items) if items else "None",
+                "stderr": (err or "").strip(),
+            }
+        )
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Vulture Dead Code"
     ws.append(["Script", "Folder", "Items", "Details", "Stderr", "Path"])
     for r in summary:
-        ws.append([r["script"], r["folder"], r["count"],
-                   r["details"], r["stderr"], r["path"]])
+        ws.append(
+            [r["script"], r["folder"], r["count"], r["details"], r["stderr"], r["path"]]
+        )
     for i, col in enumerate(ws.columns, 1):
-        ws.column_dimensions[get_column_letter(i)].width = \
-            min(max(len(str(c.value or "")) for c in col) + 2, 70)
+        ws.column_dimensions[get_column_letter(i)].width = min(
+            max(len(str(c.value or "")) for c in col) + 2, 70
+        )
 
     xlsx = Path(OUTPUT_FOLDER) / f"vulture_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
     wb.save(xlsx)
@@ -311,14 +344,18 @@ def run_lint(files: List[str]) -> int:
 
     summary = []
     for idx, py in enumerate(files, 1):
-        logger.info("\n%s\nFILE %d/%d → %s\n%s",
-                    "="*80, idx, len(files), py, "="*80)
+        logger.info(
+            "\n%s\nFILE %d/%d → %s\n%s", "=" * 80, idx, len(files), py, "=" * 80
+        )
 
         # pylint
         try:
             pr = subprocess.run(
                 [sys.executable, "-m", "pylint", py],
-                capture_output=True, text=True, encoding="utf-8", errors="replace"
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             pout, perr = pr.stdout, pr.stderr
         except FileNotFoundError:
@@ -343,7 +380,10 @@ def run_lint(files: List[str]) -> int:
         try:
             ir = subprocess.run(
                 [sys.executable, "-m", "isort", "--check-only", "--diff", py],
-                capture_output=True, text=True, encoding="utf-8", errors="replace"
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
             iout, ierr = ir.stdout, ir.stderr
             needs_isort = ir.returncode != 0
@@ -357,32 +397,51 @@ def run_lint(files: List[str]) -> int:
         # docstring
         doc_ok = _docstring_ok(py)
 
-        summary.append({
-            "script": Path(py).name,
-            "folder": Path(py).parent.name,
-            "score": score,
-            "issues": issues,
-            "isort": "Yes" if needs_isort else "No",
-            "doc":   "Yes" if doc_ok else "No",
-            "stderr": (perr or "") + (ierr or ""),
-            "path": py,
-        })
+        summary.append(
+            {
+                "script": Path(py).name,
+                "folder": Path(py).parent.name,
+                "score": score,
+                "issues": issues,
+                "isort": "Yes" if needs_isort else "No",
+                "doc": "Yes" if doc_ok else "No",
+                "stderr": (perr or "") + (ierr or ""),
+                "path": py,
+            }
+        )
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Lint Summary"
-    ws.append([
-        "Script", "Folder", "Pylint Score", "Pylint Issues",
-        "Needs isort", "Docstring OK", "Stderr", "Path"
-    ])
+    ws.append(
+        [
+            "Script",
+            "Folder",
+            "Pylint Score",
+            "Pylint Issues",
+            "Needs isort",
+            "Docstring OK",
+            "Stderr",
+            "Path",
+        ]
+    )
     for r in summary:
-        ws.append([
-            r["script"], r["folder"], r["score"], r["issues"],
-            r["isort"], r["doc"], r["stderr"], r["path"]
-        ])
+        ws.append(
+            [
+                r["script"],
+                r["folder"],
+                r["score"],
+                r["issues"],
+                r["isort"],
+                r["doc"],
+                r["stderr"],
+                r["path"],
+            ]
+        )
     for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = \
-            min(max(len(str(c.value or "")) for c in col) + 2, 80)
+        ws.column_dimensions[col[0].column_letter].width = min(
+            max(len(str(c.value or "")) for c in col) + 2, 80
+        )
 
     xlsx = Path(OUTPUT_FOLDER) / f"lint_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
     wb.save(xlsx)
@@ -397,6 +456,7 @@ def run_lint(files: List[str]) -> int:
 # ============================================================================
 # MAIN
 # ============================================================================
+
 
 def main() -> None:
     files = gather_python_files(FILES_OR_FOLDERS, SKIP_PATHS)
