@@ -13,7 +13,7 @@ Inputs:
         3. OUTPUT_FILE  – tree filename (inside OUTPUT_DIR)
 
 Outputs
-        1. Console: formatted directory tree  
+        1. Console: formatted directory tree
         2. Disk: plain-text copy of the same tree
 
 Dependencies:
