@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"  # Location of requirements.txt
+    schedule:
+      interval: "weekly"
+      day: "sunday"    # Runs on Sunday
+      time: "00:00"     # At 00:00 UTC
+      timezone: "UTC"
+    allow:
+      - dependency-type: "direct"  # Only update explicitly listed dependencies
+    ignore:
+      - dependency-name: "xlrd"
+        versions: ["2.0.1"]  # Ignore updates unless you manually lift this
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
