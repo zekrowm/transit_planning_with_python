@@ -35,6 +35,7 @@ Dependencies:
     Only the Python standard library.
     (importlib.metadata is stdlib from Python 3.8 onward.)
 """
+
 from __future__ import annotations
 
 import ast
@@ -59,6 +60,7 @@ _STD_LIB_NAMES: Set[str] = set(sys.stdlib_module_names)  # Python 3.10+
 # =============================================================================
 # HELPERS
 # =============================================================================
+
 
 def _gather_python_files(root: Path) -> Iterable[Path]:
     """Yield every *.py file under *root* (depth-first)."""
@@ -102,9 +104,7 @@ def _module_origin(name: str) -> Path | None:
     return None
 
 
-def _classify_modules(
-    modules: Set[str], project_root: Path
-) -> Mapping[str, Set[str]]:
+def _classify_modules(modules: Set[str], project_root: Path) -> Mapping[str, Set[str]]:
     """
     Split *modules* into {'stdlib', 'third_party', 'local'} according to:
 
