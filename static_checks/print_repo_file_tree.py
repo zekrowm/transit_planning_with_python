@@ -1,6 +1,6 @@
 """
 Script Name:
-        file_tree_printer.py
+        print_repo_file_tree.py
 
 Purpose:
         Walks a directory (``TARGET_DIR``), builds an ASCII/UTF-8 tree of every folder
