@@ -1,14 +1,23 @@
 """
-Script Name: file_tree_printer.py
-Purpose: Walk a directory tree, find all files, and print/save a directory-style tree.
+Script Name:
+        file_tree_printer.py
+
+Purpose:
+        Walks a directory (``TARGET_DIR``), builds an ASCII/UTF-8 tree of every folder
+        that contains at least one file, writes the listing to
+        ``OUTPUT_DIR/OUTPUT_FILE`` and echoes it to stdout.
+
 Inputs:
-    TARGET_DIR: Directory to scan for files.
-    OUTPUT_DIR: Directory where the output file will be written.
-    OUTPUT_FILE: Name of the output tree file.
-Outputs:
-    Prints tree to console and writes tree to OUTPUT_DIR/OUTPUT_FILE.
+        1. TARGET_DIR   – root folder to scan
+        2. OUTPUT_DIR   – destination folder for the tree text
+        3. OUTPUT_FILE  – tree filename (inside OUTPUT_DIR)
+
+Outputs
+        1. Console: formatted directory tree  
+        2. Disk: plain-text copy of the same tree
+
 Dependencies:
-    os, sys
+        os, sys
 """
 
 import os
