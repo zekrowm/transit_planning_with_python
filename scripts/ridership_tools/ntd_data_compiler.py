@@ -3,9 +3,11 @@ Script Name:
     ntd_data_compiler.py
 """
 
-from __future__ import annotations      # postpone evaluation of type-hints
+from __future__ import annotations  # postpone evaluation of type-hints
+
 import os
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
+
 import pandas as pd
 
 
@@ -33,30 +35,28 @@ def robust_numeric_converter(value):
 # CONFIGURATION
 # =============================================================================
 FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
-    (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP BY ROUTE.XLSX",
-     "Temporary_Query_N"),
-    (r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX",
-     "Temporary_Query_N"),
-    (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX",
-     "Sep.2024 Finals"),
+    (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Temporary_Query_N"),
+    (
+        r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX",
+        "Temporary_Query_N",
+    ),
+    (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Sep.2024 Finals"),
 ]
 
-OUTPUT_FILE_PATH = (
-    r"\\Path\to\Your\Output_Folder\Compiled_NTD_Data.csv"   # or .xlsx
-)
+OUTPUT_FILE_PATH = r"\\Path\to\Your\Output_Folder\Compiled_NTD_Data.csv"  # or .xlsx
 
 COMMON_CONVERTERS = {
-    "MTH_BOARD":      robust_numeric_converter,
-    "MTH_REV_HOURS":  robust_numeric_converter,
+    "MTH_BOARD": robust_numeric_converter,
+    "MTH_REV_HOURS": robust_numeric_converter,
     "MTH_PASS_MILES": robust_numeric_converter,
-    "ASCH_TRIPS":     robust_numeric_converter,
-    "ACTUAL_TRIPS":   robust_numeric_converter,
-    "DAYS":           robust_numeric_converter,
-    "REV_MILES":      robust_numeric_converter,
+    "ASCH_TRIPS": robust_numeric_converter,
+    "ACTUAL_TRIPS": robust_numeric_converter,
+    "DAYS": robust_numeric_converter,
+    "REV_MILES": robust_numeric_converter,
 }
 
-DROPNA_SUBSET_ALL_NAN = None   # e.g. ["ROUTE_NAME", "MTH_BOARD"]
-DROPNA_SUBSET_ANY_NAN = None   # e.g. ["ROUTE_NAME", "MTH_BOARD"]
+DROPNA_SUBSET_ALL_NAN = None  # e.g. ["ROUTE_NAME", "MTH_BOARD"]
+DROPNA_SUBSET_ANY_NAN = None  # e.g. ["ROUTE_NAME", "MTH_BOARD"]
 
 EXISTING_PERIOD_COLUMN_NAME = "NameOfYourExistingMonthYearColumn"  # ← update
 
@@ -65,8 +65,7 @@ EXISTING_PERIOD_COLUMN_NAME = "NameOfYourExistingMonthYearColumn"  # ← update
 # SCRIPT FUNCTIONS
 # =============================================================================
 def read_and_prepare_ntd_file(
-        file_path: str,
-        sheet_name: Optional[str] = None
+    file_path: str, sheet_name: Optional[str] = None
 ) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
     """
     Returns a tuple (kept_rows, discarded_rows).
@@ -77,14 +76,14 @@ def read_and_prepare_ntd_file(
         print(f"ERROR: File not found: {file_path}. Skipping.")
         return None, None
 
-    print(f"Processing file: {os.path.basename(file_path)}, "
-          f"Sheet: {sheet_name or 'first available'}")
+    print(
+        f"Processing file: {os.path.basename(file_path)}, "
+        f"Sheet: {sheet_name or 'first available'}"
+    )
 
     try:
         df = pd.read_excel(
-            file_path,
-            sheet_name=sheet_name,
-            converters=COMMON_CONVERTERS
+            file_path, sheet_name=sheet_name, converters=COMMON_CONVERTERS
         )
 
         # ------------------ filtering logic ------------------
@@ -102,13 +101,18 @@ def read_and_prepare_ntd_file(
         dropped_df = df[~keep_mask].copy()
 
         # log diagnostics
-        if EXISTING_PERIOD_COLUMN_NAME and \
-           EXISTING_PERIOD_COLUMN_NAME not in df.columns:
-            print(f"  Warning: period column "
-                  f"'{EXISTING_PERIOD_COLUMN_NAME}' not found.")
+        if (
+            EXISTING_PERIOD_COLUMN_NAME
+            and EXISTING_PERIOD_COLUMN_NAME not in df.columns
+        ):
+            print(
+                f"  Warning: period column "
+                f"'{EXISTING_PERIOD_COLUMN_NAME}' not found."
+            )
 
-        print(f"  Rows kept: {len(kept_df):>6} | "
-              f"Rows discarded: {len(dropped_df):>6}")
+        print(
+            f"  Rows kept: {len(kept_df):>6} | " f"Rows discarded: {len(dropped_df):>6}"
+        )
 
         return kept_df, dropped_df
 
@@ -162,7 +166,7 @@ def compile_ntd_data() -> Optional[pd.DataFrame]:
         def write_dataframe(df: pd.DataFrame, path: str) -> None:
             if path.lower().endswith(".xlsx"):
                 df.to_excel(path, index=False)
-            else:                          # default to CSV
+            else:  # default to CSV
                 df.to_csv(path, index=False)
 
         # save kept rows
@@ -200,18 +204,21 @@ if __name__ == "__main__":
         print("CRITICAL ERROR: 'OUTPUT_FILE_PATH' not set.")
         critical_ok = False
     if not EXISTING_PERIOD_COLUMN_NAME:
-        print("WARNING: 'EXISTING_PERIOD_COLUMN_NAME' not set; "
-              "period validation will be skipped.")
+        print(
+            "WARNING: 'EXISTING_PERIOD_COLUMN_NAME' not set; "
+            "period validation will be skipped."
+        )
 
     if critical_ok:
         result_df = compile_ntd_data()
         if result_df is not None:
-            print(f"\nCompilation summary: {result_df.shape[0]} rows × "
-                  f"{result_df.shape[1]} columns.")
+            print(
+                f"\nCompilation summary: {result_df.shape[0]} rows × "
+                f"{result_df.shape[1]} columns."
+            )
         else:
             print("\nCompilation failed or returned no data.")
     else:
         print("\nScript terminated due to configuration errors.")
 
     print("\n--- Script Finished ---")
-
