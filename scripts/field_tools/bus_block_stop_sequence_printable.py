@@ -4,29 +4,31 @@ Script Name:
 
 Purpose:
     Generates printable, stop-by-stop Excel schedules for each
-    vehicle block defined in GTFS data. Merges trip, stop time,
-    stop, and route information. Supports optional filtering by
-    service ID and route short name. Primarily intended for field
+    vehicle block defined in GTFS data.  Merges trip, stop-time,
+    stop, and route information.  Supports optional filtering by
+    service ID and route short name.  Primarily intended for field
     operations and audits.
 
 Inputs:
-    1. GTFS data files (specifically requires trips.txt,
-       stop_times.txt, stops.txt, routes.txt, calendar.txt)
-       located in the folder specified by GTFS_FOLDER_PATH.
+    1. GTFS data files (requires at minimum trips.txt, stop_times.txt,
+       stops.txt, routes.txt, calendar.txt) located in the directory
+       specified by GTFS_FOLDER_PATH.
 
 Outputs:
-    1. Individual Excel (.xlsx) files, one per vehicle block found
-       after applying filters. Each file contains a formatted schedule
-       with columns for field data entry (Actual Time, Boardings, etc.).
+    1. Individual Excel (.xlsx) files, one per vehicle block after
+       filtering.  Each file contains a formatted schedule with
+       columns for field data entry (Actual Time, Boardings, etc.).
        Files are saved to the folder specified by BASE_OUTPUT_PATH.
 
 Dependencies:
     pandas, openpyxl, logging
 """
 
+from __future__ import annotations
 import math
 import os
-
+import logging
+from pathlib import Path
 import pandas as pd
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
@@ -57,14 +59,6 @@ MISSING_VALUE = "_____"
 # Maximum column width for neat Excel formatting:
 MAX_COLUMN_WIDTH = 35
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s: %(message)s",
-)
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -73,17 +67,40 @@ logging.basicConfig(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] | None = None, dtype=str):
+def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
     This function uses the logging module for output.
+
+    Parameters:
+        gtfs_folder_path (str): Path to the directory containing GTFS files.
+        files (list[str], optional): GTFS filenames to load. Default is all
+            standard GTFS files:
+            [
+                "agency.txt",
+                "stops.txt",
+                "routes.txt",
+                "trips.txt",
+                "stop_times.txt",
+                "calendar.txt",
+                "calendar_dates.txt",
+                "fare_attributes.txt",
+                "fare_rules.txt",
+                "feed_info.txt",
+                "frequencies.txt",
+                "shapes.txt",
+                "transfers.txt"
+            ]
+        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+
+    Raises:
+        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
+        ValueError: If a file is empty or there's a parsing error.
+        RuntimeError: For OS errors during file reading.
     """
-    import logging
-    import os
-
-    import pandas as pd
-
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
@@ -105,14 +122,16 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] | None = None, dtype=
         ]
 
     missing = [
-        f for f in files if not os.path.exists(os.path.join(gtfs_folder_path, f))
+        file_name
+        for file_name in files
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
         raise OSError(
             f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
         )
 
-    data: dict[str, pd.DataFrame] = {}
+    data = {}
     for file_name in files:
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
@@ -120,21 +139,23 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] | None = None, dtype=
             df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
             data[key] = df
             logging.info(f"Loaded {file_name} ({len(df)} records).")
+
         except pd.errors.EmptyDataError as exc:
             raise ValueError(
                 f"File '{file_name}' in '{gtfs_folder_path}' is empty."
             ) from exc
+
         except pd.errors.ParserError as exc:
             raise ValueError(
                 f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
+
         except OSError as exc:
             raise RuntimeError(
                 f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
 
     return data
-
 
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
@@ -402,17 +423,24 @@ def export_blocks(stop_times_df):
 # MAIN
 # =============================================================================
 
+def main() -> None:
+    """Entry point – orchestrates GTFS load, filter, prep, export."""
+    # --------------------------------------------------------------
+    # Configure logging *inside* main (repo style)
+    # --------------------------------------------------------------
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s: %(message)s",
+    )
 
-def main():
-    print("========================================================")
-    print(" GTFS Block Schedule Printable Generator")
-    print("========================================================")
-    print(f"Input GTFS Folder: {GTFS_FOLDER_PATH}")
-    print(f"Output Folder:     {BASE_OUTPUT_PATH}")
+    logging.info("========================================================")
+    logging.info("GTFS Block Schedule Printable Generator")
+    logging.info("Input GTFS Folder: %s", GTFS_FOLDER_PATH)
+    logging.info("Output Folder:     %s", BASE_OUTPUT_PATH)
     if FILTER_ROUTE_SHORT_NAMES:
-        print(f"Filtering for Routes: {FILTER_ROUTE_SHORT_NAMES}")
+        logging.info("Filtering for Routes: %s", FILTER_ROUTE_SHORT_NAMES)
     if FILTER_SERVICE_IDS:
-        print(f"Filtering for Service IDs: {FILTER_SERVICE_IDS}")
+        logging.info("Filtering for Service IDs: %s", FILTER_SERVICE_IDS)
 
     try:
         gtfs_data = load_gtfs_data(
@@ -421,33 +449,30 @@ def main():
             dtype=str,
         )
 
-        trips_df = gtfs_data["trips"]
+        trips_df      = gtfs_data["trips"]
         stop_times_df = gtfs_data["stop_times"]
-        stops_df = gtfs_data["stops"]
-        routes_df = gtfs_data["routes"]
+        stops_df      = gtfs_data["stops"]
+        routes_df     = gtfs_data["routes"]
 
         trips_df, stop_times_df = filter_data(trips_df, stop_times_df, routes_df)
         if trips_df.empty or stop_times_df.empty:
-            print("\nNo data remains after filtering. No files will be generated.")
+            logging.warning("No data remains after filtering – no files generated.")
             return
 
         prepared = prepare_stop_times(trips_df, stop_times_df, stops_df)
         if prepared.empty:
-            print("\nNo data remains after preparation. No files will be generated.")
+            logging.warning("No data remains after preparation – no files generated.")
             return
 
         export_blocks(prepared)
-
-        print("\n========================================================")
-        print(" Script finished successfully.")
-        print("========================================================")
+        logging.info("Script finished successfully.")
 
     except (OSError, ValueError, RuntimeError) as err:
         logging.error("%s", err)
-    except Exception as err:  # catch-all for unexpected issues
+    except Exception as err:           # catch-all for unforeseen issues
         logging.exception("Unexpected error: %s", err)
     finally:
-        print("\nExiting script.")
+        logging.info("Exiting script.")
 
 
 if __name__ == "__main__":
