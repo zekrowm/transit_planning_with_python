@@ -24,6 +24,7 @@ Dependencies:
 """
 
 import os
+import logging
 
 import pandas as pd
 
@@ -80,20 +81,29 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
-
-def load_gtfs_data(files=None, dtype=str):
+def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
-    Loads GTFS files into pandas DataFrames from a path defined externally
-    (GTFS_FOLDER_PATH).
+    Loads GTFS files into pandas DataFrames from the specified directory.
+    This function uses the logging module for output.
 
     Parameters:
+        gtfs_folder_path (str): Path to the directory containing GTFS files.
         files (list[str], optional): GTFS filenames to load. Default is all
             standard GTFS files:
             [
-                "agency.txt", "stops.txt", "routes.txt", "trips.txt",
-                "stop_times.txt", "calendar.txt", "calendar_dates.txt",
-                "fare_attributes.txt", "fare_rules.txt", "feed_info.txt",
-                "frequencies.txt", "shapes.txt", "transfers.txt"
+                "agency.txt",
+                "stops.txt",
+                "routes.txt",
+                "trips.txt",
+                "stop_times.txt",
+                "calendar.txt",
+                "calendar_dates.txt",
+                "fare_attributes.txt",
+                "fare_rules.txt",
+                "feed_info.txt",
+                "frequencies.txt",
+                "shapes.txt",
+                "transfers.txt"
             ]
         dtype (str or dict, optional): Pandas dtype to use. Default is str.
 
@@ -101,17 +111,13 @@ def load_gtfs_data(files=None, dtype=str):
         dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
 
     Raises:
-        FileNotFoundError: If GTFS_FOLDER_PATH doesn't exist or if any required
-            file is missing.
+        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
         ValueError: If a file is empty or there's a parsing error.
-        Exception: For any unexpected error during loading.
+        RuntimeError: For OS errors during file reading.
     """
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
-    # Check if GTFS_FOLDER_PATH exists
-    if not os.path.exists(GTFS_FOLDER_PATH):
-        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
-
-    # Default to all standard GTFS files if none were specified
     if files is None:
         files = [
             "agency.txt",
@@ -129,42 +135,45 @@ def load_gtfs_data(files=None, dtype=str):
             "transfers.txt",
         ]
 
-    # Check for missing files
     missing = [
         file_name
         for file_name in files
-        if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, file_name))
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise FileNotFoundError(
-            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        raise OSError(
+            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
         )
 
-    # Load files into DataFrames
     data = {}
     for file_name in files:
         key = file_name.replace(".txt", "")
-        file_path = os.path.join(GTFS_FOLDER_PATH, file_name)
-
+        file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype)
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
             data[key] = df
-            print(f"Loaded {file_name} ({len(df)} records).")
+            logging.info(f"Loaded {file_name} ({len(df)} records).")
 
-        except pd.errors.EmptyDataError:
-            raise ValueError(f"File '{file_name}' is empty.")
-        except pd.errors.ParserError as err:
-            raise ValueError(f"Parser error in '{file_name}': {err}")
-        except Exception as err:
-            raise Exception(f"Error loading '{file_name}': {err}")
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(
+                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
+            ) from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
 
     return data
-
-
+    
 # --------------------------------------------------------------------------------------------------
 # VALIDATION UTILITY
 # --------------------------------------------------------------------------------------------------
-
 
 def validate_folders(input_path, output_path):
     """
@@ -181,7 +190,6 @@ def validate_folders(input_path, output_path):
 # --------------------------------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # --------------------------------------------------------------------------------------------------
-
 
 def time_to_minutes(time_str):
     """
@@ -233,7 +241,6 @@ def find_cluster(stop_id, bus_stop_clusters):
 # --------------------------------------------------------------------------------------------------
 # BRIDGING LOGIC REFACTOR
 # --------------------------------------------------------------------------------------------------
-
 
 def _status_for_same_trip(minute, stop_info):
     """
@@ -766,7 +773,7 @@ def run_step1_gtfs_to_blocks():
 
     # Use the standardized loader
     print("Loading GTFS data using standardized function ...")
-    gtfs_data = load_gtfs_data(dtype=str)  # or files=[...] if you want to limit
+    gtfs_data = load_gtfs_data(GTFS_FOLDER_PATH, dtype=str)
 
     # Pull out frames you'll need
     trips_df = gtfs_data["trips"]
