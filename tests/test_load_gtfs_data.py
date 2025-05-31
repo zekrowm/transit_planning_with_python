@@ -8,11 +8,12 @@ Purpose:
 Run locally with:
     pytest -q
 """
+
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
-import os
 
 import pandas as pd
 import pytest
@@ -34,17 +35,27 @@ if PROJECT_ROOT.as_posix() not in sys.path:
     sys.path.insert(0, PROJECT_ROOT.as_posix())
 
 # Now regular imports work whether or not the package is pip-installed.
-from helpers.gtfs_loader import load_gtfs_data         # adjust module name only
+from helpers.gtfs_loader import load_gtfs_data  # adjust module name only
 
 ###############################################################################
 # Helper: write the minimal valid GTFS files pytest needs for a happy-path run
 ###############################################################################
 REQUIRED = [
-    "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
-    "calendar.txt", "calendar_dates.txt", "fare_attributes.txt",
-    "fare_rules.txt", "feed_info.txt", "frequencies.txt",
-    "shapes.txt", "transfers.txt",
+    "agency.txt",
+    "stops.txt",
+    "routes.txt",
+    "trips.txt",
+    "stop_times.txt",
+    "calendar.txt",
+    "calendar_dates.txt",
+    "fare_attributes.txt",
+    "fare_rules.txt",
+    "feed_info.txt",
+    "frequencies.txt",
+    "shapes.txt",
+    "transfers.txt",
 ]
+
 
 def create_minimal_gtfs(folder: Path) -> None:
     """
@@ -68,6 +79,7 @@ def create_minimal_gtfs(folder: Path) -> None:
         else:
             path.write_text("dummy_col\nvalue\n", encoding="utf-8")
 
+
 ###############################################################################
 # 1. Happy-path test
 ###############################################################################
@@ -79,6 +91,7 @@ def test_load_gtfs_success(tmp_path: Path) -> None:
     assert all(isinstance(df, pd.DataFrame) for df in data.values())
     assert data["agency"].shape == (1, 2)
 
+
 ###############################################################################
 # 2. Directory does not exist
 ###############################################################################
@@ -86,14 +99,16 @@ def test_load_gtfs_missing_directory() -> None:
     with pytest.raises(OSError, match="does not exist"):
         load_gtfs_data("path/that/does/not/exist")
 
+
 ###############################################################################
 # 3. A required file is missing
 ###############################################################################
 def test_load_gtfs_missing_file(tmp_path: Path) -> None:
     create_minimal_gtfs(tmp_path)
-    os.remove(tmp_path / "agency.txt")        # make one file vanish
+    os.remove(tmp_path / "agency.txt")  # make one file vanish
     with pytest.raises(OSError, match="agency.txt"):
         load_gtfs_data(tmp_path)
+
 
 ###############################################################################
 # 4. A file exists but is empty
