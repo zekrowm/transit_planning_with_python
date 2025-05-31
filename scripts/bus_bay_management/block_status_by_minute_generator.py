@@ -23,8 +23,8 @@ Dependencies:
     2. Data: GTFS formatted input data.
 """
 
-import os
 import logging
+import os
 
 import pandas as pd
 
@@ -80,6 +80,7 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # --------------------------------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -170,10 +171,12 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             ) from exc
 
     return data
-    
+
+
 # --------------------------------------------------------------------------------------------------
 # VALIDATION UTILITY
 # --------------------------------------------------------------------------------------------------
+
 
 def validate_folders(input_path, output_path):
     """
@@ -190,6 +193,7 @@ def validate_folders(input_path, output_path):
 # --------------------------------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # --------------------------------------------------------------------------------------------------
+
 
 def time_to_minutes(time_str):
     """
@@ -241,6 +245,7 @@ def find_cluster(stop_id, bus_stop_clusters):
 # --------------------------------------------------------------------------------------------------
 # BRIDGING LOGIC REFACTOR
 # --------------------------------------------------------------------------------------------------
+
 
 def _status_for_same_trip(minute, stop_info):
     """
