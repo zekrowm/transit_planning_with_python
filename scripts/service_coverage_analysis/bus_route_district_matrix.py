@@ -44,16 +44,18 @@ DISTRICTS_SHP = r"Path\To\Your\Districts.shp"
 
 # Path to GTFS folder on G: drive
 GTFS_DIR = r"Path\To\Your\GTFS_data"
-ROUTES_FILE = "routes.txt"
-STOPS_FILE = "stops.txt"
-TRIPS_FILE = "trips.txt"
-STOP_TIMES_FILE = "stop_times.txt"
+GTFS_FILES = [
+    "routes.txt",
+    "stops.txt",
+    "trips.txt",
+    "stop_times.txt",
+]
 
 # Distance in feet (example: 1320 ~ 0.25 miles in a feet-based projection)
 BUFFER_DISTANCE = 1320
 
 # Final Excel output
-OUTPUT_EXCEL = r"Path\To\Your\Output_folder"
+OUTPUT_EXCEL = r"Path\To\Your\Excel_File.xlsx"
 
 # Workspace folder (if you need to write intermediate shapefiles, place them here)
 WORKSPACE_FOLDER = r"Path\To\Your\Temp_folder"
@@ -65,35 +67,101 @@ TARGET_EPSG = 2248  # Adjust if your region uses a different EPSG code
 # Specify the district column name in your shapefile
 DISTRICT_FIELD = "DISTRICT"
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # FUNCTIONS
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
+    """
+    Loads GTFS files into pandas DataFrames from the specified directory.
+    This function uses the logging module for output.
 
-def load_gtfs_data(gtfs_dir):
+    Parameters:
+        gtfs_folder_path (str): Path to the directory containing GTFS files.
+        files (list[str], optional): GTFS filenames to load. Default is all
+            standard GTFS files:
+            [
+                "agency.txt",
+                "stops.txt",
+                "routes.txt",
+                "trips.txt",
+                "stop_times.txt",
+                "calendar.txt",
+                "calendar_dates.txt",
+                "fare_attributes.txt",
+                "fare_rules.txt",
+                "feed_info.txt",
+                "frequencies.txt",
+                "shapes.txt",
+                "transfers.txt"
+            ]
+        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+
+    Raises:
+        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
+        ValueError: If a file is empty or there's a parsing error.
+        RuntimeError: For OS errors during file reading.
     """
-    Load GTFS data into pandas DataFrames.
-    Returns a dict with keys: 'routes', 'stops', 'trips', 'stop_times'.
-    """
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
+
+    if files is None:
+        files = [
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt",
+        ]
+
+    missing = [
+        file_name
+        for file_name in files
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
+    ]
+    if missing:
+        raise OSError(
+            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
+        )
+
     data = {}
-    routes_path = os.path.join(gtfs_dir, ROUTES_FILE)
-    stops_path = os.path.join(gtfs_dir, STOPS_FILE)
-    trips_path = os.path.join(gtfs_dir, TRIPS_FILE)
-    stop_times_path = os.path.join(gtfs_dir, STOP_TIMES_FILE)
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(gtfs_folder_path, file_name)
+        try:
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            data[key] = df
+            logging.info(f"Loaded {file_name} ({len(df)} records).")
 
-    if not os.path.exists(routes_path):
-        raise FileNotFoundError(f"Could not find {routes_path}")
-    if not os.path.exists(stops_path):
-        raise FileNotFoundError(f"Could not find {stops_path}")
-    if not os.path.exists(trips_path):
-        raise FileNotFoundError(f"Could not find {trips_path}")
-    if not os.path.exists(stop_times_path):
-        raise FileNotFoundError(f"Could not find {stop_times_path}")
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(
+                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
+            ) from exc
 
-    data["routes"] = pd.read_csv(routes_path, dtype=str)
-    data["stops"] = pd.read_csv(stops_path, dtype=str)
-    data["trips"] = pd.read_csv(trips_path, dtype=str)
-    data["stop_times"] = pd.read_csv(stop_times_path, dtype=str)
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
 
     return data
 
@@ -218,45 +286,62 @@ def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
 # MAIN
 # =============================================================================
 
-
-def main():
+def main() -> None:
     """
-    End-to-end workflow using GeoPandas:
-      1) Load GTFS data into pandas
-      2) Read District shapefile (geopandas)
-      3) Create stops GDF (lat/lon -> points), reproject
-      4) Buffer stops
-      5) Intersect with District polygons
-      6) Build route vs. district coverage matrix
-      7) Output to Excel
-    """
-    # 1) Load GTFS data
-    gtfs_data = load_gtfs_data(GTFS_DIR)
+    End-to-end workflow:
 
-    # 2) Read District shapefile, reproject if not in EPSG:2248
+      1. Configure logging.
+      2. Load GTFS data (using the new loader).
+      3. Read / re-project district polygons.
+      4. Build a projected GeoDataFrame of stops.
+      5. Buffer the stops and intersect with districts.
+      6. Build the route-vs-district matrix.
+      7. Write the result to Excel.
+    """
+    # ------------------------------------------------------------------ 1 — LOGGING
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s — %(levelname)s — %(message)s",
+    )
+
+    # ------------------------------------------------------------------ 2 — GTFS
+    try:
+        gtfs_data = load_gtfs_data(
+            GTFS_DIR,
+            files=GTFS_FILES,   # ["routes.txt", "stops.txt", "trips.txt", "stop_times.txt"]
+            dtype=str,
+        )
+    except (OSError, ValueError, RuntimeError) as exc:
+        logging.error("Failed to load GTFS data: %s", exc)
+        raise
+
+    # ------------------------------------------------------------------ 3 — DISTRICTS
     districts_gdf = gpd.read_file(DISTRICTS_SHP)
     if districts_gdf.crs is None or districts_gdf.crs.to_epsg() != TARGET_EPSG:
+        logging.info("Re-projecting districts to EPSG:%s", TARGET_EPSG)
         districts_gdf = districts_gdf.to_crs(epsg=TARGET_EPSG)
 
-    # 3) Create a projected GeoDataFrame of stops
+    # ------------------------------------------------------------------ 4 — STOPS → GDF
     stops_projected_gdf = create_projected_stops_gdf(
-        stops_df=gtfs_data["stops"], epsg_out=TARGET_EPSG
+        stops_df=gtfs_data["stops"],
+        epsg_out=TARGET_EPSG,
     )
 
-    # 4) Buffer the stops
+    # ------------------------------------------------------------------ 5 — BUFFER + INTERSECT
     stops_buffer_gdf = buffer_stops_gdf(stops_projected_gdf, BUFFER_DISTANCE)
-
-    # 5) Intersect with District polygons
     intersect_gdf = intersect_districts_gdf(stops_buffer_gdf, districts_gdf)
 
-    # 6) Build route vs. district matrix using the configured district field
+    # ------------------------------------------------------------------ 6 — MATRIX
     df_matrix = build_route_district_matrix(
-        gtfs_data=gtfs_data, intersect_gdf=intersect_gdf, district_field=DISTRICT_FIELD
+        gtfs_data=gtfs_data,
+        intersect_gdf=intersect_gdf,
+        district_field=DISTRICT_FIELD,
     )
 
-    # 7) Write to Excel
+    # ------------------------------------------------------------------ 7 — OUTPUT
+    os.makedirs(os.path.dirname(OUTPUT_EXCEL), exist_ok=True)
     write_dataframe_to_excel(df_matrix, OUTPUT_EXCEL)
-    print(f"Done! Excel written to: {OUTPUT_EXCEL}")
+    logging.info("Done! Excel written to: %s", OUTPUT_EXCEL)
 
 
 if __name__ == "__main__":
