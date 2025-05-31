@@ -10,14 +10,34 @@ from typing import List, Optional, Tuple
 
 import pandas as pd
 
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
+    (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Temporary_Query_N"),
+    (
+        r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX",
+        "Temporary_Query_N",
+    ),
+    (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Sep.2024 Finals"),
+]
+
+OUTPUT_FILE_PATH: str = r"\\Path\to\Your\Output_Folder\Compiled_NTD_Data.csv"  # or .xlsx
+
+# Optional row-exclusion rules
+DROPNA_SUBSET_ALL_NAN: Optional[List[str]] = None  # e.g. ["ROUTE_NAME", "MTH_BOARD"]
+DROPNA_SUBSET_ANY_NAN: Optional[List[str]] = None  # e.g. ["ROUTE_NAME", "MTH_BOARD"]
+
+EXISTING_PERIOD_COLUMN_NAME: str = "NameOfYourExistingMonthYearColumn"  # ← update
+
 
 # =============================================================================
-# UTILITY FUNCTIONS (defined first so they are available below)
+# FUNCTIONS
 # =============================================================================
 def robust_numeric_converter(value):
     """
-    Convert a string such as "1,234" to float 1234.0.
-    Returns None on blanks / NA or where conversion fails.
+    Convert strings such as "1,234" → 1234.0 (float).
+    Returns None on blanks / NA or on conversion failure (with a warning).
     """
     if pd.isna(value):
         return None
@@ -31,20 +51,9 @@ def robust_numeric_converter(value):
         return None
 
 
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
-    (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Temporary_Query_N"),
-    (
-        r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX",
-        "Temporary_Query_N",
-    ),
-    (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Sep.2024 Finals"),
-]
-
-OUTPUT_FILE_PATH = r"\\Path\to\Your\Output_Folder\Compiled_NTD_Data.csv"  # or .xlsx
-
+# -----------------------------------------------------------------------------
+# Mapping of column names → converters that will be passed to pandas.read_excel
+# -----------------------------------------------------------------------------
 COMMON_CONVERTERS = {
     "MTH_BOARD": robust_numeric_converter,
     "MTH_REV_HOURS": robust_numeric_converter,
@@ -55,22 +64,15 @@ COMMON_CONVERTERS = {
     "REV_MILES": robust_numeric_converter,
 }
 
-DROPNA_SUBSET_ALL_NAN = None  # e.g. ["ROUTE_NAME", "MTH_BOARD"]
-DROPNA_SUBSET_ANY_NAN = None  # e.g. ["ROUTE_NAME", "MTH_BOARD"]
-
-EXISTING_PERIOD_COLUMN_NAME = "NameOfYourExistingMonthYearColumn"  # ← update
-
-
-# =============================================================================
-# SCRIPT FUNCTIONS
-# =============================================================================
+# -----------------------------------------------------------------------------
+# PIPELINE FUNCTIONS
+# -----------------------------------------------------------------------------
 def read_and_prepare_ntd_file(
     file_path: str, sheet_name: Optional[str] = None
 ) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
     """
-    Returns a tuple (kept_rows, discarded_rows).
-    Both elements are DataFrames with identical columns; either can be empty.
-    If the file cannot be read, (None, None) is returned.
+    Return (kept_rows, discarded_rows) as DataFrames with identical columns.
+    Either element may be empty; both are None if the file cannot be read.
     """
     if not os.path.exists(file_path):
         print(f"ERROR: File not found: {file_path}. Skipping.")
@@ -90,17 +92,15 @@ def read_and_prepare_ntd_file(
         keep_mask = pd.Series(True, index=df.index)
 
         if DROPNA_SUBSET_ALL_NAN:
-            all_nan_rows = df[DROPNA_SUBSET_ALL_NAN].isna().all(axis=1)
-            keep_mask &= ~all_nan_rows
+            keep_mask &= ~df[DROPNA_SUBSET_ALL_NAN].isna().all(axis=1)
 
         if DROPNA_SUBSET_ANY_NAN:
-            any_nan_rows = df[DROPNA_SUBSET_ANY_NAN].isna().any(axis=1)
-            keep_mask &= ~any_nan_rows
+            keep_mask &= ~df[DROPNA_SUBSET_ANY_NAN].isna().any(axis=1)
 
         kept_df = df[keep_mask].copy()
         dropped_df = df[~keep_mask].copy()
 
-        # log diagnostics
+        # diagnostics
         if (
             EXISTING_PERIOD_COLUMN_NAME
             and EXISTING_PERIOD_COLUMN_NAME not in df.columns
@@ -111,19 +111,21 @@ def read_and_prepare_ntd_file(
             )
 
         print(
-            f"  Rows kept: {len(kept_df):>6} | " f"Rows discarded: {len(dropped_df):>6}"
+            f"  Rows kept: {len(kept_df):>6} | "
+            f"Rows discarded: {len(dropped_df):>6}"
         )
 
         return kept_df, dropped_df
 
-    except Exception as e:
-        print(f"ERROR: failed to read {os.path.basename(file_path)}: {e}")
+    except Exception as exc:  # broad catch to keep batch processing alive
+        print(f"ERROR: failed to read {os.path.basename(file_path)}: {exc}")
         return None, None
 
 
 def compile_ntd_data() -> Optional[pd.DataFrame]:
     """
-    Compiles files, writes two outputs, and returns the compiled DataFrame.
+    Iterate over FILES_TO_PROCESS, apply cleansing rules, write outputs,
+    and return the concatenated DataFrame (or None on failure).
     """
     if not FILES_TO_PROCESS:
         print("ERROR: 'FILES_TO_PROCESS' list is empty.")
@@ -133,47 +135,46 @@ def compile_ntd_data() -> Optional[pd.DataFrame]:
     kept_frames: List[pd.DataFrame] = []
     dropped_frames: List[pd.DataFrame] = []
 
-    for idx, (file_path, sheet_name) in enumerate(FILES_TO_PROCESS, start=1):
+    for file_path, sheet_name in FILES_TO_PROCESS:
         kept, dropped = read_and_prepare_ntd_file(file_path, sheet_name)
-        if kept is not None:
-            if not kept.empty:
-                kept_frames.append(kept)
-            if dropped is not None and not dropped.empty:
-                dropped_frames.append(dropped)
+        if kept is not None and not kept.empty:
+            kept_frames.append(kept)
+        if dropped is not None and not dropped.empty:
+            dropped_frames.append(dropped)
 
     if not kept_frames:
         print("\nNo data collected. Compilation aborted.")
         return None
 
-    # --------------- concatenate and save ------------------
+    # ------------------ concatenate and save ------------------
     try:
         compiled = pd.concat(kept_frames, ignore_index=True, sort=False)
         print(f"\nConcatenation complete. Total rows kept: {len(compiled)}")
 
-        # ensure output dir exists (or fall back)
+        # Ensure target directory exists, create if needed
         out_dir = os.path.dirname(OUTPUT_FILE_PATH)
         out_path = OUTPUT_FILE_PATH
         if out_dir and not os.path.exists(out_dir):
             try:
-                os.makedirs(out_dir)
+                os.makedirs(out_dir, exist_ok=True)
                 print(f"Created output directory: {out_dir}")
             except OSError as ose:
                 print(f"ERROR: could not create directory {out_dir}: {ose}")
                 out_path = os.path.basename(OUTPUT_FILE_PATH)
                 print(f"Saving to current working directory as {out_path}")
 
-        # helper for writing df with same extension logic
         def write_dataframe(df: pd.DataFrame, path: str) -> None:
+            """Write DataFrame to XLSX or CSV based on file extension."""
             if path.lower().endswith(".xlsx"):
                 df.to_excel(path, index=False)
-            else:  # default to CSV
+            else:
                 df.to_csv(path, index=False)
 
-        # save kept rows
+        # Save kept rows
         write_dataframe(compiled, out_path)
         print(f"Compiled NTD data written to: {os.path.abspath(out_path)}")
 
-        # save discarded rows, if any
+        # Save discarded rows (audit), if any
         if dropped_frames:
             discarded = pd.concat(dropped_frames, ignore_index=True, sort=False)
             base, ext = os.path.splitext(out_path)
@@ -185,15 +186,16 @@ def compile_ntd_data() -> Optional[pd.DataFrame]:
 
         return compiled
 
-    except Exception as e:
-        print(f"ERROR during concatenation / saving: {e}")
+    except Exception as exc:
+        print(f"ERROR during concatenation / saving: {exc}")
         return None
 
 
 # =============================================================================
 # MAIN
 # =============================================================================
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point for CLI execution."""
     print("--- Starting NTD Data Compilation Script ---")
 
     critical_ok = True
@@ -222,3 +224,8 @@ if __name__ == "__main__":
         print("\nScript terminated due to configuration errors.")
 
     print("\n--- Script Finished ---")
+
+
+# Standard Python entry point
+if __name__ == "__main__":  # pragma: no cover
+    main()
