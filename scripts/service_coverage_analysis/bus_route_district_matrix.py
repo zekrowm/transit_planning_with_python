@@ -75,6 +75,7 @@ DISTRICT_FIELD = "DISTRICT"
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
@@ -286,6 +287,7 @@ def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """
     End-to-end workflow:
@@ -308,7 +310,7 @@ def main() -> None:
     try:
         gtfs_data = load_gtfs_data(
             GTFS_DIR,
-            files=GTFS_FILES,   # ["routes.txt", "stops.txt", "trips.txt", "stop_times.txt"]
+            files=GTFS_FILES,  # ["routes.txt", "stops.txt", "trips.txt", "stop_times.txt"]
             dtype=str,
         )
     except (OSError, ValueError, RuntimeError) as exc:
