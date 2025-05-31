@@ -46,10 +46,10 @@ from openpyxl.utils import get_column_letter
 # =============================================================================
 
 # Input directory containing GTFS files
-BASE_INPUT_PATH = r"\\your_file_path\here\\"
+BASE_INPUT_PATH = r"\\Your\Folder\Path\Here\\"
 
 # Output directory for the Excel file
-BASE_OUTPUT_PATH = r"\\your_file_path\here\\"
+BASE_OUTPUT_PATH = r"\\Your\Folder\Path\Here\\"
 
 # GTFS files to load
 GTFS_FILES = [
