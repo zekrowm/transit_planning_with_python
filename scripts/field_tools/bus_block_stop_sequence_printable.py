@@ -25,10 +25,12 @@ Dependencies:
 """
 
 from __future__ import annotations
+
+import logging
 import math
 import os
-import logging
 from pathlib import Path
+
 import pandas as pd
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
@@ -66,6 +68,7 @@ MAX_COLUMN_WIDTH = 35
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -156,6 +159,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             ) from exc
 
     return data
+
 
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
@@ -423,6 +427,7 @@ def export_blocks(stop_times_df):
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Entry point – orchestrates GTFS load, filter, prep, export."""
     # --------------------------------------------------------------
@@ -449,10 +454,10 @@ def main() -> None:
             dtype=str,
         )
 
-        trips_df      = gtfs_data["trips"]
+        trips_df = gtfs_data["trips"]
         stop_times_df = gtfs_data["stop_times"]
-        stops_df      = gtfs_data["stops"]
-        routes_df     = gtfs_data["routes"]
+        stops_df = gtfs_data["stops"]
+        routes_df = gtfs_data["routes"]
 
         trips_df, stop_times_df = filter_data(trips_df, stop_times_df, routes_df)
         if trips_df.empty or stop_times_df.empty:
@@ -469,7 +474,7 @@ def main() -> None:
 
     except (OSError, ValueError, RuntimeError) as err:
         logging.error("%s", err)
-    except Exception as err:           # catch-all for unforeseen issues
+    except Exception as err:  # catch-all for unforeseen issues
         logging.exception("Unexpected error: %s", err)
     finally:
         logging.info("Exiting script.")
