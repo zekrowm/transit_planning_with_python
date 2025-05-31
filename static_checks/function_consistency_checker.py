@@ -3,13 +3,13 @@ Script Name:
     function_consistency_checker.py
 
 Purpose:
-    Identify and verify duplicate top-level functions across a Python repository. 
-    Compares functions found in a specified canonical Python file or within Python files 
+    Identify and verify duplicate top-level functions across a Python repository.
+    Compares functions found in a specified canonical Python file or within Python files
     located in a specified canonical folder against all other occurrences throughout the repository.
     The script reports functions that differ (at AST level) from the canonical versions.
 
 Inputs:
-    - CANONICAL_PATH (str): Path to a canonical `.py` file or a folder containing canonical `.py` files.  
+    - CANONICAL_PATH (str): Path to a canonical `.py` file or a folder containing canonical `.py` files.
                             If a folder is provided, only immediate `.py` files in that directory are used.
     - SEARCH_ROOT (str): Root directory of the repository to recursively audit.
     - LOG_DIR (str): Directory path where the audit log file will be created.
@@ -48,12 +48,12 @@ from typing import Dict, List, NamedTuple, Set
 # =============================================================================
 
 # Either a .py file *or* a directory that holds the canonical file set
-CANONICAL_PATH = "helpers"         # ex: "helpers.py" or "lib/helpers"
+CANONICAL_PATH = "helpers"  # ex: "helpers.py" or "lib/helpers"
 
-SEARCH_ROOT = "."                  # repo root to audit
-LOG_DIR = "./logs"                 # where audit logs are written
-PY_EXTENSIONS = (".py",)           # recognised source suffixes
-IGNORE_PRIVATE = True              # skip functions whose names start with "_"
+SEARCH_ROOT = "."  # repo root to audit
+LOG_DIR = "./logs"  # where audit logs are written
+PY_EXTENSIONS = (".py",)  # recognised source suffixes
+IGNORE_PRIVATE = True  # skip functions whose names start with "_"
 
 # =============================================================================
 # FUNCTIONS
@@ -62,6 +62,7 @@ IGNORE_PRIVATE = True              # skip functions whose names start with "_"
 # -----------------------------------------------------------------------------
 # INTERNAL UTILITIES
 # -----------------------------------------------------------------------------
+
 
 def _normalise(node: ast.AST) -> ast.AST:
     """Strip line/column metadata for stable comparison."""
@@ -106,9 +107,11 @@ class AuditResult(NamedTuple):
     identical: List[Path]
     mismatched: List[Path]
 
+
 # -----------------------------------------------------------------------------
 # CANONICAL FUNCTION HARVEST
 # -----------------------------------------------------------------------------
+
 
 def _collect_canonical_funcs(
     source: Path,
@@ -158,9 +161,11 @@ def _collect_canonical_funcs(
 
     return funcs, canonical_files
 
+
 # -----------------------------------------------------------------------------
 # AUDIT CORE
 # -----------------------------------------------------------------------------
+
 
 def _audit_single_function(
     name: str,
@@ -194,9 +199,11 @@ def _audit_single_function(
 
     return AuditResult(identical=identical, mismatched=mismatched)
 
+
 # -----------------------------------------------------------------------------
 # LOGGING & MAINFLOW
 # -----------------------------------------------------------------------------
+
 
 def _setup_logging() -> None:
     Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
@@ -205,13 +212,18 @@ def _setup_logging() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
-        handlers=[logging.FileHandler(log_file, encoding="utf-8"), logging.StreamHandler()],
+        handlers=[
+            logging.FileHandler(log_file, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
     )
     logging.info("Audit log → %s", log_file)
+
 
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     _setup_logging()
