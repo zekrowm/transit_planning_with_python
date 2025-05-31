@@ -35,7 +35,7 @@ if PROJECT_ROOT.as_posix() not in sys.path:
     sys.path.insert(0, PROJECT_ROOT.as_posix())
 
 # Now regular imports work whether or not the package is pip-installed.
-from helpers.gtfs_loader import load_gtfs_data  # adjust module name only
+from helpers.gtfs_helpers import load_gtfs_data  # adjust module name only
 
 ###############################################################################
 # Helper: write the minimal valid GTFS files pytest needs for a happy-path run
