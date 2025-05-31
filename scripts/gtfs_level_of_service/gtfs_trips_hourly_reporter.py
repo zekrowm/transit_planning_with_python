@@ -35,6 +35,7 @@ Dependencies:
 
 import logging
 import os
+
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
@@ -75,11 +76,12 @@ ROUTE_DIRECTIONS = [
 TIME_INTERVAL_MINUTES = 60  # Users can change this to 30, 15, etc.
 
 # Choose one service to analyse (None → run each service separately)
-SERVICE_ID = "3"        # Replace with your desired service_id value from calendar.txt
+SERVICE_ID = "3"  # Replace with your desired service_id value from calendar.txt
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
@@ -174,6 +176,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
     return data
 
+
 # -----------------------------------------------------------------------------
 # OTHER FUNCTIONS
 # -----------------------------------------------------------------------------
@@ -240,31 +243,30 @@ def process_and_export(
     interval_minutes
         Width of each time bin in minutes (e.g. 60 for hourly).
     service_id
-        • str  → process only that service_id.  
+        • str  → process only that service_id.
         • None → iterate over every service_id in the feed.
     """
-    trips      = data["trips"]
+    trips = data["trips"]
     stop_times = data["stop_times"]
-    routes     = data["routes"]
+    routes = data["routes"]
 
     # ── Apply service filter ────────────────────────────────────────────────
     if service_id is not None:
         trips_filtered = trips[trips["service_id"] == str(service_id)]
-        logging.info("Analysing only service_id=%s (%d trips).",
-                     service_id, len(trips_filtered))
+        logging.info(
+            "Analysing only service_id=%s (%d trips).", service_id, len(trips_filtered)
+        )
     else:
         trips_filtered = trips.copy()
         logging.info("No service_id specified – will iterate over each one.")
 
     # ── Merge the required tables ───────────────────────────────────────────
-    merged = (
-        stop_times
-        .merge(trips_filtered, on="trip_id", how="inner")
-        .merge(routes[["route_id", "route_short_name"]], on="route_id", how="left")
+    merged = stop_times.merge(trips_filtered, on="trip_id", how="inner").merge(
+        routes[["route_id", "route_short_name"]], on="route_id", how="left"
     )
 
     # Cast key fields to numeric so comparisons work (dtype=str in loader)
-    merged["direction_id"]  = pd.to_numeric(merged["direction_id"],  errors="coerce")
+    merged["direction_id"] = pd.to_numeric(merged["direction_id"], errors="coerce")
     merged["stop_sequence"] = pd.to_numeric(merged["stop_sequence"], errors="coerce")
 
     # ── Fix & parse time columns ────────────────────────────────────────────
@@ -288,7 +290,7 @@ def process_and_export(
     # ── Loop over requested routes/directions ───────────────────────────────
     for rd in route_dirs:
         r_short = rd["route_short_name"]
-        d_id    = rd["direction_id"]
+        d_id = rd["direction_id"]
 
         sel = merged[merged["route_short_name"] == r_short]
         if d_id is not None:
@@ -298,18 +300,30 @@ def process_and_export(
         starts = sel[sel["stop_sequence"] == 1].dropna(subset=["departure_time"])
 
         # Determine which service_ids to iterate over
-        sid_iter = [service_id] if service_id is not None else starts["service_id"].unique()
+        sid_iter = (
+            [service_id] if service_id is not None else starts["service_id"].unique()
+        )
 
         for sid in sid_iter:
-            cur = starts if service_id is not None else starts[starts["service_id"] == sid]
+            cur = (
+                starts
+                if service_id is not None
+                else starts[starts["service_id"] == sid]
+            )
 
             if cur.empty:
-                logging.info("No trips for route=%s dir=%s service=%s – skipping.",
-                             r_short, d_id, sid)
+                logging.info(
+                    "No trips for route=%s dir=%s service=%s – skipping.",
+                    r_short,
+                    d_id,
+                    sid,
+                )
                 continue
 
             cur = cur.assign(
-                time_bin=cur["departure_time"].apply(lambda t: get_time_bin(t, interval_minutes))
+                time_bin=cur["departure_time"].apply(
+                    lambda t: get_time_bin(t, interval_minutes)
+                )
             )
 
             trips_per_bin = (
@@ -407,7 +421,7 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s  [%(levelname)s]  %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        force=True,                 # overrides any library defaults
+        force=True,  # overrides any library defaults
     )
     # ─────────────────────────────────────────────────────────────────────────
 
@@ -420,7 +434,7 @@ def main() -> None:
         data = load_gtfs_data(
             BASE_INPUT_PATH,
             files=GTFS_FILES,
-            dtype=str,           # keep everything as strings – avoids TZ parsing issues
+            dtype=str,  # keep everything as strings – avoids TZ parsing issues
         )
 
         # Run the core logic
@@ -429,10 +443,10 @@ def main() -> None:
             ROUTE_DIRECTIONS,
             BASE_OUTPUT_PATH,
             TIME_INTERVAL_MINUTES,
-            service_id=SERVICE_ID,   # NEW ARG
+            service_id=SERVICE_ID,  # NEW ARG
         )
 
-    except Exception as exc:          # catch-all so the stack-trace hits your log
+    except Exception as exc:  # catch-all so the stack-trace hits your log
         logging.exception("Fatal error: %s", exc)
 
 
