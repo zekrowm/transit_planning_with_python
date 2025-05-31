@@ -22,7 +22,9 @@ FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
     (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Sep.2024 Finals"),
 ]
 
-OUTPUT_FILE_PATH: str = r"\\Path\to\Your\Output_Folder\Compiled_NTD_Data.csv"  # or .xlsx
+OUTPUT_FILE_PATH: str = (
+    r"\\Path\to\Your\Output_Folder\Compiled_NTD_Data.csv"  # or .xlsx
+)
 
 # Optional row-exclusion rules
 DROPNA_SUBSET_ALL_NAN: Optional[List[str]] = None  # e.g. ["ROUTE_NAME", "MTH_BOARD"]
@@ -63,6 +65,7 @@ COMMON_CONVERTERS = {
     "DAYS": robust_numeric_converter,
     "REV_MILES": robust_numeric_converter,
 }
+
 
 # -----------------------------------------------------------------------------
 # PIPELINE FUNCTIONS
@@ -111,8 +114,7 @@ def read_and_prepare_ntd_file(
             )
 
         print(
-            f"  Rows kept: {len(kept_df):>6} | "
-            f"Rows discarded: {len(dropped_df):>6}"
+            f"  Rows kept: {len(kept_df):>6} | " f"Rows discarded: {len(dropped_df):>6}"
         )
 
         return kept_df, dropped_df
