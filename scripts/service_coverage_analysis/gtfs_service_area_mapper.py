@@ -24,10 +24,11 @@ Dependencies:
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from typing import Dict, List, Tuple
-import logging
+
 import geopandas as gpd
 import networkx as nx
 import numpy as np
@@ -72,7 +73,7 @@ TRIM_BUFFER_M = 50  # outward “Trim Polygons” distance
 SIMPLIFY_TOL_M = 10  # “Polygon Simplification” tolerance
 MIN_POLY_AREA_M = 1000  # drop tiny islands (< ~0.25 acre)
 # Optional extra buffer to smooth isochrone hulls
-ISO_SMOOTH_BUFFER_M: float | None = 30.0        # metres; 0/None = no smoothing
+ISO_SMOOTH_BUFFER_M: float | None = 30.0  # metres; 0/None = no smoothing
 
 # =============================================================================
 # FUNCTIONS
@@ -81,6 +82,7 @@ ISO_SMOOTH_BUFFER_M: float | None = 30.0        # metres; 0/None = no smoothing
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -176,6 +178,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 # -----------------------------------------------------------------------------
 # OTHER FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def feet_to_meters(feet: float) -> float:
     """Convert feet to metres (1 ft = 0.3048 m)."""
@@ -631,13 +634,14 @@ def build_buffers_gdf(
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     # ─────────────────────────────── LOGGING ──────────────────────────────
     # (If you placed this block at the top of the file instead, omit it here.)
     import logging
 
     logging.basicConfig(
-        level=logging.INFO,                  # DEBUG for extra chatter
+        level=logging.INFO,  # DEBUG for extra chatter
         format="%(levelname)s: %(message)s",
     )
 
