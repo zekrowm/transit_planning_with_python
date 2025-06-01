@@ -27,7 +27,7 @@ from __future__ import annotations
 import os
 import sys
 from typing import Dict, List, Tuple
-
+import logging
 import geopandas as gpd
 import networkx as nx
 import numpy as np
@@ -71,20 +71,53 @@ EDGE_BUFFER_M = 10  # half street-width before polygonize
 TRIM_BUFFER_M = 50  # outward “Trim Polygons” distance
 SIMPLIFY_TOL_M = 10  # “Polygon Simplification” tolerance
 MIN_POLY_AREA_M = 1000  # drop tiny islands (< ~0.25 acre)
+# Optional extra buffer to smooth isochrone hulls
+ISO_SMOOTH_BUFFER_M: float | None = 30.0        # metres; 0/None = no smoothing
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
 
-def load_gtfs_data(
-    files: list[str] | None = None, dtype: str | dict = str
-) -> Dict[str, pd.DataFrame]:
+def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
-    Read standard GTFS text files into a dict keyed by filename (sans .txt).
+    Loads GTFS files into pandas DataFrames from the specified directory.
+    This function uses the logging module for output.
+
+    Parameters:
+        gtfs_folder_path (str): Path to the directory containing GTFS files.
+        files (list[str], optional): GTFS filenames to load. Default is all
+            standard GTFS files:
+            [
+                "agency.txt",
+                "stops.txt",
+                "routes.txt",
+                "trips.txt",
+                "stop_times.txt",
+                "calendar.txt",
+                "calendar_dates.txt",
+                "fare_attributes.txt",
+                "fare_rules.txt",
+                "feed_info.txt",
+                "frequencies.txt",
+                "shapes.txt",
+                "transfers.txt"
+            ]
+        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+
+    Raises:
+        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
+        ValueError: If a file is empty or there's a parsing error.
+        RuntimeError: For OS errors during file reading.
     """
-    if not os.path.exists(GTFS_FOLDER_PATH):
-        raise FileNotFoundError(f"The directory '{GTFS_FOLDER_PATH}' does not exist.")
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
     if files is None:
         files = [
@@ -104,31 +137,45 @@ def load_gtfs_data(
         ]
 
     missing = [
-        fn for fn in files if not os.path.exists(os.path.join(GTFS_FOLDER_PATH, fn))
+        file_name
+        for file_name in files
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise FileNotFoundError(
-            f"Missing GTFS files in '{GTFS_FOLDER_PATH}': {', '.join(missing)}"
+        raise OSError(
+            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
         )
 
-    data: Dict[str, pd.DataFrame] = {}
-    for fn in files:
-        key = fn[:-4]  # strip ".txt"
-        path = os.path.join(GTFS_FOLDER_PATH, fn)
+    data = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(path, dtype=dtype)
-        except pd.errors.EmptyDataError as exc:
-            raise ValueError(f"File '{fn}' is empty.") from exc
-        except pd.errors.ParserError as exc:
-            raise ValueError(f"Parser error in '{fn}': {exc}") from exc
-        except Exception as exc:
-            raise RuntimeError(f"Error loading '{fn}': {exc}") from exc
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            data[key] = df
+            logging.info(f"Loaded {file_name} ({len(df)} records).")
 
-        data[key] = df
-        print(f"Loaded {fn} ({len(df):,} records).")
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(
+                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
+            ) from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
 
     return data
 
+
+# -----------------------------------------------------------------------------
+# OTHER FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def feet_to_meters(feet: float) -> float:
     """Convert feet to metres (1 ft = 0.3048 m)."""
@@ -584,13 +631,22 @@ def build_buffers_gdf(
 # MAIN
 # =============================================================================
 
-
 def main() -> None:
-    # ── 1. GTFS ----------------------------------------------------------------
+    # ─────────────────────────────── LOGGING ──────────────────────────────
+    # (If you placed this block at the top of the file instead, omit it here.)
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,                  # DEBUG for extra chatter
+        format="%(levelname)s: %(message)s",
+    )
+
+    # ──────────────────────────────── GTFS ────────────────────────────────
     try:
-        data = load_gtfs_data()
-    except Exception as exc:  # noqa: BLE001
-        print(f"FATAL: {exc}", file=sys.stderr)
+        # new signature: pass the folder path explicitly
+        data = load_gtfs_data(GTFS_FOLDER_PATH)
+    except (OSError, ValueError, RuntimeError) as exc:
+        logging.critical("FATAL: %s", exc)
         sys.exit(1)
 
     stops, routes, trips, stop_times = apply_filters(
@@ -600,15 +656,17 @@ def main() -> None:
         in_route=FILTER_IN_ROUTE_SHORT_NAMES,
         out_route=FILTER_OUT_ROUTE_SHORT_NAMES,
     )
-    print(
-        f"Post-filter counts — stops: {len(stops):,}, routes: {len(routes):,}, "
-        f"trips: {len(trips):,}, stop_times: {len(stop_times):,}"
+    logging.info(
+        "Post-filter counts — stops: %s, routes: %s, trips: %s, stop_times: %s",
+        f"{len(stops):,}",
+        f"{len(routes):,}",
+        f"{len(trips):,}",
+        f"{len(stop_times):,}",
     )
 
-    # ── 2. per-stop occurrences (route & direction already attached) -----------
+    # ── 2. per-stop occurrences (route & direction already attached) ─────
     gdf_buf = build_stop_route_direction_gdf(stops, routes, trips, stop_times)
 
-    # keep a copy split by direction for later exports & isochrones
     gdf_stops_by_dir = gdf_buf[
         [
             "stop_id",
@@ -620,43 +678,40 @@ def main() -> None:
         ]
     ].copy()
 
-    # ── 3. route polylines -----------------------------------------------------
+    # ── 3. route polylines ───────────────────────────────────────────────
     gdf_routes_lines = build_route_lines_gdf(data["shapes"], routes, trips)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # ── 4. walk-access buffers -------------------------------------------------
+    # ── 4. walk-access buffers ───────────────────────────────────────────
     gdf_buffers = build_buffers_gdf(gdf_buf, BUFFER_DISTANCE_FEET, WORK_CRS)
     export_buffers(gdf_buffers, OUTPUT_DIR, EXPORT_CRS)
 
-    # ── 5. plain GTFS exports (unchanged) --------------------------------------
+    # ── 5. plain GTFS exports (unchanged) ────────────────────────────────
     export_stops_by_direction(gdf_stops_by_dir, OUTPUT_DIR, EXPORT_CRS)
     export_routes_by_direction(gdf_routes_lines, OUTPUT_DIR, EXPORT_CRS)
 
-    # ── 6. optional street network ➜ isochrones --------------------------------
+    # ── 6. optional street network ➝ isochrones ──────────────────────────
     if NETWORK_SHP_PATH and os.path.exists(NETWORK_SHP_PATH):
         try:
-            # load full roadway layer and project
             gdf_net_all = gpd.read_file(NETWORK_SHP_PATH).to_crs(WORK_CRS)
-
-            # keep only segments that intersect ANY buffer
             gdf_net_clip = filter_network_to_buffers(gdf_net_all, gdf_buffers)
             kept_pct = len(gdf_net_clip) / len(gdf_net_all) * 100
-            print(
-                f"Keeping {len(gdf_net_clip):,} of {len(gdf_net_all):,} road features "
-                f"({kept_pct:.1f} %) that intersect walking buffers"
+            logging.info(
+                "Keeping %s of %s road features (%.1f %%) that intersect walking buffers",
+                f"{len(gdf_net_clip):,}",
+                f"{len(gdf_net_all):,}",
+                kept_pct,
             )
 
-            # build time-weighted graph from the clipped subset
             graph = build_network_graph_from_gdf(
                 gdf_net_clip,
                 speed_field=NETWORK_SPEED_FIELD,
                 oneway_field=NETWORK_ONEWAY_FIELD,
                 default_speed_mph=DEFAULT_SPEED_MPH,
             )
-
         except Exception as exc:  # noqa: BLE001
-            print(f"⚠ Failed to build network — {exc}")
+            logging.warning("Failed to build network — %s", exc)
         else:
             export_isochrones_by_direction(
                 gdf_stops_by_dir,
@@ -666,9 +721,9 @@ def main() -> None:
                 smooth_buffer_m=ISO_SMOOTH_BUFFER_M,
             )
     else:
-        print("No network file supplied — skipping isochrones.")
+        logging.info("No network file supplied — skipping isochrones.")
 
-    print("All done! 🎉")
+    logging.info("All done! 🎉")
 
 
 if __name__ == "__main__":
