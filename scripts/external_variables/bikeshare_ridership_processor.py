@@ -49,10 +49,10 @@ OUTPUT_XLSX = r"C:\File\Path\To\Output\trip_activity_averages_by_station.xlsx"
 # New configuration: Users can set the fuzzy matching threshold here.
 FUZZY_THRESHOLD = 0.8
 
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
-# -----------------------------------------------------------------------------
-# Functions
-# -----------------------------------------------------------------------------
 def load_shapefiles(bikeshare_shp_path, boundary_shp_path=None):
     """
     Load the bikeshare shapefile and optionally the boundary shapefile.
