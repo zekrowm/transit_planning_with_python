@@ -39,8 +39,6 @@ from rapidfuzz import fuzz, process
 
 # Paths to input files
 GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
-STOPS_FILENAME = "stops.txt"
-STOPS_PATH = os.path.join(GTFS_FOLDER, STOPS_FILENAME)
 
 ROADWAYS_PATH = (
     r"path\to\your\roadways.shp"  # Replace with your roadways shapefile path
