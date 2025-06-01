@@ -80,6 +80,7 @@ POOR_WEATHER_CRITERIA = {
 # FUNCTIONS
 # =============================================================================
 
+
 def load_weather_data(file_path: str) -> pd.DataFrame:
     """
     Load NOAA weather data from a CSV file.
