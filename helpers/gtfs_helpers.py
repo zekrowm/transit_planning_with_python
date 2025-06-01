@@ -9,9 +9,15 @@ Includes common GTFS data loaders, validators, and formatting helpers.
 import logging
 import os
 from pathlib import Path
-
+import importlib
+import logging
+from typing import Dict
+import pandas as pd
 import pandas as pd
 
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -102,3 +108,78 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             ) from exc
 
     return data
+
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
+
+def apply_route_filters(
+    gtfs_data: Dict[str, pd.DataFrame],
+    settings_module: str = "__main__",
+    copy: bool = True,
+) -> Dict[str, pd.DataFrame]:
+    """
+    Filters a GTFS dataset by the route-ID lists defined in *settings_module*.
+
+    Parameters:
+        gtfs_data (dict[str, pd.DataFrame]):  
+            A dictionary of GTFS tables (e.g., as produced by ``load_gtfs_data``).
+        settings_module (str, optional):  
+            Import path of a Python module containing two constants:
+            ``FILTER_IN_ROUTES`` and ``FILTER_OUT_ROUTES`` (each ``list[str]``).
+            Defaults to the caller’s ``__main__``.
+        copy (bool, optional):  
+            If ``True`` (default) each DataFrame is deep-copied before the
+            filters are applied; if ``False`` the original objects are modified
+            in place.
+
+    Returns:
+        dict[str, pd.DataFrame]:  
+            A new dictionary containing only the rows that satisfy the route
+            criteria.
+
+    Raises:
+        AttributeError:  
+            If *settings_module* does not define both required constants.
+        ValueError:  
+            If conflicting route IDs appear in both lists or the filter would
+            produce an impossible result.
+
+    Example:
+        >>> # in your main script …
+        >>> FILTER_IN_ROUTES = ["10A", "10B"]
+        >>> feed = load_gtfs_data("feeds/metrobus")          # doctest: +SKIP
+        >>> filtered = apply_route_filters(feed)             # doctest: +SKIP
+    """
+    # --------------------------------------------------------------------- #
+    # Retrieve the caller’s route lists
+    # --------------------------------------------------------------------- #
+    cfg = importlib.import_module(settings_module)
+    try:
+        in_routes = getattr(cfg, "FILTER_IN_ROUTES")
+        out_routes = getattr(cfg, "FILTER_OUT_ROUTES")
+    except AttributeError as exc:
+        raise AttributeError(
+            f"Module '{settings_module}' must define both "
+            f'FILTER_IN_ROUTES and FILTER_OUT_ROUTES.'
+        ) from exc
+
+    # --------------------------------------------------------------------- #
+    # Log what we’re about to do (root logger, matching load_gtfs_data style)
+    # --------------------------------------------------------------------- #
+    logging.info(
+        "Applying route filters – keep: %s | drop: %s",
+        in_routes or "<all>",
+        out_routes or "<none>",
+    )
+
+    # --------------------------------------------------------------------- #
+    # Delegate the heavy lifting to the lower-level helper
+    # --------------------------------------------------------------------- #
+    return filter_gtfs_by_routes(
+        gtfs_data,
+        filter_in_routes=in_routes,
+        filter_out_routes=out_routes,
+        copy=copy,
+        logger=logging.getLogger(),  # pass the root logger for consistency
+    )
