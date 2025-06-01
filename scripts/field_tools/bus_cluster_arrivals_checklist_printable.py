@@ -103,6 +103,7 @@ SPECIAL_ROUTES = [
 # FUNCTIONS
 # =============================================================================
 
+
 def validate_input_directory(base_input_path, gtfs_files):
     """
     Validate that the GTFS input directory and required files exist.
