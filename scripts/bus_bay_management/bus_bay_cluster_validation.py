@@ -22,9 +22,10 @@ Dependencies:
     1. Libraries: os, geopandas, pandas, rapidfuzz, shapely
 """
 
-import os
 import logging
+import os
 import sys
+
 import geopandas as gpd
 import pandas as pd
 from rapidfuzz import fuzz, process
@@ -58,6 +59,7 @@ DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 # --------------------------------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -154,6 +156,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 # REGULAR FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
+
 def prepare_stops_gdf(crs_epsg: int, service_id: str = "3"):
     """
     Load stops, trips and stop_times with the new load_gtfs_data(), filter to the
@@ -189,31 +192,41 @@ def prepare_stops_gdf(crs_epsg: int, service_id: str = "3"):
     # Ensure a service_id column exists and filter
     # ------------------------------------------------------------------
     if "service_id" not in trips.columns:
-        logging.warning("'service_id' missing in trips.txt – assigning '%s' to all rows", service_id)
+        logging.warning(
+            "'service_id' missing in trips.txt – assigning '%s' to all rows", service_id
+        )
         trips["service_id"] = service_id
 
     trips_filtered = trips.loc[trips["service_id"] == service_id]
-    logging.info("Filtered trips to service_id=%s → %d trips", service_id, len(trips_filtered))
+    logging.info(
+        "Filtered trips to service_id=%s → %d trips", service_id, len(trips_filtered)
+    )
 
     # Keep only stop_times for those trips
-    stop_times_filtered = stop_times.loc[stop_times["trip_id"].isin(trips_filtered["trip_id"])]
-    logging.info("Remaining stop_times after filter → %d records", len(stop_times_filtered))
+    stop_times_filtered = stop_times.loc[
+        stop_times["trip_id"].isin(trips_filtered["trip_id"])
+    ]
+    logging.info(
+        "Remaining stop_times after filter → %d records", len(stop_times_filtered)
+    )
 
     # Keep only stops referenced by those stop_times
     active_stop_ids = stop_times_filtered["stop_id"].unique()
     stops_active = stops_df.loc[stops_df["stop_id"].isin(active_stop_ids)].copy()
-    logging.info("Active stops for service_id=%s → %d stops", service_id, len(stops_active))
+    logging.info(
+        "Active stops for service_id=%s → %d stops", service_id, len(stops_active)
+    )
 
     # ------------------------------------------------------------------
     # Build GeoDataFrame
     # ------------------------------------------------------------------
     stops_active["geometry"] = [
-        Point(float(lon), float(lat)) for lon, lat in zip(stops_active.stop_lon, stops_active.stop_lat)
+        Point(float(lon), float(lat))
+        for lon, lat in zip(stops_active.stop_lon, stops_active.stop_lat)
     ]
-    stops_gdf = (
-        gpd.GeoDataFrame(stops_active, geometry="geometry", crs="EPSG:4326")
-        .to_crs(epsg=crs_epsg)
-    )
+    stops_gdf = gpd.GeoDataFrame(
+        stops_active, geometry="geometry", crs="EPSG:4326"
+    ).to_crs(epsg=crs_epsg)
 
     return stops_gdf
 
@@ -470,6 +483,7 @@ def save_to_excel(data_frame, filename, output_directory):
 # MAIN
 # ==================================================================================================
 
+
 def main(service_id: str = "3"):
     """
     Main entry point for the GTFS Bus-Bay Cluster Validation script.
@@ -547,9 +561,13 @@ def main(service_id: str = "3"):
     # ------------------------------------------------------------------
     # Persist results
     # ------------------------------------------------------------------
-    save_to_excel(similar_name_stops, "excluded_stops_similar_names.xlsx", output_directory)
+    save_to_excel(
+        similar_name_stops, "excluded_stops_similar_names.xlsx", output_directory
+    )
     save_to_excel(nearby_excluded_stops, "excluded_stops_nearby.xlsx", output_directory)
-    save_to_excel(distant_included_stops, "included_stops_distant.xlsx", output_directory)
+    save_to_excel(
+        distant_included_stops, "included_stops_distant.xlsx", output_directory
+    )
     save_to_excel(
         different_named_included_stops,
         "included_stops_different_names.xlsx",
