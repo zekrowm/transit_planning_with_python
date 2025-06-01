@@ -40,10 +40,9 @@ END_DATE = "2024-12-01"  # Replace with your desired end date
 CSV_FILE_PATH = r"C:\Path\To\Your\Downloaded\Unemployment_Data.csv"
 OUTPUT_FOLDER = r"C:\Path\To\Your\Output_Folder"
 
-
-# -----------------------------------------------------------------------------
+# =============================================================================
 # FUNCTIONS
-# -----------------------------------------------------------------------------
+# =============================================================================
 def load_data(csv_file_path: str) -> pd.DataFrame:
     """
     Loads the CSV data into a DataFrame and converts the observation_date column to datetime.
