@@ -6,18 +6,18 @@ Reusable utility functions for GTFS data processing scripts.
 Includes common GTFS data loaders, validators, and formatting helpers.
 """
 
+import importlib
 import logging
 import os
 from pathlib import Path
-import importlib
-import logging
 from typing import Dict
-import pandas as pd
+
 import pandas as pd
 
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -109,9 +109,11 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
     return data
 
+
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def apply_route_filters(
     gtfs_data: Dict[str, pd.DataFrame],
@@ -122,26 +124,26 @@ def apply_route_filters(
     Filters a GTFS dataset by the route-ID lists defined in *settings_module*.
 
     Parameters:
-        gtfs_data (dict[str, pd.DataFrame]):  
+        gtfs_data (dict[str, pd.DataFrame]):
             A dictionary of GTFS tables (e.g., as produced by ``load_gtfs_data``).
-        settings_module (str, optional):  
+        settings_module (str, optional):
             Import path of a Python module containing two constants:
             ``FILTER_IN_ROUTES`` and ``FILTER_OUT_ROUTES`` (each ``list[str]``).
             Defaults to the caller’s ``__main__``.
-        copy (bool, optional):  
+        copy (bool, optional):
             If ``True`` (default) each DataFrame is deep-copied before the
             filters are applied; if ``False`` the original objects are modified
             in place.
 
     Returns:
-        dict[str, pd.DataFrame]:  
+        dict[str, pd.DataFrame]:
             A new dictionary containing only the rows that satisfy the route
             criteria.
 
     Raises:
-        AttributeError:  
+        AttributeError:
             If *settings_module* does not define both required constants.
-        ValueError:  
+        ValueError:
             If conflicting route IDs appear in both lists or the filter would
             produce an impossible result.
 
@@ -161,7 +163,7 @@ def apply_route_filters(
     except AttributeError as exc:
         raise AttributeError(
             f"Module '{settings_module}' must define both "
-            f'FILTER_IN_ROUTES and FILTER_OUT_ROUTES.'
+            f"FILTER_IN_ROUTES and FILTER_OUT_ROUTES."
         ) from exc
 
     # --------------------------------------------------------------------- #
