@@ -58,10 +58,9 @@ INPUT_CRS = "EPSG:4326"  # WGS84
 PROJECTED_CRS = "EPSG:26918"  # NAD83 / UTM zone 18N (adjust as appropriate)
 OUTPUT_CRS = "EPSG:4326"  # WGS84
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # FUNCTIONS
-# -----------------------------------------------------------------------------
-
+# =============================================================================
 
 def load_gtfs_data(gtfs_dir):
     """Load GTFS files and return DataFrames for routes, stops, trips, and stop_times."""
@@ -381,7 +380,6 @@ def identify_problem_stops(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main():
     """Load data, compare GTFS routes to the system shapefile, identify discrepancies, and export results."""
