@@ -55,6 +55,7 @@ OUTPUT_CSV_NAME = "intersecting_stops.csv"
 # FUNCTIONS
 # =============================================================================
 
+
 def create_output_directory(output_dir):
     """
     Creates the output directory if it doesn't exist.
@@ -186,6 +187,7 @@ def save_csv(gdf, output_dir, csv_name):
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """
