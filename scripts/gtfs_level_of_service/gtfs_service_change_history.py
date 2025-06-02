@@ -107,6 +107,7 @@ ALL_SIGNUP_COVERAGES = {}  # { label: { route_short_name: polygon } }
 # FUNCTIONS
 # ==================================================================================================
 
+
 def check_input_files(base_path, files):
     """
     Verify that the input directory and all required GTFS files exist.
@@ -804,9 +805,11 @@ def save_comparison_to_excel(comparison_df, output_path, filename):
     workbook.save(file_path)
     print(f"Comparison data saved to {file_path}")
 
+
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main():
     """
