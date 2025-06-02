@@ -59,7 +59,7 @@ ROUTE_UNION: bool = False
 PROJECTED_CRS: str = "EPSG:2263"  # DC / MD StatePlane (US survey ft)
 
 # =============================================================================
-# HELPER FUNCTIONS
+# FUNCTIONS
 # =============================================================================
 
 
