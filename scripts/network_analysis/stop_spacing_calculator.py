@@ -68,6 +68,7 @@ print(f"  Calendar:        {FILTER_CALENDAR}")
 # FUNCTIONS
 # =============================================================================
 
+
 def load_gtfs(gtfs_folder):
     """Loads the GTFS files from the specified folder."""
     stops = pd.read_csv(os.path.join(gtfs_folder, "stops.txt"))
@@ -514,6 +515,7 @@ def compute_and_export_shortest_paths(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """Generates a route shapefile from GTFS, road network, and bus route data, segmented at stops."""
