@@ -273,6 +273,7 @@ VALID_SHORT_WORDS_SET = USPS_ABBREVIATIONS_SET.union(EXEMPT_WORDS_SET)
 # FUNCTIONS
 # =============================================================================
 
+
 def check_capitalization(stop_name):
     """
     Check the capitalization scheme of the stop name.
@@ -390,6 +391,7 @@ def validate_stop(stop_row):
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """
