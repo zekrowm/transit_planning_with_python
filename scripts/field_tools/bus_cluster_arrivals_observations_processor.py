@@ -62,7 +62,7 @@ CORE_EVENT_COLS: list[str] = [
 
 
 # =============================================================================
-# HELPERS
+# FUNCTIONS
 # =============================================================================
 def list_observed_files(base_path: str) -> List[Path]:
     """Return list of .xlsx/.csv files in *base_path* (raise if none)."""
@@ -298,10 +298,9 @@ def split_valid_invalid(events_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataF
     valid_mask = events_df["diff_min"].notna()
     return events_df[valid_mask].copy(), events_df[~valid_mask].copy()
 
-
-# =============================================================================
+# -----------------------------------------------------------------------------
 # EXPORT HELPERS
-# =============================================================================
+# -----------------------------------------------------------------------------
 def ensure_output_folder(path: str) -> None:
     """Create *path* (plus parents) if it does not yet exist."""
     Path(path).mkdir(parents=True, exist_ok=True)
@@ -364,7 +363,7 @@ def export_results(
 
 
 # =============================================================================
-# MAIN ROUTINE
+# MAIN
 # =============================================================================
 def main() -> None:
     """Orchestrate ETL → analysis → export."""
