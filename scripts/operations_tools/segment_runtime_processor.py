@@ -67,6 +67,7 @@ TIME_COLUMNS = {
 # FUNCTIONS
 # =============================================================================
 
+
 def load_data(file_path: str) -> pd.DataFrame:
     """
     Read a CSV or Excel file, depending on extension.
@@ -345,6 +346,7 @@ def process_file(file_path: str, dataset_label: str):
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """
