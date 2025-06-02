@@ -29,7 +29,9 @@ transit_planning_with_python-main/
 │   ├── gtfs_exports/
 │   │   ├── bus_schedule_exporter.py
 │   │   ├── gtfs_shapefile_converter.py
-│   │   └── stop_pattern_exporter.py
+│   │   ├── stop_pattern_exporter.py
+│   │   └── __pycache__/
+│   │       └── bus_schedule_exporter.cpython-311.pyc
 │   ├── gtfs_level_of_service/
 │   │   ├── gtfs_service_change_history.py
 │   │   ├── gtfs_trips_hourly_reporter.py
@@ -56,6 +58,7 @@ transit_planning_with_python-main/
 │   │   ├── historical_ntd_data_processor.py
 │   │   ├── load_factor_violation_flagger.py
 │   │   ├── monthly_report_generator_from_ntd.py
+│   │   ├── ntd_data_compiler.py
 │   │   ├── ridership_per_stop_processor.py
 │   │   ├── ridership_per_trip_processor.py
 │   │   └── stop_amenity_warrant_flagger.py
@@ -66,9 +69,12 @@ transit_planning_with_python-main/
 │       ├── gtfs_proximity_stops_and_routes.py
 │       ├── gtfs_service_area_mapper.py
 │       └── sites_served_counter.py
-└── static_checks/
-    ├── file_tree_printer.py
-    ├── formatter_black_isort.py
-    ├── mypy_checker.py
-    ├── pylint_logger.py
-    └── vulture_logger.py
+├── static_checks/
+│   ├── formatter_black_isort.py
+│   ├── function_consistency_checker.py
+│   ├── print_imports_by_type.py
+│   ├── print_repo_file_tree.py
+│   └── static_code_auditor.py
+└── tests/
+    ├── test_bus_schedule_exporter_e2e.py
+    └── test_load_gtfs_data.py
