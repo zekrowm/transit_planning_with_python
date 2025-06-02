@@ -98,6 +98,7 @@ LATE_COLUMN = "Sum # Late"
 # FUNCTIONS
 # =============================================================================
 
+
 def time_str_to_seconds(time_str):
     """
     Convert a time string in 'H:MM:SS' or 'HH:MM:SS' format to total seconds.
@@ -579,9 +580,11 @@ def process_otp_data():
 
     print("\nOTP processing and plotting complete. Plots saved to:", OTP_OUTPUT_DIR)
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """
