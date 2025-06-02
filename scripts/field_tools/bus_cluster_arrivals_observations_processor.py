@@ -298,6 +298,7 @@ def split_valid_invalid(events_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataF
     valid_mask = events_df["diff_min"].notna()
     return events_df[valid_mask].copy(), events_df[~valid_mask].copy()
 
+
 # -----------------------------------------------------------------------------
 # EXPORT HELPERS
 # -----------------------------------------------------------------------------
