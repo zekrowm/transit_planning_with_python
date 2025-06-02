@@ -47,9 +47,9 @@ WEIGHTED_AVERAGE: bool = False  # False = simple mean (default)
 TRIP_CSV_NAME = "trip_level_with_flags.csv"
 SUMMARY_CSV_NAME = "route_direction_summary.csv"
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # COLUMN NORMALISATION
-# =============================================================================
+# -----------------------------------------------------------------------------
 
 COLUMN_ALIASES: dict[str, list[str]] = {
     # logical name → preferred + fall-backs in incoming files
