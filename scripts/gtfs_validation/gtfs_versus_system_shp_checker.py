@@ -62,6 +62,7 @@ OUTPUT_CRS = "EPSG:4326"  # WGS84
 # FUNCTIONS
 # =============================================================================
 
+
 def load_gtfs_data(gtfs_dir):
     """Load GTFS files and return DataFrames for routes, stops, trips, and stop_times."""
     routes_txt_path = os.path.join(gtfs_dir, "routes.txt")
@@ -380,6 +381,7 @@ def identify_problem_stops(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """Load data, compare GTFS routes to the system shapefile, identify discrepancies, and export results."""
