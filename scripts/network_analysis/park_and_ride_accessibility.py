@@ -85,6 +85,7 @@ ROAD_SHP_PATH = (
 # FUNCTIONS
 # =============================================================================
 
+
 def parse_gtfs_time(time_str):
     """
     Parse a GTFS time string into total seconds since midnight.
