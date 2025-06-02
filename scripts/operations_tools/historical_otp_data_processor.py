@@ -37,13 +37,13 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# ------------------------------------------------------------------------------
-#                             CONFIGURATION SECTION
-# ------------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
-# =========================
+# -------------------------
 #  1) Running Time Data
-# =========================
+# -------------------------
 INPUT_FILE = r"\\Path\To\Your\Runtime and OTP Trip Level Data.csv"
 OUTPUT_DIR = r"\\Path\To\Your\Processed\Data\Output"
 
@@ -55,9 +55,9 @@ ROUTE_FILTER = []
 # Threshold for Deviation in Seconds (5 minutes)
 DEVIATION_THRESHOLD_SECONDS = 5 * 60  # 300 seconds
 
-# =========================
+# -------------------------
 #  2) OTP Data & Plotting
-# =========================
+# -------------------------
 RUN_PLOTTING = True  # Set to False to skip OTP plotting entirely
 
 OTP_FILE_PATH = r"\\Path\To\Your\Output\Runtime and OTP Trip Level Data_processed.csv"
@@ -94,10 +94,9 @@ ON_TIME_COLUMN = "Sum # On Time"
 EARLY_COLUMN = "Sum # Early"
 LATE_COLUMN = "Sum # Late"
 
-# ------------------------------------------------------------------------------
-#                         HELPER FUNCTIONS (RUN-TIME DATA)
-# ------------------------------------------------------------------------------
-
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
 def time_str_to_seconds(time_str):
     """
@@ -580,11 +579,9 @@ def process_otp_data():
 
     print("\nOTP processing and plotting complete. Plots saved to:", OTP_OUTPUT_DIR)
 
-
-# ------------------------------------------------------------------------------
-#                                   MAIN
-# ------------------------------------------------------------------------------
-
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main():
     """
