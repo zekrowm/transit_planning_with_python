@@ -64,10 +64,9 @@ print(f"  Direction:       {FILTER_DIRECTION}")
 print(f"  Departure time:  {FILTER_DEPARTURE}")
 print(f"  Calendar:        {FILTER_CALENDAR}")
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # FUNCTIONS
-# -----------------------------------------------------------------------------
-
+# =============================================================================
 
 def load_gtfs(gtfs_folder):
     """Loads the GTFS files from the specified folder."""
@@ -515,7 +514,6 @@ def compute_and_export_shortest_paths(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main():
     """Generates a route shapefile from GTFS, road network, and bus route data, segmented at stops."""
