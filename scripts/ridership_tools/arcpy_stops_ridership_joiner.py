@@ -100,6 +100,7 @@ arcpy.env.overwriteOutput = True
 # FUNCTIONS
 # =============================================================================
 
+
 def create_bus_stops_feature_class():
     """
     Create or identify the bus stops feature class.
@@ -469,6 +470,7 @@ def process_stops_for_single_run():
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main():
     """
