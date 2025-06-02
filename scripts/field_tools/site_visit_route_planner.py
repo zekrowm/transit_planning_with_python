@@ -80,10 +80,13 @@ OPTIMIZATION_CONFIG = {
     "optimization_approach": "ilp",
 }
 
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
+
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 # Build a transformer from WGS84 (lon/lat) to EPSG:2283 (feet).
 PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
@@ -190,7 +193,6 @@ def compute_turn_direction(heading1, heading2, threshold=15):
 # GTFS AND STOP FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def export_gtfs_stops(gtfs_path, output_dir, target_crs):
     """
     1) Reads the GTFS stops.txt file (in EPSG:4326).
@@ -237,7 +239,6 @@ def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
 # -----------------------------------------------------------------------------
 # ROAD NETWORK FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def build_directed_road_network(
     road_shp_path,
@@ -361,7 +362,6 @@ def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops)
 # TSP SOLVER FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def compute_tsp_route_greedy(G):
     """
     Approximate TSP using NetworkX's greedy approach.
@@ -465,7 +465,6 @@ def compute_tsp_route_ilp(G):
 # -----------------------------------------------------------------------------
 # DIRECTIONS & EXPORTS
 # -----------------------------------------------------------------------------
-
 
 def generate_directions(tsp_route, stops_snapped, road_graph):
     """
@@ -644,7 +643,6 @@ def export_tsp_route_shapefile(
 # PLOTTING
 # -----------------------------------------------------------------------------
 
-
 def plot_tsp_route(G, tsp_route):
     """
     Plots the complete graph of stops (in Node space) and highlights the TSP route.
@@ -670,7 +668,6 @@ def plot_tsp_route(G, tsp_route):
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main():
     """
