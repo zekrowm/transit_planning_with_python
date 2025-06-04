@@ -8,9 +8,10 @@ import logging
 import os
 import re
 import sys
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from collections import defaultdict
+
 import arcpy
 import pandas as pd
 
@@ -18,39 +19,46 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER   = r"path\to\your\GTFS"
+GTFS_FOLDER = r"path\to\your\GTFS"
 ROADWAYS_PATH = r"path\to\your\roadways.shp"
-OUTPUT_DIR    = r"path\to\output"            # any writable folder
-OUTPUT_CSV    = "potential_typos.csv"
+OUTPUT_DIR = r"path\to\output"  # any writable folder
+OUTPUT_CSV = "potential_typos.csv"
 
 # Spatial references
-STOPS_CRS  = 4326        # GTFS lat/lon – WGS-84
-TARGET_CRS = 2248        # example: VA North (US ft). change if needed
+STOPS_CRS = 4326  # GTFS lat/lon – WGS-84
+TARGET_CRS = 2248  # example: VA North (US ft). change if needed
 
 # Processing parameters
-BUFFER_DISTANCE      = 50
-BUFFER_DISTANCE_UNIT = "feet"    # 'feet' or 'meters'
-SIMILARITY_THRESHOLD = 80        # 0-100
+BUFFER_DISTANCE = 50
+BUFFER_DISTANCE_UNIT = "feet"  # 'feet' or 'meters'
+SIMILARITY_THRESHOLD = 80  # 0-100
 
 # Roadway field requirements
-REQUIRED_COLUMNS_ROADWAY = ["RW_PREFIX", "RW_TYPE_US",
-                            "RW_SUFFIX", "RW_SUFFIX_", "FULLNAME"]
+REQUIRED_COLUMNS_ROADWAY = [
+    "RW_PREFIX",
+    "RW_TYPE_US",
+    "RW_SUFFIX",
+    "RW_SUFFIX_",
+    "FULLNAME",
+]
 
 DESCRIPTIONS_ROADWAY = {
-    "RW_PREFIX":  "Directional prefix (e.g. 'N' in 'N Washington St')",
+    "RW_PREFIX": "Directional prefix (e.g. 'N' in 'N Washington St')",
     "RW_TYPE_US": "Street type (e.g. 'St' in 'N Washington St')",
-    "RW_SUFFIX":  "Directional suffix (e.g. 'SE' in 'Park St SE')",
+    "RW_SUFFIX": "Directional suffix (e.g. 'SE' in 'Park St SE')",
     "RW_SUFFIX_": "Additional suffix (e.g. 'EB' in 'I-66 EB')",
-    "FULLNAME":   "Full street name"
+    "FULLNAME": "Full street name",
 }
 
 # -----------------------------------------------------------------------------
 # LOGGING
 # -----------------------------------------------------------------------------
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s [%(levelname)s] %(message)s",
-                    datefmt="%Y-%m-%d %H:%M:%S")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 arcpy.env.overwriteOutput = True
 
 # =============================================================================
@@ -61,15 +69,16 @@ arcpy.env.overwriteOutput = True
 # HELPERS
 # -----------------------------------------------------------------------------
 
+
 def create_work_gdb(base_dir: str) -> str:
     """
     Create <base_dir>/typo_work_<timestamp>.gdb and return its path.
     Re-use if it already exists in this session.
     """
     Path(base_dir).mkdir(parents=True, exist_ok=True)
-    ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     name = f"typo_work_{ts}.gdb"
-    gdb  = os.path.join(base_dir, name)
+    gdb = os.path.join(base_dir, name)
     if not arcpy.Exists(gdb):
         arcpy.management.CreateFileGDB(base_dir, name)
         logging.info("Created workspace %s", gdb)
@@ -82,9 +91,11 @@ def fgdb_path(gdb: str, fc_name: str) -> str:
     """Return full path inside the work GDB."""
     return os.path.join(gdb, fc_name)
 
+
 # -----------------------------------------------------------------------------
 # OTHER FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_stops(folder: str) -> pd.DataFrame:
     path = os.path.join(folder, "stops.txt")
@@ -93,7 +104,9 @@ def load_gtfs_stops(folder: str) -> pd.DataFrame:
     df = pd.read_csv(path, dtype=str, low_memory=False)
     need = {"stop_id", "stop_name", "stop_lat", "stop_lon"}
     if not need.issubset(df.columns):
-        raise ValueError(f"stops.txt missing columns: {', '.join(need - set(df.columns))}")
+        raise ValueError(
+            f"stops.txt missing columns: {', '.join(need - set(df.columns))}"
+        )
     df["stop_lat"] = df["stop_lat"].astype(float)
     df["stop_lon"] = df["stop_lon"].astype(float)
     return df
@@ -103,8 +116,12 @@ def normalize_street(name: str, mods: set[str]) -> str:
     if not isinstance(name, str):
         return ""
     if mods:
-        name = re.sub(r"\b(" + "|".join(map(re.escape, mods)) + r")\b",
-                      " ", name, flags=re.IGNORECASE)
+        name = re.sub(
+            r"\b(" + "|".join(map(re.escape, mods)) + r")\b",
+            " ",
+            name,
+            flags=re.IGNORECASE,
+        )
     name = re.sub(r"[^\w\s]", " ", name)
     return re.sub(r"\s+", " ", name).strip().lower()
 
@@ -113,22 +130,24 @@ def split_stop_name(stop_name: str, mods: set[str]) -> list[str]:
     if not isinstance(stop_name, str):
         return []
     seps = [" @ ", " and ", " & ", "/", " intersection of "]
-    parts = re.split("|".join(map(re.escape, seps)), stop_name,
-                     flags=re.IGNORECASE)
+    parts = re.split("|".join(map(re.escape, seps)), stop_name, flags=re.IGNORECASE)
     return [normalize_street(p, mods) for p in parts if p.strip()]
 
 
 def dl_score(a: str, b: str) -> float:
     return difflib.SequenceMatcher(None, a, b).ratio() * 100
 
+
 def make_stops_fc(df: pd.DataFrame, out_fc: str, sr: int) -> None:
     """Create a simple point FC for GTFS stops."""
     if arcpy.Exists(out_fc):
         arcpy.management.Delete(out_fc)
-    arcpy.management.CreateFeatureclass(os.path.dirname(out_fc),
-                                        os.path.basename(out_fc),
-                                        "POINT",
-                                        spatial_reference=arcpy.SpatialReference(sr))
+    arcpy.management.CreateFeatureclass(
+        os.path.dirname(out_fc),
+        os.path.basename(out_fc),
+        "POINT",
+        spatial_reference=arcpy.SpatialReference(sr),
+    )
     arcpy.management.AddField(out_fc, "stop_id", "TEXT", 50)
     arcpy.management.AddField(out_fc, "stop_name", "TEXT", 255)
     with arcpy.da.InsertCursor(out_fc, ["SHAPE@XY", "stop_id", "stop_name"]) as cur:
@@ -144,7 +163,7 @@ def safe_project_or_copy(in_fc: str, out_fc: str, out_sr: int) -> None:
     if arcpy.Exists(out_fc):
         arcpy.management.Delete(out_fc)
 
-    desc   = arcpy.Describe(in_fc)
+    desc = arcpy.Describe(in_fc)
     src_sr = desc.spatialReference
     tgt_sr = arcpy.SpatialReference(out_sr)
 
@@ -171,9 +190,13 @@ def buffer_fc(in_fc: str, out_fc: str, dist: float, unit: str) -> None:
 def spatial_join_fc(target: str, join: str, out_fc: str) -> None:
     if arcpy.Exists(out_fc):
         arcpy.management.Delete(out_fc)
-    arcpy.analysis.SpatialJoin(target, join, out_fc,
-                               join_operation="JOIN_ONE_TO_MANY",
-                               match_option="INTERSECT")
+    arcpy.analysis.SpatialJoin(
+        target,
+        join,
+        out_fc,
+        join_operation="JOIN_ONE_TO_MANY",
+        match_option="INTERSECT",
+    )
 
 
 def field_set(fc: str) -> set[str]:
@@ -210,8 +233,7 @@ def modifiers_from_roads(fc: str, fld: str) -> set[str]:
     return mods
 
 
-def road_clean_dict(fc: str, fullname: str,
-                    mods: set[str]) -> dict[str, set[str]]:
+def road_clean_dict(fc: str, fullname: str, mods: set[str]) -> dict[str, set[str]]:
     d = defaultdict(set)
     with arcpy.da.SearchCursor(fc, [fullname]) as cur:
         for (full,) in cur:
@@ -222,8 +244,9 @@ def road_clean_dict(fc: str, fullname: str,
     return d
 
 
-def stop_to_candidate_roads(join_fc: str, fullname: str,
-                             mods: set[str]) -> dict[str, set[str]]:
+def stop_to_candidate_roads(
+    join_fc: str, fullname: str, mods: set[str]
+) -> dict[str, set[str]]:
     sc = defaultdict(set)
     with arcpy.da.SearchCursor(join_fc, ["stop_id", fullname]) as cur:
         for sid, full in cur:
@@ -232,11 +255,13 @@ def stop_to_candidate_roads(join_fc: str, fullname: str,
     return sc
 
 
-def detect_typos(stops_df: pd.DataFrame,
-                 stop2roads: dict[str, set[str]],
-                 road_clean: dict[str, set[str]],
-                 mods: set[str],
-                 thresh: int) -> pd.DataFrame:
+def detect_typos(
+    stops_df: pd.DataFrame,
+    stop2roads: dict[str, set[str]],
+    road_clean: dict[str, set[str]],
+    mods: set[str],
+    thresh: int,
+) -> pd.DataFrame:
     universe = set(road_clean.keys())
     out_rows = []
 
@@ -249,20 +274,27 @@ def detect_typos(stops_df: pd.DataFrame,
             if frag in candidates:
                 continue
             for match in difflib.get_close_matches(
-                    frag, candidates, n=3, cutoff=thresh/100):
+                frag, candidates, n=3, cutoff=thresh / 100
+            ):
                 score = dl_score(frag, match)
                 if thresh <= score < 100:
                     for orig in road_clean.get(match, {match}):
-                        out_rows.append({"stop_id": sid,
-                                         "stop_name": sname,
-                                         "street_in_stop_name": frag,
-                                         "similar_road_name_clean": match,
-                                         "similar_road_name_orig": orig,
-                                         "similarity_score": round(score, 1)})
+                        out_rows.append(
+                            {
+                                "stop_id": sid,
+                                "stop_name": sname,
+                                "street_in_stop_name": frag,
+                                "similar_road_name_clean": match,
+                                "similar_road_name_orig": orig,
+                                "similarity_score": round(score, 1),
+                            }
+                        )
 
-    return (pd.DataFrame(out_rows)
-              .sort_values("similarity_score", ascending=False)
-              .drop_duplicates())
+    return (
+        pd.DataFrame(out_rows)
+        .sort_values("similarity_score", ascending=False)
+        .drop_duplicates()
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -292,8 +324,7 @@ def main() -> None:
     logging.info("Mapping roadway fields …")
     col_map = map_road_fields(roads_proj)
     mods = modifiers_from_roads(
-        roads_proj,
-        col_map.get("RW_TYPE_US", col_map["FULLNAME"])
+        roads_proj, col_map.get("RW_TYPE_US", col_map["FULLNAME"])
     )
     logging.info("Found %d modifiers.", len(mods))
 
@@ -308,13 +339,12 @@ def main() -> None:
     spatial_join_fc(stops_buf, roads_proj, join_fc)
 
     # Build lookup dictionaries
-    r_clean  = road_clean_dict(roads_proj, col_map["FULLNAME"], mods)
-    stop2rd  = stop_to_candidate_roads(join_fc, col_map["FULLNAME"], mods)
+    r_clean = road_clean_dict(roads_proj, col_map["FULLNAME"], mods)
+    stop2rd = stop_to_candidate_roads(join_fc, col_map["FULLNAME"], mods)
 
     # Detect typos
     logging.info("Running difflib matching …")
-    typos = detect_typos(stops_df, stop2rd, r_clean, mods,
-                         SIMILARITY_THRESHOLD)
+    typos = detect_typos(stops_df, stop2rd, r_clean, mods, SIMILARITY_THRESHOLD)
 
     # Output
     out_csv = os.path.join(OUTPUT_DIR, OUTPUT_CSV)
