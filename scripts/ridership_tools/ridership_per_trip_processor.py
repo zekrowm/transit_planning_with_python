@@ -41,8 +41,8 @@ Dependencies:
     pandas, openpyxl, os (standard library)
 """
 
-import os
 import datetime
+import os
 
 import pandas as pd
 from openpyxl import Workbook
@@ -111,6 +111,7 @@ FILTER_OUT_LIST = []
 # FUNCTIONS
 # =============================================================================
 
+
 def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     """
     1. Read the entire Excel sheet into a DataFrame.
@@ -134,8 +135,8 @@ def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
             # Case B: parse strings / other representations into datetime
             parsed = pd.to_datetime(
                 series.astype(str).str.strip(),
-                errors="coerce",          # invalid rows → NaT
-                infer_datetime_format=True
+                errors="coerce",  # invalid rows → NaT
+                infer_datetime_format=True,
             )
             df["TRIP_START_TIME"] = parsed.dt.time
 
@@ -172,10 +173,9 @@ def write_direction_sheet(
       - Optionally add a bar chart of 'Passengers' vs. 'Start Time'
     """
     # 1. Locally sort by TRIP_START_TIME (NaT last)
-    direction_df = (
-        direction_df.sort_values("TRIP_START_TIME", na_position="last")
-                    .reset_index(drop=True)
-    )
+    direction_df = direction_df.sort_values(
+        "TRIP_START_TIME", na_position="last"
+    ).reset_index(drop=True)
 
     # 2. Create a new worksheet named after this direction
     ws = wb.create_sheet(title=direction_name)
@@ -239,7 +239,7 @@ def write_direction_sheet(
                     name=orig.name,
                     size=orig.size,
                     bold=orig.bold,
-                    color="FF0000"  # red
+                    color="FF0000",  # red
                 )
 
     # 10. Optionally create a bar chart of ‘Passengers’ vs. ‘Start Time’
@@ -330,13 +330,10 @@ def main() -> None:
             df = df[~df[FILTER_COLUMN_NAME].isin(FILTER_OUT_LIST)]
 
     # 3. Global sort – so that groupby("ROUTE_NAME") inherits chronological order
-    df = (
-        df.sort_values(
-            by=["ROUTE_NAME", "DIRECTION_NAME", "TRIP_START_TIME"],
-            kind="mergesort"  # stable sort
-        )
-        .reset_index(drop=True)
-    )
+    df = df.sort_values(
+        by=["ROUTE_NAME", "DIRECTION_NAME", "TRIP_START_TIME"],
+        kind="mergesort",  # stable sort
+    ).reset_index(drop=True)
 
     # 4. Ensure output folder exists
     create_output_folder(OUTPUT_FOLDER)
@@ -348,12 +345,13 @@ def main() -> None:
 
         with open(log_path, "w", encoding="utf-8") as log_file:
             if low_df.empty:
-                log_file.write("No trips found with ultra-low ridership (≤ "
-                               f"{ULTRA_LOW_THRESHOLD}).\n")
+                log_file.write(
+                    "No trips found with ultra-low ridership (≤ "
+                    f"{ULTRA_LOW_THRESHOLD}).\n"
+                )
             else:
                 log_file.write(
-                    "Trips with ultra-low ridership "
-                    f"(≤ {ULTRA_LOW_THRESHOLD}):\n\n"
+                    "Trips with ultra-low ridership " f"(≤ {ULTRA_LOW_THRESHOLD}):\n\n"
                 )
                 for _, row in low_df.iterrows():
                     trip_id = row.get("SERIAL_NUMBER", "")
