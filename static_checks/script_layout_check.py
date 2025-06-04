@@ -31,19 +31,19 @@ from typing import List, Tuple
 # CONFIGURATION
 # ======================================================================
 
-ROOTS: List[str] = [r"C:\Path\To\Your\Repo"]        # folders or files to scan
-SKIP:  List[str] = [r".venv", r"__pycache__"]       # substrings in path to ignore
-LOG_FOLDER = r"C:\tmp\structure_logs"               # where to write the log file
+ROOTS: List[str] = [r"C:\Path\To\Your\Repo"]  # folders or files to scan
+SKIP: List[str] = [r".venv", r"__pycache__"]  # substrings in path to ignore
+LOG_FOLDER = r"C:\tmp\structure_logs"  # where to write the log file
 
 # ----------------------------------------------------------------------
 # CONSTANTS
 # ----------------------------------------------------------------------
 
-FENCE          = "# " + "=" * 98                     # canonical 100-char fence
-FENCE_RX       = re.compile(r"^#\s*={8,}\s*$")       # any 8+ "=" (detect misuse)
-MAJOR_NAMES    = ("CONFIGURATION", "FUNCTIONS", "MAIN")
-TOLERANCE      = {"CONFIGURATION": 3, "FUNCTIONS": 6, "MAIN": 3}
-REQ_DOC_HDRS   = [
+FENCE = "# " + "=" * 98  # canonical 100-char fence
+FENCE_RX = re.compile(r"^#\s*={8,}\s*$")  # any 8+ "=" (detect misuse)
+MAJOR_NAMES = ("CONFIGURATION", "FUNCTIONS", "MAIN")
+TOLERANCE = {"CONFIGURATION": 3, "FUNCTIONS": 6, "MAIN": 3}
+REQ_DOC_HDRS = [
     "script name:",
     "purpose:",
     "inputs:",
@@ -54,6 +54,7 @@ REQ_DOC_HDRS   = [
 # ======================================================================
 # FUNCTIONS
 # ======================================================================
+
 
 def gather_py_files(roots: List[str], skip: List[str]) -> List[Path]:
     """
@@ -118,8 +119,10 @@ def first_module_doc(lines: List[str]) -> str | None:
     if not doc:
         return None
     # Confirm the docstring is top-level (i.e., first node in the module)
-    if tree.body and isinstance(tree.body[0], ast.Expr) and isinstance(
-        tree.body[0].value, ast.Constant
+    if (
+        tree.body
+        and isinstance(tree.body[0], ast.Expr)
+        and isinstance(tree.body[0].value, ast.Constant)
     ):
         return doc
     return None
@@ -206,7 +209,11 @@ def analyse_file(py: Path) -> List[str]:
     for i, ln in enumerate(lines):
         if FENCE_RX.match(ln):
             # If this fence is not part of a major-block, flag it
-            if not any(start <= i < end for name in MAJOR_NAMES for start, end in find_header_blocks(lines, name)):
+            if not any(
+                start <= i < end
+                for name in MAJOR_NAMES
+                for start, end in find_header_blocks(lines, name)
+            ):
                 issues.append(f"Minor header uses '=' fence at line {i+1}")
 
     # 3. def main() presence
@@ -229,9 +236,11 @@ def analyse_file(py: Path) -> List[str]:
 
     return issues
 
+
 # ======================================================================
 # MAIN
 # ======================================================================
+
 
 def main() -> None:
     files = gather_py_files(ROOTS, SKIP)
