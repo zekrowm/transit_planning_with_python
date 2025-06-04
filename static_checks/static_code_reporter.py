@@ -1,6 +1,6 @@
 """
 Script Name:
-    static_code_auditor.py
+    static_code_reporter.py
 
 Purpose:
     Performs a comprehensive static analysis sweep across specified Python files and folders.
