@@ -90,6 +90,7 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
     """
     For a given route_name, creates a DataFrame of stops served by that route,
     and calculates totals and percentages for boardings and/or alightings.
+    Rounded to 1 decimal place for XBOARDINGS, XALIGHTINGS, and XTOTAL.
     """
     # Filter the route
     route_df = data_frame[data_frame["ROUTE_NAME"] == route_name].copy()
@@ -108,7 +109,7 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
     # Aggregate data by STOP_ID and STOP_NAME
     grouped = route_df.groupby(["STOP_ID", "STOP_NAME"], as_index=False).agg(agg_dict)
 
-    # Calculate totals
+    # Calculate totals from raw sums
     total_boardings = grouped["XBOARDINGS"].sum() if boardings_flag else 0
     total_alightings = grouped["XALIGHTINGS"].sum() if alightings_flag else 0
 
@@ -122,13 +123,23 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
             grouped["XALIGHTINGS"] / total_alightings if total_alightings != 0 else 0.0
         )
 
-    # If both boardings and alightings are used, calculate a combined percentage
+    # If both boardings and alightings are used, calculate a combined total and percentage
     if boardings_flag and alightings_flag:
         grouped["XTOTAL"] = grouped["XBOARDINGS"] + grouped["XALIGHTINGS"]
         total_combined = grouped["XTOTAL"].sum()
         grouped["PCT_TOTAL"] = (
             grouped["XTOTAL"] / total_combined if total_combined != 0 else 0.0
         )
+
+    # ==========================
+    # Rounding step (to 1 decimal place)
+    # ==========================
+    if boardings_flag:
+        grouped["XBOARDINGS"] = grouped["XBOARDINGS"].round(1)
+    if alightings_flag:
+        grouped["XALIGHTINGS"] = grouped["XALIGHTINGS"].round(1)
+    if boardings_flag and alightings_flag:
+        grouped["XTOTAL"] = grouped["XTOTAL"].round(1)
 
     return grouped
 
