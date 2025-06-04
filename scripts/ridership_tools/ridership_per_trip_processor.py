@@ -42,6 +42,7 @@ Dependencies:
 """
 
 import os
+import datetime
 
 import pandas as pd
 from openpyxl import Workbook
@@ -61,7 +62,7 @@ DATE_TYPE = "Weekday"
 
 # COLUMN CONFIGURATION --------------------------------------------------------
 
-# List of columns to retain; each entry may optionally include a “: Custom Header” suffix.
+# List of columns to retain; each entry may optionally include “: Custom Header”.
 COLUMNS_CONFIG = [
     "SERIAL_NUMBER: Trip ID",
     "TRIP_START_TIME: Start Time",
@@ -70,9 +71,9 @@ COLUMNS_CONFIG = [
     "PASSENGERS_ON: Passengers",
 ]
 
-# Process COLUMNS_CONFIG into two lists/dicts:
-#   1) COLUMNS_TO_RETAIN = [ "SERIAL_NUMBER", "TRIP_START_TIME", ... ]
-#   2) COLUMN_RENAME_MAP = { "SERIAL_NUMBER": "Trip ID", "TRIP_START_TIME": "Start Time", ... }
+# Process COLUMNS_CONFIG into two structures:
+#   1) COLUMNS_TO_RETAIN = ["SERIAL_NUMBER", "TRIP_START_TIME", …]
+#   2) COLUMN_RENAME_MAP = { "SERIAL_NUMBER": "Trip ID", "TRIP_START_TIME": "Start Time", … }
 COLUMNS_TO_RETAIN = []
 COLUMN_RENAME_MAP = {}
 for col_entry in COLUMNS_CONFIG:
@@ -83,41 +84,39 @@ for col_entry in COLUMNS_CONFIG:
         COLUMNS_TO_RETAIN.append(original)
         COLUMN_RENAME_MAP[original] = new_name
     else:
-        col_entry = col_entry.strip()
-        COLUMNS_TO_RETAIN.append(col_entry)
+        col_name = col_entry.strip()
+        COLUMNS_TO_RETAIN.append(col_name)
 
 # OTHER OPTIONS ---------------------------------------------------------------
 
-# Whether to create bar charts (True / False)
+# Whether to create bar charts (True/False).
 CREATE_CHARTS = True
 
-# Whether to highlight ultra‐low trips (True / False)
+# Whether to highlight ultra‐low trips (True/False).
 FLAG_ULTRA_LOW = False
-ULTRA_LOW_THRESHOLD = 1.0  # e.g., trips with ≤1 passenger
+ULTRA_LOW_THRESHOLD = 1.0  # trips with ≤1 passenger are “ultra-low”
 
 # FILTERING OPTIONS -----------------------------------------------------------
 
-# If you want to filter by ROUTE_NAME (or DIRECTION_NAME, etc.), set FILTER_COLUMN_NAME here.
-# Otherwise, set to None or an empty string.
+# If filtering is desired, specify the column (e.g. "ROUTE_NAME"); otherwise, set to None or "".
 FILTER_COLUMN_NAME = "ROUTE_NAME"
 
-# If FILTER_IN_LIST is nonempty, only rows whose FILTER_COLUMN_NAME is in this list will remain.
+# Only keep rows whose FILTER_COLUMN_NAME is in this list (if non-empty).
 FILTER_IN_LIST = ["101", "202"]
 
-# If FILTER_OUT_LIST is nonempty, rows whose FILTER_COLUMN_NAME is in this list will be excluded.
+# Exclude rows whose FILTER_COLUMN_NAME is in this list (if non-empty).
 FILTER_OUT_LIST = []
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
-
 def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     """
     1. Read the entire Excel sheet into a DataFrame.
     2. Normalize 'TRIP_START_TIME' to a Python datetime.time object whenever possible.
        - If pandas already reads it as datetime64[ns], extract .dt.time.
-       - Otherwise, coerce strings like “05:20” or “5:20 AM” (and even “05:20:00”) into time.
+       - Otherwise, coerce strings like “05:20” or “05:20:00” into time.
     3. Keep only the requested columns (in order).
     """
     # 1. Read the Excel file
@@ -127,21 +126,17 @@ def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     if "TRIP_START_TIME" in df.columns:
         series = df["TRIP_START_TIME"]
 
-        # Case A: pandas already read it as datetime64[ns]
+        # Case A: pandas recognized it as datetime64[ns]
         if pd.api.types.is_datetime64_any_dtype(series):
-            # Extract only the `.dt.time` portion (drops date entirely)
             df["TRIP_START_TIME"] = series.dt.time
 
         else:
-            # Case B: it’s not a datetime64; attempt to parse strings/numbers
-            #    - Convert everything to string, strip whitespace
-            #    - Let pandas infer format (HH:MM, HH:MM:SS, or even Excel‐numeric‐as‐datetime)
+            # Case B: parse strings / other representations into datetime
             parsed = pd.to_datetime(
                 series.astype(str).str.strip(),
-                errors="coerce",  # any unparsable → NaT
-                infer_datetime_format=True,
+                errors="coerce",          # invalid rows → NaT
+                infer_datetime_format=True
             )
-            # Extract only the time part (NaT → NaT.time() → stays NaT)
             df["TRIP_START_TIME"] = parsed.dt.time
 
     # 3. Retain only columns that actually exist
@@ -153,7 +148,7 @@ def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
 
 def create_output_folder(folder_path: str) -> None:
     """
-    Create the output folder (and any intermediates) if it doesn't already exist.
+    Create the output folder (and any necessary parent folders) if it doesn't exist.
     """
     os.makedirs(folder_path, exist_ok=True)
 
@@ -176,34 +171,31 @@ def write_direction_sheet(
       - Write everything to an Excel sheet
       - Optionally add a bar chart of 'Passengers' vs. 'Start Time'
     """
-    # 1. Locally sort by TRIP_START_TIME (so that even if groupby() order shifts,
-    #    the sheet itself is guaranteed to be strictly chronological).
-    direction_df = direction_df.sort_values(
-        "TRIP_START_TIME", na_position="last"
-    ).reset_index(drop=True)
+    # 1. Locally sort by TRIP_START_TIME (NaT last)
+    direction_df = (
+        direction_df.sort_values("TRIP_START_TIME", na_position="last")
+                    .reset_index(drop=True)
+    )
 
-    # 2. Create a worksheet named after this direction
+    # 2. Create a new worksheet named after this direction
     ws = wb.create_sheet(title=direction_name)
 
-    # 3. Calculate total ridership, then percentage share for each trip
+    # 3. Calculate total ridership and percentage share for each trip
     total_ridership = direction_df["PASSENGERS_ON"].sum()
     if total_ridership != 0:
         direction_df["Percent of Route Ridership"] = (
             direction_df["PASSENGERS_ON"] / total_ridership
-        ).apply(
-            lambda x: round(x * 100, 1) / 100
-        )  # e.g. 0.1234 → 0.12 → displayed later as “12.0%”
+        ).apply(lambda x: round(x * 100, 1) / 100)
     else:
-        # Avoid division by zero → set all to 0
         direction_df["Percent of Route Ridership"] = 0.0
 
-    # 4. Round the raw passenger counts
+    # 4. Round PASSENGERS_ON to 1 decimal
     direction_df["PASSENGERS_ON"] = direction_df["PASSENGERS_ON"].round(1)
 
-    # 5. Determine which row has the maximum ridership, for bolding
+    # 5. Determine the maximum ridership value (for bolding)
     max_ridership = direction_df["PASSENGERS_ON"].max()
 
-    # 6. Write the header row (with custom renames)
+    # 6. Write headers (using COLUMN_RENAME_MAP where provided)
     headers = list(direction_df.columns)
     for col_idx, header in enumerate(headers, start=1):
         display = COLUMN_RENAME_MAP.get(header, header)
@@ -216,30 +208,25 @@ def write_direction_sheet(
 
             if header == "TRIP_START_TIME":
                 val = row_data[header]
-
-                # If val is a Python time object, assign directly and set number_format
-                if isinstance(val, type(pd.to_datetime("00:00").time())):
+                # If val is a Python time object
+                if isinstance(val, type(datetime.datetime.now().time())):
                     cell.value = val
                     cell.number_format = "hh:mm"
-
-                # If val is a pandas Timestamp (rare after our load_data, but just in case)
+                # If val is a pandas Timestamp (just in case)
                 elif isinstance(val, pd.Timestamp):
                     cell.value = val.time()
                     cell.number_format = "hh:mm"
-
-                # If val is NaT or None, leave it blank
                 else:
+                    # Blank if unparseable / NaT
                     cell.value = None
-
             else:
-                # For any other column, write exactly what’s in row_data
                 cell.value = row_data[header]
 
-            # If this is the “Percent of Route Ridership” column, format as percentage
+            # Format percentage column
             if header == "Percent of Route Ridership":
                 cell.number_format = "0.0%"
 
-        # 8. Bold the entire row if this is the max‐ridership trip
+        # 8. Bold the row if this trip has the maximum ridership
         if row_data["PASSENGERS_ON"] == max_ridership:
             for c_idx in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=c_idx).font = Font(bold=True)
@@ -252,7 +239,7 @@ def write_direction_sheet(
                     name=orig.name,
                     size=orig.size,
                     bold=orig.bold,
-                    color="FF0000",  # pure red
+                    color="FF0000"  # red
                 )
 
     # 10. Optionally create a bar chart of ‘Passengers’ vs. ‘Start Time’
@@ -262,13 +249,11 @@ def write_direction_sheet(
         chart.x_axis.title = "Trip Start Time"
         chart.y_axis.title = "Ridership"
 
-        # Locate the column indices of PASSENGERS_ON and TRIP_START_TIME in this sheet
         pass_col_idx = headers.index("PASSENGERS_ON") + 1
         time_col_idx = headers.index("TRIP_START_TIME") + 1
         first_data_row = 2
         last_data_row = direction_df.shape[0] + 1
 
-        # Series of passenger counts (for bar heights)
         data_series = Reference(
             ws,
             min_col=pass_col_idx,
@@ -278,7 +263,6 @@ def write_direction_sheet(
         )
         chart.add_data(data_series, titles_from_data=False)
 
-        # Categories along the X-axis (the actual times)
         categories = Reference(
             ws,
             min_col=time_col_idx,
@@ -287,7 +271,6 @@ def write_direction_sheet(
         )
         chart.set_categories(categories)
 
-        # Insert the chart two columns to the right of the data
         anchor_cell = f"{get_column_letter(len(headers) + 2)}2"
         ws.add_chart(chart, anchor_cell)
 
@@ -302,17 +285,15 @@ def create_route_workbook(
     ultra_low_threshold: float,
 ) -> None:
     """
-    For a single route (all directions), build a new Excel Workbook.
-    - Remove the default sheet.
-    - For each direction, call write_direction_sheet().
-    - Save as '{route_name}.xlsx' in the OUTPUT_FOLDER.
+    For one route (all directions):
+    - Remove default sheet
+    - Call write_direction_sheet() for each direction
+    - Save as '{route_name}.xlsx' in OUTPUT_FOLDER
     """
     wb = Workbook()
-    # Delete the one auto‐created sheet
     default = wb.active
     wb.remove(default)
 
-    # Group by “DIRECTION_NAME” (no sorting of groupby keys, since we pre‐sorted globally)
     for direction_name, direction_df in route_df.groupby("DIRECTION_NAME", sort=False):
         write_direction_sheet(
             wb=wb,
@@ -324,7 +305,6 @@ def create_route_workbook(
             ultra_low_threshold=ultra_low_threshold,
         )
 
-    # Save workbook
     output_path = os.path.join(output_folder, f"{route_name}.xlsx")
     wb.save(output_path)
     print(f"Saved workbook: {output_path}")
@@ -332,32 +312,67 @@ def create_route_workbook(
 
 def main() -> None:
     """
-    1. Load full data.
-    2. Apply any filters.
-    3. Globally sort by (ROUTE_NAME, DIRECTION_NAME, TRIP_START_TIME).
+    1. Load data from INPUT_FILE.
+    2. Optionally filter rows.
+    3. Sort globally by (ROUTE_NAME, DIRECTION_NAME, TRIP_START_TIME).
     4. Ensure OUTPUT_FOLDER exists.
-    5. Create one Excel file per route.
+    5. If FLAG_ULTRA_LOW is True, create a .txt log of all ultra-low trips.
+    6. Create one Excel workbook per route.
     """
-    # 1. Load raw DataFrame
+    # 1. Load
     df = load_data(INPUT_FILE, COLUMNS_TO_RETAIN)
 
-    # 2. Apply filtering if requested
+    # 2. Optional filtering
     if FILTER_COLUMN_NAME:
         if FILTER_IN_LIST:
             df = df[df[FILTER_COLUMN_NAME].isin(FILTER_IN_LIST)]
         if FILTER_OUT_LIST:
             df = df[~df[FILTER_COLUMN_NAME].isin(FILTER_OUT_LIST)]
 
-    # 3. Sort globally, preserving order within each group
-    df = df.sort_values(
-        by=["ROUTE_NAME", "DIRECTION_NAME", "TRIP_START_TIME"],
-        kind="mergesort",  # stable sort → ties preserve prior order
-    ).reset_index(drop=True)
+    # 3. Global sort – so that groupby("ROUTE_NAME") inherits chronological order
+    df = (
+        df.sort_values(
+            by=["ROUTE_NAME", "DIRECTION_NAME", "TRIP_START_TIME"],
+            kind="mergesort"  # stable sort
+        )
+        .reset_index(drop=True)
+    )
 
-    # 4. Make sure the output folder exists
+    # 4. Ensure output folder exists
     create_output_folder(OUTPUT_FOLDER)
 
-    # 5. One workbook per route
+    # 5. If FLAG_ULTRA_LOW, write a log of all trips ≤ ULTRA_LOW_THRESHOLD
+    if FLAG_ULTRA_LOW:
+        low_df = df[df["PASSENGERS_ON"] <= ULTRA_LOW_THRESHOLD]
+        log_path = os.path.join(OUTPUT_FOLDER, "ultra_low_ridership_log.txt")
+
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            if low_df.empty:
+                log_file.write("No trips found with ultra-low ridership (≤ "
+                               f"{ULTRA_LOW_THRESHOLD}).\n")
+            else:
+                log_file.write(
+                    "Trips with ultra-low ridership "
+                    f"(≤ {ULTRA_LOW_THRESHOLD}):\n\n"
+                )
+                for _, row in low_df.iterrows():
+                    trip_id = row.get("SERIAL_NUMBER", "")
+                    route = row.get("ROUTE_NAME", "")
+                    direction = row.get("DIRECTION_NAME", "")
+                    passengers = row.get("PASSENGERS_ON", "")
+                    start_val = row.get("TRIP_START_TIME", None)
+                    if isinstance(start_val, type(datetime.datetime.now().time())):
+                        start_str = start_val.strftime("%H:%M")
+                    else:
+                        start_str = "" if pd.isna(start_val) else str(start_val)
+                    log_file.write(
+                        f"Route: {route}, Direction: {direction}, "
+                        f"Trip ID: {trip_id}, Start Time: {start_str}, "
+                        f"Passengers: {passengers}\n"
+                    )
+        print(f"Exported ultra-low ridership log: {log_path}")
+
+    # 6. Create one workbook per route
     for route_name, route_df in df.groupby("ROUTE_NAME", sort=False):
         create_route_workbook(
             route_name=str(route_name),
