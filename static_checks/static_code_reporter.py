@@ -4,9 +4,9 @@ Script Name:
 
 Purpose:
     Performs a comprehensive static analysis sweep across specified Python files and folders.
-    This includes type checking (mypy), dead code detection (vulture), style and quality enforcement
-    (pylint + isort), and docstring structure validation. Each tool's output is logged in detail
-    and summarized in a separate Excel file.
+    This includes type checking (mypy), dead code detection (vulture), style enforcement
+    (pylint + isort), and docstring style checking (pydocstyle). Each tool's output is logged
+    in detail and summarized in a separate Excel file.
 
 Inputs:
     1. FILES_OR_FOLDERS (List[str]):
@@ -16,12 +16,13 @@ Inputs:
     3. Configuration flags within the script:
        - ENABLE_MYPY (bool):        Whether to run mypy.
        - ENABLE_VULTURE (bool):     Whether to run vulture.
-       - ENABLE_LINT (bool):        Whether to run pylint, isort, and docstring checks.
+       - ENABLE_LINT (bool):        Whether to run pylint and isort.
+       - ENABLE_PYDOCSTYLE (bool):  Whether to run pydocstyle.
        - OUTPUT_FOLDER (str):       Directory to write logs and reports.
        - LOG_LEVEL (int):           Logging verbosity (e.g. logging.INFO).
        - MYPY_ADDITIONAL_ARGS (List[str]): Extra flags to pass to mypy.
        - VULTURE_MIN_CONFIDENCE (int): Minimum confidence threshold for vulture.
-       - REQUIRED_DOC_HEADERS (Tuple[str, ...]): Headers expected in each module-level docstring.
+       - PYDOCSTYLE_ADDITIONAL_ARGS (List[str]): Extra flags to pass to pydocstyle.
 
 Outputs:
     1. Detailed Log Files:
@@ -31,17 +32,17 @@ Outputs:
        One .xlsx file per tool with a timestamped name and structured summary sheet:
            - mypy_results_YYYYMMDD_HHMMSS.xlsx
            - vulture_results_YYYYMMDD_HHMMSS.xlsx
-           - lint_results_YYYYMMDD_HHMMSS.xlsx
+           - lint_results_YYYYMMDD_HHMMSS.xlsx (covers pylint & isort)
+           - pydocstyle_results_YYYYMMDD_HHMMSS.xlsx
     3. Console Output:
        Progress messages and final summary.
 
 Dependencies:
-        - os, sys, re, subprocess, logging, pathlib, datetime, typing, ast
-        - openpyxl, mypy, vulture, pylint, isort
+        - os, sys, re, subprocess, logging, pathlib, datetime, typing
+        - openpyxl, mypy, vulture, pylint, isort, pydocstyle
 """
 
 from __future__ import annotations
-
 import ast
 import logging
 import os
@@ -50,13 +51,12 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
-
+from typing import List, Tuple, Dict, Any # Added Dict and Any
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
 # ============================================================================
-# CONFIGURATION – toggle these for notebook usage
+# CONFIGURATION
 # ============================================================================
 
 FILES_OR_FOLDERS: List[str] = [
@@ -65,32 +65,26 @@ FILES_OR_FOLDERS: List[str] = [
 SKIP_PATHS: List[str] = [
     # e.g. r"C:\Path\to\project\venv",
 ]
-
 OUTPUT_FOLDER: str = r"C:\Path\to\Output\Folder"  # Replace with your folder path
 LOG_LEVEL: int = logging.INFO
 
 ENABLE_MYPY: bool = True
 ENABLE_VULTURE: bool = True
-ENABLE_LINT: bool = True  # pylint + isort + docstring
+ENABLE_LINT: bool = True  # pylint + isort
+ENABLE_PYDOCSTYLE: bool = True # Added pydocstyle
 
 # mypy
 MYPY_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--ignore-missing-imports"]
-
 # vulture
 VULTURE_MIN_CONFIDENCE: int = 60  # default is 60
+# pydocstyle
+PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = [] # e.g. ["--convention=google"]
 
-# lint (pylint + isort + docstring)
-REQUIRED_DOC_HEADERS: Tuple[str, ...] = (
-    "Script Name:",
-    "Purpose:",
-    "Inputs:",
-    "Outputs:",
-    "Dependencies:",
-)
+# Removed REQUIRED_DOC_HEADERS from lint configuration
 
-# ============================================================================
-# SHARED HELPERS
-# ============================================================================
+# ----------------------------------------------------------------------------
+# LOGGING
+# ----------------------------------------------------------------------------
 
 logging.basicConfig(
     level=LOG_LEVEL,
@@ -99,6 +93,9 @@ logging.basicConfig(
 )
 CONSOLE = logging.getLogger(__name__)
 
+# ============================================================================
+# FUNCTIONS
+# ============================================================================
 
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
@@ -107,22 +104,18 @@ def setup_detailed_logger(
     folder = Path(out_folder).expanduser().resolve()
     folder.mkdir(parents=True, exist_ok=True)
     logfile = str(folder / f"{prefix}_{ts}.log")
-
     lg = logging.getLogger(prefix)
     lg.setLevel(level)
     lg.propagate = False
     lg.handlers.clear()
-
     fh = logging.FileHandler(logfile, mode="w", encoding="utf-8")
     fh.setFormatter(logging.Formatter("%(message)s"))
     lg.addHandler(fh)
     return lg, logfile
 
-
 def gather_python_files(paths: List[str], skip_list: List[str]) -> List[str]:
     """Collect .py files, respecting the skip list."""
     collected: List[str] = []
-
     def is_skipped(p: Path) -> bool:
         norm = p.resolve().as_posix().lower()
         for s in skip_list:
@@ -130,7 +123,6 @@ def gather_python_files(paths: List[str], skip_list: List[str]) -> List[str]:
             if norm == ns or norm.startswith(ns + "/"):
                 return True
         return False
-
     for entry in paths:
         p = Path(entry).expanduser()
         if not p.exists():
@@ -145,23 +137,16 @@ def gather_python_files(paths: List[str], skip_list: List[str]) -> List[str]:
                             collected.append(fpath.as_posix())
         elif p.suffix.lower() == ".py" and not is_skipped(p):
             collected.append(p.as_posix())
-
-    # dedupe while preserving order
     return list(dict.fromkeys(collected))
-
-
-# ============================================================================
+    
+# ----------------------------------------------------------------------------
 # 1) MYPY CHECK
-# ============================================================================
-
+# ----------------------------------------------------------------------------
 _MYPY_RE = re.compile(r"Found\s+(\d+)\s+error")
-
-
 def run_mypy(files: List[str]) -> int:
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "mypy_detailed_log")
     CONSOLE.info("mypy log → %s", log_fp)
-
-    results = []
+    results: List[Dict[str, Any]] = [] # Explicitly typed
     for idx, py in enumerate(files, 1):
         logger.info(
             "\n%s\nFILE %d/%d → %s\n%s", "=" * 80, idx, len(files), py, "=" * 80
@@ -185,18 +170,16 @@ def run_mypy(files: List[str]) -> int:
             out, err = proc.stdout, proc.stderr
         except FileNotFoundError:
             CONSOLE.error("python -m mypy not found – aborting mypy pass.")
-            return len(files)
+            return len(files) # Treat all files as failures for this pass
         logger.info(out or "")
         if err:
             logger.info("\n--- stderr ---\n%s", err)
-
         if "Success: no issues found" in (out or ""):
             errors = 0
         elif m := _MYPY_RE.search(out or ""):
             errors = int(m.group(1))
         else:
             errors = len([l for l in (out or "").splitlines() if ": error:" in l])
-
         results.append(
             {
                 "script": Path(py).name,
@@ -207,10 +190,12 @@ def run_mypy(files: List[str]) -> int:
                 "stderr": err or "",
             }
         )
-
     # Excel summary
     wb = Workbook()
     ws = wb.active
+    if ws is None: # Should not happen with wb.active
+        CONSOLE.error("Failed to create active worksheet for mypy.")
+        return len(results) # Or some other error indication
     ws.title = "mypy Summary"
     ws.append(["Script", "Folder", "# Errors", "Success", "Path", "Stderr"])
     for r in results:
@@ -224,30 +209,26 @@ def run_mypy(files: List[str]) -> int:
                 r["stderr"],
             ]
         )
-    for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = min(
-            max(len(str(c.value or "")) for c in col) + 2, 80
-        )
+    for col_cells in ws.columns: # Changed variable name for clarity
+        max_len = 0
+        for cell in col_cells:
+            if cell.value:
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[col_cells[0].column_letter].width = min(max_len + 2, 80)
 
     xlsx = Path(OUTPUT_FOLDER) / f"mypy_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
     wb.save(xlsx)
     CONSOLE.info("mypy summary → %s", xlsx)
-
     return sum(1 for r in results if r["errors"] > 0)
-
-
-# ============================================================================
+    
+# ----------------------------------------------------------------------------
 # 2) VULTURE CHECK
-# ============================================================================
-
+# ----------------------------------------------------------------------------
 _VULTURE_LINE = re.compile(r"^(?:.+?:)?(\d+):\s*(.+?)\s*\((\d+%) confidence\)$")
-
-
 def run_vulture(files: List[str]) -> int:
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "vulture_detailed_log")
     CONSOLE.info("vulture log → %s", log_fp)
-
-    summary = []
+    summary: List[Dict[str, Any]] = [] # Explicitly typed
     for idx, py in enumerate(files, 1):
         logger.info(
             "\n%s\nFILE %d/%d → %s\n%s", "=" * 80, idx, len(files), py, "=" * 80
@@ -274,13 +255,11 @@ def run_vulture(files: List[str]) -> int:
         logger.info(out or "")
         if err:
             logger.info("\n--- stderr ---\n%s", err)
-
         items = []
         for line in (out or "").splitlines():
             m = _VULTURE_LINE.match(line.strip())
             if m:
                 items.append(f"{m.group(2)} (line {m.group(1)}, {m.group(3)})")
-
         summary.append(
             {
                 "script": Path(py).name,
@@ -291,63 +270,43 @@ def run_vulture(files: List[str]) -> int:
                 "stderr": (err or "").strip(),
             }
         )
-
     wb = Workbook()
     ws = wb.active
+    if ws is None:
+        CONSOLE.error("Failed to create active worksheet for vulture.")
+        return len(summary)
     ws.title = "Vulture Dead Code"
     ws.append(["Script", "Folder", "Items", "Details", "Stderr", "Path"])
     for r in summary:
         ws.append(
             [r["script"], r["folder"], r["count"], r["details"], r["stderr"], r["path"]]
         )
-    for i, col in enumerate(ws.columns, 1):
-        ws.column_dimensions[get_column_letter(i)].width = min(
-            max(len(str(c.value or "")) for c in col) + 2, 70
-        )
+    for i, col_cells in enumerate(ws.columns, 1): # Changed variable name
+        max_len = 0
+        for cell in col_cells:
+            if cell.value:
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[get_column_letter(i)].width = min(max_len + 2, 70)
 
     xlsx = Path(OUTPUT_FOLDER) / f"vulture_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
     wb.save(xlsx)
     CONSOLE.info("vulture summary → %s", xlsx)
-
     return sum(1 for r in summary if r["count"] > 0)
 
-
 # ============================================================================
-# 3) PYLINT + ISORT + DOCSTRING CHECK
+# 3) PYLINT + ISORT CHECK
 # ============================================================================
-
 _PYLINT_ISSUE = re.compile(r":\s*[CREFWE]\d{4}:")
-
-
-def _docstring_ok(py_file: str) -> bool:
-    try:
-        with open(py_file, "r", encoding="utf-8") as fh:
-            tree = ast.parse(fh.read())
-    except (SyntaxError, OSError):
-        return False
-    doc = ast.get_docstring(tree)
-    if not doc:
-        return False
-    want = [h.lower() for h in REQUIRED_DOC_HEADERS]
-    idx = 0
-    for ln in (l.strip().lower() for l in doc.splitlines() if l.strip()):
-        if ln.startswith(want[idx]):
-            idx += 1
-            if idx == len(want):
-                return True
-    return False
-
+# Removed _docstring_ok function
 
 def run_lint(files: List[str]) -> int:
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "lint_detailed_log")
-    CONSOLE.info("lint log → %s", log_fp)
-
-    summary = []
+    CONSOLE.info("lint (pylint/isort) log → %s", log_fp)
+    summary: List[Dict[str, Any]] = [] # Explicitly typed
     for idx, py in enumerate(files, 1):
         logger.info(
             "\n%s\nFILE %d/%d → %s\n%s", "=" * 80, idx, len(files), py, "=" * 80
         )
-
         # pylint
         try:
             pr = subprocess.run(
@@ -364,7 +323,6 @@ def run_lint(files: List[str]) -> int:
         logger.info("--- pylint stdout ---\n%s", pout or "")
         if perr:
             logger.info("\n--- pylint stderr ---\n%s", perr)
-
         score = 0.0
         issues = 0
         for line in (pout or "").splitlines():
@@ -372,10 +330,10 @@ def run_lint(files: List[str]) -> int:
                 issues += 1
             if "Your code has been rated at" in line:
                 try:
-                    score = float(line.split("rated at")[1].split("/")[0])
-                except Exception:
-                    pass
-
+                    score_str = line.split("rated at")[1].split("/")[0].strip()
+                    score = float(score_str)
+                except Exception: # pylint: disable=broad-except
+                    pass # Keep default score 0.0 if parsing fails
         # isort
         try:
             ir = subprocess.run(
@@ -394,9 +352,7 @@ def run_lint(files: List[str]) -> int:
         if ierr:
             logger.info("\n--- isort stderr ---\n%s", ierr)
 
-        # docstring
-        doc_ok = _docstring_ok(py)
-
+        # Removed docstring check
         summary.append(
             {
                 "script": Path(py).name,
@@ -404,15 +360,17 @@ def run_lint(files: List[str]) -> int:
                 "score": score,
                 "issues": issues,
                 "isort": "Yes" if needs_isort else "No",
-                "doc": "Yes" if doc_ok else "No",
+                # Removed "doc" field
                 "stderr": (perr or "") + (ierr or ""),
                 "path": py,
             }
         )
-
     wb = Workbook()
     ws = wb.active
-    ws.title = "Lint Summary"
+    if ws is None:
+        CONSOLE.error("Failed to create active worksheet for lint.")
+        return len(summary)
+    ws.title = "Lint Summary (Pylint & Isort)"
     ws.append(
         [
             "Script",
@@ -420,8 +378,8 @@ def run_lint(files: List[str]) -> int:
             "Pylint Score",
             "Pylint Issues",
             "Needs isort",
-            "Docstring OK",
-            "Stderr",
+            # Removed "Docstring OK" header
+            "Stderr (pylint+isort)",
             "Path",
         ]
     )
@@ -433,31 +391,120 @@ def run_lint(files: List[str]) -> int:
                 r["score"],
                 r["issues"],
                 r["isort"],
-                r["doc"],
+                # Removed r["doc"]
                 r["stderr"],
                 r["path"],
             ]
         )
-    for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = min(
-            max(len(str(c.value or "")) for c in col) + 2, 80
-        )
+    for col_cells in ws.columns: # Changed variable name
+        max_len = 0
+        for cell in col_cells:
+            if cell.value:
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[col_cells[0].column_letter].width = min(max_len + 2, 80)
 
     xlsx = Path(OUTPUT_FOLDER) / f"lint_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
     wb.save(xlsx)
-    CONSOLE.info("lint summary → %s", xlsx)
-
+    CONSOLE.info("lint (pylint/isort) summary → %s", xlsx)
     def _has_issues(r: dict) -> bool:
-        return (r["issues"] > 0) or (r["isort"] == "Yes") or (r["doc"] == "No")
-
+        # Updated condition
+        return (r["issues"] > 0) or (r["isort"] == "Yes")
     return sum(1 for r in summary if _has_issues(r))
+    
+# ----------------------------------------------------------------------------
+# 4) PYDOCSTYLE CHECK
+# ----------------------------------------------------------------------------
+def run_pydocstyle(files: List[str]) -> int:
+    logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "pydocstyle_detailed_log")
+    CONSOLE.info("pydocstyle log → %s", log_fp)
+    summary: List[Dict[str, Any]] = []
+    files_with_issues = 0
+
+    for idx, py_file_path in enumerate(files, 1):
+        logger.info(
+            "\n%s\nFILE %d/%d → %s\n%s", "=" * 80, idx, len(files), py_file_path, "=" * 80
+        )
+        try:
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pydocstyle",
+                    *PYDOCSTYLE_ADDITIONAL_ARGS,
+                    py_file_path,
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            # pydocstyle prints errors to stdout and exits with 0 if files are processed,
+            # non-zero for operational errors (e.g., file not found, bad option).
+            # Actual docstring violations don't cause a non-zero exit code by default.
+            stdout, stderr = proc.stdout, proc.stderr
+        except FileNotFoundError:
+            CONSOLE.error("python -m pydocstyle not found – aborting pydocstyle pass.")
+            return len(files) # Treat all files as failures for this pass
+
+        logger.info(stdout or "")
+        if stderr:
+            logger.info("\n--- pydocstyle stderr ---\n%s", stderr)
+
+        issue_lines = [line for line in (stdout or "").splitlines() if line.strip()]
+        num_issues = len(issue_lines)
+        issue_details = "\n".join(issue_lines) # Store all issues
+
+        if num_issues > 0:
+            files_with_issues += 1
+
+        summary.append(
+            {
+                "script": Path(py_file_path).name,
+                "folder": Path(py_file_path).parent.name,
+                "path": py_file_path,
+                "count": num_issues,
+                "details": issue_details if num_issues > 0 else "None",
+                "stderr": (stderr or "").strip(),
+            }
+        )
+
+    # Excel summary
+    wb = Workbook()
+    ws = wb.active
+    if ws is None:
+        CONSOLE.error("Failed to create active worksheet for pydocstyle.")
+        return files_with_issues # Or len(summary)
+    ws.title = "Pydocstyle Summary"
+    ws.append(["Script", "Folder", "# Issues", "Issue Details", "Stderr", "Path"])
+    for r in summary:
+        ws.append(
+            [r["script"], r["folder"], r["count"], r["details"], r["stderr"], r["path"]]
+        )
+
+    # Adjust column widths
+    ws.column_dimensions[get_column_letter(1)].width = 30  # Script
+    ws.column_dimensions[get_column_letter(2)].width = 30  # Folder
+    ws.column_dimensions[get_column_letter(3)].width = 10  # # Issues
+    ws.column_dimensions[get_column_letter(4)].width = 70  # Issue Details (allow more space)
+    ws.column_dimensions[get_column_letter(5)].width = 40  # Stderr
+    ws.column_dimensions[get_column_letter(6)].width = 60  # Path
+
+    # Auto-wrap text in "Issue Details" column for better readability
+    for row in ws.iter_rows(min_row=2, max_col=4, min_col=4): # Start from second row
+        for cell in row:
+            cell.alignment = cell.alignment.copy(wrapText=True)
+
+
+    xlsx_path = Path(OUTPUT_FOLDER) / f"pydocstyle_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
+    wb.save(xlsx_path)
+    CONSOLE.info("pydocstyle summary → %s", xlsx_path)
+
+    return files_with_issues
 
 
 # ============================================================================
 # MAIN
 # ============================================================================
-
-
 def main() -> None:
     files = gather_python_files(FILES_OR_FOLDERS, SKIP_PATHS)
     if not files:
@@ -465,27 +512,60 @@ def main() -> None:
         return
 
     Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
-    overall_failures = 0
+    overall_tools_failed_files = 0 # Renamed for clarity
 
     if ENABLE_MYPY:
         CONSOLE.info("\n=== Running mypy pass ===")
-        overall_failures += run_mypy(files)
+        failures = run_mypy(files)
+        if failures > 0:
+            CONSOLE.warning("Mypy found issues in %d file(s).", failures)
+            overall_tools_failed_files += failures # Or simply increment a "failed tools" counter
+        else:
+            CONSOLE.info("Mypy pass: No issues found.")
+
 
     if ENABLE_VULTURE:
         CONSOLE.info("\n=== Running vulture pass ===")
-        overall_failures += run_vulture(files)
+        failures = run_vulture(files)
+        if failures > 0:
+            CONSOLE.warning("Vulture found potential dead code in %d file(s).", failures)
+            overall_tools_failed_files += failures
+        else:
+            CONSOLE.info("Vulture pass: No issues found.")
 
     if ENABLE_LINT:
         CONSOLE.info("\n=== Running pylint/isort pass ===")
-        overall_failures += run_lint(files)
+        failures = run_lint(files)
+        if failures > 0:
+            CONSOLE.warning("Pylint/isort found issues in %d file(s).", failures)
+            overall_tools_failed_files += failures
+        else:
+            CONSOLE.info("Pylint/isort pass: No issues found.")
 
-    if overall_failures == 0:
-        CONSOLE.info("🎉 All enabled checks passed with flying colours.")
+    if ENABLE_PYDOCSTYLE:
+        CONSOLE.info("\n=== Running pydocstyle pass ===")
+        failures = run_pydocstyle(files)
+        if failures > 0:
+            CONSOLE.warning("Pydocstyle found issues in %d file(s).", failures)
+            overall_tools_failed_files += failures
+        else:
+            CONSOLE.info("Pydocstyle pass: No issues found.")
+
+    CONSOLE.info("\n" + "=" * 80)
+    if overall_tools_failed_files == 0: # Check if any tool reported any file with issues
+        CONSOLE.info("🎉 All enabled static analysis checks passed successfully for all files.")
     else:
+        # This count might be misleading if a single file fails multiple checks.
+        # The current `overall_tools_failed_files` sums up counts of files failing EACH tool.
+        # A more accurate summary might be the number of unique files that had *any* issue.
+        # For now, keeping it as is, representing the sum of "files with issues" from each tool.
         CONSOLE.warning(
-            "⚠️ Static analysis detected issues in %d file(s).", overall_failures
+            "⚠️ Static analysis detected issues. Total count of 'files with issues' across all tools: %d. "
+            "Review individual tool logs and summaries for details.", overall_tools_failed_files
         )
+    CONSOLE.info("Detailed logs and Excel summaries are in: %s", Path(OUTPUT_FOLDER).resolve())
 
 
 if __name__ == "__main__":
     main()
+    
