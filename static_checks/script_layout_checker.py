@@ -1,6 +1,6 @@
 """
 Script Name:
-    script_layout_check.py
+    script_layout_checker.py
 
 Purpose:
     Audit-only tool that enforces the repository’s file-layout convention.
