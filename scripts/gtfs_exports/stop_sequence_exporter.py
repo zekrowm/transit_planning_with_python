@@ -48,7 +48,7 @@ INPUT_DIR = r"Path\To\Your\GTFS\Folder"
 OUTPUT_CSV_PATH = r"File\Path\To\Your\most_common_patterns_both_dirs.csv"
 
 # Optional filters on route_short_name
-FILTER_IN_ROUTE_SHORT_NAMES = []   # e.g. ["306", "50A"]
+FILTER_IN_ROUTE_SHORT_NAMES = []  # e.g. ["306", "50A"]
 FILTER_OUT_ROUTE_SHORT_NAMES = []  # e.g. ["999"]
 
 # =============================================================================
@@ -92,7 +92,9 @@ def compute_most_common_pattern(
     If there are no trips in that direction, returns an empty list.
     """
     # 1. Filter trips for this route_id & direction_id
-    mask = (trips_df["route_id"] == route_id) & (trips_df["direction_id"] == direction_id)
+    mask = (trips_df["route_id"] == route_id) & (
+        trips_df["direction_id"] == direction_id
+    )
     route_trips = trips_df[mask]
     if route_trips.empty:
         return []
@@ -133,10 +135,14 @@ def compute_most_common_pattern(
 def main():
     # 1. Load GTFS files
     try:
-        routes_df = load_gtfs_file("routes.txt")          # expects: route_id, route_short_name
-        trips_df = load_gtfs_file("trips.txt")            # expects: trip_id, route_id, direction_id
-        stop_times_df = load_gtfs_file("stop_times.txt")  # expects: trip_id, stop_id, stop_sequence
-        stops_df = load_gtfs_file("stops.txt")            # expects: stop_id, stop_code, stop_name
+        routes_df = load_gtfs_file("routes.txt")  # expects: route_id, route_short_name
+        trips_df = load_gtfs_file(
+            "trips.txt"
+        )  # expects: trip_id, route_id, direction_id
+        stop_times_df = load_gtfs_file(
+            "stop_times.txt"
+        )  # expects: trip_id, stop_id, stop_sequence
+        stops_df = load_gtfs_file("stops.txt")  # expects: stop_id, stop_code, stop_name
     except (OSError, ValueError) as exc:
         print(f"[ERROR] {exc}")
         return
@@ -144,9 +150,13 @@ def main():
     # 2. Filter routes by route_short_name (if either FILTER_IN or FILTER_OUT is set)
     routes_df["route_short_name"] = routes_df["route_short_name"].astype(str)
     if FILTER_IN_ROUTE_SHORT_NAMES:
-        routes_df = routes_df[routes_df["route_short_name"].isin(FILTER_IN_ROUTE_SHORT_NAMES)]
+        routes_df = routes_df[
+            routes_df["route_short_name"].isin(FILTER_IN_ROUTE_SHORT_NAMES)
+        ]
     if FILTER_OUT_ROUTE_SHORT_NAMES:
-        routes_df = routes_df[~routes_df["route_short_name"].isin(FILTER_OUT_ROUTE_SHORT_NAMES)]
+        routes_df = routes_df[
+            ~routes_df["route_short_name"].isin(FILTER_OUT_ROUTE_SHORT_NAMES)
+        ]
 
     # If no routes remain after filtering, exit
     if routes_df.empty:
@@ -175,8 +185,12 @@ def main():
         directions = [str(d) for d in directions]
 
         # Compute most common patterns for both directions
-        pattern_0 = compute_most_common_pattern(trips_df, stop_times_df, route_id, direction_id="0")
-        pattern_1 = compute_most_common_pattern(trips_df, stop_times_df, route_id, direction_id="1")
+        pattern_0 = compute_most_common_pattern(
+            trips_df, stop_times_df, route_id, direction_id="0"
+        )
+        pattern_1 = compute_most_common_pattern(
+            trips_df, stop_times_df, route_id, direction_id="1"
+        )
 
         # Build the union of stop_ids from both patterns
         all_stop_ids = set(pattern_0) | set(pattern_1)
@@ -189,34 +203,46 @@ def main():
         seq_map_1 = {sid: idx + 1 for idx, sid in enumerate(pattern_1)}
 
         # For each stop_id in the union, gather data
-        for stop_id in sorted(all_stop_ids, key=lambda x: (
-            seq_map_0.get(x, float("inf")),
-            seq_map_1.get(x, float("inf"))
-        )):
-            stop_code = stop_info.at[stop_id, "stop_code"] if stop_id in stop_info.index else ""
-            stop_name = stop_info.at[stop_id, "stop_name"] if stop_id in stop_info.index else ""
-            output_rows.append({
-                "route_short_name": route_short,
-                "stop_id": stop_id,
-                "stop_code": stop_code,
-                "stop_name": stop_name,
-                "seq_dir_0": seq_map_0.get(stop_id, pd.NA),
-                "seq_dir_1": seq_map_1.get(stop_id, pd.NA),
-            })
+        for stop_id in sorted(
+            all_stop_ids,
+            key=lambda x: (
+                seq_map_0.get(x, float("inf")),
+                seq_map_1.get(x, float("inf")),
+            ),
+        ):
+            stop_code = (
+                stop_info.at[stop_id, "stop_code"] if stop_id in stop_info.index else ""
+            )
+            stop_name = (
+                stop_info.at[stop_id, "stop_name"] if stop_id in stop_info.index else ""
+            )
+            output_rows.append(
+                {
+                    "route_short_name": route_short,
+                    "stop_id": stop_id,
+                    "stop_code": stop_code,
+                    "stop_name": stop_name,
+                    "seq_dir_0": seq_map_0.get(stop_id, pd.NA),
+                    "seq_dir_1": seq_map_1.get(stop_id, pd.NA),
+                }
+            )
 
     # 5. Build a DataFrame from output_rows and export to CSV
     if not output_rows:
         print("[INFO] No stops/patterns found for any route/direction.")
         return
 
-    result_df = pd.DataFrame(output_rows, columns=[
-        "route_short_name",
-        "stop_id",
-        "stop_code",
-        "stop_name",
-        "seq_dir_0",
-        "seq_dir_1",
-    ])
+    result_df = pd.DataFrame(
+        output_rows,
+        columns=[
+            "route_short_name",
+            "stop_id",
+            "stop_code",
+            "stop_name",
+            "seq_dir_0",
+            "seq_dir_1",
+        ],
+    )
 
     # Ensure the parent folder of OUTPUT_CSV_PATH exists
     out_dir = os.path.dirname(OUTPUT_CSV_PATH)
