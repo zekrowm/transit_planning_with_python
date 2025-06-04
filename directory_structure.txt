@@ -29,9 +29,7 @@ transit_planning_with_python-main/
 │   ├── gtfs_exports/
 │   │   ├── bus_schedule_exporter.py
 │   │   ├── gtfs_shapefile_converter.py
-│   │   ├── stop_pattern_exporter.py
-│   │   └── __pycache__/
-│   │       └── bus_schedule_exporter.cpython-311.pyc
+│   │   └── stop_pattern_exporter.py
 │   ├── gtfs_level_of_service/
 │   │   ├── gtfs_service_change_history.py
 │   │   ├── gtfs_trips_hourly_reporter.py
