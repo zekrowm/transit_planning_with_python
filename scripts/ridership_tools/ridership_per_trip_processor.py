@@ -70,7 +70,7 @@ COLUMNS_CONFIG = [
     "PASSENGERS_ON: Passengers",
 ]
 
-# Process COLUMNS_CONFIG into two lists/dicts: 
+# Process COLUMNS_CONFIG into two lists/dicts:
 #   1) COLUMNS_TO_RETAIN = [ "SERIAL_NUMBER", "TRIP_START_TIME", ... ]
 #   2) COLUMN_RENAME_MAP = { "SERIAL_NUMBER": "Trip ID", "TRIP_START_TIME": "Start Time", ... }
 COLUMNS_TO_RETAIN = []
@@ -111,6 +111,7 @@ FILTER_OUT_LIST = []
 # FUNCTIONS
 # =============================================================================
 
+
 def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     """
     1. Read the entire Excel sheet into a DataFrame.
@@ -137,8 +138,8 @@ def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
             #    - Let pandas infer format (HH:MM, HH:MM:SS, or even Excel‐numeric‐as‐datetime)
             parsed = pd.to_datetime(
                 series.astype(str).str.strip(),
-                errors="coerce",          # any unparsable → NaT
-                infer_datetime_format=True
+                errors="coerce",  # any unparsable → NaT
+                infer_datetime_format=True,
             )
             # Extract only the time part (NaT → NaT.time() → stays NaT)
             df["TRIP_START_TIME"] = parsed.dt.time
@@ -177,10 +178,9 @@ def write_direction_sheet(
     """
     # 1. Locally sort by TRIP_START_TIME (so that even if groupby() order shifts,
     #    the sheet itself is guaranteed to be strictly chronological).
-    direction_df = (
-        direction_df.sort_values("TRIP_START_TIME", na_position="last")
-                    .reset_index(drop=True)
-    )
+    direction_df = direction_df.sort_values(
+        "TRIP_START_TIME", na_position="last"
+    ).reset_index(drop=True)
 
     # 2. Create a worksheet named after this direction
     ws = wb.create_sheet(title=direction_name)
@@ -190,7 +190,9 @@ def write_direction_sheet(
     if total_ridership != 0:
         direction_df["Percent of Route Ridership"] = (
             direction_df["PASSENGERS_ON"] / total_ridership
-        ).apply(lambda x: round(x * 100, 1) / 100)  # e.g. 0.1234 → 0.12 → displayed later as “12.0%”
+        ).apply(
+            lambda x: round(x * 100, 1) / 100
+        )  # e.g. 0.1234 → 0.12 → displayed later as “12.0%”
     else:
         # Avoid division by zero → set all to 0
         direction_df["Percent of Route Ridership"] = 0.0
@@ -250,7 +252,7 @@ def write_direction_sheet(
                     name=orig.name,
                     size=orig.size,
                     bold=orig.bold,
-                    color="FF0000"  # pure red
+                    color="FF0000",  # pure red
                 )
 
     # 10. Optionally create a bar chart of ‘Passengers’ vs. ‘Start Time’
@@ -347,13 +349,10 @@ def main() -> None:
             df = df[~df[FILTER_COLUMN_NAME].isin(FILTER_OUT_LIST)]
 
     # 3. Sort globally, preserving order within each group
-    df = (
-        df.sort_values(
-            by=["ROUTE_NAME", "DIRECTION_NAME", "TRIP_START_TIME"],
-            kind="mergesort"  # stable sort → ties preserve prior order
-        )
-        .reset_index(drop=True)
-    )
+    df = df.sort_values(
+        by=["ROUTE_NAME", "DIRECTION_NAME", "TRIP_START_TIME"],
+        kind="mergesort",  # stable sort → ties preserve prior order
+    ).reset_index(drop=True)
 
     # 4. Make sure the output folder exists
     create_output_folder(OUTPUT_FOLDER)
