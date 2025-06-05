@@ -29,9 +29,9 @@ Dependencies:
         pandas, openpyxl
 """
 
-import pandas as pd
-from openpyxl.utils import get_column_letter
 import os
+
+import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
@@ -73,6 +73,7 @@ VIOLATION_LOG_FILE = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def load_data(input_file: str) -> pd.DataFrame:
     """
@@ -180,6 +181,7 @@ def process_data(
     # Sort by 'LOAD_FACTOR' in descending order
     return data_frame.sort_values(by="LOAD_FACTOR", ascending=False)
 
+
 def create_route_workbooks(data_frame: pd.DataFrame) -> None:
     """
     For each unique route in the processed data, create an Excel workbook
@@ -197,12 +199,13 @@ def create_route_workbooks(data_frame: pd.DataFrame) -> None:
         wb.remove(default_sheet)
 
         # Within each route, group by DIRECTION_NAME
-        for direction_name, direction_df in route_df.groupby("DIRECTION_NAME", sort=False):
+        for direction_name, direction_df in route_df.groupby(
+            "DIRECTION_NAME", sort=False
+        ):
             # Sort trips by TRIP_START_TIME
-            direction_df_sorted = (
-                direction_df.sort_values(by="TRIP_START_TIME", kind="mergesort")
-                .reset_index(drop=True)
-            )
+            direction_df_sorted = direction_df.sort_values(
+                by="TRIP_START_TIME", kind="mergesort"
+            ).reset_index(drop=True)
 
             ws = wb.create_sheet(title=str(direction_name))
 
@@ -243,12 +246,14 @@ def create_route_workbooks(data_frame: pd.DataFrame) -> None:
         wb.save(file_path)
         print(f"Saved workbook: {file_path}")
 
+
 def export_to_csv(data_frame: pd.DataFrame, csv_file_path: str) -> None:
     """
     Export the entire processed DataFrame to a CSV file.
     """
     data_frame.to_csv(csv_file_path, index=False)
     print(f"Processed file saved to CSV: {csv_file_path}")
+
 
 def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
     """Export the DataFrame to an Excel file with adjusted column widths."""
@@ -271,6 +276,7 @@ def print_high_load_trips(data_frame: pd.DataFrame) -> None:
     if not high_load_trips.empty:
         print("Trips with MAX_LOAD over 30:")
         print(high_load_trips)
+
 
 def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
     """
@@ -316,6 +322,7 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
                 )
                 log_file.write(line)
     print(f"Exported load‐factor violation log: {log_file_path}")
+
 
 # =============================================================================
 # MAIN
