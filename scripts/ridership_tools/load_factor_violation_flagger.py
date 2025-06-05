@@ -31,6 +31,10 @@ Dependencies:
 
 import pandas as pd
 from openpyxl.utils import get_column_letter
+import os
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
 
 # =============================================================================
 # CONFIGURATION
@@ -60,9 +64,15 @@ FILTER_OUT_ROUTES = []  # e.g. ['105', '106']
 DECIMAL_PLACES = 4  # default is 4 decimals
 
 # -----------------------------------------------------------------------------
-# FUNCTIONS
+# LOGGING
 # -----------------------------------------------------------------------------
 
+WRITE_VIOLATION_LOG = True
+VIOLATION_LOG_FILE = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
+
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
 def load_data(input_file: str) -> pd.DataFrame:
     """
@@ -170,6 +180,75 @@ def process_data(
     # Sort by 'LOAD_FACTOR' in descending order
     return data_frame.sort_values(by="LOAD_FACTOR", ascending=False)
 
+def create_route_workbooks(data_frame: pd.DataFrame) -> None:
+    """
+    For each unique route in the processed data, create an Excel workbook
+    named '{route_name}.xlsx' in the same folder as OUTPUT_FILE. Each workbook
+    contains one sheet per direction, with trips sorted by TRIP_START_TIME.
+    """
+    # Determine the directory in which to save per-route files
+    output_dir = os.path.dirname(OUTPUT_FILE) or "."
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Group by each ROUTE_NAME
+    for route_name, route_df in data_frame.groupby("ROUTE_NAME", sort=False):
+        wb = Workbook()
+        default_sheet = wb.active
+        wb.remove(default_sheet)
+
+        # Within each route, group by DIRECTION_NAME
+        for direction_name, direction_df in route_df.groupby("DIRECTION_NAME", sort=False):
+            # Sort trips by TRIP_START_TIME
+            direction_df_sorted = (
+                direction_df.sort_values(by="TRIP_START_TIME", kind="mergesort")
+                .reset_index(drop=True)
+            )
+
+            ws = wb.create_sheet(title=str(direction_name))
+
+            # Write header row (bolded)
+            headers = list(direction_df_sorted.columns)
+            for col_idx, header in enumerate(headers, start=1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.font = Font(bold=True)
+
+            # Write each trip row
+            for row_idx, (_, row) in enumerate(direction_df_sorted.iterrows(), start=2):
+                for col_idx, header in enumerate(headers, start=1):
+                    val = row[header]
+                    if header == "TRIP_START_TIME":
+                        # Preserve time formatting if possible
+                        if hasattr(val, "strftime"):
+                            cell_val = val
+                        elif pd.isna(val):
+                            cell_val = ""
+                        else:
+                            cell_val = val
+                        cell = ws.cell(row=row_idx, column=col_idx, value=cell_val)
+                        cell.number_format = "hh:mm"
+                    else:
+                        ws.cell(row=row_idx, column=col_idx, value=val)
+
+            # Adjust column widths based on content
+            for idx, col in enumerate(headers, start=1):
+                content_series = direction_df_sorted[col].astype(str)
+                max_length = max(content_series.map(len).max(), len(str(col)))
+                adjusted_width = max_length + 2
+                column_letter = get_column_letter(idx)
+                ws.column_dimensions[column_letter].width = adjusted_width
+
+        # Save the workbook named after the route
+        filename = f"{route_name}.xlsx"
+        file_path = os.path.join(output_dir, filename)
+        wb.save(file_path)
+        print(f"Saved workbook: {file_path}")
+
+def export_to_csv(data_frame: pd.DataFrame, csv_file_path: str) -> None:
+    """
+    Export the entire processed DataFrame to a CSV file.
+    """
+    data_frame.to_csv(csv_file_path, index=False)
+    print(f"Processed file saved to CSV: {csv_file_path}")
 
 def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
     """Export the DataFrame to an Excel file with adjusted column widths."""
@@ -193,6 +272,50 @@ def print_high_load_trips(data_frame: pd.DataFrame) -> None:
         print("Trips with MAX_LOAD over 30:")
         print(high_load_trips)
 
+def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
+    """
+    Write a plain‐text log of all rows for which LOAD_FACTOR_VIOLATION == "TRUE".
+    Each line includes: ROUTE_NAME, DIRECTION_NAME, TRIP_START_TIME, MAX_LOAD,
+    LOAD_FACTOR, SERVICE_PERIOD, and ROUTE_LIMIT_TYPE.
+    """
+    # Filter rows where load‐factor is violated
+    violations_df = data_frame[data_frame["LOAD_FACTOR_VIOLATION"] == "TRUE"]
+
+    # Open (or create) the log file and overwrite any existing content
+    with open(log_file_path, "w", encoding="utf-8") as log_file:
+        if violations_df.empty:
+            log_file.write(
+                "No load‐factor violations found (all trips within permissible limits).\n"
+            )
+        else:
+            # Write a header
+            header = (
+                "Trips with load‐factor violations (greater than route‐specific limit):\n\n"
+                "ROUTE\tDIRECTION\tSTART_TIME\tMAX_LOAD\tLOAD_FACTOR\t"
+                "SERVICE_PERIOD\tROUTE_LIMIT_TYPE\n"
+            )
+            log_file.write(header)
+
+            # Write one line per violating trip
+            for _, row in violations_df.iterrows():
+                # Format TRIP_START_TIME (if it’s a time object)
+                start_val = row.get("TRIP_START_TIME", None)
+                if hasattr(start_val, "strftime"):  # datetime.time or pandas Timestamp
+                    start_str = start_val.strftime("%H:%M")
+                else:
+                    start_str = "" if pd.isna(start_val) else str(start_val)
+
+                line = (
+                    f"{row.get('ROUTE_NAME', '')}\t"
+                    f"{row.get('DIRECTION_NAME', '')}\t"
+                    f"{start_str}\t"
+                    f"{row.get('MAX_LOAD', '')}\t"
+                    f"{row.get('LOAD_FACTOR', '')}\t"
+                    f"{row.get('SERVICE_PERIOD', '')}\t"
+                    f"{row.get('ROUTE_LIMIT_TYPE', '')}\n"
+                )
+                log_file.write(line)
+    print(f"Exported load‐factor violation log: {log_file_path}")
 
 # =============================================================================
 # MAIN
@@ -200,22 +323,46 @@ def print_high_load_trips(data_frame: pd.DataFrame) -> None:
 
 
 def main():
-    """Main routine to load, process, and export bus load data."""
+    """Main routine to load, process, and export bus load data in three formats."""
     # Load data
     data_frame = load_data(INPUT_FILE)
 
     # Process data with filtering and limit checks
     processed_data = process_data(
-        data_frame, BUS_CAPACITY, FILTER_IN_ROUTES, FILTER_OUT_ROUTES, DECIMAL_PLACES
+        data_frame,
+        BUS_CAPACITY,
+        FILTER_IN_ROUTES,
+        FILTER_OUT_ROUTES,
+        DECIMAL_PLACES,
     )
 
-    # Export processed data to Excel
-    export_to_excel(processed_data, OUTPUT_FILE)
+    # -------------------------------------------------------------------------
+    # 1) EXPORT COMBINED CSV (good for programmatic consumption)
+    # -------------------------------------------------------------------------
+    combined_csv_path = INPUT_FILE.replace(".XLSX", "_processed.csv")
+    export_to_csv(processed_data, combined_csv_path)
 
-    # Print high-load trips
+    # -------------------------------------------------------------------------
+    # 2) EXPORT COMBINED EXCEL (good for a quick, single-sheet view)
+    # -------------------------------------------------------------------------
+    export_to_excel(processed_data, OUTPUT_FILE)
+    print(f"Processed file saved to Excel: {OUTPUT_FILE}")
+
+    # -------------------------------------------------------------------------
+    # 3) EXPORT PER-ROUTE EXCEL WORKBOOKS (one .xlsx per route, sheets per direction)
+    # -------------------------------------------------------------------------
+    create_route_workbooks(processed_data)
+
+    # -------------------------------------------------------------------------
+    # PRINT HIGH-LOAD TRIPS TO CONSOLE
+    # -------------------------------------------------------------------------
     print_high_load_trips(processed_data)
 
-    print(f"Processed file saved to: {OUTPUT_FILE}")
+    # -------------------------------------------------------------------------
+    # WRITE TEXT LOG OF VIOLATIONS (good for a human-readable, line-by-line summary)
+    # -------------------------------------------------------------------------
+    if WRITE_VIOLATION_LOG:
+        write_violation_log(processed_data, VIOLATION_LOG_FILE)
 
 
 if __name__ == "__main__":
