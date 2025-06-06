@@ -37,7 +37,6 @@ Example:
 
 from __future__ import annotations
 
-import ast
 import logging
 import os
 import re
