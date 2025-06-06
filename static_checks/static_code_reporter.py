@@ -1,45 +1,38 @@
-"""
-Script Name:
-    static_code_reporter.py
+"""static_code_reporter.py
 
-Purpose:
-    Performs a comprehensive static analysis sweep across specified Python files and folders.
-    This includes type checking (mypy), dead code detection (vulture), style enforcement
-    (pylint + isort), and docstring style checking (pydocstyle). Each tool's output is logged
-    in detail and summarized in a separate Excel file.
+Performs comprehensive static code analysis on specified Python files and directories.
+The script runs multiple tools including `mypy`, `vulture`, `pylint`, `isort`, and
+`pydocstyle`, logging detailed outputs and generating Excel summaries for each.
 
-Inputs:
-    1. FILES_OR_FOLDERS (List[str]):
-       A list of file and folder paths to scan. Directories are searched recursively.
-    2. SKIP_PATHS (List[str]):
-       Paths to exclude from scanning. Matching is based on full path containment.
-    3. Configuration flags within the script:
-       - ENABLE_MYPY (bool):        Whether to run mypy.
-       - ENABLE_VULTURE (bool):     Whether to run vulture.
-       - ENABLE_LINT (bool):        Whether to run pylint and isort.
-       - ENABLE_PYDOCSTYLE (bool):  Whether to run pydocstyle.
-       - OUTPUT_FOLDER (str):       Directory to write logs and reports.
-       - LOG_LEVEL (int):           Logging verbosity (e.g. logging.INFO).
-       - MYPY_ADDITIONAL_ARGS (List[str]): Extra flags to pass to mypy.
-       - VULTURE_MIN_CONFIDENCE (int): Minimum confidence threshold for vulture.
-       - PYDOCSTYLE_ADDITIONAL_ARGS (List[str]): Extra flags to pass to pydocstyle.
+This utility is designed for teams and individuals looking to enforce type checking,
+style conventions, and docstring consistency across large codebases.
+
+Attributes:
+    FILES_OR_FOLDERS (List[str]): Paths to files or directories to scan.
+    SKIP_PATHS (List[str]): Paths to exclude from scanning.
+    OUTPUT_FOLDER (str): Directory where logs and reports are saved.
+    LOG_LEVEL (int): Logging verbosity level.
+    ENABLE_MYPY (bool): Flag to enable type checking with mypy.
+    ENABLE_VULTURE (bool): Flag to enable dead code detection with vulture.
+    ENABLE_LINT (bool): Flag to enable linting with pylint and isort.
+    ENABLE_PYDOCSTYLE (bool): Flag to enable docstring checks with pydocstyle.
+    MYPY_ADDITIONAL_ARGS (List[str]): Additional CLI args for mypy.
+    VULTURE_MIN_CONFIDENCE (int): Confidence threshold for vulture issues.
+    PYDOCSTYLE_ADDITIONAL_ARGS (List[str]): Additional CLI args for pydocstyle.
 
 Outputs:
-    1. Detailed Log Files:
-       One .log file per enabled tool (e.g., mypy_detailed_log_YYYYMMDD_HHMMSS.log),
-       containing full stdout and stderr output from the tool.
-    2. Excel Summary Files:
-       One .xlsx file per tool with a timestamped name and structured summary sheet:
-           - mypy_results_YYYYMMDD_HHMMSS.xlsx
-           - vulture_results_YYYYMMDD_HHMMSS.xlsx
-           - lint_results_YYYYMMDD_HHMMSS.xlsx (covers pylint & isort)
-           - pydocstyle_results_YYYYMMDD_HHMMSS.xlsx
-    3. Console Output:
-       Progress messages and final summary.
+    - Log files for each enabled tool with detailed stdout/stderr.
+    - Timestamped Excel files summarizing issues found by each tool.
+    - Console output with progress updates and high-level summary.
 
 Dependencies:
-        - os, sys, re, subprocess, logging, pathlib, datetime, typing
-        - openpyxl, mypy, vulture, pylint, isort, pydocstyle
+    - Standard library: os, sys, re, subprocess, logging, pathlib, datetime, typing
+    - Third-party: openpyxl, mypy, vulture, pylint, isort, pydocstyle
+
+Example:
+    Run the script directly to scan the configured paths:
+
+        python static_code_reporter.py
 """
 
 from __future__ import annotations
