@@ -337,7 +337,6 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
             next_arr = next_item[0]
             next_trip_id = next_item[4]  # we do need to return it
             next_stop_id = next_item[2]
-            next_stop_name = next_item[3]
             stop_id = item[2]
             stop_name = item[3]
             trip_id = item[4]
