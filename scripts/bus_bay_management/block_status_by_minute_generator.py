@@ -1,26 +1,11 @@
 """
-Script Name:
-    block_status_by_minute_generator.py
+Generates minute-by-minute transit block status timelines from GTFS data.
 
-Purpose:
-    Processes GTFS data to generate a minute-by-minute status timeline (e.g.,
-    DWELL, LAYOVER, TRAVELING) for each transit block, outputting one spreadsheet
-    per block. Designed as Step 1 in a transit analysis pipeline.
+Processes GTFS files to determine operational statuses (e.g., DWELL, LAYOVER, TRAVELING)
+of transit blocks at one-minute intervals, producing Excel reports for further analysis.
 
-Inputs:
-    1. GTFS data files (stops.txt, trips.txt, stop_times.txt, etc.) located
-       via the `GTFS_FOLDER_PATH` constant.
-    2. Configuration constants defined in the script (e.g., `BLOCK_OUTPUT_FOLDER`,
-       `DEFAULT_HOURS`, `CALENDAR_SERVICE_IDS`, filter lists, thresholds).
-
-Outputs:
-    1. Excel (.xlsx) spreadsheets, one per processed block, detailing the
-       minute-by-minute status. Saved to the `BLOCK_OUTPUT_FOLDER`.
-    2. Console messages indicating progress and warnings.
-
-Dependencies:
-    1. Libraries: pandas
-    2. Data: GTFS formatted input data.
+Typically used interactively within a Jupyter notebook or ArcGIS Pro environment,
+though direct execution via the command line is also supported.
 """
 
 import logging
