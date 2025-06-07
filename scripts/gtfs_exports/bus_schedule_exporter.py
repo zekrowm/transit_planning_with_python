@@ -1,34 +1,31 @@
-"""
-Script Name:
-    bus_schedule_exporter.py
+"""Generate formatted Excel transit schedules from GTFS data.
 
-Purpose:
-    Processes GTFS data to generate formatted Excel transit schedules per route,
-    direction, and service ID. Imitates public transit schedules and is
-    especially useful for processing for a large number of routes.
+This script processes GTFS (General Transit Feed Specification) files to
+export Excel-formatted transit schedules by route, direction, and service
+period (e.g., Weekday, Saturday). The format imitates printed public
+schedules and is useful for batch export of many routes.
 
-Inputs:
-    1. GTFS text files (e.g., stops.txt, routes.txt, trips.txt, stop_times.txt,
-       calendar.txt) located in GTFS_FOLDER_PATH.
-    2. User-defined configurations:
-       - GTFS_FOLDER_PATH: Path to the directory containing GTFS files.
-       - BASE_OUTPUT_PATH: Path to the directory where output Excel files will be
-         saved.
-       - FILTER_SERVICE_IDS: List of service_ids to process (empty processes all).
-       - FILTER_IN_ROUTES: List of route_short_names to include (empty includes all
-         not filtered out).
-       - FILTER_OUT_ROUTES: List of route_short_names to exclude.
-       - TIME_FORMAT_OPTION: Time display format ('12' or '24' hour).
+Typical usage is to copy and paste the script into a Python notebook or
+script editor (e.g., in ArcGIS Pro), then manually update the configuration
+section near the top before running. No installation or import is required.
 
-Outputs:
-    1. Excel (.xlsx) files, each containing schedules for a specific route and
-       service type (e.g., Weekday, Saturday), with separate sheets for each
-       direction.
-    2. Dynamically created output subfolders under BASE_OUTPUT_PATH, organized
-       by service ID and its active days (e.g., "calendar_1_mon_tue_wed_thu_fri").
+Typical usage example:
+
+    # Step 1: Edit configuration settings in the CONFIGURATION section
+    # Step 2: Run the script in a notebook or ArcPro's Python window
+
+Attributes:
+    GTFS_FOLDER_PATH (str): Path to folder containing GTFS .txt files.
+    BASE_OUTPUT_PATH (str): Directory to write Excel outputs.
+    FILTER_SERVICE_IDS (list): List of GTFS service_ids to include.
+    FILTER_IN_ROUTES (list): Route short names to include.
+    FILTER_OUT_ROUTES (list): Route short names to exclude.
+    TIME_FORMAT_OPTION (str): '12' or '24' hour format.
+    MISSING_TIME (str): Placeholder for missing or invalid times.
 
 Dependencies:
-    os, re, sys, logging, collections (defaultdict), pandas, openpyxl
+    os, re, sys, logging, collections
+    pandas, openpyxl
 """
 
 import logging
