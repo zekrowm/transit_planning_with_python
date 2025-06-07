@@ -1,32 +1,23 @@
 """
-Script Name:
-    bus_bay_by_min_conflict_checker.py
+Analyzes block-level transit data to detect scheduling conflicts at bus clusters based on bay
+capacities and bus statuses.
 
-Purpose:
-    Analyzes block-level bus data to detect and report scheduling
-    conflicts at transit clusters based on defined bay capacities
-    (single, double, triple, overflow) and bus statuses. Identifies
-    both cluster-level and stop-level over-capacity situations.
-    Designed as Step 2 in a transit analysis pipeline following
-    block_status_by_minute_generator.py.
+Processes input spreadsheets to identify cluster-level and stop-level over-capacity situations,
+and generates detailed Excel reports highlighting conflicts.
 
-Inputs:
-    1. Block-level transit data spreadsheets (XLSX format) from the
-       directory specified by BLOCK_OUTPUT_FOLDER.
-    2. Configuration constants defined in the script:
-       CLUSTER_DEFINITIONS (stop IDs, bay types per cluster),
-    3. PRESENCE_STATUSES (statuses indicating bus presence),
-       PASSENGER_SERVICE_STATUSES (statuses indicating bay occupancy).
+Typically used interactively within a Jupyter notebook or ArcGIS Pro environment,
+though direct execution via the command line is also supported.
 
-Outputs:
-    1. Excel conflict analysis reports (one file per defined cluster)
-       saved to the directory specified by CLUSTER_CONFLICT_OUTPUT_FOLDER.
-    2. Each report includes an 'AllStops' summary sheet and
-       individual sheets for each stop/bay within the cluster,
-       highlighting rows with detected conflicts (CLUSTER, STOP, BOTH).
+Attributes:
+    BLOCK_OUTPUT_FOLDER (str): Directory containing input XLSX files from Step 1.
+    CLUSTER_CONFLICT_OUTPUT_FOLDER (str): Directory for saving conflict analysis Excel outputs.
+    CLUSTER_DEFINITIONS (dict): Definitions of transit clusters with bay capacities and overflow bays.
+    PRESENCE_STATUSES (set): Bus statuses indicating presence at a cluster.
+    PASSENGER_SERVICE_STATUSES (set): Bus statuses indicating bay occupancy.
 
 Dependencies:
-    1. Libraries: pandas, openpyxl
+    pandas
+    openpyxl
 """
 
 import os
