@@ -1,32 +1,23 @@
 """
-Script Name:
-    gtfs_service_change_history.py
+Analyzes chronological GTFS datasets to detect public transit service changes.
 
-Purpose:
-    Processes multiple GTFS datasets chronologically to analyze public
-    transport service changes. It calculates route coverage polygons,
-    detects changes in service geography (expanded, contracted, modified),
-    identifies created/eliminated routes, and notes interlining or other
-    schedule modifications between GTFS signups.
+This script processes multiple GTFS signups, computes route coverage areas,
+generates headway and schedule summaries, and compares signups to identify
+new, eliminated, expanded, or modified routes.
+
+Typical usage:
+    - Update MULTIPLE_GTFS_CONFIGS with GTFS dataset paths and labels.
+    - Run from ArcPro or a notebook to generate outputs.
 
 Inputs:
-    1. List of GTFS dataset configurations (name and folder path for each signup).
-    2. Optional list of route IDs to filter out.
-    3. Output directory path.
-    4. GTFS files: routes.txt, trips.txt, stop_times.txt, calendar.txt,
-       calendar_dates.txt, stops.txt.
-    5. Configuration for time blocks, schedule types, CRS, buffer distance,
-       and geometry change threshold.
+    - GTFS files: routes, trips, stop_times, calendar, calendar_dates, stops.
+    - Signup-specific GTFS folders and metadata.
+    - Time blocks and day-type configurations.
 
 Outputs:
-    1. One Excel file per signup and schedule type detailing route schedules
-       and headways.
-    2. One route coverage polygon shapefile per signup.
-    3. A final Excel file ("service_change_comparison.xlsx") comparing
-       service changes across all processed signups.
-
-Dependencies:
-    os, datetime, geopandas, pandas, openpyxl, shapely
+    - Per-signup Excel files with route schedules and headways.
+    - Per-signup shapefiles of route coverage areas.
+    - One final Excel file comparing changes across signups.
 """
 
 import os
