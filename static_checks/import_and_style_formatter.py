@@ -1,40 +1,19 @@
 """
-Script Name:
-    formatter_black_isort.py
+Runs isort and black on a target directory of Python files to check or enforce formatting.
 
-Purpose:
-    A unified formatter that checks—and optionally fixes—Python code styling
-    and import sorting using both `isort` and `black`. It recursively scans
-    a target directory for Python files, applies the checks/fixes, and
-    logs detailed results.
+This script recursively scans a specified directory, optionally skipping named subfolders or files,
+and applies both `isort` (for import sorting) and `black` (for code style). Depending on the
+`READ_ONLY` setting, it either logs needed changes or applies them. Detailed logs are saved to file.
 
 Inputs:
-    1. Target Python files/folders (specified by `TARGET_DIRECTORY` constant): The root directory to scan for .py files.
-    2. Configuration constants defined within the script:
-        - `LOG_DIRECTORY`: Directory path to save the output log file.
-        - `READ_ONLY`: Boolean flag (True to only check for issues, False to apply fixes).
-        - `SKIP_NAMES`: List of directory or file names to ignore during scanning.
-        - `BLACK_LINE_LENGTH`: Maximum line length setting enforced by `black`.
+    - TARGET_DIRECTORY: Root folder to scan for `.py` files
+    - READ_ONLY: If True, only checks files without modifying them
+    - LOG_DIRECTORY: Directory where the log file will be written
+    - BLACK_LINE_LENGTH: Maximum line length setting for black
 
 Outputs:
-    1. Log file (e.g., `format_check.log` in `LOG_DIRECTORY`): Contains detailed stdout/stderr
-       from `isort` and `black` for each processed file, including diffs if
-       changes are needed or were applied. Also includes a summary of files processed,
-       files needing changes, and files fixed.
-    2. Modified Python files: If `READ_ONLY` is False, Python files within the
-       `TARGET_DIRECTORY` are modified in-place by `isort` (for import sorting)
-       and `black` (for code formatting) to conform to defined styles.
-    3. Console output: Status messages indicating progress, the files being processed,
-       and a final summary of the formatting results.
-
-Dependencies:
-    1. os (standard library)
-    2. subprocess (standard library)
-    3. sys (standard library)
-    4. External command-line tools:
-        - `isort` (version >= 5 recommended)
-        - `black` (version >= 24 recommended)
-       (These tools must be installed and accessible on the system's PATH.)
+    - A log file showing diffs, changes made, or errors
+    - Reformatted `.py` files (if READ_ONLY is False)
 """
 
 import os
