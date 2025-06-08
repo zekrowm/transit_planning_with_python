@@ -1,31 +1,20 @@
 """
-Script Name:
-        bus_cluster_arrivals_checklist_processor.py
+Processes observed bus arrival and departure data to assess schedule adherence.
 
-Purpose:
-        Processes observed transit arrival/departure data from input
-        files based on field data to analyze service punctuality.
-        Calculates schedule adherence against configurable on-time
-        tolerances and outputs summary reports.
+Parses field-collected data from CSV or Excel files, calculates early/on-time/late
+performance using configurable tolerances, and exports summary statistics along with
+diagnostic outputs for invalid records.
+
+Typical usage: ArcGIS Pro, Jupyter notebook, or command line.
 
 Inputs:
-        1. Directory path (`OBSERVED_DATA_PATH`) containing observed
-           transit data as .xlsx or .csv files.
-        2. Configuration constants in the script (e.g., on-time
-           tolerances `EARLY_TOLERANCE_MIN`, `LATE_TOLERANCE_MIN`;
-           input/output paths; `PLACEHOLDER_PATTERN`).
+    - Observed data directory (`OBSERVED_DATA_PATH`) with .xlsx or .csv files.
+    - Script-level config: early/late tolerances, output paths, placeholder pattern.
 
 Outputs:
-        1. Excel file (default: `arrival_performance_summary.xlsx`) with
-           punctuality summaries (overall, by route, by route/direction).
-        2. Corresponding CSV summary files (default prefix:
-           `arrival_performance_summary`).
-        3. Diagnostic CSV files (`observed_data_valid_events.csv`,
-           `observed_data_invalid_events.csv`) detailing processed events.
-        4. Console status messages during execution.
-
-Dependencies:
-        pandas, openpyxl, re, pathlib
+    - Excel summary report (`arrival_performance_summary.xlsx`).
+    - CSV summaries by overall, route, and route-direction.
+    - Diagnostic CSVs for valid and invalid event records.
 """
 
 # =============================================================================
