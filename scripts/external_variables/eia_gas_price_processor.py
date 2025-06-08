@@ -1,27 +1,15 @@
 """
-Script Name:
-    eia_gas_price_processor.py
+Extracts and filters U.S. EIA weekly gasoline prices from Excel.
 
-Purpose:
-    Extracts and filters specific US EIA weekly gasoline price data
-    from an Excel file based on a date range and saves the result.
+Selects a specific gasoline price series and filters it by a date range.
+Intended for use with EIA’s published `.xls` data files.
 
 Inputs:
-    1. An Excel file containing EIA data (path specified by INPUT_FILE).
-       Data Source: https://www.eia.gov/petroleum/gasdiesel/
-    2. Configuration constants within the script define:
-        - Sheet name (SHEET_NAME)
-        - Header rows (HEADER_ROWS)
-        - Specific columns to extract (DATE_COLUMN, PRICE_COLUMN)
-        - Date range for filtering (DATE_FILTER_START, DATE_FILTER_END)
+    - Excel file from EIA with MultiIndex columns (INPUT_FILE)
+    - Configurable sheet name, header rows, column keys, and date range
 
 Outputs:
-    1. An Excel file containing the filtered date and price data
-       (path specified by OUTPUT_FILE).
-    2. Status messages printed to the console.
-
-Dependencies:
-    pandas
+    - Excel file with filtered price data (OUTPUT_FILE)
 """
 
 import pandas as pd
