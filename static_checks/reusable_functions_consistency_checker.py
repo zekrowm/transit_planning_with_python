@@ -1,38 +1,21 @@
 """
-Script Name:
-    function_consistency_checker.py
+Audits function definitions across a codebase for consistency with canonical sources.
 
-Purpose:
-    Identify and verify duplicate top-level functions across a Python repository.
-    Compares functions found in a specified canonical Python file or within Python files
-    located in a specified canonical folder against all other occurrences throughout the repository.
-    The script reports functions that differ (at AST level) from the canonical versions.
+Compares top-level functions in a specified canonical file or folder against matching
+functions found elsewhere in the codebase. Uses AST comparison to detect semantic
+differences. Intended to help maintain reusable helper function consistency across
+the project.
 
 Inputs:
-    - CANONICAL_PATH (str): Path to a canonical `.py` file or a folder containing canonical `.py` files.
-                            If a folder is provided, only immediate `.py` files in that directory are used.
-    - SEARCH_ROOT (str): Root directory of the repository to recursively audit.
-    - LOG_DIR (str): Directory path where the audit log file will be created.
-    - PY_EXTENSIONS (tuple[str]): File extensions considered as Python scripts (default is `.py`).
-    - IGNORE_PRIVATE (bool): Whether to skip auditing functions that begin with an underscore (`_`).
+    - CANONICAL_PATH: Path to a canonical Python file or folder of canonical files.
+    - SEARCH_ROOT: Root directory of the codebase to audit.
+    - LOG_DIR: Directory where audit logs will be written.
+    - PY_EXTENSIONS: File suffixes to treat as Python scripts.
+    - IGNORE_PRIVATE: If True, skips functions whose names begin with '_'.
 
 Outputs:
-    - A timestamped audit log file (`helpers_audit_YYYYMMDD_HHMMSS.log`) detailing:
-        - Each canonical function and any identical or differing occurrences found in the repository.
-        - Summary messages indicating audit success or highlighting discrepancies.
-    - Exit status codes:
-        - `0`: All functions are consistent with canonical versions.
-        - `1`: At least one function discrepancy found.
-        - `2`: Configuration or parsing errors encountered.
-
-Dependencies:
-    - Standard Python libraries only:
-        - pathlib
-        - ast
-        - logging
-        - os
-        - sys
-        - datetime
+    - A timestamped log file listing all matches and mismatches.
+    - Exit code 0 if all matches are consistent, 1 if mismatches found, 2 on error.
 """
 
 import ast
