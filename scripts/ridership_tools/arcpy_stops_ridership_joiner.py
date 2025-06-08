@@ -1,42 +1,16 @@
 """
-Script Name:
-    arcpy_stops_ridership_joiner.py
+Joins ridership data to bus stop features, optionally with a spatial join to polygon areas.
 
-Purpose:
-    Processes bus stop data by optionally performing a spatial join with a polygon layer
-    (e.g., Census Blocks, Tracts, Places), merging with ridership data from an Excel
-    file, and filtering out bus stops that do not have corresponding ridership data.
-    The script can produce a single shapefile for all stops or separate shapefiles
-    per route.
+Designed for ArcGIS Pro workflows, this script merges stop-level ridership data from
+an Excel file with stop locations (from a shapefile or GTFS stops.txt), and optionally
+joins to a polygon layer (e.g., Census Blocks) for geographic aggregation.
 
-Inputs:
-    1. Bus Stops Data (BUS_STOPS_INPUT): Path to a shapefile (.shp) or GTFS stops.txt file.
-    2. Ridership Data (EXCEL_FILE): Path to an Excel file containing ridership statistics (e.g., boardings, alightings) per stop.
-    3. Optional Polygon Layer (POLYGON_LAYER): Path to a shapefile defining geographic areas (e.g., census blocks) to which stop data can be spatially joined. If empty, spatial join and aggregation steps are skipped.
-    4. Configuration constants defined in the script:
-        - ROUTE_FILTER_LIST: Optional list of route names (str) to filter ridership data from the Excel file.
-        - SPLIT_BY_ROUTE: Boolean flag (True/False) to determine if output stops shapefiles should be split by route.
-        - OUTPUT_FOLDER: Path to the directory where output files will be saved.
-        - GTFS_KEY_FIELD / SHAPE_KEY_FIELD: Column names used as unique identifiers for stops in GTFS stops.txt or input shapefile, respectively, for merging with ridership data.
-        - GTFS_SECONDARY_ID_FIELD / SHAPE_SECONDARY_ID_FIELD: Additional stop identifier columns for reference.
-        - POLYGON_JOIN_FIELD: Field name in the polygon layer used for joining/aggregating ridership data (e.g., 'GEOID').
-        - POLYGON_FIELDS_TO_KEEP: List of fields from the polygon layer to retain in the output.
+Outputs include shapefiles of stops with ridership attributes, CSV summaries, and,
+if a polygon layer is provided, shapefiles and CSVs with aggregated ridership by area.
 
-Outputs:
-    1. Bus Stops Shapefile(s) (GTFS_STOPS_FC or BusStops_{route}.shp):
-        - If SPLIT_BY_ROUTE is False: A single shapefile of bus stops with joined ridership and (optionally) polygon data.
-        - If SPLIT_BY_ROUTE is True: Multiple shapefiles, one for each unique route, containing stops for that route with ridership and (optionally) polygon data.
-    2. Intermediate Bus Stops with Polygon CSV (OUTPUT_CSV): A CSV file containing bus stop attributes along with attributes from the spatially joined polygon layer (if POLYGON_LAYER is provided).
-    3. Aggregated Ridership by Polygon Shapefile (POLYGON_WITH_RIDERSHIP_SHP): If POLYGON_LAYER is provided, this shapefile contains the original polygon geometries updated with summed ridership data (boardings, alightings, total) from the stops within each polygon.
-    4. Aggregated Ridership per Stop CSV (agg_ridership_per_stop.csv): A CSV file summarizing total boardings, alightings, and combined total per unique STOP_ID across all routes (or filtered routes).
-    5. Aggregated Ridership by Polygon CSV (agg_ridership_by_polygon.csv): If POLYGON_LAYER is provided, a CSV file summarizing ridership data aggregated to the POLYGON_JOIN_FIELD.
-    6. Console output: Status messages and progress updates during processing.
-
-Dependencies:
-    1. arcpy (Esri ArcGIS Pro or Server library)
-    2. pandas
-    3. os (standard library)
-    4. csv (standard library)
+Typical use:
+    Configure paths and options at the top of the script, then run inside ArcGIS Pro
+    or as a standalone Python script with access to the ArcPy environment.
 """
 
 import csv
