@@ -1,30 +1,16 @@
 """
-Script Name:
-        headway_span_trips_calculator.py
+Calculates route-level transit metrics from GTFS data, including headways,
+service spans, trip counts by time block, average run times, and speeds.
 
-Purpose:
-        Analyzes GTFS data to calculate transit route key performance
-        indicators (KPIs) including service span, headways, trip counts
-        per time-block, average run times, route distances, and
-        operating speeds. Identifies interlined routes.
+Designed for ArcGIS Pro or notebook use. Identifies interlined routes and
+outputs Excel reports by schedule type (Weekday, Saturday, Sunday).
 
 Inputs:
-        1. GTFS files (routes.txt, trips.txt, stop_times.txt,
-           calendar.txt, calendar_dates.txt) from a specified directory.
-        2. Configuration parameters:
-           - Input/output paths.
-           - Time-block definitions.
-           - List of route identifiers to exclude.
-           - Unit for distance measurement (meters, feet, or miles).
-           - Schedule type definitions (e.g., Weekday, Saturday, Sunday).
+    - GTFS files (e.g., routes.txt, trips.txt, stop_times.txt).
+    - Configuration parameters: input paths, time blocks, schedule types, etc.
 
 Outputs:
-        Excel file(s) (one per schedule type, e.g.,
-        "Weekday_route_schedule_headway_with_modes.xlsx") detailing
-        the calculated route metrics, saved to a specified directory.
-
-Dependencies:
-        pandas, openpyxl, os, datetime.timedelta
+    - One Excel file per schedule type with calculated KPIs for each route.
 """
 
 import os
