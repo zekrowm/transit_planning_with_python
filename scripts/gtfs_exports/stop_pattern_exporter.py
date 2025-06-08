@@ -1,49 +1,18 @@
-"""Extract and export unique GTFS stop patterns by route and service to Excel.
+"""
+Extracts and exports unique GTFS stop patterns to Excel.
 
-This script processes GTFS (General Transit Feed Specification) data to identify
-unique stop patterns for each route, direction, and service_id combination. The
-results are exported as Excel workbooks, with one sheet per direction. Each row
-in a sheet represents a unique stop pattern, including segment distances and the
-earliest departure time.
+Processes GTFS data to identify unique stop sequences by route, direction,
+and service_id. Exports results as Excel files with one sheet per direction,
+organized in folders by calendar days (if available).
 
-Outputs are organized by service ID and, if available, calendar day combinations
-(e.g., 'calendar_101_mon_tue'). Each Excel file is named using the route short
-name, service ID, and the configured SIGNUP_NAME.
+Designed for use in ArcGIS Pro or Jupyter environments. Configure input and
+output paths and filters in the CONFIGURATION section before execution.
 
-This script is intended for use in ArcGIS Pro or Jupyter environments. To run it,
-edit the CONFIGURATION section near the top of the file, then execute the script
-in a Python notebook or IDE. No command-line arguments or external modules are
-required beyond the listed dependencies.
-
-Example:
-    # Step 1: Edit the CONFIGURATION section (e.g., INPUT_DIR, OUTPUT_DIR)
-    # Step 2: Run the script in a Jupyter notebook or ArcPro's Python window
-
-Configuration:
-    INPUT_DIR (str): Path to the folder containing GTFS text files.
-    OUTPUT_DIR (str): Directory where output Excel files will be saved.
-    FILTER_IN_ROUTE_SHORT_NAMES (list[str]): Routes to include (optional).
-    FILTER_OUT_ROUTE_SHORT_NAMES (list[str]): Routes to exclude (optional).
-    FILTER_IN_CALENDAR_IDS (list[str]): Service IDs to include (optional).
-    SIGNUP_NAME (str): Version label for output filenames.
-    INPUT_DISTANCE_UNIT (str): Unit for shape_dist_traveled ('meters' or 'feet').
-    CONVERT_TO_MILES (bool): Convert distances to miles if True.
-    EXPORT_TIMEPOINTS_ONLY (bool): Include only timepoints in stop patterns.
-    VALIDATE_TIMEPOINT_DISTANCE (bool): Check if segment distances match trip totals.
-
-Dependencies:
-    os, logging, collections (defaultdict), numpy, pandas, openpyxl
-
-GTFS Files Required:
-    - stops.txt
-    - trips.txt
-    - stop_times.txt
-    - routes.txt
-    - (optional) calendar.txt
+Inputs:
+    - GTFS data (stops.txt, trips.txt, stop_times.txt, routes.txt)
 
 Outputs:
-    - Excel (.xlsx) files per route and service_id
-    - Files saved in subfolders named by calendar or service ID
+    - Excel files per route and service_id, one sheet per direction
 """
 
 import logging
