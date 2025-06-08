@@ -1,33 +1,22 @@
 """
-Script Name:
-        gtfs_demog_calculator.py
+Performs spatial analysis on GTFS transit data and demographic shapefiles.
 
-Purpose:
-        Combines GTFS transit data with demographic data to perform spatial
-        analysis. Generates service area buffers around selected transit
-        stops and estimates demographic measures within these buffers.
-        Supports three analysis modes (network, route, stop) with
-        customizable filters and variable buffer distances.
+Generates service area buffers around transit stops and estimates population,
+household, and employment characteristics within those areas. Supports three
+analysis modes: 'network', 'route', and 'stop'. Buffer sizes and stop filters
+are configurable.
 
-Inputs:
-        1. Path to GTFS data folder (containing `trips.txt`, `stop_times.txt`,
-           `routes.txt`, `stops.txt`, `calendar.txt`).
-        2. Path to demographics shapefile (.shp).
-        3. User-configured parameters within the script (e.g.,
-           `ANALYSIS_MODE`, filter lists for routes/stops, buffer distances,
-           `SYNTHETIC_FIELDS`, `CRS_EPSG_CODE`).
+Intended for use in Jupyter notebooks with appropriate EPSG settings.
+
+Typical inputs:
+    - GTFS folder containing: trips.txt, stop_times.txt, routes.txt,
+      stops.txt, calendar.txt.
+    - Demographic shapefile with fields to estimate.
+    - Configurable filter lists and buffer settings in the script.
 
 Outputs:
-        1. Shapefiles (.shp) containing demographic data clipped to transit
-           service area buffers.
-        2. Excel files (.xlsx) summarizing aggregated demographic data for
-           each corresponding buffer.
-           (Filenames vary based on analysis mode: network-wide, per-route,
-           or per-stop).
-        3. Console logs detailing processing status and summaries.
-        4. Optional matplotlib plots of buffer geometries.
-
-Dependencies: geopandas, pandas, matplotlib, shapely
+    - Shapefiles (.shp) and Excel summaries (.xlsx) for each analysis unit.
+    - Optional matplotlib plots for visual inspection.
 """
 
 import os
