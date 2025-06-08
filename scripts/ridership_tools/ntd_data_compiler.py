@@ -1,22 +1,20 @@
 """
-Script Name:
-    ntd_data_compiler.py
+Compiles monthly NTD ridership reports into a unified dataset with validation and diagnostics.
 
-Purpose:
-    Compiles monthly National Transit Database (NTD) ridership Excel reports into
-    a single consolidated dataset, applying robust numeric conversions, filtering
-    invalid rows, and providing diagnostics for data quality control.
+Reads multiple Excel files containing National Transit Database (NTD) ridership data,
+applies numeric cleaning and row filtering rules, and writes a consolidated output
+with optional audit of discarded rows.
+
+Typical use: Batch processing of agency-level monthly NTD data for analysis or reporting.
 
 Inputs:
-    - Multiple Excel files (.xlsx), each containing ridership data.
-    - Optional specific worksheet names within Excel files.
+    - List of Excel file paths (with optional sheet names)
+    - Configurable drop rules for null rows
+    - Period column name for validation (optional)
 
 Outputs:
-    - A consolidated CSV or Excel file containing all valid, processed rows.
-    - (Optional) A separate audit file containing rows discarded during processing.
-
-Dependencies:
-    os, typing, pandas
+    - Consolidated file (.csv or .xlsx) with cleaned data
+    - Optional audit file of discarded rows (same format as output)
 """
 
 from __future__ import annotations  # postpone evaluation of type-hints
