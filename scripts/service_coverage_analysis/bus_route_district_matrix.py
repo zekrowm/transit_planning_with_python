@@ -15,8 +15,9 @@ Outputs:
     - Excel file with a matrix of route_short_name vs. district (y/n).
 """
 
-import os
 import logging
+import os
+
 import geopandas as gpd
 import pandas as pd
 
