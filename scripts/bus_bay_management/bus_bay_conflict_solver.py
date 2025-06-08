@@ -1,26 +1,19 @@
 """
-Script Name:
-    bus_bay_conflict_solver.py
+Assigns scheduled bus trips to stops to minimize capacity conflicts.
 
-Purpose:
-    Assigns scheduled bus trips to available stops within defined clusters,
-    aiming to minimize capacity conflicts using either a Greedy heuristic
-    or an Integer Programming (PuLP) optimization approach.
+Supports Greedy and Integer Programming (PuLP) methods to resolve bus stop
+assignment conflicts within predefined clusters.
+
+Typical Usage:
+    Python notebook or command line
 
 Inputs:
-    1. Configuration constants within the script (paths, cluster definitions,
-       solver flags, operational constraints).
-    2. Excel file per cluster: `<INPUT_DIR>/<Cluster>_Conflicts.xlsx`
-       (containing scheduled trip data, statuses, initial assignments).
+    - Configuration constants (cluster definitions, solver flags, rules)
+    - Excel files: <INPUT_DIR>/<Cluster>_Conflicts.xlsx
 
 Outputs:
-    1. Excel file per cluster: `<OUTPUT_DIR>/<Cluster>_BeforeAfter.xlsx`
-       (Detailed per-trip assignments and conflicts before/after solving).
-    2. Excel file per cluster: `<OUTPUT_DIR>/<Cluster>_Summary.xlsx`
-       (Summary of conflicts and assigned stops by route/direction).
-
-Dependencies:
-    1. Libraries: pandas, openpyxl, pulp (optional, required for IP solver)
+    - Excel files: <OUTPUT_DIR>/<Cluster>_BeforeAfter.xlsx
+                   <OUTPUT_DIR>/<Cluster>_Summary.xlsx
 """
 
 import os
