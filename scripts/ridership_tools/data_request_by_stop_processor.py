@@ -7,7 +7,7 @@ period, and saves the results to a new Excel file. Aggregated data can
 optionally be rounded or categorized into bins. It is useful for fulfilling
 stop-based data requests.
 
-Designed for use in ArcGIS Pro or Jupyter notebooks, typically as part of a 
+Designed for use in ArcGIS Pro or Jupyter notebooks, typically as part of a
 manual or scripted data request workflow.
 """
 
@@ -66,6 +66,7 @@ COLUMNS_TO_RETAIN = ["ROUTE_NAME", "STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL"]
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def bin_ridership_value(value):
     """
