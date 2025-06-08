@@ -1,34 +1,20 @@
 """
-Script Name:
-        park_and_ride_accessibility.py
+Evaluates Park-and-Ride accessibility using GTFS transit and roadway network data.
 
-Purpose:
-        Evaluates Park and Ride facility accessibility using public transit (GTFS data)
-        and road networks. It integrates census data to estimate the number of jobs
-        and residents served within defined travel times, and produces shapefiles
-        of accessible areas, isochrones, and demographic/job overlays suitable for
-        GIS mapping and further spatial analysis.
+Generates shapefiles and summary statistics for transit- and driving-based
+isochrones from Park-and-Ride facilities, estimating reachable jobs and
+demographic populations using Census block data.
 
 Inputs:
-        1. GTFS data (stops.txt, stop_times.txt, trips.txt, routes.txt)
-        2. Park and Ride facility locations (latitude, longitude)
-        3. Census Blocks shapefile (with demographic and job data)
-        4. Roadway Centerlines shapefile
-        5. Configuration parameters (time windows, transfer times, max travel times)
+    - GTFS files: stops.txt, stop_times.txt, trips.txt, routes.txt
+    - Facility coordinates (lat/lon)
+    - Census blocks shapefile with job and demographic attributes
+    - Roadway centerlines shapefile
 
 Outputs:
-        1. Shapefiles:
-           - Facility locations
-           - Transit-accessible areas per facility
-           - Reachable bus stops per facility
-           - All bus stops
-           - Clipped census data (jobs) for transit-accessible areas
-           - Driving isochrones per facility
-           - Clipped census data (demographics) for driving isochrones
-           - Console printouts of summarized job and demographic data.
-
-Dependencies:
-        os, re, geopandas, matplotlib.pyplot, networkx, pandas, shapely
+    - Shapefiles: facility points, transit isochrones, reachable stops,
+      all stops, clipped census overlays, and driving isochrones
+    - Console summaries of accessible jobs and demographics per facility
 """
 
 import os
