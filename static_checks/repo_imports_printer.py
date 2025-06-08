@@ -1,39 +1,18 @@
 """
-Script name:
-    print_imports_by_type.py
+Scans a Python project to classify and export imports by type.
 
-Purpose:
-    Scan a project tree, collect all imported modules, classify them as
-    standard-library, third-party, or local, and export a text file that
-    lists them in the three Black-style groups, separated by a blank line.
+Recursively traverses a target directory, extracts all imported top-level modules,
+and categorizes them as standard-library, third-party, or local. Results are written
+to a plain-text file grouped in Black/isort style. This is useful for developing or
+updating a requirements.txt file.
 
-Configuration:
-    TARGET_DIR   – root of the project to analyse
-    OUTPUT_PATH  – full path (directory + filename) for the output .txt file
+Inputs:
+    - TARGET_DIR: Root directory of the Python project to scan.
+    - OUTPUT_PATH: Path to the output `.txt` file.
 
 Outputs:
-    A plain-text file whose body looks like this:
-
-        # --- Standard library -------------------------------------------------
-        datetime
-        math
-        os
-        pathlib
-        sys
-
-        # --- Third-party ------------------------------------------------------
-        geopandas==0.13.0
-        pandas==1.5.3
-        pulp==2.9
-        rapidfuzz==3.11.0
-
-        # --- Local ------------------------------------------------------------
-        mypackage
-        utils.helpers
-
-Dependencies:
-    Only the Python standard library.
-    (importlib.metadata is stdlib from Python 3.8 onward.)
+    - Text file listing imports in three sections: standard library, third-party
+      (with pinned versions), and local modules.
 """
 
 from __future__ import annotations
