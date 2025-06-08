@@ -17,9 +17,6 @@ Outputs:
     - Diagnostic CSVs for valid and invalid event records.
 """
 
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
 from __future__ import annotations
 
 import re
@@ -29,6 +26,10 @@ from typing import Dict, List, Optional
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 OBSERVED_DATA_PATH = r"\\Path\To\Your\Field_Data_Folder"
 ANALYSIS_RESULTS_PATH = r"\\Path\To\Your\Output_Folder"
@@ -49,10 +50,10 @@ CORE_EVENT_COLS: list[str] = [
     "stop_name",  #  ← new
 ]
 
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 def list_observed_files(base_path: str) -> List[Path]:
     """Return list of .xlsx/.csv files in *base_path* (raise if none)."""
     path = Path(base_path)
