@@ -1,29 +1,20 @@
 """
-Script Name:
-    bikeshare_ridership_processor.py
+Processes Capital Bikeshare trip and station data to generate usage reports.
 
-Purpose:
-    Processes Capital Bikeshare spatial and trip data to generate monthly
-    total and daily average trip reports per station, optionally clipped
-    to a boundary and with station name reconciliation. If you are
-    interested in other bikeshare systems, you may need to modify the
-    script to match their data format.
+Generates monthly trip totals and average daily activity by station, with optional
+clipping to a study area and interactive name reconciliation. Designed for adapting
+to similar bikeshare datasets with minor modifications.
 
 Inputs:
-    1. Capital Bikeshare station locations shapefile (configured via BIKESHARE_SHP_PATH)
-       (Source: https://opendata.dc.gov/datasets/DCGIS::capital-bikeshare-locations/explore)
-    2. Optional study area boundary shapefile (configured via BOUNDARY_SHP_PATH)
-    3. Folder containing trip data CSV files (configured via CSV_FOLDER)
-       (Source: https://capitalbikeshare.com/system-data)
-    4. Fuzzy matching threshold for station names (configured via FUZZY_THRESHOLD)
+    - Capital Bikeshare station shapefile (BIKESHARE_SHP_PATH)
+    - Optional boundary shapefile (BOUNDARY_SHP_PATH)
+    - Monthly trip data CSVs (CSV_FOLDER)
+    - Fuzzy match threshold for station reconciliation (FUZZY_THRESHOLD)
 
 Outputs:
-    1. CSV file: Total monthly trip activity per station (configured via OUTPUT_CSV)
-    2. Excel file: Average daily (Weekday/Sat/Sun) trip activity per station/month (configured via OUTPUT_XLSX)
-    3. (Optional) Matplotlib plot of clipped station locations (displayed if boundary is used)
-
-Dependencies:
-    1. Libraries: geopandas, pandas, matplotlib, difflib, os, glob, calendar
+    - CSV: Monthly total trips per station (OUTPUT_CSV)
+    - Excel: Daily averages per station/month (OUTPUT_XLSX)
+    - Optional: Station map if a boundary is provided
 """
 
 import calendar
