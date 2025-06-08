@@ -1,9 +1,9 @@
 """
 Plans an optimal site visit route through selected GTFS stops using road network travel times.
 
-Reprojects GTFS stop locations, snaps them to a directed road network, and solves the Traveling 
-Salesman Problem (TSP) using either an exact ILP solver or a greedy approximation. Outputs 
-include reprojected stops, a shapefile of the computed route, turn-by-turn driving directions, 
+Reprojects GTFS stop locations, snaps them to a directed road network, and solves the Traveling
+Salesman Problem (TSP) using either an exact ILP solver or a greedy approximation. Outputs
+include reprojected stops, a shapefile of the computed route, turn-by-turn driving directions,
 and a route plot.
 
 Typical usage: Jupyter notebook or command line.
