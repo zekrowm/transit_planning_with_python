@@ -1,29 +1,20 @@
 """
-Script Name:
-    route_direction_calculator.py
+Classifies GTFS route directions and identifies dominant shapes per route and direction.
 
-Purpose:
-    Analyzes GTFS data to classify transit route directions (Northbound,
-    Southbound, Eastbound, Westbound) or as loops (Clockwise,
-    Counter-Clockwise, Loop). It identifies dominant route shapes and
-    can flag suspicious direction assignments.
+Determines whether GTFS shapes are cardinal (NB, SB, EB, WB) or looped (CW, CCW, LOOP),
+flags suspicious direction inconsistencies, and optionally exports Excel summaries and
+JPEG maps of dominant route shapes.
+
+Typical use: ArcGIS Pro workflows or Jupyter notebooks with GTFS datasets.
 
 Inputs:
-    1. Standard GTFS files (routes.txt, trips.txt, stop_times.txt,
-       shapes.txt, stops.txt) located in a specified GTFS_FOLDER.
+    - GTFS files: routes.txt, trips.txt, stop_times.txt, shapes.txt, stops.txt
 
 Outputs:
-    1. Directions_Summary.xlsx: Summary of trips per route, direction,
-       and shape.
-    2. Route_<route_short_name>_Dir_<direction_id>_departures.xlsx:
-       Individual Excel files with departure times and stop info.
-    3. Route_<route_short_name>_Dir_<direction_id>_DominantShape.jpeg:
-       JPEG maps of dominant route shapes (optional).
-    4. Suspicious_RouteDirections.xlsx: Lists routes with potentially
-       inconsistent direction classifications (if found).
-
-Dependencies:
-    pandas, geopandas, matplotlib, shapely
+    - Directions_Summary.xlsx
+    - Route_<short_name>_Dir_<direction_id>_departures.xlsx
+    - Route_<short_name>_Dir_<direction_id>_DominantShape.jpeg (optional)
+    - Suspicious_RouteDirections.xlsx (if inconsistencies are found)
 """
 
 import math
