@@ -1,33 +1,21 @@
 """
-Script Name:
-        historical_otp_data_processor.py
+Processes historical on-time performance (OTP) and running time data for transit routes.
 
-Purpose:
-        Processes transit agency on-time performance (OTP) (and running time)
-        data. It calculates key performance metrics, identifies operational
-        deviations from schedules, and optionally generates OTP trend plots
-        for individual routes and directions.
+Calculates deviations from scheduled performance, flags problem trips,
+and optionally generates monthly OTP trend plots by route and direction.
+
+Typical usage involves:
+    - Parsing trip-level CSV data with schedule and OTP fields.
+    - Filtering by route, identifying timing issues, and exporting results.
+    - Generating JPEG trend plots if enabled.
 
 Inputs:
-        1. Primary CSV data file ('INPUT_FILE') containing detailed trip-level
-           data including scheduled/actual runtimes, start times, and OTP counts.
-        2. (If plotting enabled) Processed CSV data file ('OTP_FILE_PATH') for
-           OTP plotting, typically derived from the primary input.
-        3. Configuration constants defined in the script for file paths,
-           filters (e.g., ROUTE_FILTER), thresholds (e.g.,
-           DEVIATION_THRESHOLD_SECONDS), and plot appearance.
+    - Runtime CSV with schedule, actuals, and OTP counts.
+    - (Optional) Processed OTP data for plotting.
 
 Outputs:
-        1. Excel files detailing processed running time data, including
-           calculated deviations and problem flags, saved to 'OUTPUT_DIR'.
-           One file per route and one consolidated file.
-        2. (If plotting enabled via RUN_PLOTTING=True) JPEG image files of
-           OTP trends over time, one for each route and direction, saved
-           to 'OTP_OUTPUT_DIR'.
-        3. Status messages and error logs printed to the console.
-
-Dependencies:
-        pandas, matplotlib, os, sys, datetime
+    - Excel files with processed metrics and flags.
+    - (Optional) JPEG trend plots by route/direction.
 """
 
 import os
