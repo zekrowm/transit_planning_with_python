@@ -1,38 +1,21 @@
 """
-Script Name:
-    ridership_per_stop_processor.py
+Aggregates per-stop ridership data and outputs one Excel file per route.
 
-Purpose:
-    Reads an Excel file containing transit ridership data by stop, filters by an
-    optional list of STOP_IDs, and then for each route generates an aggregated
-    Excel output. The aggregation can include boardings, alightings, or both, and
-    calculates the total boardings/alightings as well as percentages for each stop.
+Reads a stop-level ridership Excel file, optionally filters by STOP_ID,
+aggregates boardings and/or alightings by route, and calculates percentage
+contributions per stop. Outputs one Excel workbook per route with totals
+and percentage columns for each metric.
+
+Typical use: Identify key stops by volume and share of ridership.
 
 Inputs:
-    1. Excel file containing ridership data by stop (specified by INPUT_FILE_PATH).
-       Expected columns include 'ROUTE_NAME', 'STOP_ID', 'STOP_NAME', 'XBOARDINGS', 'XALIGHTINGS'.
-    2. Configuration constants defined in the script:
-        - OUTPUT_DIR: Path to the directory where output Excel files will be saved.
-        - STOP_FILTER_LIST: Optional list of 'STOP_ID's to filter the data. If empty, all stops are processed.
-        - USE_BOARDINGS: Boolean flag (True/False) to include boarding data in aggregation.
-        - USE_ALIGHTINGS: Boolean flag (True/False) to include alighting data in aggregation.
+    - Excel file with stop-level ridership fields (e.g., 'ROUTE_NAME', 'STOP_ID',
+      'XBOARDINGS', 'XALIGHTINGS')
+    - Configurable flags for filtering STOP_IDs and including boardings/alightings
 
 Outputs:
-    1. Excel files (.xlsx): One file per unique 'ROUTE_NAME' found in the (optionally filtered) input data.
-       - Each file is named '{route_name}.xlsx' and saved in OUTPUT_DIR.
-       - Sheets contain aggregated ridership data for that route, including:
-         - STOP_ID, STOP_NAME
-         - Sum of XBOARDINGS (if USE_BOARDINGS is True)
-         - Sum of XALIGHTINGS (if USE_ALIGHTINGS is True)
-         - PCT_BOARDINGS (percentage of route's total boardings for that stop, if USE_BOARDINGS is True)
-         - PCT_ALIGHTINGS (percentage of route's total alightings for that stop, if USE_ALIGHTINGS is True)
-         - XTOTAL (sum of boardings and alightings, if both are True)
-         - PCT_TOTAL (percentage of route's combined total for that stop, if both are True)
-    2. Console output: Status messages indicating which routes have been processed and saved.
-
-Dependencies:
-    1. pandas
-    2. os (standard library)
+    - One Excel file per route with aggregated stop data and calculated percentages
+    - Console messages listing processed routes
 """
 
 import os
