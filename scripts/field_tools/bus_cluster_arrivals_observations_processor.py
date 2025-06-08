@@ -54,6 +54,7 @@ CORE_EVENT_COLS: list[str] = [
 # FUNCTIONS
 # =============================================================================
 
+
 def list_observed_files(base_path: str) -> List[Path]:
     """Return list of .xlsx/.csv files in *base_path* (raise if none)."""
     path = Path(base_path)
