@@ -1,6 +1,17 @@
 """
-Script Name:
-    stops_versus_road_name_typo_checker_arcpy.py
+Identifies potential typos in GTFS stop names by comparing them to nearby roadway names.
+
+Creates a spatial buffer around each GTFS stop, joins to intersecting roadway segments,
+and uses fuzzy string matching to flag stop names that are similar—but not identical—
+to adjacent street names. Intended for QA of stop name consistency in GIS-based transit data.
+
+Outputs:
+    - CSV of potential stop name typos and similarity scores.
+    - File geodatabase with intermediate feature classes for inspection.
+
+Typical use:
+    Run in ArcGIS Pro's Python environment or any ArcPy-enabled session
+    after configuring input paths and parameters at the top of the script.
 """
 
 import difflib
