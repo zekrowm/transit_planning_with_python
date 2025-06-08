@@ -1,7 +1,7 @@
 """
 Validates GTFS stop clusters by checking spatial and naming consistency.
 
-Analyzes predefined bus bay clusters for errors such as nearby excluded stops, 
+Analyzes predefined bus bay clusters for errors such as nearby excluded stops,
 distant included stops, and inconsistent stop names. Useful for creating bus
 stop cluster lists for subsequent analysis.
 
