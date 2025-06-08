@@ -18,7 +18,7 @@ Outputs:
 import os
 
 import pandas as pd
-from openpyxl.styles import Alignment
+from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
 # =============================================================================
