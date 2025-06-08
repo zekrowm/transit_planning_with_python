@@ -1,36 +1,24 @@
 """
-Script Name:
-      site_visit_route_planner.py
+Plans an optimal site visit route through selected GTFS stops using road network travel times.
 
-Purpose:
-      Processes GTFS stops and a road network to compute an optimal
-      Traveling Salesman Problem (TSP) route. Reprojects coordinates,
-      snaps stops to the road network, considers travel times based on
-      one-way streets and speed limits, and allows selection between
-      ILP (exact) or greedy (approximate) TSP solutions.
+Reprojects GTFS stop locations, snaps them to a directed road network, and solves the Traveling 
+Salesman Problem (TSP) using either an exact ILP solver or a greedy approximation. Outputs 
+include reprojected stops, a shapefile of the computed route, turn-by-turn driving directions, 
+and a route plot.
+
+Typical usage: Jupyter notebook or command line.
 
 Inputs:
-      1. Path to GTFS data directory (containing 'stops.txt' in EPSG:4326).
-      2. Path to roadways shapefile (EPSG:2283).
-      3. List of selected GTFS stop IDs.
-      4. Starting location as a Google Maps DMS coordinate string (EPSG:4326).
-      5. Configuration constants within the script for:
-         - Output directory path.
-         - GTFS stop ID column name.
-         - Road shapefile attribute column names (ONEWAY, SPEEDLIMI, FULLNAME).
-         - Target road CRS (Coordinate Reference System).
-         - Fallback average speed.
-         - TSP optimization approach ('ilp' or 'greedy').
+    - GTFS stops file ('stops.txt') in EPSG:4326.
+    - Road network shapefile in EPSG:2283.
+    - Selected GTFS stop IDs and a DMS-formatted start location.
+    - Script-level configuration for routing parameters and output paths.
 
 Outputs:
-      1. Shapefile of reprojected GTFS stops ('gtfs_stops.shp') in EPSG:2283.
-      2. Excel file with step-by-step driving directions ('directions.xlsx').
-      3. Shapefile of the computed TSP route ('tsp_route.shp') in EPSG:2283.
-      4. A Matplotlib plot visualizing the TSP route on selected stops.
-
-Dependencies:
-      math, os, re, geopandas, matplotlib.pyplot, networkx, pandas,
-      pulp, pyproj, shapely.geometry.
+    - Reprojected GTFS stops shapefile ('gtfs_stops.shp').
+    - TSP route shapefile ('tsp_route.shp').
+    - Driving directions Excel file ('directions.xlsx').
+    - Matplotlib route plot.
 """
 
 import math
