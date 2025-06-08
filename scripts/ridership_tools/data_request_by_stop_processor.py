@@ -1,32 +1,14 @@
 """
-Script Name:
-        data_request_by_stop_processor.py
+Processes stop-level ridership data from an Excel file.
 
-Purpose:
-        Processes ridership data from an Excel file by filtering, aggregating
-        by time periods and stops, and optionally rounding or binning results.
-        It is useful for fulfilling stop-based data requests.
+Reads an input Excel file (RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX),
+filters by route or stop ID, aggregates boardings and alightings by stop and time
+period, and saves the results to a new Excel file. Aggregated data can
+optionally be rounded or categorized into bins. It is useful for fulfilling
+stop-based data requests.
 
-Inputs:
-        1. Excel file containing ridership data (specified by INPUT_FILE_PATH).
-        2. Configuration constants in the script for:
-           - Routes to filter (ROUTES)
-           - Stop IDs to filter (STOP_IDS)
-           - Time periods for aggregation (TIME_PERIODS)
-           - Rounding of ridership figures (APPLY_ROUNDING)
-           - Binning of aggregated totals (AGGREGATE_BIN_RANGES)
-
-Outputs:
-        1. A new Excel file (input file name + OUTPUT_FILE_SUFFIX + .xlsx)
-           containing:
-           - A sheet with original, filtered (and optionally rounded) data.
-           - Separate sheets for aggregated data for each specified time period.
-           - A sheet for aggregated data across all time periods.
-           - Aggregated totals are either numeric (optionally rounded) or
-             binned into text ranges.
-
-Dependencies:
-        pandas, openpyxl, os (standard library), sys (standard library)
+Designed for use in ArcGIS Pro or Jupyter notebooks, typically as part of a 
+manual or scripted data request workflow.
 """
 
 import os
@@ -81,10 +63,9 @@ REQUIRED_COLUMNS = [
 ]
 COLUMNS_TO_RETAIN = ["ROUTE_NAME", "STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL"]
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # FUNCTIONS
-# -----------------------------------------------------------------------------
-
+# =============================================================================
 
 def bin_ridership_value(value):
     """
