@@ -1,28 +1,20 @@
 """
-Script Name:
-    runtime_per_trip_processor.py
+Analyzes scheduled vs. actual running times for bus trips and flags deviations.
 
-Purpose:
-    Analyse scheduled vs. actual running times for bus routes,
-    flagging trips and route–direction pairs whose deviations
-    exceed user-defined percent or minute thresholds, and
-    exporting both trip-level and summary CSVs.
+Automatically normalizes column names and formats from varying input files,
+calculates trip-level and route-direction-level deviation metrics, applies
+threshold-based flags, and exports both detailed and summary CSVs.
 
-    The script now auto-detects multiple column variants (HH:MM:SS,
-    already-in-minutes, etc.) so it can run on the *same* file that
-    the OTP trip processor uses—no manual renaming required.
+Typical usage:
+    - Configure thresholds and file paths in the CONFIGURATION section.
+    - Run from ArcPro, Jupyter, or standalone to process runtime performance.
 
 Inputs:
-    1. A trip-level CSV defined by INPUT_FILE
-       (e.g. r"\\Path\\To\\Runtime Trip Level - 05-05-2025.csv")
-    2. Configuration constants in the CONFIGURATION section below.
+    - Trip-level CSV with scheduled, actual, and deviation values.
 
 Outputs:
-    1. trip_level_with_flags.csv   – trip rows + new metrics & flags
-    2. route_direction_summary.csv – aggregated summary with flags
-
-Dependencies:
-    pandas
+    - trip_level_with_flags.csv: trip-level data with computed metrics and flags.
+    - route_direction_summary.csv: route/direction aggregates with deviation flags.
 """
 
 from __future__ import annotations
