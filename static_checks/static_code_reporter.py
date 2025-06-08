@@ -1,38 +1,20 @@
-"""static_code_reporter.py
+"""
+Runs static analysis tools on Python files and exports detailed logs and summaries.
 
-Performs comprehensive static code analysis on specified Python files and directories.
-The script runs multiple tools including `mypy`, `vulture`, `pylint`, `isort`, and
-`pydocstyle`, logging detailed outputs and generating Excel summaries for each.
+Executes multiple code quality tools—`mypy`, `vulture`, `pylint`, `isort`, and
+`pydocstyle`—on specified Python files and directories. Generates per-tool log files
+and Excel summaries, intended for systematic QA in large or shared codebases.
 
-This utility is designed for teams and individuals looking to enforce type checking,
-style conventions, and docstring consistency across large codebases.
-
-Attributes:
-    FILES_OR_FOLDERS (List[str]): Paths to files or directories to scan.
-    SKIP_PATHS (List[str]): Paths to exclude from scanning.
-    OUTPUT_FOLDER (str): Directory where logs and reports are saved.
-    LOG_LEVEL (int): Logging verbosity level.
-    ENABLE_MYPY (bool): Flag to enable type checking with mypy.
-    ENABLE_VULTURE (bool): Flag to enable dead code detection with vulture.
-    ENABLE_LINT (bool): Flag to enable linting with pylint and isort.
-    ENABLE_PYDOCSTYLE (bool): Flag to enable docstring checks with pydocstyle.
-    MYPY_ADDITIONAL_ARGS (List[str]): Additional CLI args for mypy.
-    VULTURE_MIN_CONFIDENCE (int): Confidence threshold for vulture issues.
-    PYDOCSTYLE_ADDITIONAL_ARGS (List[str]): Additional CLI args for pydocstyle.
+Inputs:
+    - FILES_OR_FOLDERS: List of file or directory paths to scan
+    - SKIP_PATHS: Paths to exclude from scanning
+    - ENABLE_* flags: Enable/disable each tool individually
+    - OUTPUT_FOLDER: Path where logs and summaries are saved
 
 Outputs:
-    - Log files for each enabled tool with detailed stdout/stderr.
-    - Timestamped Excel files summarizing issues found by each tool.
-    - Console output with progress updates and high-level summary.
-
-Dependencies:
-    - Standard library: os, sys, re, subprocess, logging, pathlib, datetime, typing
-    - Third-party: openpyxl, mypy, vulture, pylint, isort, pydocstyle
-
-Example:
-    Run the script directly to scan the configured paths:
-
-        python static_code_reporter.py
+    - Log files: One per tool with stdout/stderr from each scan
+    - Excel summaries: One per tool with issue counts and details
+    - Console output: Progress updates and summary of results
 """
 
 from __future__ import annotations
@@ -298,9 +280,9 @@ def run_vulture(files: List[str]) -> int:
     return sum(1 for r in summary if r["count"] > 0)
 
 
-# ============================================================================
+# ----------------------------------------------------------------------------
 # 3) PYLINT + ISORT CHECK
-# ============================================================================
+# ----------------------------------------------------------------------------
 _PYLINT_ISSUE = re.compile(r":\s*[CREFWE]\d{4}:")
 # Removed _docstring_ok function
 
