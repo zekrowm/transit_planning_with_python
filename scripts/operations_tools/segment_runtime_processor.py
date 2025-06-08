@@ -207,100 +207,111 @@ def sort_route_segments(segments):
         sorted_segs.append(f"{chain_stops[i]} - {chain_stops[i+1]}")
     return sorted_segs
 
-
 def create_and_save_pivots(
-    df: pd.DataFrame, output_subdir: str, dataset_label: str, time_columns_map: dict
+    df: pd.DataFrame,
+    output_subdir: str,
+    dataset_label: str,
+    time_columns_map: dict,
 ) -> None:
     """
-    Exports one CSV per (route, direction, time_col).
-    - Sort each direction's rows by a temporary 'time_sort' column derived from Trip.
-    - Round numeric pivoted columns to 1 decimal place.
-    - Reindex the pivot table to preserve the sorted order of (Branch, Direction, TripNo, Variation, Trip).
+    Export one CSV per (route, direction, time_column) and write explicit “no-data”
+    placeholders when a direction, or an entire route, produces no pivot tables.
+
+    Steps
+    -----
+    1.  For each (route, direction), sort rows chronologically via a temporary
+        `time_sort` column parsed from *Trip*.
+    2.  Validate and, if possible, reorder SegmentName columns into true sequence.
+    3.  Pivot each requested time column and round to 1 decimal place.
+    4.  Write the pivot CSV(s).  If none were written for the current direction,
+        emit a “_NoData.csv” placeholder so downstream scripts see the absence
+        explicitly.
+    5.  After all directions, emit a “route-level” placeholder when *no* CSVs
+        at all were created for that route.
     """
     if not os.path.exists(output_subdir):
         os.makedirs(output_subdir)
 
     for route in df["Branch"].unique():
         route_df = df[df["Branch"] == route].copy()
-
         route_wrote_any_csv = False
 
         for direction in route_df["Direction"].unique():
             direction_df = route_df[route_df["Direction"] == direction].copy()
 
-            # 1) Create temp time_sort column, sort, then drop
+            # ── 1. Sort chronologically via Trip  ────────────────────────────
             if "Trip" in direction_df.columns:
                 direction_df["time_sort"] = direction_df["Trip"].apply(parse_trip_time)
                 direction_df.sort_values("time_sort", inplace=True, na_position="last")
                 direction_df.drop(columns="time_sort", inplace=True)
 
-            # 2) Keep track of the exact sorted order for reindexing
-            #    so pivot_table doesn't reorder the rows.
-            sorted_index_df = direction_df[
-                ["Branch", "Direction", "TripNo", "Variation", "Trip"]
-            ].drop_duplicates()
-            sorted_index_df = sorted_index_df.set_index(
-                ["Branch", "Direction", "TripNo", "Variation", "Trip"]
+            # Preserve row order after pivoting
+            sorted_idx = (
+                direction_df[["Branch", "Direction", "TripNo", "Variation", "Trip"]]
+                .drop_duplicates()
+                .set_index(["Branch", "Direction", "TripNo", "Variation", "Trip"])
+                .index
             )
-            sorted_index_list = sorted_index_df.index
 
-            # 3) Check route validity
+            # ── 2. Validate / order segments  ───────────────────────────────
             segments = direction_df["SegmentName"].dropna().unique().tolist()
             variations = direction_df["Variation"].dropna().unique().tolist()
-            is_single_path = check_route_validity(segments, variations)
-            if is_single_path:
+            if check_route_validity(segments, variations):
                 segments = sort_route_segments(segments)
 
+            # Track whether *this* direction yielded at least one pivot
             direction_wrote_something = False
 
-            # 4) Pivot each time column
-            for time_col, sheet_suffix in time_columns_map.items():
+            # ── 3–4. Pivot each time column  ────────────────────────────────
+            for time_col, suffix in time_columns_map.items():
                 if time_col not in direction_df.columns:
                     continue
 
-                pivot_table = direction_df.pivot_table(
+                pivot_tbl = direction_df.pivot_table(
                     index=["Branch", "Direction", "TripNo", "Variation", "Trip"],
                     columns="SegmentName",
                     values=time_col,
                     aggfunc="mean",
                 )
-
-                if pivot_table.empty:
+                if pivot_tbl.empty:
                     continue
 
-                # Reorder pivot columns by sorted segments
-                pivot_cols = [seg for seg in segments if seg in pivot_table.columns]
-                pivot_table = pivot_table.reindex(columns=pivot_cols)
+                # Re-order columns and rows
+                pivot_tbl = pivot_tbl.reindex(columns=[s for s in segments if s in pivot_tbl.columns])
+                pivot_tbl = pivot_tbl.reindex(index=sorted_idx)
+                pivot_tbl = pivot_tbl.round(1)
 
-                # 5) Reindex rows to preserve the original sorted order
-                pivot_table = pivot_table.reindex(index=sorted_index_list)
-
-                # 6) Round to 1 decimal place
-                pivot_table = pivot_table.round(1)
-
-                # 7) Build CSV filename
-                csv_filename = (
-                    f"{dataset_label}_Route{route}_Dir{direction}_{sheet_suffix}.csv"
-                )
-                csv_path = os.path.join(output_subdir, csv_filename)
-
-                pivot_table.to_csv(csv_path, index=True, float_format="%.1f")
+                # Write
+                csv_name = f"{dataset_label}_Route{route}_Dir{direction}_{suffix}.csv"
+                csv_path = os.path.join(output_subdir, csv_name)
+                pivot_tbl.to_csv(csv_path, float_format="%.1f")
                 print(f"Created {csv_path}")
 
                 direction_wrote_something = True
                 route_wrote_any_csv = True
 
-            # End of time_col loop
-            # If you'd like a "NoData" per direction, handle here.
+            # ── 4b. Direction-level placeholder if nothing written ──────────
+            if not direction_wrote_something:
+                no_data_name = f"{dataset_label}_Route{route}_Dir{direction}_NoData.csv"
+                no_data_path = os.path.join(output_subdir, no_data_name)
+                pd.DataFrame(
+                    {
+                        "Info": [
+                            f"No valid data for route {route}, "
+                            f"direction {direction}."
+                        ]
+                    }
+                ).to_csv(no_data_path, index=False)
+                print(f"Created {no_data_path}")
 
-        # End of direction loop
+        # ── 5. Route-level placeholder if *all* directions empty ────────────
         if not route_wrote_any_csv:
-            no_data_filename = f"{dataset_label}_Route{route}_NoData.csv"
-            no_data_path = os.path.join(output_subdir, no_data_filename)
-            no_data_df = pd.DataFrame({"Info": [f"No valid data for route {route}."]})
-            no_data_df.to_csv(no_data_path, index=False)
+            no_data_name = f"{dataset_label}_Route{route}_NoData.csv"
+            no_data_path = os.path.join(output_subdir, no_data_name)
+            pd.DataFrame(
+                {"Info": [f"No valid data for route {route}."]}
+            ).to_csv(no_data_path, index=False)
             print(f"Created {no_data_path}")
-
 
 def process_file(file_path: str, dataset_label: str):
     """
