@@ -1,29 +1,18 @@
 """
-Script Name:
-    bus_cluster_arrivals_checklist_printable.py
+Generates printable Excel checklists of GTFS stop times by custom stop clusters and schedule types.
 
-Purpose:
-    Generates formatted Excel checklists of GTFS bus stop times,
-    grouped by user-defined stop clusters and schedules.
-    These are useful for points field checks.
+Designed for field auditing and service verification, the script groups GTFS stop_times
+by cluster, schedule, and optional time windows. Outputs are formatted Excel files with
+placeholders for arrival data, bus numbers, and comments.
+
+Typical usage: ArcGIS Pro, Jupyter notebook, or command line.
 
 Inputs:
-    1. GTFS data files (trips.txt, stop_times.txt, routes.txt,
-       stops.txt, calendar.txt) located via BASE_INPUT_PATH.
-    2. Configuration constants within the script:
-       - STOP_IDENTIFIER_FIELD ('stop_id' or 'stop_code').
-       - CLUSTERS (dictionary defining stop groupings).
-       - SCHEDULE_TYPES (dictionary defining schedule days).
-       - TIME_WINDOWS (optional dictionary for time filtering).
-       - BASE_OUTPUT_PATH (directory for saving checklists).
+    - GTFS files (trips.txt, stop_times.txt, routes.txt, stops.txt, calendar.txt)
+    - Configuration constants: CLUSTERS, SCHEDULE_TYPES, TIME_WINDOWS, etc.
 
 Outputs:
-    1. Excel (.xlsx) checklist files saved to BASE_OUTPUT_PATH.
-       - One file per cluster/schedule/time_window combination.
-       - Files contain sorted stop times with operational placeholders.
-
-Dependencies:
-    pandas, openpyxl
+    - One Excel file per cluster × schedule × time window to BASE_OUTPUT_PATH
 """
 
 import os
