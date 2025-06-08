@@ -1,6 +1,4 @@
 """
-gtfs_helpers.py
-
 Reusable utility functions for GTFS data processing scripts.
 
 Includes common GTFS data loaders, validators, and formatting helpers.
