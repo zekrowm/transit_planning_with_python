@@ -16,7 +16,7 @@ Outputs:
 """
 
 import os
-
+import logging
 import geopandas as gpd
 import pandas as pd
 
