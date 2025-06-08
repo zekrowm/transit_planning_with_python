@@ -1,27 +1,16 @@
-"""
-Script Name:
-    bus_block_stop_sequence_printable.py
+"""Create printable Excel schedules from GTFS block data.
 
-Purpose:
-    Generates printable, stop-by-stop Excel schedules for each
-    vehicle block defined in GTFS data.  Merges trip, stop-time,
-    stop, and route information.  Supports optional filtering by
-    service ID and route short name.  Primarily intended for field
-    operations and audits.
+Generates one .xlsx per vehicle block using GTFS trips, stop_times, stops,
+routes, and calendar files. Designed for field audits with placeholders
+for time and ridership.
 
-Inputs:
-    1. GTFS data files (requires at minimum trips.txt, stop_times.txt,
-       stops.txt, routes.txt, calendar.txt) located in the directory
-       specified by GTFS_FOLDER_PATH.
+Typical usage in ArcGIS Pro, notebooks, or CLI:
+>>> main()  # or python bus_block_stop_sequence_printable.py
 
-Outputs:
-    1. Individual Excel (.xlsx) files, one per vehicle block after
-       filtering.  Each file contains a formatted schedule with
-       columns for field data entry (Actual Time, Boardings, etc.).
-       Files are saved to the folder specified by BASE_OUTPUT_PATH.
-
-Dependencies:
-    pandas, openpyxl, logging
+Key settings:
+- GTFS_FOLDER_PATH: folder with GTFS .txt files
+- BASE_OUTPUT_PATH: where Excel files are saved
+- FILTER_SERVICE_IDS, FILTER_ROUTE_SHORT_NAMES: optional filters
 """
 
 from __future__ import annotations
