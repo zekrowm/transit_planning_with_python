@@ -1,31 +1,19 @@
-"""Generate formatted Excel transit schedules from GTFS data.
+"""
+Generates Excel-formatted transit schedules from GTFS data.
 
-This script processes GTFS (General Transit Feed Specification) files to
-export Excel-formatted transit schedules by route, direction, and service
-period (e.g., Weekday, Saturday). The format imitates printed public
-schedules and is useful for batch export of many routes.
+This script processes GTFS files (e.g., trips.txt, stop_times.txt) to export
+Excel schedule sheets by route, direction, and service type. Output mimics
+print-style public schedules.
 
-Typical usage is to copy and paste the script into a Python notebook or
-script editor (e.g., in ArcGIS Pro), then manually update the configuration
-section near the top before running. No installation or import is required.
+Typical usage is within ArcGIS Pro or a Jupyter notebook. Configuration is
+manual: edit constants near the top before execution.
 
-Typical usage example:
+Inputs:
+    - GTFS .txt files in a specified folder
+    - Configurable route and service filters, time formatting
 
-    # Step 1: Edit configuration settings in the CONFIGURATION section
-    # Step 2: Run the script in a notebook or ArcPro's Python window
-
-Attributes:
-    GTFS_FOLDER_PATH (str): Path to folder containing GTFS .txt files.
-    BASE_OUTPUT_PATH (str): Directory to write Excel outputs.
-    FILTER_SERVICE_IDS (list): List of GTFS service_ids to include.
-    FILTER_IN_ROUTES (list): Route short names to include.
-    FILTER_OUT_ROUTES (list): Route short names to exclude.
-    TIME_FORMAT_OPTION (str): '12' or '24' hour format.
-    MISSING_TIME (str): Placeholder for missing or invalid times.
-
-Dependencies:
-    os, re, sys, logging, collections
-    pandas, openpyxl
+Outputs:
+    - One Excel file per route × service type with schedule sheets by direction
 """
 
 import logging
