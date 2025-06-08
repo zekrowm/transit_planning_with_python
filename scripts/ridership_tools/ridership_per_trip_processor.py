@@ -1,44 +1,23 @@
 """
-Script Name:
-    ridership_per_trip_processor.py
+Processes trip-level ridership and generates per-route Excel reports.
 
-Purpose:
-    Processes trip-level ridership data from an Excel file. It allows for
-    optional filtering by a specified column (e.g., ROUTE_NAME), splits the
-    data into separate sheets per route and direction, calculates the
-    percentage of total route ridership for each trip, highlights trips with
-    the highest ridership, and can optionally generate bar charts of ridership
-    by trip start time and flag ultra-low ridership trips. Useful for normalizing
-    adjusted ridership to the trip level.
+This script reads an Excel file with trip-level ridership, filters data by route
+or other criteria, calculates each trip’s percent share of route ridership,
+and outputs one Excel file per route with direction-based sheets. Optionally,
+it generates charts and flags ultra-low-ridership trips.
+
+Typical use: Normalize and visualize adjusted ridership at the trip level.
 
 Inputs:
-    1. Excel file (INPUT_FILE): Containing trip-level statistics, including
-       at least 'SERIAL_NUMBER', 'TRIP_START_TIME', 'ROUTE_NAME',
-       'DIRECTION_NAME', and 'PASSENGERS_ON'.
-    2. Configuration constants defined in the script:
-        - OUTPUT_FOLDER: Path to save the output Excel files.
-        - DATE_TYPE: Label for the type of day being processed (e.g., 'Weekday'), used in chart titles.
-        - COLUMNS_CONFIG: List defining which columns from the input to retain and their optional display names in the output.
-        - CREATE_CHARTS: Boolean, if True, generates bar charts in output Excel sheets.
-        - FLAG_ULTRA_LOW: Boolean, if True, flags trips with ridership at or below ULTRA_LOW_THRESHOLD.
-        - ULTRA_LOW_THRESHOLD: Numeric threshold for flagging ultra-low ridership.
-        - FILTER_COLUMN_NAME: Name of the column to apply filters on (e.g., 'ROUTE_NAME').
-        - FILTER_IN_LIST: List of values to keep for the FILTER_COLUMN_NAME.
-        - FILTER_OUT_LIST: List of values to exclude for the FILTER_COLUMN_NAME.
+    - Excel file with columns like 'SERIAL_NUMBER', 'TRIP_START_TIME',
+      'ROUTE_NAME', 'DIRECTION_NAME', and 'PASSENGERS_ON'
+    - Configurable filters, field selections, charting, and flagging options
 
 Outputs:
-    1. Excel files (.xlsx): One file per unique route name (after filtering).
-       - Each file is named '{route_name}.xlsx' and saved in OUTPUT_FOLDER.
-       - Each workbook contains separate sheets for each direction of the route.
-       - Sheets include trip details, ridership counts ('PASSENGERS_ON' rounded to 1 decimal),
-         and 'Percent of Route Ridership' (share of total route passengers for that trip, as a percentage rounded to 1 decimal).
-       - The trip with the highest 'PASSENGERS_ON' in each direction sheet is bolded.
-       - Optionally, trips with 'PASSENGERS_ON' at or below ULTRA_LOW_THRESHOLD are highlighted in red.
-       - Optionally, a bar chart visualizing 'PASSENGERS_ON' by 'TRIP_START_TIME' is included in each sheet.
-    2. Console output: Status messages indicating saved workbooks.
-
-Dependencies:
-    pandas, openpyxl, os (standard library)
+    - One Excel workbook per route, with direction-based sheets showing trip
+      data, percent-of-route ridership, optional charts, and formatting
+    - Optional text log of ultra-low ridership trips
+    - Console output summarizing results
 """
 
 import datetime
