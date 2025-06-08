@@ -1,34 +1,12 @@
 """
-Script Name:
-      historical_ntd_data_processor.py
+Consolidates and analyzes historical monthly NTD ridership data.
 
-Purpose:
-      Consolidates monthly ridership data from multiple Excel files,
-      distinguishing between Weekday, Saturday, and Sunday. It
-      calculates route-level totals, day counts, and averages for
-      each day type, then aggregates these into monthly totals.
-      Optionally, generates per-route line charts visualizing
-      ridership metrics over time.
+Processes multiple Excel workbooks containing route-level ridership by day type
+(Weekday, Saturday, Sunday). Computes total, day-count, and average metrics per
+route and aggregates them into a unified monthly dataset. Optionally generates
+per-route line charts for visualizing trends.
 
-Inputs:
-      1. Excel workbooks (.xlsx) containing ridership data, with separate
-         sheets for day types (e.g., "Weekday", "Saturday", "Sunday").
-         Paths and filenames are defined by `BASE_INPUT_DIR` and
-         `FILE_SHEET_MAPPING` in the script.
-      2. Configuration settings within the script (e.g., input/output
-         directories, route exclusion lists, column names, plotting options).
-
-Outputs:
-      1. A single CSV file ('Consolidated_Ridership_Data.csv') in the
-         `OUTPUT_DIR`, containing all processed and merged ridership data.
-      2. An Excel file ('Excluded_Routes.xlsx') in the `OUTPUT_DIR`,
-         listing routes and their data that were excluded from the main
-         consolidation.
-      3. PNG image files of line charts (if `ENABLE_PLOTTING` is True)
-         for each route and specified ridership metric, saved in the
-         `PLOTS_OUTPUT_FOLDER`.
-
-Dependencies: os, re, sys, matplotlib, numpy, pandas
+Designed for transit analysts working in ArcGIS Pro or Jupyter notebooks.
 """
 
 import os
