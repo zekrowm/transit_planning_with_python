@@ -1,25 +1,19 @@
 """
-Script Name:
-        stops_in_roadway_checker.py
+Identifies GTFS stops that intersect with roadway features and evaluates conflict depth.
 
-Purpose:
-        Identifies GTFS stops that intersect with roadway features,
-        determines the depth of conflict using negative buffering,
-        and outputs the results.
+This script performs a spatial analysis to find stops that fall within roadway geometries.
+It uses negative buffering to assess how deeply stops are embedded in roadways and
+outputs the results for review or remediation.
 
 Inputs:
-        1. Roadways shapefile (e.g., roadways.shp)
-        2. GTFS stops.txt file
-        3. Initial Stop Coordinate Reference System (CRS string, e.g., "EPSG:4326")
-        4. Target Analysis Coordinate Reference System (CRS string, e.g., "EPSG:2283")
-        5. List of negative buffer distances in feet (e.g., [-1, -5, -10])
+    - GTFS 'stops.txt' file
+    - Roadway shapefile (.shp)
+    - Input and analysis CRS strings
+    - List of negative buffer distances (in feet)
 
 Outputs:
-        1. Shapefile (.shp) of intersecting stops with conflict depth attributes.
-        2. CSV file (.csv) of intersecting stops with conflict depth attributes.
-
-Dependencies:
-        geopandas, pandas, shapely, os
+    - Shapefile of intersecting stops with conflict depth flags
+    - CSV with stop attributes and conflict indicators
 """
 
 import os
