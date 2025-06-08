@@ -14,7 +14,6 @@ Outputs:
     - `gtfs_lines.shp`: Shapefile of transit route line geometries
 """
 
-import sys
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -329,7 +328,6 @@ def gtfs_to_shapefiles(
     print(
         f"Current time: {pd.Timestamp.now(tz='US/Eastern').strftime('%Y-%m-%d %H:%M:%S %Z')}"
     )
-    print(f"Location context: Alexandria, VA")
     print("-" * 50)
 
 
