@@ -1,33 +1,18 @@
 """
-Script Name:
-        bus_route_district_matrix.py
+Generates a matrix of GTFS transit routes by district coverage.
 
-Purpose:
-        Processes GTFS (General Transit Feed Specification) data and
-        district-level geographic data to determine which transit routes
-        operate within each district. It involves loading GTFS feeds,
-        projecting and buffering transit stops, intersecting these stops
-        with district boundaries (jurisdiction or political boundaries),
-        and generating a report.
+Buffers GTFS stops, intersects them with district polygons, and determines
+which routes serve which districts. Outputs a route-vs-district matrix
+to an Excel file.
 
 Inputs:
-        1. Path to a shapefile defining district boundaries (DISTRICTS_SHP).
-        2. Path to a directory containing GTFS files (GTFS_DIR):
-           - routes.txt (ROUTES_FILE)
-           - stops.txt (STOPS_FILE)
-           - trips.txt (TRIPS_FILE)
-           - stop_times.txt (STOP_TIMES_FILE)
-        3. Configuration parameters defined in the script:
-           - BUFFER_DISTANCE: Distance in feet for buffering stops.
-           - TARGET_EPSG: EPSG code for spatial projection.
-           - DISTRICT_FIELD: Name of the field in the district
-             shapefile that identifies districts.
+    - DISTRICTS_SHP: Shapefile of district boundaries.
+    - GTFS_DIR: Folder containing GTFS files: routes.txt, stops.txt,
+      trips.txt, and stop_times.txt.
+    - Configuration constants for buffer size, EPSG, and district ID field.
 
 Outputs:
-        1. An Excel file (OUTPUT_EXCEL) containing a matrix that indicates
-           which transit routes serve which districts ('y' for yes, 'n' for no).
-
-Dependencies: geopandas, pandas, openpyxl
+    - Excel file with a matrix of route_short_name vs. district (y/n).
 """
 
 import os
