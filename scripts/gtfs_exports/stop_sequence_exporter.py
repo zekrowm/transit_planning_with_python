@@ -1,35 +1,18 @@
 """
-Script Name:
-    stop_sequence_exporter.py
+Extracts the most common GTFS stop pattern by direction for each route and exports a summary to CSV.
 
-Purpose:
-    For each GTFS route (optionally filtered by route_short_name), identify the most
-    common stop‐sequence pattern in direction 0 and direction 1. Then export a CSV
-    where each row corresponds to a stop (unique per route), with columns:
-        route_short_name, stop_id, stop_code, stop_name, seq_dir_0, seq_dir_1
+The output includes each stop in the most common pattern(s) for direction 0 and 1,
+with its sequence number in each pattern (if applicable). Useful for visualizing or
+auditing directional stop sequences in a route network.
 
-    If a stop appears in both direction 0 and direction 1 patterns, seq_dir_0 and
-    seq_dir_1 will both be filled. If it appears only in one direction, the other
-    sequence column will be left blank.
+Typical use case: run in ArcGIS Pro or Jupyter environment.
 
 Inputs:
-    - INPUT_DIR: folder containing GTFS files:
-        - routes.txt
-        - trips.txt
-        - stop_times.txt
-        - stops.txt
-    - OUTPUT_CSV_PATH: full file path where the CSV will be written.
-    - FILTER_IN_ROUTE_SHORT_NAMES: list of route_short_name (strings) to include.
-         If non‐empty, only those routes are processed.
-    - FILTER_OUT_ROUTE_SHORT_NAMES: list of route_short_name (strings) to exclude.
-         If non‐empty, any route in this list is skipped.
+    GTFS files (routes.txt, trips.txt, stop_times.txt, stops.txt)
 
 Outputs:
-    - A single CSV at OUTPUT_CSV_PATH with columns:
+    CSV with columns:
         route_short_name, stop_id, stop_code, stop_name, seq_dir_0, seq_dir_1
-
-Dependencies:
-    pandas, os, collections.Counter
 """
 
 import os
