@@ -1,29 +1,16 @@
 """
-Script Name:
-        gtfs_internal_audit.py
+Performs internal QA checks on a GTFS feed to identify common structural issues.
 
-Purpose:
-        Validates General Transit Feed Specification (GTFS) data by
-        performing a series of checks for common issues such as orphan
-        stops, unused routes/trips, shapes far from stops, hanging
-        segments, unrealistic timings, and bad stop sequences.
+Checks include orphan stops, unused routes/trips, isolated trips, shapes far from stops,
+disconnected stop sequences, unrealistic timings, and malformed stop distances. Each rule
+outputs a report if any issues are found.
 
 Inputs:
-        1. GTFS text files (stops.txt, stop_times.txt, routes.txt,
-        trips.txt, shapes.txt) located in a specified GTFS folder.
-        2. Configuration constants within the script for paths, filtering,
-        and thresholds.
+    - GTFS folder with stops.txt, stop_times.txt, routes.txt, trips.txt, shapes.txt
+    - Configurable constants (paths, filters, thresholds) defined in the script
 
 Outputs:
-        1. CSV files detailing any issues found for each validation rule.
-        These are saved in a specified output folder. By default, if no
-        issues are found for a particular rule, no output file is created
-        for that rule. (This behavior can be modified to create empty
-        files if desired via the `safe_write` function).
-
-Dependencies:
-        pandas, logging, pathlib, sys
-        Optional: networkx, shapely
+    - CSV reports in the output folder for each failing rule (if applicable)
 """
 
 from __future__ import annotations
