@@ -1,32 +1,19 @@
 """
-Script Name:
-        gtfs_versus_system_shp_checker.py
+Validates GTFS route and stop data against a transit system shapefile.
 
-Purpose:
-        Compares GTFS route data with a transit system's shapefile to
-        identify route name discrepancies and stops located outside a
-        defined distance buffer from their assigned routes. Exports
-        findings for spatial and tabular analysis.
+Compares GTFS route names with system shapefile attributes to identify mismatches.
+Checks whether GTFS stops fall within an allowable distance from their assigned
+route geometry. Outputs include matched route comparisons, flagged stops, and
+optional per-route visualizations.
 
 Inputs:
-        1. Directory containing GTFS files (routes.txt, stops.txt,
-           trips.txt, stop_times.txt).
-        2. Transit system route shapefile (.shp).
+    - GTFS directory (routes.txt, stops.txt, trips.txt, stop_times.txt)
+    - Transit system route shapefile
 
 Outputs:
-        1. `gtfs_shp_comparison.csv`: CSV comparing GTFS and shapefile
-           routes with name similarity scores.
-        2. `problem_stops.shp`: Shapefile of stops identified as
-           problematic (e.g., outside distance allowance, no matched route).
-        3. `gtfs_shp_comparison_with_flags.csv`: Updated CSV comparison
-           flagging routes with out-of-buffer stops.
-        4. `problem_stops.xlsx`: Excel file detailing problem stops, their
-           distances to routes, and reasons.
-        5. `problem_stops_<route_short_name>_warning.jpeg`: Individual
-           map plots for each route with identified out-of-buffer stops.
-
-Dependencies:
-        os, geopandas, matplotlib, pandas, rapidfuzz, shapely
+    - CSV comparing GTFS and shapefile routes (with similarity scores and flags)
+    - Shapefile and Excel of problem stops (e.g., unmatched or out-of-buffer)
+    - JPEG maps for routes with flagged stops
 """
 
 import os
