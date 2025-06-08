@@ -26,14 +26,14 @@ import logging
 import os
 import sys
 from typing import Dict, Tuple
-from shapely.geometry import MultiLineString
+
 import geopandas as gpd
 import networkx as nx
 import numpy as np
 import pandas as pd
 import shapely
 from scipy.spatial import cKDTree
-from shapely.geometry import LineString
+from shapely.geometry import LineString, MultiLineString
 from shapely.ops import polygonize, unary_union
 
 # =============================================================================
