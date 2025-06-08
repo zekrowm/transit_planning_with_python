@@ -76,6 +76,7 @@ DESCRIPTIONS_ROADWAY = {
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
@@ -171,6 +172,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 # HELPER FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def get_crs_unit(crs_code):
     """
     Determine the linear unit of a CRS.
@@ -208,6 +210,7 @@ def convert_buffer_distance(value, from_unit, to_unit):
 # -----------------------------------------------------------------------------
 # DATA LOADING FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame:
     """
@@ -260,6 +263,7 @@ def load_roadways(roadways_path):
 # -----------------------------------------------------------------------------
 # DATA PROCESSING FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def map_roadway_columns(roadways_gdf):
     """
@@ -423,6 +427,7 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshol
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """
