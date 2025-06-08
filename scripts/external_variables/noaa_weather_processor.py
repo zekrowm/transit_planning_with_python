@@ -1,21 +1,16 @@
 """
-Script Name:
-    noaa_weather_processing.py
+Processes and summarizes NOAA daily weather data from a CSV file.
 
-Purpose:
-    Loads, processes, analyzes, and summarizes NOAA weather data from a CSV file.
+Cleans column names, extracts date features, flags poor weather days, and
+generates daily and monthly summaries for analysis or modeling.
 
 Inputs:
-    1. NOAA weather data CSV file (path defined in FILE_PATH).
-    2. Data Source URL: https://www.ncei.noaa.gov/cdo-web/search?
+    - NOAA weather CSV file (FILE_PATH)
 
 Outputs:
-    1. processed_weather_data.csv (cleaned data with added features)
-    2. daily_summary.csv (aggregated daily weather metrics)
-    3. monthly_poor_weather_summary.csv (count of poor weather days per month by day type)
-
-Dependencies:
-    os, pandas
+    - processed_weather_data.csv: Cleaned and feature-enhanced weather data
+    - daily_summary.csv: Aggregated daily metrics
+    - monthly_poor_weather_summary.csv: Monthly counts of poor weather days by day type
 """
 
 import os
