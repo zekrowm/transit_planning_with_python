@@ -1,27 +1,18 @@
 """
-Script Name:
-        stops_versus_road_name_typo_checker.py
+Detects potential typos in GTFS stop names using spatial and fuzzy matching.
 
-Purpose:
-        Identifies potential typos in GTFS stop names by spatially
-        joining them with roadway centerlines from a shapefile and
-        comparing names using fuzzy matching.
+This script buffers GTFS stops, spatially joins them with nearby roadway
+centerlines, and uses fuzzy string comparison to flag discrepancies between
+stop names and adjacent road names.
 
 Inputs:
-        1. GTFS 'stops.txt' file.
-        2. Roadway centerline shapefile (.shp).
-        3. Configuration constants within the script (paths, CRS,
-           similarity threshold, buffer distance).
-        4. User input for mapping roadway shapefile columns if
-           standard names are not found.
+    - GTFS 'stops.txt' file
+    - Roadway centerline shapefile
+    - Configuration parameters (paths, CRS, buffer distance, similarity threshold)
+    - Optional user input for mapping non-standard roadway field names
 
 Outputs:
-        1. CSV file (default: 'potential_typos.csv') listing potential
-           typos, including stop details, the street segment from the
-           stop name, the similar roadway name, and the similarity score.
-
-Dependencies:
-        geopandas, pandas, pyproj, rapidfuzz, logging, os, re
+    - CSV listing potential stop name typos and similarity scores
 """
 
 import logging
@@ -84,7 +75,6 @@ DESCRIPTIONS_ROADWAY = {
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -181,7 +171,6 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 # HELPER FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def get_crs_unit(crs_code):
     """
     Determine the linear unit of a CRS.
@@ -219,7 +208,6 @@ def convert_buffer_distance(value, from_unit, to_unit):
 # -----------------------------------------------------------------------------
 # DATA LOADING FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame:
     """
@@ -272,7 +260,6 @@ def load_roadways(roadways_path):
 # -----------------------------------------------------------------------------
 # DATA PROCESSING FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def map_roadway_columns(roadways_gdf):
     """
@@ -436,7 +423,6 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshol
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """
