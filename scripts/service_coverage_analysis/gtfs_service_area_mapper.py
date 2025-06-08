@@ -1,25 +1,23 @@
 """
-Script Name:
-        gtfs_service_area_mapper.py
+Generates transit service area shapefiles from GTFS data for manual spatial analysis.
 
-Purpose:
-        Processes GTFS data to generate transit stop buffers, route shapes,
-        and optional network-based isochrones for spatial analysis.
-        This is useful for transit service area mapping and manual analysis.
+Builds walking-distance buffers around stops and optionally computes network-based
+isochrones using a provided street network. Outputs shapefiles by route and direction
+for buffers, stops, and route lines.
+
+Typical use:
+    - Visualize coverage areas for bus routes.
+    - Export GTFS-derived stop and route geometries.
+    - Generate 5-minute isochrones for access analysis (optional).
 
 Inputs:
-        1. GTFS text files (stops.txt, routes.txt, trips.txt, etc.)
-        2. Optional roadway network Shapefile for isochrone generation.
-        3. Configuration parameters (e.g., buffer distance, filters, CRS).
+    - GTFS files (stops.txt, routes.txt, trips.txt, stop_times.txt, shapes.txt).
+    - Optional street network shapefile for isochrones.
+    - Script-defined configuration: filters, CRS, buffer settings.
 
 Outputs:
-        1. Dissolved stop buffers per route and direction shapefile.
-        2. Stop locations shapefiles, split by direction.
-        3. Route geometry shapefiles, split by direction.
-        4. Optional: Network-based isochrone shapefiles per route and direction.
-
-Dependencies:
-        geopandas, pandas, networkx, numpy, scipy, shapely
+    - Shapefiles: buffers, stops, and routes per (route_short_name, direction_id).
+    - Optional: isochrone shapefiles per route/direction if network is supplied.
 """
 
 from __future__ import annotations
