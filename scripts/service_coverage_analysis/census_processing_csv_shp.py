@@ -1,5 +1,5 @@
 """
-Census Data Processing Script
+Generates Census block shapefile with demographic and economic table data.
 
 This script processes census data by performing the following operations:
 - Loads and merges shapefiles from specified input directories.
