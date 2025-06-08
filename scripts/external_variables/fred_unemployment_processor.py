@@ -1,28 +1,18 @@
 """
-Script Name:
-    fred_unemployment_processor.py
+Processes FRED unemployment CSV data for a specified date range.
 
-Purpose:
-    Filters US Federal Reserve Economic Data (FRED) employment data (CSV)
-    by a specified date range, exports the filtered data to an Excel
-    file, and generates continuous and yearly comparison line plots (JPEG).
+Filters raw FRED time-series data, exports the result to Excel, and
+generates both a continuous time-series plot and a yearly overlay chart.
 
 Inputs:
-    1. Employment data CSV file downloaded from FRED
-       (https://fred.stlouisfed.org/searchresults/?st=unemployment&t=unemployment%3Bmsa&ob=sr&od=desc)
-       (path configured in CSV_FILE_PATH)
-    2. Start date string (configured in START_DATE)
-    3. End date string (configured in END_DATE)
-    4. Output folder path (configured in OUTPUT_FOLDER)
+    - CSV file with 'observation_date' and one data series (CSV_FILE_PATH)
+    - Start and end date strings (START_DATE, END_DATE)
+    - Output folder path (OUTPUT_FOLDER)
 
 Outputs:
-    1. Excel file (.xlsx) containing the filtered data.
-    2. JPEG image (.jpeg) of the continuous time-series plot.
-    3. JPEG image (.jpeg) of the yearly comparison plot.
-       (All outputs saved to OUTPUT_FOLDER with date-range suffix)
-
-Dependencies:
-    pandas, matplotlib, os
+    - Excel file with filtered data
+    - JPEG time-series plot
+    - JPEG year-over-year comparison plot
 """
 
 import os
