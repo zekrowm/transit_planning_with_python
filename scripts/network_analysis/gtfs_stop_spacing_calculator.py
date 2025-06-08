@@ -1,33 +1,18 @@
 """
-Script Name:
-    gtfs_stop_spacing_calculator.py
+Generates projected GTFS shapefiles for stop spacing and route segment analysis.
 
-Purpose:
-    Processes General Transit Feed Specification (GTFS) data to generate essential
-    geospatial shapefiles for transit analysis. It reads standard GTFS text files
-    (stops, routes, trips, stop_times, shapes) and converts them into projected
-    point (stops) and line (routes, segments) features.
-
-    A key output is the 'segments' layer, which breaks down each route's path
-    (per direction) into individual LineString segments connecting consecutive stops.
-    These segments include a calculated length attribute (`length_ft`) in US survey feet,
-    facilitating analyses like stop spacing. The script requires specifying a
-    projected Coordinate Reference System (CRS) appropriate for distance measurement.
-
-Outputs:
-    1.  `stops.shp`: Projected points for served stops.
-    2.  `routes.shp`: Projected lines representing route patterns (by shape_id or route/direction).
-    3.  `segments.shp`: The main output; projected stop-to-stop lines with calculated
-    `length_ft` for all routes/directions.
-    4.  `<route>_<dir>.shp`: Individual shapefiles containing segments, split out
-    for each unique route_id and direction_id combination.
+Processes GTFS tables to create stop, route, and segment shapefiles with length
+attributes in survey feet. Segments represent stop-to-stop LineStrings split by
+route and direction, enabling detailed spacing analysis.
 
 Inputs:
-    1. GTFS data (folder or zip) including:
-    `stops.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`, `shapes.txt`.
+    - GTFS files (stops.txt, routes.txt, trips.txt, stop_times.txt, shapes.txt)
 
-Dependencies:
-    pandas, geopandas, shapely, numpy
+Outputs:
+    - stops.shp: Projected served stop locations
+    - routes.shp: Projected route patterns by shape or route/direction
+    - segments.shp: Stop-to-stop segments with length_ft
+    - <route>_<dir>.shp: One segment file per route_id and direction_id
 """
 
 from __future__ import annotations
