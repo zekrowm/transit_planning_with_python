@@ -1,28 +1,24 @@
 """
-Script Name:
-        monthly_report_generator_from_ntd.py
+Generates a monthly NTD ridership performance report with plots and Excel exports.
 
-Purpose:
-        Processes monthly transit ridership Excel data to analyze performance,
-        generate aggregated statistical summaries, and visualize key metrics
-        over time.
+Reads a year’s worth of agency ridership Excel files, computes key performance metrics,
+classifies routes, and generates summary workbooks and optional time-series plots.
+
+Typical Use:
+    - Monthly and year-to-date transit performance monitoring
+    - Route-level and service-type performance summaries
+    - Time-series visualization of ridership trends
 
 Inputs:
-        1. Monthly ridership data from Excel files (paths defined in CONFIG).
-        2. Configuration dictionaries (CONFIG, PLOT_CONFIG, PLOT_STYLE)
-           for file paths, service/corridor classifications, data converters,
-           output directory, and plot generation settings.
+    - Monthly Excel files configured in CONFIG
+    - Classification rules for routes and corridors
+    - Plotting preferences in PLOT_CONFIG
 
 Outputs:
-        1. DetailedAllPeriods_andMonthlySheets.xlsx: Raw and processed data.
-        2. AggByServiceType.xlsx: Ridership stats aggregated by service type (YTD and monthly).
-        3. RouteLevelSummary.xlsx: Ridership stats aggregated by route (YTD).
-        4. PNG image files:
-           Time-series plots for selected performance metrics
-           (e.g., total ridership, PPH, PPT, PPM) in a 'plots' subdirectory.
-
-Dependencies:
-        os, re, matplotlib, numpy, pandas
+    - DetailedAllPeriods_andMonthlySheets.xlsx
+    - AggByServiceType.xlsx
+    - RouteLevelSummary_[Combined|Weekday|Saturday|Sunday].xlsx
+    - PNG plots for selected metrics by route
 """
 
 import os
