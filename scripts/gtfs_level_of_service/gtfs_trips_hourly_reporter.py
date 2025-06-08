@@ -1,36 +1,18 @@
 """
-Script Name:
-        gtfs_trips_hourly_reporter.py
+Processes GTFS trip data to generate Excel reports of trip counts per time interval
+(e.g., hourly) for specified routes and directions.
 
-Purpose:
-        Processes GTFS data to count and report trips for specified routes
-        and directions within defined time intervals, exporting results to
-        Excel files. Allows filtering by calendar service id or processing
-        all services separately.
+Intended for use in ArcGIS Pro and Jupyter notebooks. Supports filtering by
+`service_id` or reporting separately for each available service.
+
+Typical outputs include one Excel file per route/direction/service combination.
 
 Inputs:
-        1. GTFS text files (e.g., trips.txt, stop_times.txt, routes.txt,
-           calendar.txt) located in the `BASE_INPUT_PATH`.
-        2. Configuration constants within the script:
-           - `BASE_INPUT_PATH`: Path to the directory containing GTFS files.
-           - `BASE_OUTPUT_PATH`: Path to the directory where Excel reports
-             will be saved.
-           - `GTFS_FILES`: List of required GTFS filenames.
-           - `ROUTE_DIRECTIONS`: List of dictionaries defining routes and
-             direction_ids to process.
-           - `TIME_INTERVAL_MINUTES`: Integer defining the time interval
-             for grouping trips (e.g., 60 for hourly).
-           - `SERVICE_ID`: String defining the service_id value to filter
-             active services. If empty, each service_id is processed
-             separately.
+    - GTFS files in `BASE_INPUT_PATH` (trips.txt, stop_times.txt, etc.).
+    - Script-level configuration for routes, directions, time intervals, and service ID.
 
 Outputs:
-        1. Excel (.xlsx) files generated in the `BASE_OUTPUT_PATH`.
-            - Each file contains a report of trip counts per time interval for a
-               specific route, direction, and, if applicable, service_id.
-
-Dependencies:
-        pandas, openpyxl, os, logging
+    - Excel files saved to `BASE_OUTPUT_PATH`, showing trips per time bin.
 """
 
 import logging
