@@ -207,6 +207,7 @@ def sort_route_segments(segments):
         sorted_segs.append(f"{chain_stops[i]} - {chain_stops[i+1]}")
     return sorted_segs
 
+
 def create_and_save_pivots(
     df: pd.DataFrame,
     output_subdir: str,
@@ -277,7 +278,9 @@ def create_and_save_pivots(
                     continue
 
                 # Re-order columns and rows
-                pivot_tbl = pivot_tbl.reindex(columns=[s for s in segments if s in pivot_tbl.columns])
+                pivot_tbl = pivot_tbl.reindex(
+                    columns=[s for s in segments if s in pivot_tbl.columns]
+                )
                 pivot_tbl = pivot_tbl.reindex(index=sorted_idx)
                 pivot_tbl = pivot_tbl.round(1)
 
@@ -308,10 +311,11 @@ def create_and_save_pivots(
         if not route_wrote_any_csv:
             no_data_name = f"{dataset_label}_Route{route}_NoData.csv"
             no_data_path = os.path.join(output_subdir, no_data_name)
-            pd.DataFrame(
-                {"Info": [f"No valid data for route {route}."]}
-            ).to_csv(no_data_path, index=False)
+            pd.DataFrame({"Info": [f"No valid data for route {route}."]}).to_csv(
+                no_data_path, index=False
+            )
             print(f"Created {no_data_path}")
+
 
 def process_file(file_path: str, dataset_label: str):
     """
