@@ -24,8 +24,14 @@ import pandas as pd
 
 # Chronological GTFS snapshots to compare
 MULTIPLE_GTFS_CONFIGS = [
-    {"name": "Jan_2025", "path": r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_01_13"},
-    {"name": "Jun_2025", "path": r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_06_06"},
+    {
+        "name": "Jan_2025",
+        "path": r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_01_13",
+    },
+    {
+        "name": "Jun_2025",
+        "path": r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_06_06",
+    },
     # add more …
 ]
 
@@ -113,10 +119,14 @@ def _assign_block(td: pd.Timedelta | None) -> str | None:
     for blk, (s, e) in TIME_BLOCKS.items():
         sh, sm = map(int, s.split(":"))
         eh, em = map(int, e.split(":"))
-        start, end = pd.Timedelta(hours=sh, minutes=sm), pd.Timedelta(hours=eh, minutes=em)
+        start, end = (
+            pd.Timedelta(hours=sh, minutes=sm),
+            pd.Timedelta(hours=eh, minutes=em),
+        )
         if start <= td < end:
             return blk
     return None
+
 
 # --------------------------------------------------------------------------------------------------
 # GTFS DATA LOADING & METRICS
@@ -137,7 +147,13 @@ def load_gtfs_basic(path: str):
     _check_files(path, FILES_NEEDED_STOP)
     stops = pd.read_csv(
         os.path.join(path, "stops.txt"),
-        dtype={"stop_id": str, "stop_code": str, "stop_name": str, "stop_lat": float, "stop_lon": float},
+        dtype={
+            "stop_id": str,
+            "stop_code": str,
+            "stop_name": str,
+            "stop_lat": float,
+            "stop_lon": float,
+        },
         usecols=["stop_id", "stop_code", "stop_name", "stop_lat", "stop_lon"],
     )
     routes = pd.read_csv(
@@ -244,9 +260,11 @@ def load_route_metrics(path: str, schedule_type: str = "Weekday") -> pd.DataFram
     df = pd.DataFrame(metrics).sort_values("route_short_name").reset_index(drop=True)
     return df
 
+
 # --------------------------------------------------------------------------------------------------
 # STOP-LEVEL COMPARISON
 # --------------------------------------------------------------------------------------------------
+
 
 def compare_signups(
     name_old: str,
@@ -303,10 +321,18 @@ def compare_signups(
                     "stop_id": sid,
                     "stop_code": base.loc[sid, "stop_code"],
                     "stop_name": base.loc[sid, "stop_name"],
-                    "lat_old": idx_old.loc[sid, "stop_lat"] if sid in idx_old.index else None,
-                    "lon_old": idx_old.loc[sid, "stop_lon"] if sid in idx_old.index else None,
-                    "lat_new": idx_new.loc[sid, "stop_lat"] if sid in idx_new.index else None,
-                    "lon_new": idx_new.loc[sid, "stop_lon"] if sid in idx_new.index else None,
+                    "lat_old": idx_old.loc[sid, "stop_lat"]
+                    if sid in idx_old.index
+                    else None,
+                    "lon_old": idx_old.loc[sid, "stop_lon"]
+                    if sid in idx_old.index
+                    else None,
+                    "lat_new": idx_new.loc[sid, "stop_lat"]
+                    if sid in idx_new.index
+                    else None,
+                    "lon_new": idx_new.loc[sid, "stop_lon"]
+                    if sid in idx_new.index
+                    else None,
                     "routes_started": ", ".join(sorted(started)),
                     "routes_stopped": ", ".join(sorted(stopped)),
                     "change_type": "route_service_change",
@@ -328,7 +354,9 @@ def compare_signups(
     added_df = added_df.reindex(columns=base_cols, fill_value=None)
     removed_df = removed_df.reindex(columns=base_cols, fill_value=None)
     moved_df = moved_df.reindex(columns=base_cols, fill_value=None)
-    svc_df = svc_df.reindex(columns=base_cols + ["routes_started", "routes_stopped"], fill_value=None)
+    svc_df = svc_df.reindex(
+        columns=base_cols + ["routes_started", "routes_stopped"], fill_value=None
+    )
 
     key = f"{name_old}→{name_new}"
     return {
@@ -338,9 +366,11 @@ def compare_signups(
         f"RouteSvcChange_{key}": svc_df,
     }
 
+
 # --------------------------------------------------------------------------------------------------
 # SERVICE-LEVEL METRIC COMPARISONS
 # --------------------------------------------------------------------------------------------------
+
 
 def build_service_level_changes(
     prev_df: pd.DataFrame,
@@ -395,6 +425,7 @@ def build_service_level_changes(
 # INTERLINING & DETAILED CLASSIFICATION (NO GEOMETRY)
 # --------------------------------------------------------------------------------------------------
 
+
 def _build_interlining_map(
     trips_df: pd.DataFrame, routes_df: pd.DataFrame
 ) -> dict[str, str]:
@@ -404,7 +435,9 @@ def _build_interlining_map(
     merged = trips_df.merge(
         routes_df[["route_id", "route_short_name"]], on="route_id", how="left"
     )
-    blk = merged.groupby("block_id")["route_short_name"].apply(lambda s: set(s.dropna()))
+    blk = merged.groupby("block_id")["route_short_name"].apply(
+        lambda s: set(s.dropna())
+    )
     inter: dict[str, set[str]] = {}
     for route_set in blk:
         for r in route_set:
@@ -436,9 +469,9 @@ def compare_signups_detailed(
 
     # prepare delta table once for speed
     delta_key = f"ServiceChange_{prev_label}→{curr_label}"
-    delta_df = build_service_level_changes(metrics_prev, metrics_curr, prev_label, curr_label)[
-        delta_key
-    ]
+    delta_df = build_service_level_changes(
+        metrics_prev, metrics_curr, prev_label, curr_label
+    )[delta_key]
     delta_changed = set(_keep_changed(delta_df)["route_short_name"])
 
     for rt in all_routes:
@@ -584,6 +617,6 @@ def main() -> None:
             df_comp.to_excel(xls, sheet_name=sheet, index=False)
     print("✓ detailed comparison workbook written.")
 
+
 if __name__ == "__main__":
     main()
-
