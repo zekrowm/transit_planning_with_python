@@ -54,10 +54,11 @@ try:
 except OSError as e:
     print(f"Error creating log directory '{LOG_DIRECTORY}': {e}", file=sys.stderr)
     sys.exit(1)
-    
+
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def process_file_with_tool(
     tool_name, check_cmd_args, fix_cmd_args, py_file, log_file, read_only_mode
@@ -116,9 +117,7 @@ def process_file_with_tool(
         log_file.write(f"Status ({tool_name}): Needs changes\n")
         log_file.write("Diff proposal:\n")
         log_file.write(check_process.stdout)  # Diff is printed to stdout by both tools
-        if (
-            check_process.stderr
-        ):  # Log stderr from check if any (e.g., black might mention files it would change)
+        if check_process.stderr:  # Log stderr from check if any (e.g., black might mention files it would change)
             log_file.write(f"{tool_name} check stderr:\n")
             log_file.write(check_process.stderr)
         log_file.write("\n")
@@ -138,9 +137,7 @@ def process_file_with_tool(
                 )
 
                 # Log output from the fix command
-                if (
-                    fix_process.stdout
-                ):  # Black "reformatted file", isort is usually silent on stdout for fix
+                if fix_process.stdout:  # Black "reformatted file", isort is usually silent on stdout for fix
                     log_file.write(f"{tool_name} fix stdout:\n{fix_process.stdout}\n")
                 if (
                     fix_process.stderr
@@ -191,6 +188,7 @@ def process_file_with_tool(
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main():
     py_files = []
