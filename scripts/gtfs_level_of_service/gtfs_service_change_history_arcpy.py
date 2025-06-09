@@ -26,26 +26,26 @@ import pandas as pd
 MULTIPLE_GTFS_CONFIGS = [
     {
         "name": "Jan_2025",
-        "path": r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_01_13",
+        "path": r"Path\To\Your\GTFS_Folder",
     },
     {
         "name": "Jun_2025",
-        "path": r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_06_06",
+        "path": r"Path\To\Your\GTFS_Folder",
     },
     # add more …
 ]
 
 # Output locations & filenames
 OUTPUT_DIRECTORY = (
-    r"\\S40SHAREPGC01\DOTWorking\zkrohm\analysis_requests\gtfs_change_test\output"
+    r"Path\To\Your\Output_Folder"
 )
 OUTPUT_EXCEL_NAME_STOPS = "stop_change_report.xlsx"
 OUTPUT_EXCEL_NAME_METRIC = "route_metrics_by_signup.xlsx"
 OUTPUT_EXCEL_NAME_DELTA = "service_level_changes.xlsx"
 COMPARISON_EXCEL = "detailed_service_change_comparison.xlsx"
 
-# Tolerance for GPS drift when detecting “moved” stops: ~1 m
-COORD_TOLERANCE_DEG = 0.00001
+# Tolerance for GPS drift when detecting “moved” stops: ~5 m
+COORD_TOLERANCE_DEG = 0.00005
 
 # Routes to exclude from *all* outputs
 ROUTE_FILTER_OUT = ["9999A", "9999B", "9999C"]
