@@ -36,9 +36,7 @@ MULTIPLE_GTFS_CONFIGS = [
 ]
 
 # Output locations & filenames
-OUTPUT_DIRECTORY = (
-    r"Path\To\Your\Output_Folder"
-)
+OUTPUT_DIRECTORY = r"Path\To\Your\Output_Folder"
 OUTPUT_EXCEL_NAME_STOPS = "stop_change_report.xlsx"
 OUTPUT_EXCEL_NAME_METRIC = "route_metrics_by_signup.xlsx"
 OUTPUT_EXCEL_NAME_DELTA = "service_level_changes.xlsx"
