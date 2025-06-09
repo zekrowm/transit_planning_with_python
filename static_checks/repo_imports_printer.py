@@ -16,7 +16,6 @@ Outputs:
 """
 
 from __future__ import annotations
-
 import ast
 import importlib.metadata as importlib_metadata
 import importlib.util
@@ -28,18 +27,19 @@ from typing import Iterable, Mapping, Set
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
 TARGET_DIR: Path = Path(r"/path/to/transit_planning_with_python").resolve()
 OUTPUT_PATH: Path = Path(r"/path/to/output_directory/imports_by_type.txt").resolve()
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # CONSTANTS
-# =============================================================================
+# -----------------------------------------------------------------------------
+
 _STD_LIB_NAMES: Set[str] = set(sys.stdlib_module_names)  # Python 3.10+
 
 # =============================================================================
-# HELPERS
+# FUNCTIONS
 # =============================================================================
-
 
 def _gather_python_files(root: Path) -> Iterable[Path]:
     """Yield every *.py file under *root* (depth-first)."""
@@ -152,6 +152,7 @@ def _write_output(groups: Mapping[str, Set[str]], outfile: Path) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main(root: Path, out_path: Path) -> None:
     """Driver: extract, classify, and export imports."""
     all_modules: Set[str] = set()
