@@ -16,6 +16,7 @@ Outputs:
 """
 
 from __future__ import annotations
+
 import ast
 import importlib.metadata as importlib_metadata
 import importlib.util
@@ -40,6 +41,7 @@ _STD_LIB_NAMES: Set[str] = set(sys.stdlib_module_names)  # Python 3.10+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _gather_python_files(root: Path) -> Iterable[Path]:
     """Yield every *.py file under *root* (depth-first)."""
@@ -152,6 +154,7 @@ def _write_output(groups: Mapping[str, Set[str]], outfile: Path) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main(root: Path, out_path: Path) -> None:
     """Driver: extract, classify, and export imports."""
