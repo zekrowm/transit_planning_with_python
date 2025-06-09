@@ -26,7 +26,7 @@ INPUT_FILE_PATH = r"\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS
 OUTPUT_FILE_SUFFIX = "_processed"
 OUTPUT_FILE_EXTENSION = ".xlsx"
 # If blank/None ⇒ use same directory as INPUT_FILE_PATH
-OUTPUT_DIR = r"\\Path\\To\\Output\\Folder"      # e.g. r"C:\Data\Ridership\Outputs"
+OUTPUT_DIR = r"\\Path\\To\\Output\\Folder"  # e.g. r"C:\Data\Ridership\Outputs"
 
 # ROUTES = keep-only list   |  ROUTES_EXCLUDE = toss-out list
 ROUTES = []  # keep these (leave empty → keep all)
@@ -297,13 +297,13 @@ def main():
     # Build the output file path
     # ------------------------------------------------------------------
     base_name = os.path.splitext(os.path.basename(input_file))[0]
-    ext = OUTPUT_FILE_EXTENSION.lower()         # e.g. ".xlsx"
+    ext = OUTPUT_FILE_EXTENSION.lower()  # e.g. ".xlsx"
     output_fname = f"{base_name}{OUTPUT_FILE_SUFFIX}{ext}"
 
-    if OUTPUT_DIR:                              # user‐specified folder
+    if OUTPUT_DIR:  # user‐specified folder
         os.makedirs(OUTPUT_DIR, exist_ok=True)  # create if it doesn’t exist
         output_file = os.path.join(OUTPUT_DIR, output_fname)
-    else:                                       # default to input’s folder
+    else:  # default to input’s folder
         output_file = os.path.join(os.path.dirname(input_file), output_fname)
 
     # ------------------------------------------------------------------
