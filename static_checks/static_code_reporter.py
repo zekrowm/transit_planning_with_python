@@ -54,9 +54,7 @@ MYPY_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--ignore-missing-imports"]
 # vulture
 VULTURE_MIN_CONFIDENCE: int = 60  # default is 60
 # pydocstyle
-PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--convention=google"]
-
-# Removed REQUIRED_DOC_HEADERS from lint configuration
+PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = ["--convention=google"] # Modify style if desired
 
 # ----------------------------------------------------------------------------
 # LOGGING
@@ -72,7 +70,6 @@ CONSOLE = logging.getLogger(__name__)
 # ============================================================================
 # FUNCTIONS
 # ============================================================================
-
 
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
