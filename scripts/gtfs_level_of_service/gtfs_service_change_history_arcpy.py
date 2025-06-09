@@ -268,11 +268,90 @@ def load_route_metrics(path):
           .sort_values("route_short_name")
           .reset_index(drop=True)
     )
+    
+# --------------------------------------------------------------------------------------------------
+# STOP-LEVEL COMPARISON
+# --------------------------------------------------------------------------------------------------
 
-# ──────────────────────────────────────────────────────────────────────────────
-# STOP-LEVEL COMPARISON (unchanged except output file name constant)
-# ──────────────────────────────────────────────────────────────────────────────
-# … compare_signups(), etc. unchanged – omitted here for brevity …
+def compare_signups(name_old, name_new, df_old, df_new,
+                    routes_old, routes_new, tol=COORD_TOLERANCE_DEG):
+    """Return four DataFrames: added, removed, moved, route service changes."""
+    idx_old = df_old.set_index("stop_id")
+    idx_new = df_new.set_index("stop_id")
+
+    ids_old, ids_new = set(idx_old.index), set(idx_new.index)
+
+    # ── Added / removed ───────────────────────────────────────────────────────
+    added_ids   = ids_new - ids_old
+    removed_ids = ids_old - ids_new
+
+    # Use list(...) to avoid FutureWarning in .loc
+    added_df   = idx_new.loc[list(added_ids)].reset_index()
+    removed_df = idx_old.loc[list(removed_ids)].reset_index()
+
+    added_df["change_type"]   = "added"
+    removed_df["change_type"] = "removed"
+
+    # ── Moved ────────────────────────────────────────────────────────────────
+    common_ids = ids_old & ids_new
+    moved_rows = []
+    for sid in common_ids:
+        lat_old, lon_old = idx_old.loc[sid, ["stop_lat", "stop_lon"]]
+        lat_new, lon_new = idx_new.loc[sid, ["stop_lat", "stop_lon"]]
+        if abs(lat_old - lat_new) > tol or abs(lon_old - lon_new) > tol:
+            moved_rows.append({
+                "stop_id": sid,
+                "stop_code": idx_new.loc[sid, "stop_code"],
+                "stop_name": idx_new.loc[sid, "stop_name"],
+                "lat_old": lat_old,
+                "lon_old": lon_old,
+                "lat_new": lat_new,
+                "lon_new": lon_new,
+                "change_type": "moved",
+            })
+    moved_df = pd.DataFrame(moved_rows)
+
+    # ── Route service changes ────────────────────────────────────────────────
+    svc_rows = []
+    for sid in ids_old | ids_new:
+        r_old = routes_old.get(sid, set())
+        r_new = routes_new.get(sid, set())
+        started = r_new - r_old
+        stopped = r_old - r_new
+        if started or stopped:
+            base = idx_new if sid in idx_new.index else idx_old
+            svc_rows.append({
+                "stop_id": sid,
+                "stop_code": base.loc[sid, "stop_code"],
+                "stop_name": base.loc[sid, "stop_name"],
+                "lat_old": base.loc[sid, "stop_lat"] if sid in idx_old.index else None,
+                "lon_old": base.loc[sid, "stop_lon"] if sid in idx_old.index else None,
+                "lat_new": base.loc[sid, "stop_lat"] if sid in idx_new.index else None,
+                "lon_new": base.loc[sid, "stop_lon"] if sid in idx_new.index else None,
+                "routes_started": ", ".join(sorted(started)) if started else "",
+                "routes_stopped": ", ".join(sorted(stopped)) if stopped else "",
+                "change_type": "route_service_change",
+            })
+    svc_df = pd.DataFrame(svc_rows)
+
+    # Harmonise columns
+    base_cols  = [
+        "stop_id", "stop_code", "stop_name",
+        "lat_old", "lon_old", "lat_new", "lon_new", "change_type"
+    ]
+    added_df   = added_df.reindex(columns=base_cols, fill_value=None)
+    removed_df = removed_df.reindex(columns=base_cols, fill_value=None)
+    moved_df   = moved_df.reindex(columns=base_cols, fill_value=None)
+    extra_cols = base_cols + ["routes_started", "routes_stopped"]
+    svc_df     = svc_df.reindex(columns=extra_cols, fill_value=None)
+
+    sheet_key = f"{name_old}→{name_new}"
+    return {
+        f"Added_{sheet_key}":           added_df,
+        f"Removed_{sheet_key}":         removed_df,
+        f"Moved_{sheet_key}":           moved_df,
+        f"RouteSvcChange_{sheet_key}":  svc_df,
+    }
 
 def build_service_level_changes(prev_df, curr_df, prev_label, curr_label):
     """Return sheets for service-level deltas + route add/delete lists."""
