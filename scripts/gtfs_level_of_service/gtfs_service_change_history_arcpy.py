@@ -12,44 +12,46 @@ Outputs:
     - Excel workbooks highlighting route and stop-level service changes.
 """
 
-import os
 import math
-import pandas as pd
+import os
+
 import numpy as np
+import pandas as pd
 
 # ==================================================================================================
 # CONFIGURATION
 # ==================================================================================================
 
 MULTIPLE_GTFS_CONFIGS = [
-    {"name": "Jan_2025",  "path": r"<GTFS_DATA_PATH_JAN_2025>"},
-    {"name": "Jun_2025",  "path": r"<GTFS_DATA_PATH_JUN_2025>"},
+    {"name": "Jan_2025", "path": r"<GTFS_DATA_PATH_JAN_2025>"},
+    {"name": "Jun_2025", "path": r"<GTFS_DATA_PATH_JUN_2025>"},
     # add more chronologically…
 ]
 
-OUTPUT_DIRECTORY   = r"<OUTPUT_DIRECTORY>"
-OUTPUT_EXCEL_NAME_STOPS   = "stop_change_report.xlsx"        # original
-OUTPUT_EXCEL_NAME_METRIC  = "route_metrics_by_signup.xlsx"   # NEW
-OUTPUT_EXCEL_NAME_DELTA   = "service_level_changes.xlsx"     # NEW
+OUTPUT_DIRECTORY = r"<OUTPUT_DIRECTORY>"
+OUTPUT_EXCEL_NAME_STOPS = "stop_change_report.xlsx"  # original
+OUTPUT_EXCEL_NAME_METRIC = "route_metrics_by_signup.xlsx"  # NEW
+OUTPUT_EXCEL_NAME_DELTA = "service_level_changes.xlsx"  # NEW
 
 # Tolerance (°) beyond which a coordinate change counts as “moved”
-COORD_TOLERANCE_DEG = 0.00001     # ≈ 1 m at mid-latitudes
+COORD_TOLERANCE_DEG = 0.00001  # ≈ 1 m at mid-latitudes
 
 # Optional routes to filter out from ALL outputs/comparisons
-ROUTE_FILTER_OUT = ["9999A", "9999B", "9999C"]   # empty list ⇒ no filtering
-FILTER_SET       = set(ROUTE_FILTER_OUT)
+ROUTE_FILTER_OUT = ["9999A", "9999B", "9999C"]  # empty list ⇒ no filtering
+FILTER_SET = set(ROUTE_FILTER_OUT)
 
 # Time-of-day blocks used for the median-headway calculation
 TIME_BLOCKS = {
-    "AM"    : ("04:00", "09:00"),
+    "AM": ("04:00", "09:00"),
     "MIDDAY": ("09:00", "15:00"),
-    "PM"    : ("15:00", "21:00"),
-    "NIGHT" : ("21:00", "28:00"),   # 28:00 = 04:00 next day
+    "PM": ("15:00", "21:00"),
+    "NIGHT": ("21:00", "28:00"),  # 28:00 = 04:00 next day
 }
 
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def _keep_changed(df):
     """
@@ -57,20 +59,23 @@ def _keep_changed(df):
     (span_minutes, trips_count, or median_headway_min).
     """
     mask = (
-        (df["span_delta"].fillna(0)  != 0) |
-        (df["trips_delta"].fillna(0) != 0) |
-        (df["hdwy_delta"].fillna(0)  != 0)
+        (df["span_delta"].fillna(0) != 0)
+        | (df["trips_delta"].fillna(0) != 0)
+        | (df["hdwy_delta"].fillna(0) != 0)
     )
     return df.loc[mask]
+
 
 def _haversine_m(lat1, lon1, lat2, lon2):
     """Great-circle distance in metres (optional – not required for exact diff)."""
     R = 6_371_000
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi  = math.radians(lat2 - lat1)
+    dphi = math.radians(lat2 - lat1)
     dlamb = math.radians(lon2 - lon1)
-    a = (math.sin(dphi / 2)**2
-         + math.cos(phi1) * math.cos(phi2) * math.sin(dlamb / 2)**2)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlamb / 2) ** 2
+    )
     return 2 * R * math.asin(math.sqrt(a))
 
 
@@ -81,7 +86,7 @@ def _parse_gtfs_time(t):
     """
     try:
         hh, mm, ss = map(int, t.split(":"))
-        secs = hh*3600 + mm*60 + ss
+        secs = hh * 3600 + mm * 60 + ss
         return pd.Timedelta(seconds=secs)
     except Exception:
         return pd.NaT
@@ -102,17 +107,18 @@ def _assign_block(td):
         s_h, s_m = map(int, start_s.split(":"))
         e_h, e_m = map(int, end_s.split(":"))
         start_td = pd.Timedelta(hours=s_h, minutes=s_m)
-        end_td   = pd.Timedelta(hours=e_h, minutes=e_m)
+        end_td = pd.Timedelta(hours=e_h, minutes=e_m)
         if start_td <= td < end_td:
             return blk
     return None
-  
+
+
 # --------------------------------------------------------------------------------------------------
 # DATA LOADING
 # --------------------------------------------------------------------------------------------------
 
 FILES_NEEDED_STOP = ["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]
-FILES_NEEDED_METR = FILES_NEEDED_STOP + ["calendar.txt"]          # for service filter
+FILES_NEEDED_METR = FILES_NEEDED_STOP + ["calendar.txt"]  # for service filter
 
 
 def _check_files(base, files):
@@ -128,34 +134,41 @@ def load_gtfs_basic(path):
     stops = pd.read_csv(
         os.path.join(path, "stops.txt"),
         dtype={
-            "stop_id": str, "stop_code": str, "stop_name": str,
-            "stop_lat": float, "stop_lon": float,
+            "stop_id": str,
+            "stop_code": str,
+            "stop_name": str,
+            "stop_lat": float,
+            "stop_lon": float,
         },
         usecols=["stop_id", "stop_code", "stop_name", "stop_lat", "stop_lon"],
     )
 
     routes = pd.read_csv(
         os.path.join(path, "routes.txt"),
-        usecols=["route_id", "route_short_name"], dtype=str,
+        usecols=["route_id", "route_short_name"],
+        dtype=str,
     )
     trips = pd.read_csv(
         os.path.join(path, "trips.txt"),
-        usecols=["trip_id", "route_id"], dtype=str,
+        usecols=["trip_id", "route_id"],
+        dtype=str,
     )
     stop_times = pd.read_csv(
         os.path.join(path, "stop_times.txt"),
-        usecols=["trip_id", "stop_id"], dtype=str,
+        usecols=["trip_id", "stop_id"],
+        dtype=str,
     )
 
-    merged = (stop_times.merge(trips,  on="trip_id", how="left")
-                         .merge(routes, on="route_id", how="left")
-                         .dropna(subset=["route_short_name"]))
+    merged = (
+        stop_times.merge(trips, on="trip_id", how="left")
+        .merge(routes, on="route_id", how="left")
+        .dropna(subset=["route_short_name"])
+    )
 
     if FILTER_SET:
         merged = merged[~merged["route_short_name"].isin(FILTER_SET)]
 
-    stop_to_routes = (merged.groupby("stop_id")["route_short_name"]
-                             .apply(set).to_dict())
+    stop_to_routes = merged.groupby("stop_id")["route_short_name"].apply(set).to_dict()
 
     return stops, stop_to_routes
 
@@ -196,11 +209,11 @@ def load_route_metrics(path):
     if os.path.exists(cal_path):
         cal = pd.read_csv(cal_path, dtype=str)
         mask = (
-            (cal["monday"]    == "1") &
-            (cal["tuesday"]   == "1") &
-            (cal["wednesday"] == "1") &
-            (cal["thursday"]  == "1") &
-            (cal["friday"]    == "1")
+            (cal["monday"] == "1")
+            & (cal["tuesday"] == "1")
+            & (cal["wednesday"] == "1")
+            & (cal["thursday"] == "1")
+            & (cal["friday"] == "1")
         )
         weekday_sids = set(cal.loc[mask, "service_id"])
         trips = trips[trips["service_id"].isin(weekday_sids)]
@@ -208,9 +221,7 @@ def load_route_metrics(path):
     # 3. Merge trips→routes and apply any route filter
     trip_routes = trips.merge(routes, on="route_id", how="left")
     if FILTER_SET:
-        trip_routes = trip_routes[
-            ~trip_routes["route_short_name"].isin(FILTER_SET)
-        ]
+        trip_routes = trip_routes[~trip_routes["route_short_name"].isin(FILTER_SET)]
 
     # 4. Determine the “first” stop of each trip, regardless of its numeric label
     #    a) ensure stop_sequence is numeric
@@ -219,9 +230,7 @@ def load_route_metrics(path):
     )
     #    b) pick the row with the minimum sequence per trip
     idx_first = stop_times.groupby("trip_id")["stop_sequence"].idxmin()
-    st = stop_times.loc[idx_first].merge(
-        trip_routes, on="trip_id", how="inner"
-    )
+    st = stop_times.loc[idx_first].merge(trip_routes, on="trip_id", how="inner")
     if st.empty:
         raise ValueError("No usable stop_times after first-stop extraction.")
 
@@ -237,7 +246,7 @@ def load_route_metrics(path):
     for rt, grp in st.groupby("route_short_name"):
         times = grp["td"].sort_values()
         first_td = times.iloc[0]
-        last_td  = times.iloc[-1]
+        last_td = times.iloc[-1]
 
         span_min = int((last_td - first_td).total_seconds() // 60)
         trips_ct = len(times)
@@ -253,28 +262,29 @@ def load_route_metrics(path):
         if headway_series:
             med_hw = float(pd.concat(headway_series).median())
 
-        metrics.append({
-            "route_short_name":     rt,
-            "first_trip_time":      _format_td(first_td),
-            "last_trip_time":       _format_td(last_td),
-            "span_minutes":         span_min,
-            "trips_count":          trips_ct,
-            "median_headway_min":   med_hw,
-        })
+        metrics.append(
+            {
+                "route_short_name": rt,
+                "first_trip_time": _format_td(first_td),
+                "last_trip_time": _format_td(last_td),
+                "span_minutes": span_min,
+                "trips_count": trips_ct,
+                "median_headway_min": med_hw,
+            }
+        )
 
     # 8. Return a clean DataFrame
-    return (
-        pd.DataFrame(metrics)
-          .sort_values("route_short_name")
-          .reset_index(drop=True)
-    )
-    
+    return pd.DataFrame(metrics).sort_values("route_short_name").reset_index(drop=True)
+
+
 # --------------------------------------------------------------------------------------------------
 # STOP-LEVEL COMPARISON
 # --------------------------------------------------------------------------------------------------
 
-def compare_signups(name_old, name_new, df_old, df_new,
-                    routes_old, routes_new, tol=COORD_TOLERANCE_DEG):
+
+def compare_signups(
+    name_old, name_new, df_old, df_new, routes_old, routes_new, tol=COORD_TOLERANCE_DEG
+):
     """Return four DataFrames: added, removed, moved, route service changes."""
     idx_old = df_old.set_index("stop_id")
     idx_new = df_new.set_index("stop_id")
@@ -282,14 +292,14 @@ def compare_signups(name_old, name_new, df_old, df_new,
     ids_old, ids_new = set(idx_old.index), set(idx_new.index)
 
     # ── Added / removed ───────────────────────────────────────────────────────
-    added_ids   = ids_new - ids_old
+    added_ids = ids_new - ids_old
     removed_ids = ids_old - ids_new
 
     # Use list(...) to avoid FutureWarning in .loc
-    added_df   = idx_new.loc[list(added_ids)].reset_index()
+    added_df = idx_new.loc[list(added_ids)].reset_index()
     removed_df = idx_old.loc[list(removed_ids)].reset_index()
 
-    added_df["change_type"]   = "added"
+    added_df["change_type"] = "added"
     removed_df["change_type"] = "removed"
 
     # ── Moved ────────────────────────────────────────────────────────────────
@@ -299,16 +309,18 @@ def compare_signups(name_old, name_new, df_old, df_new,
         lat_old, lon_old = idx_old.loc[sid, ["stop_lat", "stop_lon"]]
         lat_new, lon_new = idx_new.loc[sid, ["stop_lat", "stop_lon"]]
         if abs(lat_old - lat_new) > tol or abs(lon_old - lon_new) > tol:
-            moved_rows.append({
-                "stop_id": sid,
-                "stop_code": idx_new.loc[sid, "stop_code"],
-                "stop_name": idx_new.loc[sid, "stop_name"],
-                "lat_old": lat_old,
-                "lon_old": lon_old,
-                "lat_new": lat_new,
-                "lon_new": lon_new,
-                "change_type": "moved",
-            })
+            moved_rows.append(
+                {
+                    "stop_id": sid,
+                    "stop_code": idx_new.loc[sid, "stop_code"],
+                    "stop_name": idx_new.loc[sid, "stop_name"],
+                    "lat_old": lat_old,
+                    "lon_old": lon_old,
+                    "lat_new": lat_new,
+                    "lon_new": lon_new,
+                    "change_type": "moved",
+                }
+            )
     moved_df = pd.DataFrame(moved_rows)
 
     # ── Route service changes ────────────────────────────────────────────────
@@ -320,45 +332,62 @@ def compare_signups(name_old, name_new, df_old, df_new,
         stopped = r_old - r_new
         if started or stopped:
             base = idx_new if sid in idx_new.index else idx_old
-            svc_rows.append({
-                "stop_id": sid,
-                "stop_code": base.loc[sid, "stop_code"],
-                "stop_name": base.loc[sid, "stop_name"],
-                "lat_old": base.loc[sid, "stop_lat"] if sid in idx_old.index else None,
-                "lon_old": base.loc[sid, "stop_lon"] if sid in idx_old.index else None,
-                "lat_new": base.loc[sid, "stop_lat"] if sid in idx_new.index else None,
-                "lon_new": base.loc[sid, "stop_lon"] if sid in idx_new.index else None,
-                "routes_started": ", ".join(sorted(started)) if started else "",
-                "routes_stopped": ", ".join(sorted(stopped)) if stopped else "",
-                "change_type": "route_service_change",
-            })
+            svc_rows.append(
+                {
+                    "stop_id": sid,
+                    "stop_code": base.loc[sid, "stop_code"],
+                    "stop_name": base.loc[sid, "stop_name"],
+                    "lat_old": base.loc[sid, "stop_lat"]
+                    if sid in idx_old.index
+                    else None,
+                    "lon_old": base.loc[sid, "stop_lon"]
+                    if sid in idx_old.index
+                    else None,
+                    "lat_new": base.loc[sid, "stop_lat"]
+                    if sid in idx_new.index
+                    else None,
+                    "lon_new": base.loc[sid, "stop_lon"]
+                    if sid in idx_new.index
+                    else None,
+                    "routes_started": ", ".join(sorted(started)) if started else "",
+                    "routes_stopped": ", ".join(sorted(stopped)) if stopped else "",
+                    "change_type": "route_service_change",
+                }
+            )
     svc_df = pd.DataFrame(svc_rows)
 
     # Harmonise columns
-    base_cols  = [
-        "stop_id", "stop_code", "stop_name",
-        "lat_old", "lon_old", "lat_new", "lon_new", "change_type"
+    base_cols = [
+        "stop_id",
+        "stop_code",
+        "stop_name",
+        "lat_old",
+        "lon_old",
+        "lat_new",
+        "lon_new",
+        "change_type",
     ]
-    added_df   = added_df.reindex(columns=base_cols, fill_value=None)
+    added_df = added_df.reindex(columns=base_cols, fill_value=None)
     removed_df = removed_df.reindex(columns=base_cols, fill_value=None)
-    moved_df   = moved_df.reindex(columns=base_cols, fill_value=None)
+    moved_df = moved_df.reindex(columns=base_cols, fill_value=None)
     extra_cols = base_cols + ["routes_started", "routes_stopped"]
-    svc_df     = svc_df.reindex(columns=extra_cols, fill_value=None)
+    svc_df = svc_df.reindex(columns=extra_cols, fill_value=None)
 
     sheet_key = f"{name_old}→{name_new}"
     return {
-        f"Added_{sheet_key}":           added_df,
-        f"Removed_{sheet_key}":         removed_df,
-        f"Moved_{sheet_key}":           moved_df,
-        f"RouteSvcChange_{sheet_key}":  svc_df,
+        f"Added_{sheet_key}": added_df,
+        f"Removed_{sheet_key}": removed_df,
+        f"Moved_{sheet_key}": moved_df,
+        f"RouteSvcChange_{sheet_key}": svc_df,
     }
+
 
 def build_service_level_changes(prev_df, curr_df, prev_label, curr_label):
     """Return sheets for service-level deltas + route add/delete lists."""
     prev_df = prev_df.set_index("route_short_name")
     curr_df = curr_df.set_index("route_short_name")
 
-    added   = sorted(set(curr_df.index) - set(prev_df.index))
+    added = sorted(set(curr_df.index) - set(prev_df.index))
     deleted = sorted(set(prev_df.index) - set(curr_df.index))
 
     # Core metric deltas
@@ -374,69 +403,75 @@ def build_service_level_changes(prev_df, curr_df, prev_label, curr_label):
                 return np.nan
             return b - a
 
-        deltas.append({
-            "route_short_name": rt,
-            "span_old_min":  row_prev["span_minutes"],
-            "span_new_min":  row_curr["span_minutes"],
-            "span_delta":    _delta("span_minutes"),
-            "trips_old":     row_prev["trips_count"],
-            "trips_new":     row_curr["trips_count"],
-            "trips_delta":   _delta("trips_count"),
-            "hdwy_old_min":  row_prev["median_headway_min"],
-            "hdwy_new_min":  row_curr["median_headway_min"],
-            "hdwy_delta":    _delta("median_headway_min"),
-        })
+        deltas.append(
+            {
+                "route_short_name": rt,
+                "span_old_min": row_prev["span_minutes"],
+                "span_new_min": row_curr["span_minutes"],
+                "span_delta": _delta("span_minutes"),
+                "trips_old": row_prev["trips_count"],
+                "trips_new": row_curr["trips_count"],
+                "trips_delta": _delta("trips_count"),
+                "hdwy_old_min": row_prev["median_headway_min"],
+                "hdwy_new_min": row_curr["median_headway_min"],
+                "hdwy_delta": _delta("median_headway_min"),
+            }
+        )
 
-    df_delta   = pd.DataFrame(deltas).sort_values("route_short_name")
-    df_added   = pd.DataFrame({"route_short_name": added})
+    df_delta = pd.DataFrame(deltas).sort_values("route_short_name")
+    df_added = pd.DataFrame({"route_short_name": added})
     df_deleted = pd.DataFrame({"route_short_name": deleted})
 
     key = f"{prev_label}→{curr_label}"
     sheets = {
-        f"ServiceChange_{key}":    df_delta,
-        f"Routes_Added_{key}":     df_added,
-        f"Routes_Deleted_{key}":   df_deleted,
+        f"ServiceChange_{key}": df_delta,
+        f"Routes_Added_{key}": df_added,
+        f"Routes_Deleted_{key}": df_deleted,
     }
     return sheets
+
 
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
 
+
 def main():
     os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
 
     # ─── LOAD GTFS FOR EACH SIGN-UP ─────────────────────────────────────────────
-    signups_stops      = {}
+    signups_stops = {}
     signups_routes_map = {}
-    signups_metrics    = {}
+    signups_metrics = {}
 
     for cfg in MULTIPLE_GTFS_CONFIGS:
         name, path = cfg["name"], cfg["path"]
         print(f"Loading GTFS for {name} …")
         stops, stop_routes = load_gtfs_basic(path)
-        signups_stops[name]       = stops
-        signups_routes_map[name]  = stop_routes
+        signups_stops[name] = stops
+        signups_routes_map[name] = stop_routes
 
         print(f"Building route metrics for {name} …")
-        signups_metrics[name]     = load_route_metrics(path)
+        signups_metrics[name] = load_route_metrics(path)
     print("All GTFS loads complete.\n")
 
     # ─── STOP-LEVEL CHANGE WORKBOOK ────────────────────────────────────────────
     all_sheets_stop = {}
     for i in range(1, len(MULTIPLE_GTFS_CONFIGS)):
-        prev = MULTIPLE_GTFS_CONFIGS[i-1]["name"]
+        prev = MULTIPLE_GTFS_CONFIGS[i - 1]["name"]
         curr = MULTIPLE_GTFS_CONFIGS[i]["name"]
         sheets = compare_signups(
-            prev, curr,
-            signups_stops[prev], signups_stops[curr],
-            signups_routes_map[prev], signups_routes_map[curr],
+            prev,
+            curr,
+            signups_stops[prev],
+            signups_stops[curr],
+            signups_routes_map[prev],
+            signups_routes_map[curr],
         )
         all_sheets_stop.update(sheets)
 
     with pd.ExcelWriter(
-        os.path.join(OUTPUT_DIRECTORY, OUTPUT_EXCEL_NAME_STOPS),
-        engine="openpyxl"
+        os.path.join(OUTPUT_DIRECTORY, OUTPUT_EXCEL_NAME_STOPS), engine="openpyxl"
     ) as xls:
         for sheet_name, df in all_sheets_stop.items():
             df.to_excel(xls, sheet_name=sheet_name[:31], index=False)
@@ -451,7 +486,7 @@ def main():
 
         # 2) for each pair of sign-ups, append only‐changed routes
         for i in range(1, len(MULTIPLE_GTFS_CONFIGS)):
-            prev = MULTIPLE_GTFS_CONFIGS[i-1]["name"]
+            prev = MULTIPLE_GTFS_CONFIGS[i - 1]["name"]
             curr = MULTIPLE_GTFS_CONFIGS[i]["name"]
 
             # build the full delta DataFrame
@@ -470,7 +505,7 @@ def main():
     # ─── SERVICE-LEVEL CHANGE WORKBOOK ─────────────────────────────────────────
     delta_sheets = {}
     for i in range(1, len(MULTIPLE_GTFS_CONFIGS)):
-        prev = MULTIPLE_GTFS_CONFIGS[i-1]["name"]
+        prev = MULTIPLE_GTFS_CONFIGS[i - 1]["name"]
         curr = MULTIPLE_GTFS_CONFIGS[i]["name"]
         sheets = build_service_level_changes(
             signups_metrics[prev], signups_metrics[curr], prev, curr
@@ -478,12 +513,12 @@ def main():
         delta_sheets.update(sheets)
 
     with pd.ExcelWriter(
-        os.path.join(OUTPUT_DIRECTORY, OUTPUT_EXCEL_NAME_DELTA),
-        engine="openpyxl"
+        os.path.join(OUTPUT_DIRECTORY, OUTPUT_EXCEL_NAME_DELTA), engine="openpyxl"
     ) as xls:
         for sheet_name, df in delta_sheets.items():
             df.to_excel(xls, sheet_name=sheet_name[:31], index=False)
     print("✓ service-level change workbook written.")
+
 
 if __name__ == "__main__":
     main()
