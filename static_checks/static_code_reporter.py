@@ -54,7 +54,9 @@ MYPY_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--ignore-missing-imports"]
 # vulture
 VULTURE_MIN_CONFIDENCE: int = 60  # default is 60
 # pydocstyle
-PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = ["--convention=google"] # Modify style if desired
+PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = [
+    "--convention=google"
+]  # Modify style if desired
 
 # ----------------------------------------------------------------------------
 # LOGGING
@@ -70,6 +72,7 @@ CONSOLE = logging.getLogger(__name__)
 # ============================================================================
 # FUNCTIONS
 # ============================================================================
+
 
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
@@ -478,9 +481,9 @@ def run_pydocstyle(files: List[str]) -> int:
     ws.column_dimensions[get_column_letter(1)].width = 30  # Script
     ws.column_dimensions[get_column_letter(2)].width = 30  # Folder
     ws.column_dimensions[get_column_letter(3)].width = 10  # # Issues
-    ws.column_dimensions[get_column_letter(4)].width = (
-        70  # Issue Details (allow more space)
-    )
+    ws.column_dimensions[
+        get_column_letter(4)
+    ].width = 70  # Issue Details (allow more space)
     ws.column_dimensions[get_column_letter(5)].width = 40  # Stderr
     ws.column_dimensions[get_column_letter(6)].width = 60  # Path
 
