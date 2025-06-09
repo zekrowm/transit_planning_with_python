@@ -25,6 +25,8 @@ from openpyxl.styles import Font
 INPUT_FILE_PATH = r"\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX"
 OUTPUT_FILE_SUFFIX = "_processed"
 OUTPUT_FILE_EXTENSION = ".xlsx"
+# If blank/None ⇒ use same directory as INPUT_FILE_PATH
+OUTPUT_DIR = r"\\Path\\To\\Output\\Folder"      # e.g. r"C:\Data\Ridership\Outputs"
 
 # ROUTES = keep-only list   |  ROUTES_EXCLUDE = toss-out list
 ROUTES = []  # keep these (leave empty → keep all)
@@ -171,28 +173,27 @@ def filter_data(data_frame, routes=None, stop_ids=None, routes_exclude=None):
 
 def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggregated):
     """
-    Save processed ridership data to an Excel file with multiple sheets.
+    Save processed ridership data to Excel with tabs in the order:
+    1) Original, 2) All Time Periods, 3+) individual time periods.
     """
     try:
-        # Remove 'engine="openpyxl"' to avoid abstract-class-instantiated warnings
         with pd.ExcelWriter(output_file) as writer:
+            # 1 ─ Original data
             filtered_data.to_excel(writer, sheet_name="Original", index=False)
 
-            # Write each time period's aggregated data
-            for period, df_agg in aggregated_peaks.items():
-                df_agg.to_excel(writer, sheet_name=period, index=False)
-
-            # Always write the all-time aggregated data
+            # 2 ─ All-time aggregation
             all_time_aggregated.to_excel(
                 writer, sheet_name="All Time Periods", index=False
             )
 
-            writer.save()
+            # 3+ ─ Each peak period (already ordered by TIME_PERIODS list)
+            for period, df_agg in aggregated_peaks.items():
+                df_agg.to_excel(writer, sheet_name=period, index=False)
 
         adjust_excel_formatting(output_file)
         print(f"Success: The processed file has been saved as '{output_file}'.")
-    except (OSError, PermissionError) as error:
-        print(f"Error writing the processed Excel file: {error}")
+    except (OSError, PermissionError) as err:
+        print(f"Error writing the processed Excel file: {err}")
         sys.exit(1)
 
 
@@ -291,26 +292,34 @@ def main():
     Process ridership data: read, filter, aggregate, apply formatting, and save to Excel.
     """
     input_file = INPUT_FILE_PATH
-    base, ext = os.path.splitext(input_file)
-    ext = ext.lower()
-    if ext != OUTPUT_FILE_EXTENSION:
-        print(
-            f"Warning: The input file has extension '{ext}'. "
-            f"Using '{OUTPUT_FILE_EXTENSION}' for output."
-        )
-        ext = OUTPUT_FILE_EXTENSION
-    output_file = f"{base}{OUTPUT_FILE_SUFFIX}{ext}"
 
+    # ------------------------------------------------------------------
+    # Build the output file path
+    # ------------------------------------------------------------------
+    base_name = os.path.splitext(os.path.basename(input_file))[0]
+    ext = OUTPUT_FILE_EXTENSION.lower()         # e.g. ".xlsx"
+    output_fname = f"{base_name}{OUTPUT_FILE_SUFFIX}{ext}"
+
+    if OUTPUT_DIR:                              # user‐specified folder
+        os.makedirs(OUTPUT_DIR, exist_ok=True)  # create if it doesn’t exist
+        output_file = os.path.join(OUTPUT_DIR, output_fname)
+    else:                                       # default to input’s folder
+        output_file = os.path.join(os.path.dirname(input_file), output_fname)
+
+    # ------------------------------------------------------------------
     # Read and verify the Excel data
+    # ------------------------------------------------------------------
     ridership_df = read_excel_file(input_file)
     verify_required_columns(ridership_df, REQUIRED_COLUMNS)
 
+    # ------------------------------------------------------------------
     # Apply optional filters
+    # ------------------------------------------------------------------
     filtered_data = filter_data(
         ridership_df,
         routes=ROUTES,
         stop_ids=STOP_IDS,
-        routes_exclude=ROUTES_EXCLUDE,  # <-- NEW ARG
+        routes_exclude=ROUTES_EXCLUDE,
     )
 
     # Standardize 'TIME_PERIOD' values
@@ -318,12 +327,16 @@ def main():
         filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
     )
 
+    # ------------------------------------------------------------------
     # Process and retrieve final aggregated data
+    # ------------------------------------------------------------------
     final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(
         filtered_data
     )
 
-    # Write the data to Excel
+    # ------------------------------------------------------------------
+    # Write the data to Excel (Original → All Time Periods → each period…)
+    # ------------------------------------------------------------------
     write_to_excel(output_file, final_filtered, aggregated_peaks, all_time_aggregated)
 
 
