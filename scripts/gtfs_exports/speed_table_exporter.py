@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from openpyxl import Workbook
@@ -55,6 +55,7 @@ _TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$")
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def hhmmss_to_minutes(t: Optional[str]) -> Optional[int]:
     if not isinstance(t, str):
@@ -106,14 +107,18 @@ def load_gtfs(folder: Path) -> Dict[str, pd.DataFrame]:
     if missing:
         raise FileNotFoundError(f"Missing GTFS file(s): {', '.join(missing)}")
 
-    data = {f[:-4]: pd.read_csv(folder / f, dtype=str, low_memory=False) for f in REQ_FILES}
+    data = {
+        f[:-4]: pd.read_csv(folder / f, dtype=str, low_memory=False) for f in REQ_FILES
+    }
 
     st = data["stop_times"]
     st["stop_sequence"] = pd.to_numeric(st["stop_sequence"], errors="raise")
     if "timepoint" in st.columns:
         st["timepoint"] = pd.to_numeric(st["timepoint"], errors="coerce")
     if "shape_dist_traveled" in st.columns:
-        st["shape_dist_traveled"] = pd.to_numeric(st["shape_dist_traveled"], errors="coerce")
+        st["shape_dist_traveled"] = pd.to_numeric(
+            st["shape_dist_traveled"], errors="coerce"
+        )
 
     return data
 
@@ -130,7 +135,9 @@ def _sum_numeric(seq):
 def segment_metrics(grp: pd.DataFrame):
     times, dists = [], []
     for _, row in grp.iterrows():
-        times.append(hhmmss_to_minutes(row.get("departure_time") or row.get("arrival_time")))
+        times.append(
+            hhmmss_to_minutes(row.get("departure_time") or row.get("arrival_time"))
+        )
         dists.append(convert_to_miles(row.get("shape_dist_traveled")))
 
     run_min, seg_mi, seg_mph = [MISSING_VAL], [MISSING_VAL], [MISSING_VAL]
@@ -165,14 +172,18 @@ def build_index(gtfs):
 
     st = (
         gtfs["stop_times"]
-        .merge(trips[["trip_id", "route_id", "service_id", "direction_id"]], on="trip_id")
+        .merge(
+            trips[["trip_id", "route_id", "service_id", "direction_id"]], on="trip_id"
+        )
         .sort_values(["trip_id", "stop_sequence"])
     )
     if EXPORT_TIMEPOINTS_ONLY and "timepoint" in st.columns:
         st = st[st["timepoint"] == 1]
 
     stop_meta = (
-        gtfs["stops"][["stop_id", "stop_name", "stop_code"]].set_index("stop_id").to_dict("index")
+        gtfs["stops"][["stop_id", "stop_name", "stop_code"]]
+        .set_index("stop_id")
+        .to_dict("index")
     )
 
     pat_lut, speed_lut, header_lut, rows = {}, {}, {}, []
@@ -192,7 +203,9 @@ def build_index(gtfs):
 
         if pat_hash not in header_lut:
             header_lut[pat_hash] = [
-                f"{m['stop_name']} ({m['stop_code']})" if (m := stop_meta.get(sid)) else sid
+                f"{m['stop_name']} ({m['stop_code']})"
+                if (m := stop_meta.get(sid))
+                else sid
                 for sid in pattern
             ]
 
@@ -268,13 +281,18 @@ def export_excel(bands, pat_lut, speed_lut, header_lut, routes):
             for col in range(1, len(header) + 1):
                 ws.column_dimensions[get_column_letter(col)].width = 14
 
-        out = OUTPUT_FOLDER / f"route_{route_short.get(rid, rid)}_cal{sid}_speed_table.xlsx"
+        out = (
+            OUTPUT_FOLDER
+            / f"route_{route_short.get(rid, rid)}_cal{sid}_speed_table.xlsx"
+        )
         wb.save(out)
         logging.info("Wrote %s", out)
+
 
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:
     logging.basicConfig(
