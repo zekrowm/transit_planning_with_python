@@ -6,8 +6,7 @@ transit_planning_with_python-main/
 ├── requirements.txt
 ├── .github/
 │   └── workflows/
-│       ├── auto_format_black_isort.yml
-│       └── pylint.yml
+│       └── auto_format_ruff.yml
 ├── helpers/
 │   └── gtfs_helpers.py
 ├── scripts/
