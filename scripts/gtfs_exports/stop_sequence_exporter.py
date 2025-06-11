@@ -37,6 +37,7 @@ FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["999"]
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
@@ -127,9 +128,11 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
     return data
 
+
 # -----------------------------------------------------------------------------
 # OTHER FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def compute_most_common_pattern(
     trips_df: pd.DataFrame,
@@ -177,6 +180,7 @@ def compute_most_common_pattern(
 
     most_common_seq, _ = counter.most_common(1)[0]
     return list(most_common_seq)
+
 
 def load_core_gtfs_tables(input_dir: str) -> tuple[pd.DataFrame, ...]:
     """Load the four GTFS tables required for pattern extraction."""
@@ -280,9 +284,11 @@ def export_patterns_by_route(result_df: pd.DataFrame, out_dir: str) -> None:
         group.to_csv(path, index=False)
         logging.info("Wrote %s (%d rows)", fname, len(group))
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Orchestrate extraction and per-route export."""
