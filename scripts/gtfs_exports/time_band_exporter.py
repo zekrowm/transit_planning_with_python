@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from openpyxl import Workbook
@@ -42,7 +42,7 @@ FILTER_OUT_SERVICE_IDS: List[str] = []
 # --------------------------------------------------------------------------------------------------
 
 LOG_LEVEL = logging.INFO
-EXPORT_TIMEPOINTS_ONLY = True         # keep only stops where timepoint == 1
+EXPORT_TIMEPOINTS_ONLY = True  # keep only stops where timepoint == 1
 MISSING_TIME = "–"
 
 _TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$")
@@ -50,6 +50,7 @@ _TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$")
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def hhmmss_to_min(t: Optional[str]) -> Optional[int]:
     """HH:MM[:SS] → minutes (can be ≥24 h)."""
@@ -113,7 +114,7 @@ def segment_runtimes(grp: pd.DataFrame) -> RuntimeSegTuple:
 
 
 def build_index(
-    gtfs: Dict[str, pd.DataFrame]
+    gtfs: Dict[str, pd.DataFrame],
 ) -> Tuple[
     pd.DataFrame,
     Dict[int, PatternTuple],
@@ -265,9 +266,11 @@ def export_excel(
         wb.save(fname)
         logging.info("Wrote %s", fname)
 
+
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:
     logging.basicConfig(
