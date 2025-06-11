@@ -19,9 +19,23 @@ from collections import Counter
 import pandas as pd
 
 # =============================================================================
-# EXACT-COPY GTFS LOADER  (do not edit)
+# CONFIGURATION
 # =============================================================================
 
+INPUT_DIR: str = r"Path\To\Your\GTFS\Folder"
+OUTPUT_DIR: str = r"Folder\To\Hold\PerRouteCSVs"  # <- folder, not file
+
+# Optional route filters
+FILTER_IN_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["306", "50A"]
+FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["999"]
+
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -113,22 +127,9 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
     return data
 
-
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
-INPUT_DIR: str = r"Path\To\Your\GTFS\Folder"
-OUTPUT_DIR: str = r"Folder\To\Hold\PerRouteCSVs"  # <- folder, not file
-
-# Optional route filters
-FILTER_IN_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["306", "50A"]
-FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["999"]
-
-# =============================================================================
-# CORE LOGIC
-# =============================================================================
-
+# -----------------------------------------------------------------------------
+# OTHER FUNCTIONS
+# -----------------------------------------------------------------------------
 
 def compute_most_common_pattern(
     trips_df: pd.DataFrame,
@@ -177,10 +178,6 @@ def compute_most_common_pattern(
     most_common_seq, _ = counter.most_common(1)[0]
     return list(most_common_seq)
 
-
-# --------------------------------------------------------------------------- #
-# Helper functions
-# --------------------------------------------------------------------------- #
 def load_core_gtfs_tables(input_dir: str) -> tuple[pd.DataFrame, ...]:
     """Load the four GTFS tables required for pattern extraction."""
     gtfs = load_gtfs_data(input_dir, dtype=str)
@@ -283,10 +280,10 @@ def export_patterns_by_route(result_df: pd.DataFrame, out_dir: str) -> None:
         group.to_csv(path, index=False)
         logging.info("Wrote %s (%d rows)", fname, len(group))
 
+# =============================================================================
+# MAIN
+# =============================================================================
 
-# --------------------------------------------------------------------------- #
-# Main entry point
-# --------------------------------------------------------------------------- #
 def main() -> None:
     """Orchestrate extraction and per-route export."""
     try:
