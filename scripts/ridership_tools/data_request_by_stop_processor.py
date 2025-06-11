@@ -78,6 +78,7 @@ COLUMNS_TO_RETAIN: Sequence[str] = (
 # FUNCTIONS
 # =============================================================================
 
+
 def bin_ridership_value(value: float) -> str:
     """Convert a numeric ridership value into a categorical range.
 
@@ -362,6 +363,7 @@ def process_aggregations(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
     """Run the full read → filter → aggregate → write pipeline."""
