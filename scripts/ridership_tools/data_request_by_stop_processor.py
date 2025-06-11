@@ -2,17 +2,21 @@
 Processes stop-level ridership data from an Excel file.
 
 Reads an input Excel file (RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX),
-filters by route or stop ID, aggregates boardings and alightings by stop and time
-period, and saves the results to a new Excel file. Aggregated data can
-optionally be rounded or categorized into bins. It is useful for fulfilling
-stop-based data requests.
+optionally filters by route or stop ID, aggregates boardings and alightings by
+stop and time period, and saves the results to a new Excel file. Aggregated data
+can optionally be rounded or categorized into bins.
 
-Designed for use in ArcGIS Pro or Jupyter notebooks, typically as part of a
-manual or scripted data request workflow.
+The script is designed for analysts and data scientists who need a quick and
+repeatable tool for ad-hoc stop ridership data requests, and it is suitable
+for use in environments like ArcGIS Pro or Jupyter Notebooks.
 """
+
+from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
+from typing import Dict, List, Sequence, Tuple
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -22,87 +26,105 @@ from openpyxl.styles import Font
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE_PATH = r"\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX"
-OUTPUT_FILE_SUFFIX = "_processed"
-OUTPUT_FILE_EXTENSION = ".xlsx"
-# If blank/None ⇒ use same directory as INPUT_FILE_PATH
-OUTPUT_DIR = r"\\Path\\To\\Output\\Folder"  # e.g. r"C:\Data\Ridership\Outputs"
+INPUT_FILE_PATH: Path = Path(
+    r"\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX"
+)
+OUTPUT_FILE_SUFFIX: str = "_processed"
+OUTPUT_FILE_EXTENSION: str = ".xlsx"
+# If OUTPUT_DIR is None ⇒ use same directory as INPUT_FILE_PATH
+OUTPUT_DIR: Path | None = Path(r"\\Path\\To\\Output\\Folder")  # e.g. r"C:\Data\Outputs"
 
 # ROUTES = keep-only list   |  ROUTES_EXCLUDE = toss-out list
-ROUTES = []  # keep these (leave empty → keep all)
-ROUTES_EXCLUDE = []  # drop these (leave empty → drop none)
+ROUTES: List[str] = []  # keep these (empty → keep all)
+ROUTES_EXCLUDE: List[str] = []  # drop these (empty → drop none)
 
 # Optional STOP_IDS filter list
-STOP_IDS = [1001, 2002, 3003]  # keep these (leave empty → keep all)
+STOP_IDS: List[int] = [1001, 2002, 3003]  # keep these (empty → keep all)
 
-# Optional STOP_IDS aggregation list
-# If empty, the script will skip time-period breakdown for these lists.
-TIME_PERIODS = [
+# Optional TIME_PERIOD aggregation list
+TIME_PERIODS: List[str] = [
     "AM EARLY",
     "AM PEAK",
     "MIDDAY",
     "PM PEAK",
     "PM LATE",
     "PM NITE",
-]  # e.g. [] means skip time-period breakdown
+]  # empty ⇒ skip time-period breakdown
 
-# If True, ridership columns in the "Original" data are rounded to 1 decimal place.
-# Also, if AGGREGATE_BIN_RANGES = False, aggregated totals get rounded instead of binned.
-APPLY_ROUNDING = True
+# If True → round ridership columns in "Original" sheet and (if bins are off)
+# round aggregated totals.  If False → leave raw numeric precision.
+APPLY_ROUNDING: bool = True
 
-# If True, aggregated totals (BOARD_ALL_TOTAL, ALIGHT_ALL_TOTAL) are converted to
-# "0-4.9", "5-24.9", or "25 or more". If False, they remain numeric and
-# get rounded to 1 decimal place only if APPLY_ROUNDING = True.
-AGGREGATE_BIN_RANGES = False
+# If True → convert aggregated totals to textual bins; numeric rounding is
+# suppressed.  If False → leave numeric (subject to APPLY_ROUNDING).
+AGGREGATE_BIN_RANGES: bool = False
 
-REQUIRED_COLUMNS = [
+REQUIRED_COLUMNS: Sequence[str] = (
     "TIME_PERIOD",
     "ROUTE_NAME",
     "STOP",
     "STOP_ID",
     "BOARD_ALL",
     "ALIGHT_ALL",
-]
-COLUMNS_TO_RETAIN = ["ROUTE_NAME", "STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL"]
+)
+COLUMNS_TO_RETAIN: Sequence[str] = (
+    "ROUTE_NAME",
+    "STOP",
+    "STOP_ID",
+    "BOARD_ALL",
+    "ALIGHT_ALL",
+)
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
+def bin_ridership_value(value: float) -> str:
+    """Convert a numeric ridership value into a categorical range.
 
-def bin_ridership_value(value):
-    """
-    Categorize a ridership value into a range (e.g., "0-4.9", "5-24.9", "25 or more").
+    Args:
+        value: The boarding/alighting count for a stop.
+
+    Returns:
+        A string bucket—``"0-4.9"``, ``"5-24.9"``, or ``"25 or more"``.
     """
     if value < 5:
         return "0-4.9"
     if value < 25:
         return "5-24.9"
-    return (
-        "25 or more"  # Removed unnecessary `elif` and final `else` per no-else-return.
-    )
+    return "25 or more"
 
 
 def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
-    """
-    Summarize ridership by stop, totaling boardings and alightings, and listing
-    unique routes.
+    """Aggregate boardings/alightings by (STOP, STOP_ID).
 
-    Fixes implemented
-    -----------------
-    1. **FutureWarning** – We keep only the columns we will aggregate before the
-       group-by, so pandas never has to “drop invalid columns”.
-    2. **TypeError** – ROUTE_NAME is converted to `str`, guaranteeing that
-       ','.join() always receives strings.
-    """
-    # Keep only the columns required for this aggregation step
-    cols_needed = ["STOP", "STOP_ID", "BOARD_ALL", "ALIGHT_ALL", "ROUTE_NAME"]
-    subset = data_subset[cols_needed].copy()
+    Args:
+        data_subset: A DataFrame that *already* contains only the rows
+            of interest for aggregation.
 
-    # Force ROUTE_NAME to string so join() can’t choke on numeric dtypes
+    Returns:
+        A DataFrame with one row per stop and three new columns:
+        ``BOARD_ALL_TOTAL``, ``ALIGHT_ALL_TOTAL``, and ``ROUTES`` (a
+        comma-separated list of all unique route names serving that stop).
+
+    Notes:
+        * ROUTE_NAME is force-cast to ``str`` to avoid ``TypeError`` when
+          joining.
+        * Only the columns required for aggregation are read to silence a
+          pandas FutureWarning about dropping invalid columns.
+    """
+    cols_needed: List[str] = [
+        "STOP",
+        "STOP_ID",
+        "BOARD_ALL",
+        "ALIGHT_ALL",
+        "ROUTE_NAME",
+    ]
+    subset: pd.DataFrame = data_subset[cols_needed].copy()
+
     subset["ROUTE_NAME"] = subset["ROUTE_NAME"].astype(str).str.strip()
 
-    aggregated = (
+    aggregated: pd.DataFrame = (
         subset.groupby(["STOP", "STOP_ID"], as_index=False)
         .agg(
             {
@@ -122,159 +144,215 @@ def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
     return aggregated
 
 
-def read_excel_file(input_file):
-    """
-    Load an Excel file into a DataFrame. Exits if the file is missing or unreadable.
+def read_excel_file(input_file: Path) -> pd.DataFrame:
+    """Load an Excel workbook into a DataFrame.
+
+    Args:
+        input_file: Absolute or relative path to the workbook.
+
+    Returns:
+        The first sheet of *input_file* as a ``pandas.DataFrame``.
+
+    Raises:
+        SystemExit: If the file does not exist or cannot be parsed.
     """
     try:
         return pd.read_excel(input_file)
     except FileNotFoundError:
         print(f"Error: The file '{input_file}' does not exist.")
         sys.exit(1)
-    except ValueError as error:  # Replaced pd.errors.ExcelFileError with ValueError
-        print(f"Error reading the Excel file: {error}")
+    except ValueError as exc:  # pandas re-raises most Excel errors as ValueError
+        print(f"Error reading the Excel file: {exc}")
         sys.exit(1)
 
 
-def verify_required_columns(data_frame, required_columns):
+def verify_required_columns(
+    data_frame: pd.DataFrame, required_columns: Sequence[str]
+) -> None:
+    """Ensure *data_frame* contains all columns listed in *required_columns*.
+
+    Args:
+        data_frame: The DataFrame to validate.
+        required_columns: Names that must be present.
+
+    Raises:
+        SystemExit: If any required column is missing.
     """
-    Check if all required columns exist in the DataFrame. Exits if any are missing.
-    """
-    missing_columns = [col for col in required_columns if col not in data_frame.columns]
+    missing_columns: List[str] = [
+        col for col in required_columns if col not in data_frame.columns
+    ]
     if missing_columns:
         print(f"Error: Missing columns: {missing_columns}")
         sys.exit(1)
 
 
-def filter_data(data_frame, routes=None, stop_ids=None, routes_exclude=None):
-    """
-    Apply three *optional* filters in this order:
-        1. keep-only ROUTES         (inclusive)
-        2. drop-only ROUTES_EXCLUDE (exclusive)
-        3. keep-only STOP_IDS
-    Any of the three may be an empty list / None to skip that step.
-    """
-    df = data_frame.copy()
+def filter_data(
+    data_frame: pd.DataFrame,
+    routes: Sequence[str] | None = None,
+    stop_ids: Sequence[int] | None = None,
+    routes_exclude: Sequence[str] | None = None,
+) -> pd.DataFrame:
+    """Apply optional filters in a deterministic order.
 
-    # 1. inclusive route filter -------------------------------------------
+    Filters are applied in-place (on a copy) with this precedence:
+
+    1. Inclusive   ``routes``        → keep-only rows where ROUTE_NAME ∈ routes
+    2. Exclusive   ``routes_exclude``→ drop-only  rows where ROUTE_NAME ∈ routes_exclude
+    3. Inclusive   ``stop_ids``      → keep-only rows where STOP_ID   ∈ stop_ids
+
+    Empty/None arguments are ignored.
+
+    Args:
+        data_frame: Original DataFrame.
+        routes: Route names to *keep* (inclusive).
+        stop_ids: Stop IDs to *keep* (inclusive).
+        routes_exclude: Route names to *drop* (exclusive).
+
+    Returns:
+        A filtered DataFrame.
+    """
+    df: pd.DataFrame = data_frame.copy()
+
     if routes:
         df = df[df["ROUTE_NAME"].isin(routes)]
 
-    # 2. exclusive route filter -------------------------------------------
     if routes_exclude:
         df = df[~df["ROUTE_NAME"].isin(routes_exclude)]
 
-    # 3. stop-id filter ----------------------------------------------------
     if stop_ids:
         df = df[df["STOP_ID"].isin(stop_ids)]
 
     return df
 
 
-def write_to_excel(output_file, filtered_data, aggregated_peaks, all_time_aggregated):
-    """
-    Save processed ridership data to Excel with tabs in the order:
-    1) Original, 2) All Time Periods, 3+) individual time periods.
+def write_to_excel(
+    output_file: Path,
+    filtered_data: pd.DataFrame,
+    aggregated_peaks: Dict[str, pd.DataFrame],
+    all_time_aggregated: pd.DataFrame,
+) -> None:
+    """Write the processed data sets to *output_file* in a sensible order.
+
+    The workbook receives:
+        1. ``Original``           – raw (but optionally rounded) rows
+        2. ``All Time Periods``   – aggregation across *all* rows
+        3. One sheet per entry in ``aggregated_peaks`` (already upper-cased)
+
+    Args:
+        output_file: Path to the workbook to create/overwrite.
+        filtered_data: DataFrame for the "Original" sheet.
+        aggregated_peaks: Mapping ``TIME_PERIOD → aggregated DataFrame``.
+        all_time_aggregated: Aggregation across *all* rows.
+
+    Raises:
+        SystemExit: On any I/O error (permission, disk full, etc.).
     """
     try:
         with pd.ExcelWriter(output_file) as writer:
-            # 1 ─ Original data
             filtered_data.to_excel(writer, sheet_name="Original", index=False)
-
-            # 2 ─ All-time aggregation
             all_time_aggregated.to_excel(
                 writer, sheet_name="All Time Periods", index=False
             )
-
-            # 3+ ─ Each peak period (already ordered by TIME_PERIODS list)
             for period, df_agg in aggregated_peaks.items():
                 df_agg.to_excel(writer, sheet_name=period, index=False)
 
         adjust_excel_formatting(output_file)
         print(f"Success: The processed file has been saved as '{output_file}'.")
-    except (OSError, PermissionError) as err:
-        print(f"Error writing the processed Excel file: {err}")
+    except (OSError, PermissionError) as exc:
+        print(f"Error writing the processed Excel file: {exc}")
         sys.exit(1)
 
 
-def adjust_excel_formatting(output_file):
-    """
-    Format an Excel file by bolding headers and adjusting column widths.
+def adjust_excel_formatting(output_file: Path) -> None:
+    """Bold the header row and auto-size columns for *output_file*.
+
+    Args:
+        output_file: Path to an existing XLSX workbook.
+
+    Raises:
+        SystemExit: If the workbook cannot be opened or saved.
     """
     try:
         workbook = load_workbook(output_file)
         for sheet_name in workbook.sheetnames:
             sheet = workbook[sheet_name]
+
             # Bold the header row
             for cell in sheet[1]:
                 cell.font = Font(bold=True)
-            # Auto-adjust column widths
+
+            # Auto-size column widths
             for column_cells in sheet.columns:
-                max_length = 0
-                col_letter = column_cells[0].column_letter
+                max_length: int = 0
+                col_letter: str = column_cells[0].column_letter
                 for cell in column_cells:
-                    cell_val = str(cell.value) if cell.value is not None else ""
+                    cell_val: str = str(cell.value) if cell.value is not None else ""
                     max_length = max(max_length, len(cell_val))
                 sheet.column_dimensions[col_letter].width = max_length + 2
+
         workbook.save(output_file)
-    except (OSError, PermissionError) as error:
-        print(f"Error adjusting Excel formatting: {error}")
+    except (OSError, PermissionError) as exc:
+        print(f"Error adjusting Excel formatting: {exc}")
         sys.exit(1)
 
 
-def process_aggregations(filtered_data: pd.DataFrame):
-    """
-    Handle rounding/bins for original and aggregated data. Returns the
-    final versions of the filtered data, the aggregated peaks, and the
-    all-time aggregated DataFrame.
+def process_aggregations(
+    filtered_data: pd.DataFrame,
+) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame], pd.DataFrame]:
+    """Central orchestration of rounding/bucketing + aggregation.
 
-    This wrapper now forces ROUTE_NAME to str *once* so every downstream use
-    (original sheet as well as any future aggregations) is safe.
+    Args:
+        filtered_data: The DataFrame *after* optional route/stop filtering.
+
+    Returns:
+        A 3-tuple:
+            * Final version of ``filtered_data`` (possibly rounded).
+            * Mapping ``TIME_PERIOD → aggregated DataFrame``.
+            * Aggregation across *all* rows and periods.
     """
-    # ------------------------------------------------------------------
-    # 0) Make ROUTE_NAME consistently string *before* any aggregation
-    # ------------------------------------------------------------------
+    # ──────────────────────────────────────────────────────────────────
+    # 0. Standardise ROUTE_NAME to string before any aggregation
+    # ──────────────────────────────────────────────────────────────────
     filtered_data["ROUTE_NAME"] = filtered_data["ROUTE_NAME"].astype(str).str.strip()
 
-    # ------------------------------------------------------------------
-    # 1) Build time-period subsets if TIME_PERIODS is non-empty
-    # ------------------------------------------------------------------
-    peak_data_dict = {}
+    # ──────────────────────────────────────────────────────────────────
+    # 1. Build per-period subsets (if any)
+    # ──────────────────────────────────────────────────────────────────
+    peak_data_dict: Dict[str, pd.DataFrame] = {}
     if TIME_PERIODS:
         for period in TIME_PERIODS:
-            period_upper = period.upper()
-            subset = filtered_data[filtered_data["TIME_PERIOD"] == period_upper]
-            peak_data_dict[period] = subset[COLUMNS_TO_RETAIN]
+            subset = filtered_data[filtered_data["TIME_PERIOD"] == period.upper()]
+            peak_data_dict[period] = subset[list(COLUMNS_TO_RETAIN)]
 
-    # ------------------------------------------------------------------
-    # 2) Aggregate data (all-time and by time period)
-    # ------------------------------------------------------------------
-    all_time_aggregated = aggregate_by_stop(filtered_data)
+    # ──────────────────────────────────────────────────────────────────
+    # 2. Aggregate (all-time + each slice)
+    # ──────────────────────────────────────────────────────────────────
+    all_time_aggregated: pd.DataFrame = aggregate_by_stop(filtered_data)
 
-    aggregated_peaks = {}
+    aggregated_peaks: Dict[str, pd.DataFrame] = {}
     if TIME_PERIODS:
         for period, data_subset in peak_data_dict.items():
             aggregated_peaks[period] = aggregate_by_stop(data_subset)
 
-    # ------------------------------------------------------------------
-    # 3) Round the original ridership columns if requested
-    # ------------------------------------------------------------------
+    # ──────────────────────────────────────────────────────────────────
+    # 3. Optional rounding for "Original" sheet
+    # ──────────────────────────────────────────────────────────────────
     if APPLY_ROUNDING:
         filtered_data[["BOARD_ALL", "ALIGHT_ALL"]] = filtered_data[
             ["BOARD_ALL", "ALIGHT_ALL"]
         ].round(1)
 
-    # ------------------------------------------------------------------
-    # 4) Format aggregated columns (rounding or binning)
-    # ------------------------------------------------------------------
-    all_dfs = [all_time_aggregated] + list(aggregated_peaks.values())
-    for df_agg in all_dfs:
+    # ──────────────────────────────────────────────────────────────────
+    # 4. Format aggregated columns (bins OR decimal rounding)
+    # ──────────────────────────────────────────────────────────────────
+    all_aggregations: List[pd.DataFrame] = [all_time_aggregated] + list(
+        aggregated_peaks.values()
+    )
+    for df_agg in all_aggregations:
         if AGGREGATE_BIN_RANGES:
-            # Convert numeric aggregated totals into bins
-            for col in ["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]:
+            for col in ("BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"):
                 df_agg[col] = df_agg[col].apply(bin_ridership_value)
         elif APPLY_ROUNDING:
-            # Otherwise, if rounding is desired, do decimal rounding
             df_agg[["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]] = df_agg[
                 ["BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"]
             ].round(1)
@@ -286,57 +364,42 @@ def process_aggregations(filtered_data: pd.DataFrame):
 # MAIN
 # =============================================================================
 
+def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
+    """Run the full read → filter → aggregate → write pipeline."""
+    input_file: Path = INPUT_FILE_PATH
 
-def main():
-    """
-    Process ridership data: read, filter, aggregate, apply formatting, and save to Excel.
-    """
-    input_file = INPUT_FILE_PATH
+    # Build output file path
+    base_name: str = input_file.stem
+    output_fname: str = f"{base_name}{OUTPUT_FILE_SUFFIX}{OUTPUT_FILE_EXTENSION}"
+    if OUTPUT_DIR:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        output_file: Path = OUTPUT_DIR / output_fname
+    else:
+        output_file = input_file.parent / output_fname
 
-    # ------------------------------------------------------------------
-    # Build the output file path
-    # ------------------------------------------------------------------
-    base_name = os.path.splitext(os.path.basename(input_file))[0]
-    ext = OUTPUT_FILE_EXTENSION.lower()  # e.g. ".xlsx"
-    output_fname = f"{base_name}{OUTPUT_FILE_SUFFIX}{ext}"
-
-    if OUTPUT_DIR:  # user‐specified folder
-        os.makedirs(OUTPUT_DIR, exist_ok=True)  # create if it doesn’t exist
-        output_file = os.path.join(OUTPUT_DIR, output_fname)
-    else:  # default to input’s folder
-        output_file = os.path.join(os.path.dirname(input_file), output_fname)
-
-    # ------------------------------------------------------------------
-    # Read and verify the Excel data
-    # ------------------------------------------------------------------
-    ridership_df = read_excel_file(input_file)
+    # Read and validate
+    ridership_df: pd.DataFrame = read_excel_file(input_file)
     verify_required_columns(ridership_df, REQUIRED_COLUMNS)
 
-    # ------------------------------------------------------------------
     # Apply optional filters
-    # ------------------------------------------------------------------
-    filtered_data = filter_data(
+    filtered_data: pd.DataFrame = filter_data(
         ridership_df,
         routes=ROUTES,
         stop_ids=STOP_IDS,
         routes_exclude=ROUTES_EXCLUDE,
     )
 
-    # Standardize 'TIME_PERIOD' values
+    # Standardise TIME_PERIOD values
     filtered_data["TIME_PERIOD"] = (
         filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
     )
 
-    # ------------------------------------------------------------------
-    # Process and retrieve final aggregated data
-    # ------------------------------------------------------------------
+    # Aggregate + format
     final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(
         filtered_data
     )
 
-    # ------------------------------------------------------------------
-    # Write the data to Excel (Original → All Time Periods → each period…)
-    # ------------------------------------------------------------------
+    # Write to disk
     write_to_excel(output_file, final_filtered, aggregated_peaks, all_time_aggregated)
 
 
