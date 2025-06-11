@@ -22,6 +22,7 @@ import pandas as pd
 # EXACT-COPY GTFS LOADER  (do not edit)
 # =============================================================================
 
+
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
@@ -112,6 +113,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
     return data
 
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -120,7 +122,7 @@ INPUT_DIR: str = r"Path\To\Your\GTFS\Folder"
 OUTPUT_DIR: str = r"Folder\To\Hold\PerRouteCSVs"  # <- folder, not file
 
 # Optional route filters
-FILTER_IN_ROUTE_SHORT_NAMES: list[str] = []   # e.g. ["306", "50A"]
+FILTER_IN_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["306", "50A"]
 FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["999"]
 
 # =============================================================================
@@ -152,12 +154,16 @@ def compute_most_common_pattern(
     if route_trips.empty:
         return []
 
-    stop_times = stop_times_df[stop_times_df["trip_id"].isin(route_trips["trip_id"])].copy()
+    stop_times = stop_times_df[
+        stop_times_df["trip_id"].isin(route_trips["trip_id"])
+    ].copy()
     if stop_times.empty:
         return []
 
     if not pd.api.types.is_numeric_dtype(stop_times["stop_sequence"]):
-        stop_times["stop_sequence"] = pd.to_numeric(stop_times["stop_sequence"], errors="raise")
+        stop_times["stop_sequence"] = pd.to_numeric(
+            stop_times["stop_sequence"], errors="raise"
+        )
 
     counter: Counter[tuple[str, ...]] = Counter()
     for _, grp in stop_times.groupby("trip_id"):
@@ -289,7 +295,9 @@ def main() -> None:
         logging.error(exc)
         return
 
-    routes = filter_routes(routes, FILTER_IN_ROUTE_SHORT_NAMES, FILTER_OUT_ROUTE_SHORT_NAMES)
+    routes = filter_routes(
+        routes, FILTER_IN_ROUTE_SHORT_NAMES, FILTER_OUT_ROUTE_SHORT_NAMES
+    )
     if routes.empty:
         logging.info("No routes to process after applying filters.")
         return
