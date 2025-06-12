@@ -13,10 +13,11 @@ for use in environments like ArcGIS Pro or Jupyter Notebooks.
 
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
-import logging
+
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font
@@ -78,7 +79,7 @@ COLUMNS_TO_RETAIN: Sequence[str] = (
 # LOGGING
 # -----------------------------------------------------------------------------
 
-logging.basicConfig(           
+logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s: %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
@@ -87,6 +88,7 @@ logging.basicConfig(
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def bin_ridership_value(value: float) -> str:
     """Convert a numeric ridership value into a categorical range.
@@ -152,6 +154,7 @@ def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
     )
     return aggregated
 
+
 def log_missing_stop_ids(
     requested_ids: Sequence[int], present_ids: pd.Series | Sequence[int]
 ) -> None:
@@ -183,6 +186,7 @@ def log_missing_stop_ids(
         )
     else:
         logging.info("All requested STOP_IDs are present in the processed data.")
+
 
 def read_excel_file(input_file: Path) -> pd.DataFrame:
     """Load an Excel workbook into a DataFrame.
@@ -403,6 +407,7 @@ def process_aggregations(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
     """Run the full read → filter → aggregate → write pipeline."""
