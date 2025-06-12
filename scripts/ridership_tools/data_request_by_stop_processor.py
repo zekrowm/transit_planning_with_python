@@ -1,5 +1,4 @@
-"""
-Processes stop-level ridership data from an Excel file.
+"""Processes stop-level ridership data from an Excel file.
 
 Reads an input Excel file (RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX),
 optionally filters by route or stop ID, aggregates boardings and alightings by
