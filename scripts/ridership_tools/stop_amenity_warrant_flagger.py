@@ -20,8 +20,10 @@ outputs or planning reports.
 """
 
 from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
+
 import pandas as pd
 
 # =============================================================================
@@ -51,6 +53,7 @@ AGGREGATE_BY_STOP: bool | str = "auto"
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _standardise_yn(series: pd.Series) -> pd.Series:
     """Normalise a *Y/N* column.
@@ -194,6 +197,7 @@ def _write_workbook(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the full ETL pipeline to flag bus stops for amenity upgrades.
