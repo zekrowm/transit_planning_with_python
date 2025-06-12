@@ -3,13 +3,15 @@ Join Census block- and tract-level tables into a single DataFrame, stripping
 out any columns that retain their cryptic Census codes.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping
+
 import pandas as pd
-from __future__ import annotations
 
 # =============================================================================
 # CONFIGURATION
@@ -17,30 +19,30 @@ from __future__ import annotations
 
 # --- Required block-level Census files (CSV or CSV.GZ format) ---------------
 POP_FILES: list[str] = [
-    r"PATH\TO\BLOCK_POPULATION_FILE.csv",   # e.g., DECENNIALPL2020.P1-Data.csv
+    r"PATH\TO\BLOCK_POPULATION_FILE.csv",  # e.g., DECENNIALPL2020.P1-Data.csv
 ]
 HH_FILES: list[str] = [
-    r"PATH\TO\BLOCK_HOUSEHOLDS_FILE.csv",   # e.g., DECENNIALDHC2020.H9-Data.csv
+    r"PATH\TO\BLOCK_HOUSEHOLDS_FILE.csv",  # e.g., DECENNIALDHC2020.H9-Data.csv
 ]
 JOBS_FILES: list[str] = [
-    r"PATH\TO\BLOCK_JOBS_FILE.csv.gz",      # e.g., dc_wac_S000_JT00_2022.csv.gz
+    r"PATH\TO\BLOCK_JOBS_FILE.csv.gz",  # e.g., dc_wac_S000_JT00_2022.csv.gz
 ]
 
 # --- Optional tract-level inputs ---------------------------------------------
 INCOME_FILES: list[str] = [
-    r"PATH\TO\TRACT_INCOME_FILE.csv",       # e.g., ACSDT5Y2022.B19001-Data.csv
+    r"PATH\TO\TRACT_INCOME_FILE.csv",  # e.g., ACSDT5Y2022.B19001-Data.csv
 ]
 ETHNICITY_FILES: list[str] = [
-    r"PATH\TO\TRACT_ETHNICITY_FILE.csv",    # e.g., DECENNIALDHC2020.P9-Data.csv
+    r"PATH\TO\TRACT_ETHNICITY_FILE.csv",  # e.g., DECENNIALDHC2020.P9-Data.csv
 ]
 LANGUAGE_FILES: list[str] = [
-    r"PATH\TO\TRACT_LANGUAGE_FILE.csv",     # e.g., ACSDT5Y2022.C16001-Data.csv
+    r"PATH\TO\TRACT_LANGUAGE_FILE.csv",  # e.g., ACSDT5Y2022.C16001-Data.csv
 ]
 VEHICLE_FILES: list[str] = [
-    r"PATH\TO\TRACT_VEHICLES_FILE.csv",     # e.g., ACSDT5Y2022.B08201-Data.csv
+    r"PATH\TO\TRACT_VEHICLES_FILE.csv",  # e.g., ACSDT5Y2022.B08201-Data.csv
 ]
 AGE_FILES: list[str] = [
-    r"PATH\TO\TRACT_AGE_FILE.csv",          # e.g., ACSDT5Y2022.B01001-Data.csv
+    r"PATH\TO\TRACT_AGE_FILE.csv",  # e.g., ACSDT5Y2022.B01001-Data.csv
 ]
 
 # -- Optional CSV output (geometry handled elsewhere) --------------------------
@@ -60,6 +62,7 @@ LOGGER = logging.getLogger(__name__)
 GEO_ID_COL = "GEO_ID"
 # Regex to spot un-renamed Census code columns (e.g. B19001_003E, P9_007N, C000)
 _UNFRIENDLY_COL_RE = re.compile(r"^[A-Z]{2,}\d{3,}.*")
+
 
 # =============================================================================
 # FUNCTIONS
@@ -83,6 +86,7 @@ def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame
     numeric_cols = df.select_dtypes(include="number").columns
     df[numeric_cols] = df[numeric_cols].fillna(value)
     return df
+
 
 def _load_and_concat(
     files: Iterable[str],
@@ -137,6 +141,7 @@ def _drop_unfriendly_cols(df: pd.DataFrame) -> pd.DataFrame:
     LOGGER.debug("Dropping %d unfriendly column(s): %s", len(bad_cols), bad_cols)
     return df.drop(columns=bad_cols, errors="ignore")
 
+
 # -----------------------------------------------------------------------------
 # BLOCK-LEVEL BUILD
 # -----------------------------------------------------------------------------
@@ -188,15 +193,25 @@ def _build_block_df(inp: _BlockInputs) -> pd.DataFrame:  # noqa: D401  (keep sam
     df["tract_id_synth"] = df[GEO_ID_COL].str[9:20]
     df["block_id_synth"] = df[GEO_ID_COL].str[9:24]
 
-    _fill_numeric_only(df)                 # 🔄 **replaces previous fillna(0)**
+    _fill_numeric_only(df)  # 🔄 **replaces previous fillna(0)**
     return df
+
+
 # -----------------------------------------------------------------------------
 # TRACT-LEVEL BUILD & DERIVATIONS
 # -----------------------------------------------------------------------------
 def _derive_income(df: pd.DataFrame) -> pd.DataFrame:
     bands = [
-        "sub_10k", "10k_15k", "15k_20k", "20k_25k", "25k_30k",
-        "30k_35k", "35k_40k", "40k_45k", "45k_50k", "50k_60k",
+        "sub_10k",
+        "10k_15k",
+        "15k_20k",
+        "20k_25k",
+        "25k_30k",
+        "30k_35k",
+        "35k_40k",
+        "40k_45k",
+        "45k_50k",
+        "50k_60k",
     ]
     df["low_income"] = df[bands].sum(axis=1)
     df["perc_low_income"] = df["low_income"] / df["total_hh"]
@@ -233,9 +248,18 @@ def _derive_vehicle(df: pd.DataFrame) -> pd.DataFrame:
 def _derive_age(df: pd.DataFrame) -> pd.DataFrame:
     youth = ["m_15_17", "f_15_17", "m_18_19", "f_18_19", "m_20", "f_20", "m_21", "f_21"]
     elderly = [
-        "m_65_66", "f_65_66", "m_67_69", "f_67_69",
-        "m_70_74", "f_70_74", "m_75_79", "f_75_79",
-        "m_80_84", "f_80_84", "m_a_85", "f_a_85",
+        "m_65_66",
+        "f_65_66",
+        "m_67_69",
+        "f_67_69",
+        "m_70_74",
+        "f_70_74",
+        "m_75_79",
+        "f_75_79",
+        "m_80_84",
+        "f_80_84",
+        "m_a_85",
+        "f_a_85",
     ]
     df["all_youth"] = df[[c for c in youth if c in df]].sum(axis=1)
     df["all_elderly"] = df[[c for c in elderly if c in df]].sum(axis=1)
@@ -425,17 +449,18 @@ def build_joined_table(
             left_on="tract_id_synth",
             right_on="tract_id_clean",
             how="outer",
-            suffixes=("_blk", "_trt"),     # clearer than default _x/_y
+            suffixes=("_blk", "_trt"),  # clearer than default _x/_y
         )
 
     if _clean_columns:
         combined = _drop_unfriendly_cols(combined)
 
-    _fill_numeric_only(combined)           # 🔄 **replaces previous fillna(0)**
+    _fill_numeric_only(combined)  # 🔄 **replaces previous fillna(0)**
     return combined
 
 
 __all__ = ["build_joined_table"]
+
 
 # =============================================================================
 # MAIN
