@@ -1,0 +1,53 @@
+name: docstring_check_pydocstyle
+
+on:
+  push:               # run only on changes pushed to main
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read      # no write-back needed; we only lint
+  pull-requests: write
+
+jobs:
+  pydocstyle-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # full history for git diff
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install pydocstyle
+        run: |
+          python -m pip install --upgrade pip
+          pip install "pydocstyle>=6.3.0"   # 6.3+ supports --convention flag
+
+      - name: Determine changed Python files
+        id: changed
+        shell: bash
+        run: |
+          BASE_SHA="${{ github.event.before }}"
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-parse HEAD~1)"
+          fi
+
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- '*.py' | sort -u | tr '\n' ' ')
+          echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Nothing to do
+        if: ${{ steps.changed.outputs.files == '' }}
+        run: echo "No Python files changed – skipping pydocstyle."
+
+      - name: pydocstyle – Google convention (fail on violations)
+        if: ${{ steps.changed.outputs.files != '' }}
+        run: |
+          # --convention=google enforces Google-style docstrings (D400 series et al.)
+          # Exit code is non-zero on the first violation, failing the job.
+          pydocstyle --convention=google ${{ steps.changed.outputs.files }}
