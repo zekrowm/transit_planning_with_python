@@ -16,7 +16,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
-
+import logging
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font
@@ -74,10 +74,19 @@ COLUMNS_TO_RETAIN: Sequence[str] = (
     "ALIGHT_ALL",
 )
 
+# -----------------------------------------------------------------------------
+# LOGGING
+# -----------------------------------------------------------------------------
+
+logging.basicConfig(           
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
 
 def bin_ridership_value(value: float) -> str:
     """Convert a numeric ridership value into a categorical range.
@@ -143,6 +152,37 @@ def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
     )
     return aggregated
 
+def log_missing_stop_ids(
+    requested_ids: Sequence[int], present_ids: pd.Series | Sequence[int]
+) -> None:
+    """Warn when any requested *STOP_ID* is absent from *present_ids*.
+
+    Args:
+        requested_ids: The ``STOP_IDS`` list provided in CONFIGURATION.
+        present_ids:  A 1-D iterable (e.g. ``DataFrame['STOP_ID']``) of IDs that
+            survived the filter chain.
+
+    Raises:
+        TypeError: If *present_ids* cannot be coerced to a set of ``int``.
+    """
+    if not requested_ids:  # nothing requested ⇒ nothing to warn about
+        return
+
+    try:
+        missing: set[int] = set(requested_ids) - {int(x) for x in present_ids}
+    except (ValueError, TypeError) as exc:
+        raise TypeError(
+            "Unable to evaluate present_ids when checking for missing STOP_IDs."
+        ) from exc
+
+    if missing:
+        logging.warning(
+            "The following requested STOP_IDs were not found in the processed "
+            "dataset and therefore will not appear in the output: %s",
+            sorted(missing),
+        )
+    else:
+        logging.info("All requested STOP_IDs are present in the processed data.")
 
 def read_excel_file(input_file: Path) -> pd.DataFrame:
     """Load an Excel workbook into a DataFrame.
@@ -364,7 +404,6 @@ def process_aggregations(
 # MAIN
 # =============================================================================
 
-
 def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
     """Run the full read → filter → aggregate → write pipeline."""
     input_file: Path = INPUT_FILE_PATH
@@ -390,6 +429,9 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
         routes_exclude=ROUTES_EXCLUDE,
     )
 
+    # Log missing optional STOP_IDS
+    log_missing_stop_ids(STOP_IDS, filtered_data["STOP_ID"])
+
     # Standardise TIME_PERIOD values
     filtered_data["TIME_PERIOD"] = (
         filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
@@ -401,7 +443,12 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
     )
 
     # Write to disk
-    write_to_excel(output_file, final_filtered, aggregated_peaks, all_time_aggregated)
+    write_to_excel(
+        output_file,
+        final_filtered,
+        aggregated_peaks,
+        all_time_aggregated,
+    )
 
 
 if __name__ == "__main__":
