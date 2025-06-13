@@ -1,5 +1,4 @@
-"""
-Identifies potential typos in GTFS stop names by comparing them to nearby roadway names.
+"""Identifies potential typos in GTFS stop names by comparing them to nearby roadway names.
 
 Creates a spatial buffer around each GTFS stop, joins to intersecting roadway segments,
 and uses fuzzy string matching to flag stop names that are similar—but not identical—
