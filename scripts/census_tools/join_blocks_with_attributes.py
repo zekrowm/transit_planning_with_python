@@ -73,6 +73,7 @@ def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
     gdf[key] = gdf[key].astype(str)
     return gdf
 
+
 def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
     """Read attribute CSV produced by the tabular script.
 
@@ -99,6 +100,7 @@ def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
                 f"Available columns: {list(df.columns)}"
             )
     return df
+
 
 def join_blocks_to_attributes(
     blocks: GeoDataFrame,
