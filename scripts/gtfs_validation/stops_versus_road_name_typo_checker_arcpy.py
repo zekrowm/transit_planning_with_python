@@ -22,7 +22,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-import arcpy
+import arcpy # type: ignore
 import pandas as pd
 
 # =============================================================================
@@ -380,7 +380,6 @@ def stop_to_candidate_roads(
                 sc[sid].add(normalize_street(full, mods))
     return sc
 
-
 def detect_typos(
     stops_df: pd.DataFrame,
     stop2roads: dict[str, set[str]],
@@ -409,7 +408,8 @@ def detect_typos(
     out_rows = []
 
     for rec in stops_df.itertuples(index=False):
-        sid, sname = rec.stop_id, rec.stop_name
+        # Ensure sid and sname are strings to satisfy the type checker
+        sid, sname = str(rec.stop_id), str(rec.stop_name)
         pieces = split_stop_name(sname, mods)
         candidates = stop2roads.get(sid, universe)
 
@@ -433,17 +433,18 @@ def detect_typos(
                             }
                         )
 
+    if not out_rows:
+        return pd.DataFrame()
+
     return (
         pd.DataFrame(out_rows)
         .sort_values("similarity_score", ascending=False)
         .drop_duplicates()
     )
 
-
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Main script execution function."""
