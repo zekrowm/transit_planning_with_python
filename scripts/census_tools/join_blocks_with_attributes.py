@@ -25,7 +25,8 @@ from pandas import DataFrame
 
 SHAPEFILE_PATH: Final[str] = r"PATH\TO\SHP\va_md_dc_blocks_fips_merge.shp"
 TABLE_CSV_PATH: Final[str] = r"PATH\TO\CSV\joined_blocks.csv"
-OUTPUT_PATH: Final[str] = r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.gpkg"
+OUTPUT_PATH: Final[str] = r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.shp"
+MAX_FIELD_LEN: Final[int] = 10   # Shapefile DBF column-name limit
 
 LEFT_KEY: Final[str] = "GEOID20"  # geometry field carrying the 15-digit ID
 RIGHT_KEY: Final[str] = "GEO_ID"  # CSV field carrying the 15-digit ID
@@ -136,21 +137,56 @@ def join_blocks_to_attributes(
 
 
 def save_output(gdf: GeoDataFrame, out_path: str) -> None:
-    """Write *gdf* to disk, creating parent directories if required.
+    """Write *gdf* to disk, creating parent dirs if needed.
 
-    The output driver is inferred from *out_path*'s file extension:
-
-    * ``.shp`` → ESRI Shapefile
-    * ``.gpkg`` → GeoPackage (recommended)
-    * ``.parquet`` / others → supported by Fiona/OGR
+    If *out_path* ends in “.shp” the driver is forced to
+    “ESRI Shapefile”, column names are truncated to <= 10 characters,
+    and the implicit pandas index is suppressed.
     """
     path = Path(out_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    if out_path.lower().endswith(".shp"):
+        _truncate_field_names(gdf)
+        driver: str | None = "ESRI Shapefile"
+    else:
+        driver = None  # let Fiona infer (GeoPackage, Parquet, etc.)
+
     LOGGER.info("Writing output → %s", path.resolve())
-    gdf.to_file(out_path)
+    gdf.to_file(out_path, driver=driver, index=False)
     LOGGER.info("Finished")
 
+def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> None:
+    """Ensure every attribute name fits the Shapefile 10-char DBF limit.
+
+    Renames are applied **in place**.  When a truncated name collides
+    with one already used, a numeric suffix is appended to make it unique.
+    """
+    renames: dict[str, str] = {}
+    seen: set[str] = set()
+
+    for col in list(gdf.columns):
+        if col == gdf.geometry.name:
+            continue  # geometry column is not stored in the DBF
+        new = col[:max_len]
+        counter = 1
+        while new in seen:
+            new = f"{col[: max_len - len(str(counter))]}{counter}"
+            counter += 1
+        if new != col:
+            renames[col] = new
+            seen.add(new)
+        else:
+            seen.add(col)
+
+    if renames:
+        LOGGER.warning(
+            "Truncated %d column name(s) to %d chars: %s",
+            len(renames),
+            max_len,
+            renames,
+        )
+        gdf.rename(columns=renames, inplace=True)
 
 # -----------------------------------------------------------------------------
 # PRIVATE HELPERS
