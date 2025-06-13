@@ -1,5 +1,5 @@
 pandas==1.5.3            # Data manipulation and analysis
-geopandas==0.13.0        # Geospatial data handling
+geopandas==0.14.0        # Geospatial data handling
 shapely==2.0.1           # Geometric operations
 matplotlib==3.7.1        # Plotting library
 networkx==3.1            # Network analysis
