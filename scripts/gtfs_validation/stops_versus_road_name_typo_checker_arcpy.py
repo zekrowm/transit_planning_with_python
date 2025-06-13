@@ -360,6 +360,8 @@ def road_clean_dict(fc: str, fullname: str, mods: set[str]) -> dict[str, set[str
 
 
 def stop_to_candidate_roads(
+    join_fc: str, fullname: str, mods: set[str]
+) -> dict[str, set[str]]:
     """Maps each stop ID to the set of nearby, normalized road names.
 
     Args:
@@ -371,8 +373,6 @@ def stop_to_candidate_roads(
         A dictionary where keys are 'stop_id's and values are sets of
         normalized names of roads that were spatially joined to that stop.
     """
-    join_fc: str, fullname: str, mods: set[str]
-) -> dict[str, set[str]]:
     sc = defaultdict(set)
     with arcpy.da.SearchCursor(join_fc, ["stop_id", fullname]) as cur:
         for sid, full in cur:
