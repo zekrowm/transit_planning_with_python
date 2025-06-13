@@ -317,8 +317,7 @@ def _validate_row(row: pd.Series) -> dict[str, Any]:
 
 
 def validate_stops(stops_path: Path) -> pd.DataFrame:
-    """
-    Validate every stop in *stops_path* and return the full results DataFrame.
+    """Validate every stop in *stops_path* and return the full results DataFrame.
 
     Raises
     ------
