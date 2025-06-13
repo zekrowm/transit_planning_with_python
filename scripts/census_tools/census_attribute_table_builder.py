@@ -1,6 +1,12 @@
-"""
-Join Census block- and tract-level tables into a single DataFrame, stripping
-out any columns that retain their cryptic Census codes.
+"""Join and clean Census block- and tract-level data for analysis.
+
+This module loads multiple Census CSV files at the block and tract level,
+merges them into a single DataFrame, standardizes key columns, and optionally
+filters by county FIPS codes. Residual raw Census code columns are dropped
+unless explicitly preserved.
+
+Typical usage is from a Jupyter notebook, either within ArcGIS Pro or a
+standalone Python environment, with user-specified file paths.
 """
 
 from __future__ import annotations
