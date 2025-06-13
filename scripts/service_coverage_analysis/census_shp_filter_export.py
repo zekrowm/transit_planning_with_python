@@ -94,8 +94,7 @@ def ensure_fips_field(
     state_candidates: tuple[str, ...] = ("STATEFP20", "STATEFP"),
     county_candidates: tuple[str, ...] = ("COUNTYFP20", "COUNTYFP"),
 ) -> None:
-    """
-    Make sure <fips_field> exists and fill it with 5-digit county FIPS codes.
+    """Make sure <fips_field> exists and fill it with 5-digit county FIPS codes.
 
     *Works even when some blocks have nulls – those FIPS stay NULL.*
     """
