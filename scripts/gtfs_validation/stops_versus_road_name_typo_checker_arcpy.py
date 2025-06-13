@@ -81,8 +81,8 @@ arcpy.env.overwriteOutput = True
 
 
 def create_work_gdb(base_dir: str) -> str:
-    """
-    Create <base_dir>/typo_work_<timestamp>.gdb and return its path.
+    """Create <base_dir>/typo_work_<timestamp>.gdb and return its path.
+    
     Re-use if it already exists in this session.
     """
     Path(base_dir).mkdir(parents=True, exist_ok=True)
@@ -217,8 +217,8 @@ def make_stops_fc(df: pd.DataFrame, out_fc: str, sr: int) -> None:
 
 
 def safe_project_or_copy(in_fc: str, out_fc: str, out_sr: int) -> None:
-    """
-    Project `in_fc` to `out_fc`. If Project fails, fall back to CopyFeatures.
+    """Project `in_fc` to `out_fc`. If Project fails, fall back to CopyFeatures.
+    
     Ensures `out_fc` exists on return.
     """
     if arcpy.Exists(out_fc):
