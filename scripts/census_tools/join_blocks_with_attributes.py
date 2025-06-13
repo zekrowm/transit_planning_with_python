@@ -9,9 +9,11 @@ No further data wrangling is performed here—just a clean spatial join.
 """
 
 from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import Final
+
 import geopandas as gpd
 import pandas as pd
 from geopandas import GeoDataFrame
@@ -21,15 +23,13 @@ from pandas import DataFrame
 # CONFIGURATION
 # =============================================================================
 
-SHAPEFILE_PATH: Final[str] = (
-    r"PATH\TO\ARCPY_OUTPUT\va_md_dc_blocks_fips_merge.shp"
-)
+SHAPEFILE_PATH: Final[str] = r"PATH\TO\ARCPY_OUTPUT\va_md_dc_blocks_fips_merge.shp"
 TABLE_CSV_PATH: Final[str] = r"PATH\TO\CSV\joined_blocks.csv"
 OUTPUT_PATH: Final[str] = r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.gpkg"
 
-LEFT_KEY: Final[str] = "GEOID20"        # geometry field carrying the 15-digit ID
-RIGHT_KEY: Final[str] = "GEO_ID"        # CSV field carrying the 15-digit ID
-FORCE_FLOAT: Final[bool] = True         # cast nullable Int64 → float64
+LEFT_KEY: Final[str] = "GEOID20"  # geometry field carrying the 15-digit ID
+RIGHT_KEY: Final[str] = "GEO_ID"  # CSV field carrying the 15-digit ID
+FORCE_FLOAT: Final[bool] = True  # cast nullable Int64 → float64
 
 # -----------------------------------------------------------------------------
 # LOGGING
@@ -45,6 +45,7 @@ LOGGER: Final[logging.Logger] = logging.getLogger(__name__)
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
     """Read block geometry from *shp_path*.
@@ -150,9 +151,11 @@ def save_output(gdf: GeoDataFrame, out_path: str) -> None:
     gdf.to_file(out_path)
     LOGGER.info("Finished")
 
+
 # -----------------------------------------------------------------------------
 # PRIVATE HELPERS
 # -----------------------------------------------------------------------------
+
 
 def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
     """Convert nullable Int64 columns to float64 in-place for shapefile safety.
@@ -160,9 +163,7 @@ def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
     Shapefile drivers cannot store pandas' nullable integer extension type.
     """
     int_cols: list[str] = [
-        col
-        for col, dtype in gdf.dtypes.items()
-        if pd.api.types.is_integer_dtype(dtype)
+        col for col, dtype in gdf.dtypes.items() if pd.api.types.is_integer_dtype(dtype)
     ]
     if int_cols:
         LOGGER.debug(
@@ -170,9 +171,11 @@ def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
         )
         gdf[int_cols] = gdf[int_cols].astype("float64")
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Script entry point."""
