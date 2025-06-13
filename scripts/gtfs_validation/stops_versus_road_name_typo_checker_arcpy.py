@@ -108,6 +108,18 @@ def fgdb_path(gdb: str, fc_name: str) -> str:
 
 
 def load_gtfs_stops(folder: str) -> pd.DataFrame:
+    """Loads GTFS stops from stops.txt into a pandas DataFrame.
+
+    Args:
+        folder: The path to the folder containing the GTFS `stops.txt` file.
+
+    Returns:
+        A pandas DataFrame with stop data.
+
+    Raises:
+        FileNotFoundError: If `stops.txt` is not found in the specified folder.
+        ValueError: If the `stops.txt` file is missing required columns.
+    """
     path = os.path.join(folder, "stops.txt")
     if not os.path.isfile(path):
         raise FileNotFoundError(f"stops.txt not found in {folder}")
@@ -123,6 +135,18 @@ def load_gtfs_stops(folder: str) -> pd.DataFrame:
 
 
 def normalize_street(name: str, mods: set[str]) -> str:
+    """Cleans and standardizes a street name string.
+
+    Removes modifiers (e.g., 'St', 'Ave'), punctuation, and extra whitespace,
+    and converts the string to lowercase.
+
+    Args:
+        name: The street name to normalize.
+        mods: A set of modifier words (like 'rd', 'st', 'blvd') to remove.
+
+    Returns:
+        The normalized street name string.
+    """
     if not isinstance(name, str):
         return ""
     if mods:
@@ -137,6 +161,18 @@ def normalize_street(name: str, mods: set[str]) -> str:
 
 
 def split_stop_name(stop_name: str, mods: set[str]) -> list[str]:
+    """Splits a GTFS stop name into normalized street name components.
+
+    Uses common intersection separators (e.g., '@', '&', '/') to divide the
+    stop name and then normalizes each resulting part.
+
+    Args:
+        stop_name: The full stop name string.
+        mods: A set of modifier words to be removed during normalization.
+
+    Returns:
+        A list of normalized street name fragments from the stop name.
+    """
     if not isinstance(stop_name, str):
         return []
     seps = [" @ ", " and ", " & ", "/", " intersection of "]
@@ -145,11 +181,26 @@ def split_stop_name(stop_name: str, mods: set[str]) -> list[str]:
 
 
 def dl_score(a: str, b: str) -> float:
+    """Calculates the Damerau-Levenshtein similarity ratio between two strings.
+
+    Args:
+        a: The first string.
+        b: The second string.
+
+    Returns:
+        A similarity score between 0.0 and 100.0.
+    """
     return difflib.SequenceMatcher(None, a, b).ratio() * 100
 
 
 def make_stops_fc(df: pd.DataFrame, out_fc: str, sr: int) -> None:
-    """Create a simple point FC for GTFS stops."""
+    """Creates a point feature class from a DataFrame of GTFS stops.
+
+    Args:
+        df: DataFrame containing stop_id, stop_name, stop_lon, stop_lat.
+        out_fc: The full path for the output feature class.
+        sr: The spatial reference ID (WKID) for the output feature class.
+    """
     if arcpy.Exists(out_fc):
         arcpy.management.Delete(out_fc)
     arcpy.management.CreateFeatureclass(
@@ -192,12 +243,29 @@ def safe_project_or_copy(in_fc: str, out_fc: str, out_sr: int) -> None:
 
 
 def buffer_fc(in_fc: str, out_fc: str, dist: float, unit: str) -> None:
+    """Creates a buffer around features in a feature class.
+
+    Args:
+        in_fc: The input feature class.
+        out_fc: The path for the output buffer feature class.
+        dist: The buffer distance.
+        unit: The units for the buffer distance (e.g., 'feet', 'meters').
+    """
     if arcpy.Exists(out_fc):
         arcpy.management.Delete(out_fc)
     arcpy.analysis.Buffer(in_fc, out_fc, f"{dist} {unit}", dissolve_option="NONE")
 
 
 def spatial_join_fc(target: str, join: str, out_fc: str) -> None:
+    """Performs a one-to-many spatial join.
+
+    Finds all join features that intersect with each target feature.
+
+    Args:
+        target: The target feature class.
+        join: The feature class to join to the target.
+        out_fc: The path for the output joined feature class.
+    """
     if arcpy.Exists(out_fc):
         arcpy.management.Delete(out_fc)
     arcpy.analysis.SpatialJoin(
@@ -210,10 +278,24 @@ def spatial_join_fc(target: str, join: str, out_fc: str) -> None:
 
 
 def field_set(fc: str) -> set[str]:
+    """Gets a set of field names from a feature class or table."""
     return {f.name for f in arcpy.ListFields(fc)}
 
 
 def map_road_fields(fc: str) -> dict[str, str]:
+    """Prompts user to map required roadway fields if they are not found.
+
+    Args:
+        fc: The roadway feature class to check.
+
+    Returns:
+        A dictionary mapping required field names to the actual field names
+        found in the feature class.
+
+    Raises:
+        ValueError: If a user-provided alternative field does not exist, or
+            if a mapping for the 'FULLNAME' field is not provided.
+    """
     exists = field_set(fc)
     mapping: dict[str, str] = {}
     for col in REQUIRED_COLUMNS_ROADWAY:
@@ -235,6 +317,18 @@ def map_road_fields(fc: str) -> dict[str, str]:
 
 
 def modifiers_from_roads(fc: str, fld: str) -> set[str]:
+    """Extracts a set of unique string values from a feature class field.
+
+    Used to build a set of street modifiers (e.g., 'St', 'Rd', 'N') for
+    normalization.
+
+    Args:
+        fc: The feature class to query.
+        fld: The field from which to extract values.
+
+    Returns:
+        A set of unique, lowercase string values from the specified field.
+    """
     mods = set()
     with arcpy.da.SearchCursor(fc, [fld]) as cur:
         for (v,) in cur:
@@ -244,6 +338,17 @@ def modifiers_from_roads(fc: str, fld: str) -> set[str]:
 
 
 def road_clean_dict(fc: str, fullname: str, mods: set[str]) -> dict[str, set[str]]:
+    """Creates a lookup from normalized road names to original names.
+
+    Args:
+        fc: The roadway feature class.
+        fullname: The field containing the full roadway name.
+        mods: A set of modifiers to remove during normalization.
+
+    Returns:
+        A dictionary where keys are normalized road names and values are sets
+        of the original, un-normalized names corresponding to each key.
+    """
     d = defaultdict(set)
     with arcpy.da.SearchCursor(fc, [fullname]) as cur:
         for (full,) in cur:
@@ -255,6 +360,17 @@ def road_clean_dict(fc: str, fullname: str, mods: set[str]) -> dict[str, set[str
 
 
 def stop_to_candidate_roads(
+    """Maps each stop ID to the set of nearby, normalized road names.
+
+    Args:
+        join_fc: The feature class from the stop-to-road spatial join.
+        fullname: The field containing the full roadway name.
+        mods: A set of modifiers to remove during road name normalization.
+
+    Returns:
+        A dictionary where keys are 'stop_id's and values are sets of
+        normalized names of roads that were spatially joined to that stop.
+    """
     join_fc: str, fullname: str, mods: set[str]
 ) -> dict[str, set[str]]:
     sc = defaultdict(set)
@@ -272,6 +388,23 @@ def detect_typos(
     mods: set[str],
     thresh: int,
 ) -> pd.DataFrame:
+    """Compares stop name parts to nearby road names to find likely typos.
+
+    For each stop, it splits the stop name into parts. Each part is then
+    compared against the set of nearby road names for that stop. If a part
+    is very similar (but not identical) to a nearby road name, it's flagged
+    as a potential typo.
+
+    Args:
+        stops_df: DataFrame of all GTFS stops.
+        stop2roads: A mapping from stop_id to a set of nearby normalized road names.
+        road_clean: A mapping from a normalized road name to its original form(s).
+        mods: A set of modifiers to remove during name normalization.
+        thresh: The similarity score (0-100) threshold for flagging a typo.
+
+    Returns:
+        A pandas DataFrame containing details of each potential typo found.
+    """
     universe = set(road_clean.keys())
     out_rows = []
 
@@ -313,6 +446,7 @@ def detect_typos(
 
 
 def main() -> None:
+    """Main script execution function."""
     # workspace
     WORK_GDB = create_work_gdb(OUTPUT_DIR)
 
