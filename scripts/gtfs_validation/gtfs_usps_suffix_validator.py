@@ -13,7 +13,7 @@ Outputs
 from __future__ import annotations
 import logging
 from pathlib import Path
-from typing import Any, Iterable, List, Tuple
+from typing import Any, List, Tuple
 import pandas as pd
 
 # =============================================================================
