@@ -1,5 +1,4 @@
-"""
-Generates a matrix of GTFS transit routes by district coverage.
+"""Generates a matrix of GTFS transit routes by district coverage.
 
 Buffers GTFS stops, intersects them with district polygons, and determines
 which routes serve which districts. Outputs a route-vs-district matrix
