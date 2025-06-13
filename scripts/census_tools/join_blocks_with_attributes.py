@@ -32,6 +32,8 @@ LEFT_KEY: Final[str] = "GEOID20"  # geometry field carrying the 15-digit ID
 RIGHT_KEY: Final[str] = "GEO_ID"  # CSV field carrying the 15-digit ID
 FORCE_FLOAT: Final[bool] = True  # cast nullable Int64 → float64
 
+DERIVATION_SRC: Final[str] = "GEO_ID_blk"  # column that still has the 24-char GEOID
+
 # -----------------------------------------------------------------------------
 # LOGGING
 # -----------------------------------------------------------------------------
@@ -71,29 +73,32 @@ def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
     gdf[key] = gdf[key].astype(str)
     return gdf
 
-
 def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
     """Read attribute CSV produced by the tabular script.
 
-    Args:
-        csv_path: Path to the attribute table.
-        key:      Column expected to hold the block identifier.
-
-    Returns
-    -------
-        DataFrame with *key* coerced to ``str``.
+    If *key* is missing, derive it from *DERIVATION_SRC* by
+    slicing the last 15 characters (standard block FIPS length).
 
     Raises
     ------
     KeyError
-        If *key* is missing from the CSV.
+        If neither *key* nor *DERIVATION_SRC* is present.
     """
     LOGGER.info("Reading attribute table: %s", csv_path)
-    df: DataFrame = pd.read_csv(csv_path, dtype={key: str})
-    if key not in df.columns:
-        raise KeyError(f"'{key}' not found in {csv_path}")
-    return df
+    df: DataFrame = pd.read_csv(csv_path, dtype=str)  # read everything as str
 
+    if key not in df.columns:
+        if DERIVATION_SRC in df.columns:
+            df[key] = df[DERIVATION_SRC].str[-15:]
+            LOGGER.info(
+                "Derived %s from %s by taking last 15 chars", key, DERIVATION_SRC
+            )
+        else:
+            raise KeyError(
+                f"Neither '{key}' nor '{DERIVATION_SRC}' found in {csv_path}. "
+                f"Available columns: {list(df.columns)}"
+            )
+    return df
 
 def join_blocks_to_attributes(
     blocks: GeoDataFrame,
