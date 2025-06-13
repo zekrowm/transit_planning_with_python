@@ -38,11 +38,17 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Runtime libs
+          # Runtime libraries
           pip install -r requirements.txt
-          # Type-checking tools and stub packages you explicitly pin
+          # Type-checking tools and stub packages
           pip install "mypy>=1.8,<2.0" \
-                      types-requests types-PyYAML
+                      types-requests \
+                      types-PyYAML \
+                      pandas-stubs \
+                      types-geopandas \
+                      types-shapely \
+                      types-pyproj
+
 
       # 4️⃣ Determine which .py files changed in this push
       - name: Determine changed Python files
