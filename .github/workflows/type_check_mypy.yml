@@ -47,7 +47,6 @@ jobs:
                       pandas-stubs \
                       types-geopandas \
                       types-shapely \
-                      types-pyproj
 
 
       # 4️⃣ Determine which .py files changed in this push
