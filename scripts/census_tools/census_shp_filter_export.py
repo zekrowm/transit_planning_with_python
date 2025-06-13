@@ -79,6 +79,7 @@ LOGGER = logging.getLogger(__name__)
 # FUNCTIONS
 # =============================================================================
 
+
 def read_shapefile(path: str) -> gpd.GeoDataFrame:
     """Read a single shapefile as a GeoDataFrame.
 
@@ -151,10 +152,9 @@ def ensure_fips_column(
             % (state_candidates, county_candidates)
         )
 
-    gdf[fips_col] = (
-        gdf[state_field].astype(str).str.zfill(2)
-        + gdf[county_field].astype(str).str.zfill(3)
-    )
+    gdf[fips_col] = gdf[state_field].astype(str).str.zfill(2) + gdf[
+        county_field
+    ].astype(str).str.zfill(3)
     LOGGER.info("Populated new column %s", fips_col)
     return gdf
 
@@ -196,6 +196,7 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Top-level workflow controller."""
