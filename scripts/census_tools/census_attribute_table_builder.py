@@ -29,9 +29,11 @@ COUNTY_FIPS_FILTER: list[str] = [
 ]
 
 # --- Required block-level Census files (CSV or CSV.GZ format) ---------------
-POP_FILES: list[str] = [r"PATH\TO\BLOCK_POPULATION_FILE.csv",  # e.g., DECENNIALPL2020.P1-Data.csv
+POP_FILES: list[str] = [
+    r"PATH\TO\BLOCK_POPULATION_FILE.csv",  # e.g., DECENNIALPL2020.P1-Data.csv
 ]
-HH_FILES: list[str] = [r"PATH\TO\BLOCK_HOUSEHOLDS_FILE.csv",  # e.g., DECENNIALDHC2020.H9-Data.csv
+HH_FILES: list[str] = [
+    r"PATH\TO\BLOCK_HOUSEHOLDS_FILE.csv",  # e.g., DECENNIALDHC2020.H9-Data.csv
 ]
 JOBS_FILES: list[str] = [
     r"PATH\TO\BLOCK_JOBS_FILE.csv.gz",  # e.g., dc_wac_S000_JT00_2022.csv.gz
@@ -72,6 +74,7 @@ _UNFRIENDLY_COL_RE = re.compile(r"^[A-Z]{2,}\d{3,}.*")
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame:
     """Replace *only* numeric NaNs with *value*; leave object columns untouched.
@@ -416,9 +419,11 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:  # noqa: D401
     merged["tract_id_clean"] = merged[GEO_ID_COL].str[9:]
     return merged
 
+
 # -----------------------------------------------------------------------------
 # FIPS HELPERS
 # -----------------------------------------------------------------------------
+
 
 def _ensure_fips_column(
     df: pd.DataFrame,
@@ -472,9 +477,11 @@ def _apply_fips_filter(
     wanted = {str(code).zfill(5) for code in fips}
     return df[df[dst_col].isin(wanted)].copy()
 
+
 # -----------------------------------------------------------------------------
 # PUBLIC API
 # -----------------------------------------------------------------------------
+
 
 def build_joined_table(
     *,
@@ -535,11 +542,13 @@ def build_joined_table(
     _fill_numeric_only(combined)
     return combined
 
+
 __all__ = ["build_joined_table"]
 
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Orchestrate join using CONFIGURATION paths and, optionally, write CSV."""
