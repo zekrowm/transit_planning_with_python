@@ -23,7 +23,7 @@ from pandas import DataFrame
 # CONFIGURATION
 # =============================================================================
 
-SHAPEFILE_PATH: Final[str] = r"PATH\TO\ARCPY_OUTPUT\va_md_dc_blocks_fips_merge.shp"
+SHAPEFILE_PATH: Final[str] = r"PATH\TO\SHP\va_md_dc_blocks_fips_merge.shp"
 TABLE_CSV_PATH: Final[str] = r"PATH\TO\CSV\joined_blocks.csv"
 OUTPUT_PATH: Final[str] = r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.gpkg"
 
