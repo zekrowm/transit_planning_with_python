@@ -11,20 +11,22 @@ Outputs
 """
 
 from __future__ import annotations
+
 import logging
 from pathlib import Path
 from typing import Any, List, Tuple
+
 import pandas as pd
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FOLDER = Path(r"C:\Path\To\GTFS")        # Folder containing stops.txt
-OUTPUT_FOLDER = Path(r"C:\Path\To\Output")     # Where CSVs will be written
+INPUT_FOLDER = Path(r"C:\Path\To\GTFS")  # Folder containing stops.txt
+OUTPUT_FOLDER = Path(r"C:\Path\To\Output")  # Where CSVs will be written
 ERROR_CSV_NAME = "stop_name_suffix_errors.csv"  # Failed rows
-ALL_CSV_NAME = "all_stops_validation.csv"       # Full results
-LOG_LEVEL = logging.INFO                        # DEBUG for verbose output
+ALL_CSV_NAME = "all_stops_validation.csv"  # Full results
+LOG_LEVEL = logging.INFO  # DEBUG for verbose output
 
 # -----------------------------------------------------------------------------
 # CONSTANTS
@@ -51,26 +53,208 @@ EXEMPT_WORDS: Tuple[str, ...] = (
 
 USPS_ABBREVIATIONS: Tuple[str, ...] = (
     # Full official list — keep alphabetized for readability
-    "ALY", "ANX", "ARC", "AVE", "BYU", "BCH", "BND", "BLF", "BLFS", "BTM", "BLVD",
-    "BR", "BRG", "BRK", "BRKS", "BG", "BGS", "BYP", "CP", "CYN", "CPE", "CSWY",
-    "CTR", "CTRS", "CIR", "CIRS", "CLF", "CLFS", "CLB", "CMN", "CMNS", "COR",
-    "CORS", "CRSE", "CT", "CTS", "CV", "CVS", "CRK", "CRES", "CRST", "XING",
-    "XRD", "XRDS", "CURV", "DL", "DM", "DV", "DR", "DRS", "EST", "ESTS", "EXPY",
-    "EXT", "EXTS", "FALL", "FLS", "FRY", "FLD", "FLDS", "FLT", "FLTS", "FRD",
-    "FRDS", "FRST", "FRG", "FRGS", "FRK", "FRKS", "FT", "FWY", "GDN", "GDNS",
-    "GTWY", "GLN", "GLNS", "GRN", "GRNS", "GRV", "GRVS", "HBR", "HBRS", "HVN",
-    "HTS", "HWY", "HL", "HLS", "HOLW", "INLT", "IS", "ISS", "ISLE", "JCT",
-    "JCTS", "KY", "KYS", "KNL", "KNLS", "LK", "LKS", "LAND", "LNDG", "LN",
-    "LGT", "LGTS", "LF", "LCK", "LCKS", "LDG", "LOOP", "MALL", "MNR", "MNRS",
-    "MDW", "MDWS", "MEWS", "ML", "MLS", "MSN", "MTWY", "MT", "MTN", "MTNS",
-    "NCK", "ORCH", "OVAL", "OPAS", "PARK", "PKWY", "PASS", "PSGE", "PATH",
-    "PIKE", "PNE", "PNES", "PL", "PLN", "PLNS", "PLZ", "PT", "PTS", "PRT",
-    "PRTS", "PR", "RADL", "RAMP", "RNCH", "RPD", "RPDS", "RST", "RDG", "RDGS",
-    "RIV", "RD", "RDS", "RTE", "ROW", "RUE", "RUN", "SHL", "SHLS", "SHR",
-    "SHRS", "SKWY", "SPG", "SPGS", "SPUR", "SQ", "SQS", "STA", "STRA", "STRM",
-    "ST", "STS", "SMT", "TER", "TRWY", "TRCE", "TRAK", "TRFY", "TRL", "TRLR",
-    "TUNL", "TPKE", "UPAS", "UN", "UNS", "VLY", "VLYS", "VIA", "VW", "VWS",
-    "VLG", "VLGS", "VL", "VIS", "WALK", "WALL", "WAY", "WAYS", "WL", "WLS",
+    "ALY",
+    "ANX",
+    "ARC",
+    "AVE",
+    "BYU",
+    "BCH",
+    "BND",
+    "BLF",
+    "BLFS",
+    "BTM",
+    "BLVD",
+    "BR",
+    "BRG",
+    "BRK",
+    "BRKS",
+    "BG",
+    "BGS",
+    "BYP",
+    "CP",
+    "CYN",
+    "CPE",
+    "CSWY",
+    "CTR",
+    "CTRS",
+    "CIR",
+    "CIRS",
+    "CLF",
+    "CLFS",
+    "CLB",
+    "CMN",
+    "CMNS",
+    "COR",
+    "CORS",
+    "CRSE",
+    "CT",
+    "CTS",
+    "CV",
+    "CVS",
+    "CRK",
+    "CRES",
+    "CRST",
+    "XING",
+    "XRD",
+    "XRDS",
+    "CURV",
+    "DL",
+    "DM",
+    "DV",
+    "DR",
+    "DRS",
+    "EST",
+    "ESTS",
+    "EXPY",
+    "EXT",
+    "EXTS",
+    "FALL",
+    "FLS",
+    "FRY",
+    "FLD",
+    "FLDS",
+    "FLT",
+    "FLTS",
+    "FRD",
+    "FRDS",
+    "FRST",
+    "FRG",
+    "FRGS",
+    "FRK",
+    "FRKS",
+    "FT",
+    "FWY",
+    "GDN",
+    "GDNS",
+    "GTWY",
+    "GLN",
+    "GLNS",
+    "GRN",
+    "GRNS",
+    "GRV",
+    "GRVS",
+    "HBR",
+    "HBRS",
+    "HVN",
+    "HTS",
+    "HWY",
+    "HL",
+    "HLS",
+    "HOLW",
+    "INLT",
+    "IS",
+    "ISS",
+    "ISLE",
+    "JCT",
+    "JCTS",
+    "KY",
+    "KYS",
+    "KNL",
+    "KNLS",
+    "LK",
+    "LKS",
+    "LAND",
+    "LNDG",
+    "LN",
+    "LGT",
+    "LGTS",
+    "LF",
+    "LCK",
+    "LCKS",
+    "LDG",
+    "LOOP",
+    "MALL",
+    "MNR",
+    "MNRS",
+    "MDW",
+    "MDWS",
+    "MEWS",
+    "ML",
+    "MLS",
+    "MSN",
+    "MTWY",
+    "MT",
+    "MTN",
+    "MTNS",
+    "NCK",
+    "ORCH",
+    "OVAL",
+    "OPAS",
+    "PARK",
+    "PKWY",
+    "PASS",
+    "PSGE",
+    "PATH",
+    "PIKE",
+    "PNE",
+    "PNES",
+    "PL",
+    "PLN",
+    "PLNS",
+    "PLZ",
+    "PT",
+    "PTS",
+    "PRT",
+    "PRTS",
+    "PR",
+    "RADL",
+    "RAMP",
+    "RNCH",
+    "RPD",
+    "RPDS",
+    "RST",
+    "RDG",
+    "RDGS",
+    "RIV",
+    "RD",
+    "RDS",
+    "RTE",
+    "ROW",
+    "RUE",
+    "RUN",
+    "SHL",
+    "SHLS",
+    "SHR",
+    "SHRS",
+    "SKWY",
+    "SPG",
+    "SPGS",
+    "SPUR",
+    "SQ",
+    "SQS",
+    "STA",
+    "STRA",
+    "STRM",
+    "ST",
+    "STS",
+    "SMT",
+    "TER",
+    "TRWY",
+    "TRCE",
+    "TRAK",
+    "TRFY",
+    "TRL",
+    "TRLR",
+    "TUNL",
+    "TPKE",
+    "UPAS",
+    "UN",
+    "UNS",
+    "VLY",
+    "VLYS",
+    "VIA",
+    "VW",
+    "VWS",
+    "VLG",
+    "VLGS",
+    "VL",
+    "VIS",
+    "WALK",
+    "WALL",
+    "WAY",
+    "WAYS",
+    "WL",
+    "WLS",
 )
 
 # Pre-computed sets for constant-time look-ups
@@ -81,6 +265,7 @@ VALID_SHORT_WORDS_SET = USPS_ABBREVIATIONS_SET | EXEMPT_WORDS_SET
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _check_usps_suffix(stop_name: str) -> tuple[bool, str | None]:
     """Return ``False`` and a message if the last token isn’t a valid USPS suffix."""
@@ -125,9 +310,11 @@ def _validate_row(row: pd.Series) -> dict[str, Any]:
         "has_errors": bool(errors),
     }
 
+
 # -----------------------------------------------------------------------------
 # WORKFLOW FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def validate_stops(stops_path: Path) -> pd.DataFrame:
     """
@@ -180,9 +367,11 @@ def write_outputs(results: pd.DataFrame) -> None:
         (errors.shape[0] / results.shape[0] * 100) if results.shape[0] else 0.0,
     )
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the GTFS stop-name validation using the CONFIGURATION constants."""
@@ -193,6 +382,7 @@ def main() -> None:
     stops_file = INPUT_FOLDER / "stops.txt"
     results = validate_stops(stops_file)
     write_outputs(results)
+
 
 if __name__ == "__main__":  # pragma: no cover
     main()
