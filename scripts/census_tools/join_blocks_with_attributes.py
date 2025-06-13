@@ -13,7 +13,6 @@ import logging
 from pathlib import Path
 from typing import Final
 import geopandas as gpd
-import pandas as pd
 from geopandas import GeoDataFrame
 from pandas import DataFrame, Series
 
