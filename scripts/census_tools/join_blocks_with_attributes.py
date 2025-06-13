@@ -2,8 +2,8 @@
 
 This module assumes you already have:
 
-* a merged / FIPS-filtered TIGER `TABBLOCK20` geometry; and
-* a fully joined block + tract attribute CSV.
+    1. a merged / FIPS-filtered TIGER `TABBLOCK20` geometry; and
+    2. a fully joined block + tract attribute CSV.
 
 No further data wrangling is performed here—just a clean spatial join.
 """
