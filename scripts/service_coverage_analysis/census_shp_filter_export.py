@@ -5,7 +5,7 @@ The script:
 1.  Loads a list of TIGER Census Block, Block Group, Tract (and other) shapefiles.
 2.  Merges them to a single temporary feature class.
 3.  If a FIPS list is provided:
-      - Adds a new 'FIPS' text field (STATEFP20 + COUNTYFP20).  
+      - Adds a new 'FIPS' text field (STATEFP20 + COUNTYFP20).
       - Selects only the requested municipalities.
 4.  Writes the final geometry (plus all original attributes) to the
    user-specified output feature class or shapefile.
@@ -15,10 +15,12 @@ is available.
 """
 
 from __future__ import annotations
+
 import logging
 import os
 import sys
 from typing import List, Sequence
+
 import arcpy
 
 # =============================================================================
@@ -36,15 +38,21 @@ BLOCK_SHP_FILES: List[str] = [
 # FIPS codes include 2-digit state code, 3-digit county/city/other local code
 FIPS_TO_FILTER: List[str] = [
     "11001",
-    "24031", "24033",
-    "51683", "51685", "51059", "51013", "51510",
-    "51600", "51610", "51107", "51153",
+    "24031",
+    "24033",
+    "51683",
+    "51685",
+    "51059",
+    "51013",
+    "51510",
+    "51600",
+    "51610",
+    "51107",
+    "51153",
 ]
 
 # Shapefile (*.shp) or feature class inside a file geodatabase
-OUTPUT_PATH: str = (
-    r"Path\To\Your\Output_Folder\va_md_dc_blocks_fips_merge.shp"
-)
+OUTPUT_PATH: str = r"Path\To\Your\Output_Folder\va_md_dc_blocks_fips_merge.shp"
 
 # -----------------------------------------------------------------------------
 # LOGGING
@@ -62,6 +70,7 @@ arcpy.SetLogHistory(False)  # Prevent clutter in the project history
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def merge_shapefiles(shp_paths: Sequence[str], out_fc: str) -> str:
     """Merge multiple shapefiles into a single feature class.
@@ -91,8 +100,14 @@ def ensure_fips_field(
     *Works even when some blocks have nulls – those FIPS stay NULL.*
     """
     fld_lookup = {f.name.upper(): f.name for f in arcpy.ListFields(fc)}
-    state = next((fld_lookup[c.upper()] for c in state_candidates if c.upper() in fld_lookup), None)
-    county = next((fld_lookup[c.upper()] for c in county_candidates if c.upper() in fld_lookup), None)
+    state = next(
+        (fld_lookup[c.upper()] for c in state_candidates if c.upper() in fld_lookup),
+        None,
+    )
+    county = next(
+        (fld_lookup[c.upper()] for c in county_candidates if c.upper() in fld_lookup),
+        None,
+    )
 
     if not state or not county:
         raise RuntimeError("STATE / COUNTY fields not found. Check your shapefiles.")
@@ -107,6 +122,7 @@ def ensure_fips_field(
             st, co = row[0], row[1]
             row[2] = f"{str(st).zfill(2)}{str(co).zfill(3)}" if st and co else None
             cur.updateRow(row)
+
 
 def filter_by_fips(
     in_fc: str,
@@ -132,9 +148,11 @@ def filter_by_fips(
     arcpy.management.Delete(lyr)
     return out_fc
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Script entry point."""
