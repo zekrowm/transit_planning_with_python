@@ -21,7 +21,7 @@ import os
 import sys
 from typing import List, Sequence
 
-import arcpy
+import arcpy # type: ignore
 
 # =============================================================================
 # CONFIGURATION
