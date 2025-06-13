@@ -101,6 +101,7 @@ def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
             )
     return df
 
+
 def join_blocks_to_attributes(
     blocks: GeoDataFrame,
     attrs: DataFrame,
@@ -140,6 +141,7 @@ def join_blocks_to_attributes(
         _cast_int64_to_float(merged)
 
     return merged
+
 
 def save_output(gdf: GeoDataFrame, out_path: str) -> None:
     """Write *gdf* to disk, creating parent dirs if needed.
