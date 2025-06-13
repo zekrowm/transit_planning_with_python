@@ -17,12 +17,21 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-# --- Required block-level Census files (CSV or CSV.GZ format) ---------------
-POP_FILES: list[str] = [
-    r"PATH\TO\BLOCK_POPULATION_FILE.csv",  # e.g., DECENNIALPL2020.P1-Data.csv
+# CSV output file path
+CSV_OUTPUT_PATH: str | None = r"PATH\TO\OUTPUT\joined_blocks.csv"
+
+# Optional county FIPS filter
+# Provide 5-digit state+county codes, e.g. ["11001", "51059"].
+# Leave empty ([]) to disable filtering.
+COUNTY_FIPS_FILTER: list[str] = [
+    # "11001",
+    # "51059",
 ]
-HH_FILES: list[str] = [
-    r"PATH\TO\BLOCK_HOUSEHOLDS_FILE.csv",  # e.g., DECENNIALDHC2020.H9-Data.csv
+
+# --- Required block-level Census files (CSV or CSV.GZ format) ---------------
+POP_FILES: list[str] = [r"PATH\TO\BLOCK_POPULATION_FILE.csv",  # e.g., DECENNIALPL2020.P1-Data.csv
+]
+HH_FILES: list[str] = [r"PATH\TO\BLOCK_HOUSEHOLDS_FILE.csv",  # e.g., DECENNIALDHC2020.H9-Data.csv
 ]
 JOBS_FILES: list[str] = [
     r"PATH\TO\BLOCK_JOBS_FILE.csv.gz",  # e.g., dc_wac_S000_JT00_2022.csv.gz
@@ -45,9 +54,6 @@ AGE_FILES: list[str] = [
     r"PATH\TO\TRACT_AGE_FILE.csv",  # e.g., ACSDT5Y2022.B01001-Data.csv
 ]
 
-# -- Optional CSV output (geometry handled elsewhere) --------------------------
-CSV_OUTPUT_PATH: str | None = r"PATH\TO\OUTPUT\joined_blocks.csv"
-
 # -----------------------------------------------------------------------------
 # LOGGING
 # -----------------------------------------------------------------------------
@@ -63,10 +69,10 @@ GEO_ID_COL = "GEO_ID"
 # Regex to spot un-renamed Census code columns (e.g. B19001_003E, P9_007N, C000)
 _UNFRIENDLY_COL_RE = re.compile(r"^[A-Z]{2,}\d{3,}.*")
 
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame:
     """Replace *only* numeric NaNs with *value*; leave object columns untouched.
 
@@ -410,10 +416,66 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:  # noqa: D401
     merged["tract_id_clean"] = merged[GEO_ID_COL].str[9:]
     return merged
 
+# -----------------------------------------------------------------------------
+# FIPS HELPERS
+# -----------------------------------------------------------------------------
+
+def _ensure_fips_column(
+    df: pd.DataFrame,
+    *,
+    dst: str = "FIPS",
+    geo_candidates: tuple[str, ...] = ("GEO_ID", "GEO_ID_blk", "GEO_ID_trt"),
+    start: int = 9,
+    end: int = 14,
+) -> None:
+    """Create a 5-digit county FIPS column *in-place*, selecting the first GEO_ID.
+
+    Args:
+        df: DataFrame to mutate.
+        dst: Destination column name for the extracted FIPS code.
+        geo_candidates: Ordered candidate source columns containing GEO_ID-style
+            strings. The first match present in *df* is used.
+        start: Start index (inclusive) of the FIPS slice within the GEO_ID.
+        end: End index (exclusive) of the FIPS slice within the GEO_ID.
+
+    Raises:
+        KeyError: If none of *geo_candidates* are found in *df*.
+    """
+    if dst in df.columns:
+        return
+    source = next((c for c in geo_candidates if c in df.columns), None)
+    if not source:
+        raise KeyError(f"No GEO_ID column found among {geo_candidates}")
+    df[dst] = df[source].astype(str).str[start:end]
+
+
+def _apply_fips_filter(
+    df: pd.DataFrame,
+    *,
+    fips: Iterable[str] | None = None,
+    dst_col: str = "FIPS",
+) -> pd.DataFrame:
+    """Return a copy of *df* filtered to the requested county FIPS list.
+
+    Args:
+        df: Input DataFrame.
+        fips: Iterable of 5-digit county FIPS codes. If ``None`` or empty,
+            the function is a no-op and returns *df* unchanged.
+        dst_col: Column containing the county FIPS code (created if missing).
+
+    Returns:
+        Filtered DataFrame (new copy) or the original *df* if *fips* is empty.
+    """
+    if not fips:
+        return df
+    _ensure_fips_column(df, dst=dst_col)
+    wanted = {str(code).zfill(5) for code in fips}
+    return df[df[dst_col].isin(wanted)].copy()
 
 # -----------------------------------------------------------------------------
 # PUBLIC API
 # -----------------------------------------------------------------------------
+
 def build_joined_table(
     *,
     pop_files: list[str],
@@ -424,11 +486,23 @@ def build_joined_table(
     language_files: list[str] | None = None,
     vehicle_files: list[str] | None = None,
     age_files: list[str] | None = None,
+    county_fips_filter: Iterable[str] | None = None,
     _clean_columns: bool = True,
 ) -> pd.DataFrame:
-    """Return a fully-joined **block + tract** DataFrame with derived ratios.
+    """Return a fully-joined **block + tract** DataFrame with optional FIPS filter.
 
-    Set ``_clean_columns=False`` to keep all raw Census-style code columns.
+    Args:
+        pop_files, hh_files, jobs_files: Block-level Census file paths.
+        income_files, ethnicity_files, language_files, vehicle_files, age_files:
+            Optional lists of tract-level file paths.
+        county_fips_filter: Optional iterable of 5-digit county FIPS codes to
+            retain in the final output.
+        _clean_columns: If ``True`` (default) drop any residual Census code
+            columns that were not renamed.
+
+    Returns:
+        A DataFrame containing the merged block and tract records, cleaned,
+        NaNs filled in numeric columns, and (optionally) filtered by county.
     """
     block_df = _build_block_df(_BlockInputs(pop_files, hh_files, jobs_files))
     tract_df = _build_tract_df(
@@ -441,6 +515,7 @@ def build_joined_table(
         )
     )
 
+    # ----- Merge block ↔ tract ---------------------------------------------
     if tract_df.empty:
         combined = block_df
     else:
@@ -449,22 +524,23 @@ def build_joined_table(
             left_on="tract_id_synth",
             right_on="tract_id_clean",
             how="outer",
-            suffixes=("_blk", "_trt"),  # clearer than default _x/_y
+            suffixes=("_blk", "_trt"),
         )
 
+    # ----- Column cleanup + FIPS filter -------------------------------------
     if _clean_columns:
         combined = _drop_unfriendly_cols(combined)
 
-    _fill_numeric_only(combined)  # 🔄 **replaces previous fillna(0)**
+    combined = _apply_fips_filter(combined, fips=county_fips_filter)
+    _fill_numeric_only(combined)
     return combined
 
-
 __all__ = ["build_joined_table"]
-
 
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main() -> None:
     """Orchestrate join using CONFIGURATION paths and, optionally, write CSV."""
     LOGGER.info("Building joined table from configured paths …")
@@ -478,6 +554,7 @@ def main() -> None:
         language_files=LANGUAGE_FILES,
         vehicle_files=VEHICLE_FILES,
         age_files=AGE_FILES,
+        county_fips_filter=COUNTY_FIPS_FILTER,
     )
     LOGGER.info("Created DataFrame with shape %s", df_joined.shape)
 
