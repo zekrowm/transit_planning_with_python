@@ -26,7 +26,7 @@ from pandas import DataFrame
 SHAPEFILE_PATH: Final[str] = r"PATH\TO\SHP\va_md_dc_blocks_fips_merge.shp"
 TABLE_CSV_PATH: Final[str] = r"PATH\TO\CSV\joined_blocks.csv"
 OUTPUT_PATH: Final[str] = r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.shp"
-MAX_FIELD_LEN: Final[int] = 10   # Shapefile DBF column-name limit
+MAX_FIELD_LEN: Final[int] = 10  # Shapefile DBF column-name limit
 
 LEFT_KEY: Final[str] = "GEOID20"  # geometry field carrying the 15-digit ID
 RIGHT_KEY: Final[str] = "GEO_ID"  # CSV field carrying the 15-digit ID
@@ -156,6 +156,7 @@ def save_output(gdf: GeoDataFrame, out_path: str) -> None:
     gdf.to_file(out_path, driver=driver, index=False)
     LOGGER.info("Finished")
 
+
 def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> None:
     """Ensure every attribute name fits the Shapefile 10-char DBF limit.
 
@@ -187,6 +188,7 @@ def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> No
             renames,
         )
         gdf.rename(columns=renames, inplace=True)
+
 
 # -----------------------------------------------------------------------------
 # PRIVATE HELPERS
