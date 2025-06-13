@@ -10,11 +10,13 @@ standalone Python environment, with user-specified file paths.
 """
 
 from __future__ import annotations
+
 import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, Sequence, Literal
+from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
+
 import numpy as np
 import pandas as pd
 
@@ -101,6 +103,7 @@ def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame
     df[numeric_cols] = df[numeric_cols].fillna(value)
     return df
 
+
 def _load_and_concat(
     files: Sequence[str],
     *,
@@ -153,6 +156,7 @@ def _load_and_concat(
     out = pd.concat(frames, ignore_index=True)
     LOGGER.debug("Loaded %d rows from %d file(s) [%s]", len(out), len(frames), files)
     return out
+
 
 def _merge_on_geo_id(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
     """Outer-merge two frames on GEO_ID, discarding duplicate label columns."""
