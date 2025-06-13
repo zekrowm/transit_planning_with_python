@@ -102,21 +102,33 @@ def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame
     df[numeric_cols] = df[numeric_cols].fillna(value)
     return df
 
-
 def _load_and_concat(
-    files: Iterable[str],
+    files: Sequence[str],
     *,
-    skiprows: Iterable[int] | None = None,
-    dtype: Mapping[str, str] | None = None,
-    usecols: Iterable[str] | None = None,
+    skiprows: int | Sequence[int] | Callable[[int], bool] | None = None,
+    dtype: Mapping[str, np.dtype[Any] | str] | None = None,
+    usecols: Sequence[str] | None = None,
     rename: Mapping[str, str] | None = None,
-    compression: str | None = None,
+    compression: Literal["infer", "gzip", "bz2", "zip", "xz", "zstd"] | None = None,
 ) -> pd.DataFrame:
-    """Read many CSV/CSV-GZ files and return a concatenated DataFrame.
+    """Read multiple CSV/CSV-GZ files and return a concatenated DataFrame.
 
-    Only renamed / explicitly selected columns are kept, reducing noise early.
+    Only explicitly selected or renamed columns are retained to minimise memory
+    use and noise upstream.
+
+    Args:
+        files: Paths to CSV or CSV-GZ files.
+        skiprows: Rows to skip (single int, sequence of ints, or predicate).
+        dtype: Column-specific dtype overrides compatible with ``pandas.read_csv``.
+        usecols: Columns to load (sequence, not a bare string).
+        rename: Optional mapping of original → new column names.
+        compression: Explicit compression hint; set to ``None`` for auto.
+
+    Returns:
+        Concatenated ``pandas.DataFrame`` containing all records from *files*.
     """
     frames: list[pd.DataFrame] = []
+
     for path in files:
         df = pd.read_csv(
             path,
@@ -125,18 +137,23 @@ def _load_and_concat(
             usecols=usecols,
             compression=compression,
         )
+
         if rename:
             df.rename(columns=rename, inplace=True)
-        if usecols is None and rename:
-            # Keep just identifiers + renamed columns to avoid bloat.
-            keep = {GEO_ID_COL, "NAME", *rename.values()}
-            df = df.loc[:, df.columns.intersection(keep)]
+
+            # If we loaded *all* columns, drop those we didn't rename
+            if usecols is None:
+                keep = {GEO_ID_COL, "NAME", *rename.values()}
+                df = df.loc[:, df.columns.intersection(keep)]
+
         frames.append(df)
 
-    out = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if not frames:  # no input files
+        return pd.DataFrame()
+
+    out = pd.concat(frames, ignore_index=True)
     LOGGER.debug("Loaded %d rows from %d file(s) [%s]", len(out), len(frames), files)
     return out
-
 
 def _merge_on_geo_id(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
     """Outer-merge two frames on GEO_ID, discarding duplicate label columns."""
