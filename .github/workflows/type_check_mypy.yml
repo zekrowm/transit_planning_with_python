@@ -1,29 +1,31 @@
+# .github/workflows/type_check_mypy.yml
 name: type_check_mypy
 
 on:
-  push:               # type-check only what changed on pushes to main
-    branches: ["main"]
-  workflow_dispatch:  # allow manual runs
+  push:
+    branches: [main]          # run on pushes to main
+  workflow_dispatch:          # allow manual runs
 
 permissions:
-  contents: read      # mypy never writes – read-only is enough
+  contents: read              # mypy never writes – read-only is enough
 
 jobs:
   mypy:
     runs-on: ubuntu-latest
 
     steps:
-      # 0️⃣  Fetch source with full history so we can diff
+      # 0️⃣  Fetch source with full history so we can diff changed files
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 1️⃣  Set up Python (match project’s runtime)
+      # 1️⃣  Set up Python (match project’s runtime) and enable built-in pip cache
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          cache: "pip"
 
-      # 2️⃣  Cache mypy’s incremental state for repeat runs
+      # 2️⃣  Restore mypy’s incremental cache
       - name: Restore mypy cache
         uses: actions/cache@v4
         with:
@@ -32,15 +34,20 @@ jobs:
             mypy-${{ runner.os }}-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
           restore-keys: mypy-${{ runner.os }}-
 
-      # 3️⃣  Install mypy and any stub packages you pin
-      - name: Install mypy
+      # 3️⃣  Install project plus dev/typing extras
+      #     • If you use requirements files, replace with
+      #       `pip install -r requirements.txt -r requirements-dev.txt`
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Pin to the major series you use in local dev
-          pip install "mypy>=1.8,<2.0" \
-                      types-requests types-PyYAML
+          pip install .[dev,typing]
 
-      # 4️⃣  Determine which .py files changed in this push
+      # 4️⃣  Ensure missing third-party stubs don’t break the run
+      - name: Auto-install missing stub packages
+        run: |
+          mypy --install-types --non-interactive -q
+
+      # 5️⃣  Determine which .py files changed in this push
       - name: Determine changed Python files
         id: changed
         shell: bash
@@ -54,18 +61,15 @@ jobs:
                           | sort -u | tr '\n' ' ')
           echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
 
-      # 5️⃣  Short-circuit if nothing relevant changed
+      # 6️⃣  Short-circuit if nothing relevant changed
       - name: Nothing to type-check
         if: ${{ steps.changed.outputs.files == '' }}
         run: echo "No Python files changed – skipping mypy."
 
-      # 6️⃣  Run mypy only on the changed paths
+      # 7️⃣  Run mypy only on the changed paths
       - name: Run mypy (incremental, changed files only)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
-          # --pretty gives denser CLI output; adjust flags to taste
-          # --install-types keeps runs green when new third-party stubs are missing
-          mypy --pretty --install-types --non-interactive \
-               ${{ steps.changed.outputs.files }}
+          mypy --pretty ${{ steps.changed.outputs.files }}
 
-      # 7️⃣  Persist the updated cache (automatic with actions/cache)
+      # 8️⃣  Persist the updated .mypy_cache automatically via actions/cache
