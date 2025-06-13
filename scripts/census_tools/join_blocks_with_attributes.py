@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 
 import geopandas as gpd
 import pandas as pd
@@ -101,22 +101,21 @@ def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
             )
     return df
 
-
 def join_blocks_to_attributes(
     blocks: GeoDataFrame,
     attrs: DataFrame,
     left_key: str = LEFT_KEY,
     right_key: str = RIGHT_KEY,
-    how: str = "left",
+    how: Literal["left", "right", "outer", "inner", "cross"] = "left",
 ) -> GeoDataFrame:
     """Merge *attrs* onto *blocks* on the specified keys.
 
     Args:
-        blocks:   Geometry-bearing GeoDataFrame.
-        attrs:    Attribute DataFrame.
-        left_key: Join field in *blocks*.
+        blocks:    Geometry-bearing GeoDataFrame.
+        attrs:     Attribute DataFrame.
+        left_key:  Join field in *blocks*.
         right_key: Join field in *attrs*.
-        how:      Pandas merge strategy (default ``"left"``).
+        how:       Pandas merge strategy.
 
     Returns
     -------
@@ -125,7 +124,7 @@ def join_blocks_to_attributes(
     Raises
     ------
     ValueError
-        If duplicates in either key violate a 1:1 expectation.
+        If duplicates in either key violate a 1 : 1 expectation.
     """
     LOGGER.info("Merging geometry (%d) with table (%d)…", len(blocks), len(attrs))
     merged: GeoDataFrame = blocks.merge(
@@ -141,7 +140,6 @@ def join_blocks_to_attributes(
         _cast_int64_to_float(merged)
 
     return merged
-
 
 def save_output(gdf: GeoDataFrame, out_path: str) -> None:
     """Write *gdf* to disk, creating parent dirs if needed.
