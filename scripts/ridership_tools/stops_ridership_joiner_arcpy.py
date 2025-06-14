@@ -188,6 +188,7 @@ def merge_ridership_and_csv(df_excel, fields_to_export):
     """Merge ridership data (df_excel) with the CSV from the spatial join.
 
     Raises error if no polygon layer was provided and CSV does not exist.
+    
     Returns:
       - df_joined: merged DataFrame
       - key_field: which field was used as the merge key (GTFS_KEY_FIELD or SHAPE_KEY_FIELD)
