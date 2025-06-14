@@ -133,7 +133,7 @@ def _build_stops_gdf(
     routes: pd.DataFrame,
     crs: str,
 ) -> gpd.GeoDataFrame:
-    """    Return GeoDataFrame of **served** stops with list fields for routes/directions."""
+    """Return GeoDataFrame of **served** stops with list fields for routes/directions."""
     served = stop_times.loc[stop_times["trip_id"].isin(trips["trip_id"])]
     stops = stops.loc[stops["stop_id"].isin(served["stop_id"])].copy()
 
