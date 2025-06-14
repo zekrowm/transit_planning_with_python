@@ -107,37 +107,30 @@ REQUIRED_GTFS_FILES = [
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load GTFS text files from *gtfs_folder_path*.
 
-    Parameters:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+    The function validates the presence of each requested file, reads it
+    into a :class:`pandas.DataFrame`, and returns a dictionary keyed by file
+    stem.
+
+    Args:
+        gtfs_folder_path: Absolute or relative path to the directory that
+            contains GTFS text files.
+        files: Specific GTFS file names to load.  If *None*, the canonical
+            set defined in the function body is used.
+        dtype: Either a single pandas dtype applied to every column or a
+            mapping of column names to dtypes passed verbatim to
+            :func:`pandas.read_csv`.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        A dictionary whose keys are file stems (e.g. ``"trips"``) and whose
+        values are DataFrames with the raw GTFS contents.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: *gtfs_folder_path* does not exist or one or more files are
+            missing.
+        ValueError: A file is empty or cannot be parsed.
+        RuntimeError: An :pyexc:`OSError` occurs while reading a file.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -396,10 +389,18 @@ def do_network_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    """Perform a single "network-wide" buffer analysis across the final included routes
-    and final included stops, applying variable buffer distances for specified stops.
+    """Run a single network-wide buffer/clip analysis.
 
-    Exports:
+    The function filters routes and stops, applies variable buffer radii,
+    dissolves individual buffers into a single surface, clips demographic
+    polygons, and exports both geometry and Excel summaries.
+
+    Args:
+        trips: DataFrame from *trips.txt*.
+        stop_times: DataFrame from *stop_times.txt*.
+        routes_df: DataFrame from *routes.txt*.
+
+    Returns:
       - A single shapefile (all_routes_service_buffer_data.shp)
       - A single Excel summary (all_routes_service_buffer_data.xlsx)
     """
@@ -502,8 +503,11 @@ def do_route_by_route_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    """Perform a buffer/clip analysis separately for each route in the final route set,
-    applying variable buffer distances for specified stops and also filtering stops.
+
+    """Perform buffer/clip analysis for each individual route.
+
+    The procedure repeats the buffer workflow for every `route_short_name`
+    in the filtered set, exporting per-route shapefiles and Excel totals.
 
     Exports, for each route_short_name R:
       - A shapefile named R_service_buffer_data.shp
@@ -616,13 +620,13 @@ def do_stop_by_stop_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    """Perform a buffer/clip analysis for each individual stop in the final set,
-    applying variable buffer distances for specified stops.
 
-    The final set of stops is determined by:
-      1) route filters
-      2) GTFS merges (only stops actually used by the final routes)
-      3) stop include/exclude lists
+
+    """Compute buffers and demographic catchments for each stop.
+
+    Each GTFS stop that survives the route, trip, and stop filters is
+    buffered (variable radius), clipped against the demographic layer, and
+    written to individual shapefile/Excel pairs.
 
     Exports, for each stop_id S:
       - A shapefile named stop_S_service_buffer_data.shp
