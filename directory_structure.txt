@@ -6,7 +6,9 @@ transit_planning_with_python-main/
 ├── requirements.txt
 ├── .github/
 │   └── workflows/
-│       └── auto_format_ruff.yml
+│       ├── auto_format_ruff.yml
+│       ├── docstring_check_pydocstyle.yml
+│       └── type_check_mypy.yml
 ├── helpers/
 │   └── gtfs_helpers.py
 ├── scripts/
@@ -15,6 +17,11 @@ transit_planning_with_python-main/
 │   │   ├── bus_bay_by_min_conflict_checker.py
 │   │   ├── bus_bay_cluster_validation.py
 │   │   └── bus_bay_conflict_solver.py
+│   ├── census_tools/
+│   │   ├── census_attribute_table_builder.py
+│   │   ├── census_shp_filter_export.py
+│   │   ├── census_shp_filter_export_arcpy.py
+│   │   └── join_blocks_with_attributes.py
 │   ├── external_variables/
 │   │   ├── bikeshare_ridership_processor.py
 │   │   ├── eia_gas_price_processor.py
@@ -28,17 +35,22 @@ transit_planning_with_python-main/
 │   ├── gtfs_exports/
 │   │   ├── bus_schedule_exporter.py
 │   │   ├── gtfs_shapefile_converter.py
-│   │   └── stop_pattern_exporter.py
+│   │   ├── speed_table_exporter.py
+│   │   ├── stop_pattern_exporter.py
+│   │   ├── stop_sequence_exporter.py
+│   │   └── time_band_exporter.py
 │   ├── gtfs_level_of_service/
 │   │   ├── gtfs_service_change_history.py
+│   │   ├── gtfs_service_change_history_arcpy.py
 │   │   ├── gtfs_trips_hourly_reporter.py
 │   │   └── headway_span_trips_calculator.py
 │   ├── gtfs_validation/
 │   │   ├── gtfs_internal_audit.py
+│   │   ├── gtfs_usps_suffix_validator.py
 │   │   ├── gtfs_versus_system_shp_checker.py
-│   │   ├── stop_capitalization_suffix_checker.py
 │   │   ├── stops_in_roadway_checker.py
-│   │   └── stops_versus_road_name_typo_checker.py
+│   │   ├── stops_versus_road_name_typo_checker.py
+│   │   └── stops_versus_road_name_typo_checker_arcpy.py
 │   ├── network_analysis/
 │   │   ├── gtfs_stop_spacing_calculator.py
 │   │   ├── park_and_ride_accessibility.py
@@ -60,18 +72,18 @@ transit_planning_with_python-main/
 │   │   ├── ridership_per_trip_processor.py
 │   │   └── stop_amenity_warrant_flagger.py
 │   └── service_coverage_analysis/
-│       ├── bus_route_district_matrix.py
-│       ├── census_processing_csv_shp.py
+│       ├── districts_served_counter.py
 │       ├── gtfs_demog_calculator.py
 │       ├── gtfs_proximity_stops_and_routes.py
-│       ├── gtfs_service_area_mapper.py
-│       └── sites_served_counter.py
+│       ├── sites_served_counter.py
+│       ├── transit_catchment_calculator.py
+│       └── walking_service_area_mapper.py
 ├── static_checks/
-│   ├── formatter_black_isort.py
-│   ├── function_consistency_checker.py
-│   ├── print_imports_by_type.py
-│   ├── print_repo_file_tree.py
-│   └── static_code_auditor.py
+│   ├── import_and_style_formatter.py
+│   ├── repo_file_tree_printer.py
+│   ├── repo_imports_printer.py
+│   ├── reusable_functions_consistency_checker.py
+│   └── static_code_reporter.py
 └── tests/
     ├── test_bus_schedule_exporter_e2e.py
     └── test_load_gtfs_data.py
