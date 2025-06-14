@@ -107,8 +107,7 @@ REQUIRED_GTFS_FILES = [
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
+    """Loads GTFS files into pandas DataFrames from the specified directory.
     This function uses the logging module for output.
 
     Parameters:
@@ -198,8 +197,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
 
 def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
-    """
-    Return service_ids for routes that run Monday through Friday.
+    """Return service_ids for routes that run Monday through Friday.
 
     :param calendar_df: DataFrame from calendar.txt.
     :return: Series of service_id values available on all weekdays.
@@ -217,8 +215,7 @@ def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
 def get_included_routes(
     routes_df: pd.DataFrame, routes_to_include: list[str], routes_to_exclude: list[str]
 ) -> pd.DataFrame:
-    """
-    Determine which routes to keep by applying inclusion/exclusion lists.
+    """Determine which routes to keep by applying inclusion/exclusion lists.
 
     1) Start with all routes in routes_df.
     2) If routes_to_include is non-empty, keep only those in that list.
@@ -252,8 +249,7 @@ def get_included_stops(
     stop_ids_to_include: list[str],
     stop_ids_to_exclude: list[str],
 ) -> pd.DataFrame:
-    """
-    Determine which stops to keep by applying inclusion/exclusion lists.
+    """Determine which stops to keep by applying inclusion/exclusion lists.
 
     1) Start with all stops in stops_df.
     2) If stop_ids_to_include is non-empty, keep only those IDs.
@@ -292,8 +288,7 @@ def get_included_stops(
 def pick_buffer_distance(
     stop_id: str, normal_buffer: float, large_buffer: float, large_buffer_ids: list[str]
 ) -> float:
-    """
-    Determine the buffer distance for a given stop_id.
+    """Determine the buffer distance for a given stop_id.
 
     :param stop_id: The stop_id to check.
     :param normal_buffer: The standard buffer distance in miles.
@@ -317,8 +312,7 @@ def clip_and_calculate_synthetic_fields(
     buffer_gdf: gpd.GeoDataFrame,
     synthetic_fields: list[str],
 ) -> gpd.GeoDataFrame:
-    """
-    Clip *demographics_gdf* with *buffer_gdf* and compute synthetic totals.
+    """Clip *demographics_gdf* with *buffer_gdf* and compute synthetic totals.
 
     Steps
     -----
@@ -371,8 +365,7 @@ def clip_and_calculate_synthetic_fields(
 def export_summary_to_excel(
     totals_dict: dict, output_path: str, label_prefix: str = ""
 ) -> None:
-    """
-    Write a dictionary of aggregated synthetic fields to a single-row Excel file.
+    """Write a dictionary of aggregated synthetic fields to a single-row Excel file.
 
     :param totals_dict: A dictionary of {synthetic_field_name: numeric_total}.
     :param output_path: File path for the .xlsx output.
@@ -403,8 +396,7 @@ def do_network_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    """
-    Perform a single "network-wide" buffer analysis across the final included routes
+    """Perform a single "network-wide" buffer analysis across the final included routes
     and final included stops, applying variable buffer distances for specified stops.
 
     Exports:
@@ -510,8 +502,7 @@ def do_route_by_route_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    """
-    Perform a buffer/clip analysis separately for each route in the final route set,
+    """Perform a buffer/clip analysis separately for each route in the final route set,
     applying variable buffer distances for specified stops and also filtering stops.
 
     Exports, for each route_short_name R:
@@ -625,8 +616,7 @@ def do_stop_by_stop_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    """
-    Perform a buffer/clip analysis for each individual stop in the final set,
+    """Perform a buffer/clip analysis for each individual stop in the final set,
     applying variable buffer distances for specified stops.
 
     The final set of stops is determined by:
@@ -737,8 +727,7 @@ def apply_fips_filter(
     fips_filter: list[str],
     fips_col: str = "FIPS",
 ) -> gpd.GeoDataFrame:
-    """
-    Filter *demog_gdf* by county FIPS codes.
+    """Filter *demog_gdf* by county FIPS codes.
 
     If *fips_col* is absent the function tries to derive it from the first
     column whose name starts with ``GEOID`` (block, tract, etc.), slicing the
