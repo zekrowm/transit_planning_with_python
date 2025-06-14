@@ -1,5 +1,4 @@
-"""
-Identifies nearby GTFS stops and associated routes for given locations or stop codes.
+"""Identifies nearby GTFS stops and associated routes for given locations or stop codes.
 
 Supports two input modes:
 - 'location': Uses point shapefile or manual lat/lon coordinates.
@@ -196,6 +195,11 @@ def _nearby_routes(
 
 
 def main() -> None:
+    """Runs the main analysis based on global CONFIGURATION variables.
+
+    Performs either a location-based proximity search or a stop-code lookup
+    and exports the results to a CSV.
+    """
     try:
         _check_gtfs(GTFS_FOLDER)
         gtfs = _load_gtfs(GTFS_FOLDER)
