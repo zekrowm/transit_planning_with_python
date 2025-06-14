@@ -1,5 +1,4 @@
-"""
-Performs spatial analysis on GTFS transit data and demographic shapefiles.
+"""Performs spatial analysis on GTFS transit data and demographic shapefiles.
 
 Generates service area buffers around transit stops and estimates population,
 household, and employment characteristics within those areas. Supports three
@@ -20,11 +19,15 @@ Outputs:
 """
 
 import os
-
+import logging
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 from shapely.geometry import Point
+import logging
+import os
+from pathlib import Path
+from typing import Final
 
 # =============================================================================
 # CONFIGURATION
@@ -38,12 +41,16 @@ GTFS_DATA_PATH = r"C:\Path\To\GTFS_data_folder"
 DEMOGRAPHICS_SHP_PATH = r"C:\Path\To\census_blocks.shp"
 OUTPUT_DIRECTORY = r"C:\Path\To\Output"
 
+# Calendar / service-pattern filter
+SERVICE_IDS_TO_INCLUDE: Final[list[str]] = ["3"]          # ← NEW
+# e.g. ["1", "2", "3"] for your weekday patterns, [] for “no calendar filter”
+
 # Route filters:
 # 1) ROUTES_TO_INCLUDE: If non-empty, only these routes are considered.
 # 2) ROUTES_TO_EXCLUDE: If non-empty, these routes are removed.
 # If both are empty, all routes in routes.txt are used.
-ROUTES_TO_INCLUDE = ["101", "102"]  # e.g. [] for no include filter
-ROUTES_TO_EXCLUDE = ["104"]  # e.g. [] for no exclude filter
+ROUTES_TO_INCLUDE = ["101", "202"]  # e.g. [] for no include filter
+ROUTES_TO_EXCLUDE = [ ]  # e.g. [] for no exclude filter
 
 # Stop filters:
 # 1) STOP_IDS_TO_INCLUDE: If non-empty, only these stops are considered (after route filter).
@@ -61,10 +68,10 @@ BUFFER_DISTANCE = 0.25  # Standard buffer distance
 LARGE_BUFFER_DISTANCE = 2.0  # Larger buffer distance for specified stops
 
 # If a stop_id is in this list, use LARGE_BUFFER_DISTANCE instead.
-STOP_IDS_LARGE_BUFFER = [1001, 1002, 1003]
+STOP_IDS_LARGE_BUFFER = []
 
 # Optional FIPS filter (list of codes). Empty list = no filter.
-FIPS_FILTER = ["11001"]  # Replace with FIPS code(s) for desired jurisdictions
+FIPS_FILTER = []  # Replace with FIPS code(s) for desired jurisdictions (e.g. "11001")
 
 # Fields in demographics shapefile to multiply by area ratio
 SYNTHETIC_FIELDS = [
@@ -74,13 +81,13 @@ SYNTHETIC_FIELDS = [
     "low_wage",
     "mid_wage",
     "high_wage",
-    "est_minori",
-    "est_lep",
-    "est_lo_veh",
-    "est_lo_v_1",
-    "est_youth",
-    "est_elderl",
-    "est_low_in",
+    "minority",
+#    "est_lep",
+#    "est_lo_veh",
+#    "est_lo_v_1",
+#    "est_youth",
+#    "est_elderl",
+#    "est_low_in",
 ]
 
 # EPSG code for projected coordinate system used in area calculations
@@ -99,28 +106,99 @@ REQUIRED_GTFS_FILES = [
 # FUNCTIONS
 # =============================================================================
 
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
 
-def load_gtfs_data(
-    gtfs_path: str,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
-    Load required GTFS files into DataFrames. Raises FileNotFoundError if missing.
+    Loads GTFS files into pandas DataFrames from the specified directory.
+    This function uses the logging module for output.
 
-    :param gtfs_path: Path to the folder containing GTFS .txt files.
-    :return: (trips, stop_times, routes_df, stops_df, calendar) DataFrames.
+    Parameters:
+        gtfs_folder_path (str): Path to the directory containing GTFS files.
+        files (list[str], optional): GTFS filenames to load. Default is all
+            standard GTFS files:
+            [
+                "agency.txt",
+                "stops.txt",
+                "routes.txt",
+                "trips.txt",
+                "stop_times.txt",
+                "calendar.txt",
+                "calendar_dates.txt",
+                "fare_attributes.txt",
+                "fare_rules.txt",
+                "feed_info.txt",
+                "frequencies.txt",
+                "shapes.txt",
+                "transfers.txt"
+            ]
+        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+
+    Raises:
+        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
+        ValueError: If a file is empty or there's a parsing error.
+        RuntimeError: For OS errors during file reading.
     """
-    for filename in REQUIRED_GTFS_FILES:
-        full_path = os.path.join(gtfs_path, filename)
-        if not os.path.isfile(full_path):
-            raise FileNotFoundError(f"Missing file: {filename} in {gtfs_path}")
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
-    trips = pd.read_csv(os.path.join(gtfs_path, "trips.txt"))
-    stop_times = pd.read_csv(os.path.join(gtfs_path, "stop_times.txt"))
-    routes_df = pd.read_csv(os.path.join(gtfs_path, "routes.txt"))
-    stops_df = pd.read_csv(os.path.join(gtfs_path, "stops.txt"))
-    calendar = pd.read_csv(os.path.join(gtfs_path, "calendar.txt"))
+    if files is None:
+        files = [
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt",
+        ]
 
-    return trips, stop_times, routes_df, stops_df, calendar
+    missing = [
+        file_name
+        for file_name in files
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
+    ]
+    if missing:
+        raise OSError(
+            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
+        )
+
+    data = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(gtfs_folder_path, file_name)
+        try:
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            data[key] = df
+            logging.info(f"Loaded {file_name} ({len(df)} records).")
+
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(
+                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
+            ) from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+    return data
 
 
 def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
@@ -267,39 +345,56 @@ def clip_and_calculate_synthetic_fields(
     synthetic_fields: list[str],
 ) -> gpd.GeoDataFrame:
     """
-    Clip demographics_gdf with the buffer geometry and calculate synthetic fields.
-    Correctly computes the area percentage based on original polygon areas.
+    Clip *demographics_gdf* with *buffer_gdf* and compute synthetic totals.
+
+    Steps
+    -----
+    1.  Ensure an original-area column exists (acres).
+    2.  Clip polygons to the buffer.
+    3.  Compute clipped-area and area-percentage.
+    4.  For each requested field that exists, multiply by area percentage
+        to create ``synthetic_<field>`` columns.
+       * Missing fields are reported once and silently skipped.
     """
-
-    # Step 1: Ensure we have an "original area" column
+    # ---------------------------------------------------------------
+    # 1. Original area (acres) — if not already present
+    # ---------------------------------------------------------------
     if "area_ac_og" not in demographics_gdf.columns:
-        demographics_gdf["area_ac_og"] = (
-            demographics_gdf.geometry.area / 4046.86
-        )  # Convert to acres
+        demographics_gdf["area_ac_og"] = demographics_gdf.geometry.area / 4046.86
 
-    # Step 2: Clip the demographics GeoDataFrame with the buffer GeoDataFrame
+    # ---------------------------------------------------------------
+    # 2. Clip to buffer
+    # ---------------------------------------------------------------
     clipped_gdf = gpd.clip(demographics_gdf, buffer_gdf)
 
-    # Step 3: Compute clipped area and area percentage
-    clipped_gdf["area_ac_cl"] = (
-        clipped_gdf.geometry.area / 4046.86
-    )  # Clipped area in acres
+    # ---------------------------------------------------------------
+    # 3. Clipped area + percentage
+    # ---------------------------------------------------------------
+    clipped_gdf["area_ac_cl"] = clipped_gdf.geometry.area / 4046.86
     clipped_gdf["area_perc"] = clipped_gdf["area_ac_cl"] / clipped_gdf["area_ac_og"]
 
-    # Handle cases where original area is zero to avoid division by zero
-    clipped_gdf["area_perc"].replace([float("inf"), -float("inf")], 0, inplace=True)
-    clipped_gdf["area_perc"].fillna(0, inplace=True)
+    # Handle divide-by-zero and NaN without chained-assignment warnings
+    clipped_gdf["area_perc"] = (
+        clipped_gdf["area_perc"]
+        .replace([float("inf"), -float("inf")], 0)
+        .fillna(0)
+    )
 
-    # Step 4: Apply partial weighting to synthetic fields
+    # ---------------------------------------------------------------
+    # 4. Synthetic fields — skip any that are missing
+    # ---------------------------------------------------------------
+    missing = [f for f in synthetic_fields if f not in clipped_gdf.columns]
+    if missing:
+        logging.warning(
+            "Synthetic field(s) not found and will be skipped: %s", missing
+        )
+
     for field in synthetic_fields:
-        # Ensure the field is numeric; non-numeric values are set to 0
-        clipped_gdf[field] = pd.to_numeric(clipped_gdf[field], errors="coerce").fillna(
-            0
-        )
-        # Calculate synthetic field based on area percentage
-        clipped_gdf[f"synthetic_{field}"] = (
-            clipped_gdf["area_perc"] * clipped_gdf[field]
-        )
+        if field not in clipped_gdf.columns:
+            continue  # silently skip after the single warning above
+
+        numeric = pd.to_numeric(clipped_gdf[field], errors="coerce").fillna(0)
+        clipped_gdf[f"synthetic_{field}"] = clipped_gdf["area_perc"] * numeric
 
     return clipped_gdf
 
@@ -668,95 +763,140 @@ def do_stop_by_stop_analysis(
         plt.show()
 
 
+def apply_fips_filter(
+    demog_gdf: gpd.GeoDataFrame,
+    fips_filter: list[str],
+    fips_col: str = "FIPS",
+) -> gpd.GeoDataFrame:
+    """
+    Filter *demog_gdf* by county FIPS codes.
+
+    If *fips_col* is absent the function tries to derive it from the first
+    column whose name starts with ``GEOID`` (block, tract, etc.), slicing the
+    first 5 characters.  If that also fails, the filter is skipped with a
+    warning.
+    """
+    if not fips_filter:
+        logging.info("No FIPS filter provided; processing all features.")
+        return demog_gdf
+
+    if fips_col not in demog_gdf.columns:
+        # attempt automatic derivation
+        geo_cols = [c for c in demog_gdf.columns if c.lower().startswith("geoid")]
+        if geo_cols:
+            src = geo_cols[0]
+            demog_gdf[fips_col] = demog_gdf[src].str[:5]
+            logging.info(
+                "Derived %s from %s (first 5 chars) for FIPS filtering.", fips_col, src
+            )
+        else:
+            logging.warning(
+                "FIPS filter requested (%s) but no '%s' column or GEOID-like "
+                "field found.  Skipping the filter.", fips_filter, fips_col
+            )
+            return demog_gdf
+
+    before = len(demog_gdf)
+    demog_gdf = demog_gdf[demog_gdf[fips_col].isin(fips_filter)]
+    logging.info(
+        "Applied FIPS filter %s — %d → %d features.",
+        fips_filter, before, len(demog_gdf)
+    )
+    return demog_gdf
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
 
 
-def main():
-    """
-    Main driver function. Adjust ANALYSIS_MODE, route filter variables
-    (ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE), and stop filter variables
-    (STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE) in the configuration section.
-    Now also exports .xlsx summaries corresponding to each .shp.
-    """
-    try:
-        trips, stop_times, routes_df, stops_df, calendar = load_gtfs_data(
-            GTFS_DATA_PATH
-        )
-        relevant_service_ids = filter_weekday_service(calendar)
-        trips = trips[trips["service_id"].isin(relevant_service_ids)]
+def main() -> None:
+    """Run the catchment-area analysis."""
+    # ------------------------------------------------------------------
+    # Logging (leave it here if you didn't configure logging earlier)
+    # ------------------------------------------------------------------
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s | %(asctime)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
-        if not os.path.isfile(DEMOGRAPHICS_SHP_PATH):
-            raise FileNotFoundError(
-                f"Demographics shapefile not found: {DEMOGRAPHICS_SHP_PATH}"
+    try:
+        # ==============================================================
+        # 1) LOAD GTFS --------------------------------------------------
+        # ==============================================================
+        gtfs_raw = load_gtfs_data(
+            str(GTFS_DATA_PATH),
+            files=REQUIRED_GTFS_FILES,
+            dtype=str,                       # keep everything as strings
+        )
+        trips      = gtfs_raw["trips"]
+        stop_times = gtfs_raw["stop_times"]
+        routes_df  = gtfs_raw["routes"]
+        stops_df   = gtfs_raw["stops"]
+        calendar   = gtfs_raw["calendar"]
+
+        # ==============================================================
+        # 2) OPTIONAL CALENDAR FILTER ----------------------------------
+        # ==============================================================
+        if SERVICE_IDS_TO_INCLUDE:                     # e.g. ["1", "2", "3"]
+            before = len(trips)
+            trips = trips[trips["service_id"].isin(SERVICE_IDS_TO_INCLUDE)]
+            logging.info(
+                "Applied calendar filter %s — trips: %d → %d",
+                SERVICE_IDS_TO_INCLUDE, before, len(trips)
             )
-        demographics_gdf = gpd.read_file(DEMOGRAPHICS_SHP_PATH)
+        else:
+            logging.info(
+                "No calendar filter applied; using all %d trips.", len(trips)
+            )
+
+        # ==============================================================
+        # 3) DEMOGRAPHICS LAYER ----------------------------------------
+        # ==============================================================
+        demographics_path = Path(DEMOGRAPHICS_SHP_PATH)
+        if not demographics_path.is_file():
+            raise FileNotFoundError(f"Demographics shapefile not found: {demographics_path}")
+
+        demographics_gdf = gpd.read_file(demographics_path)
         demographics_gdf = apply_fips_filter(demographics_gdf, FIPS_FILTER)
         demographics_gdf = demographics_gdf.to_crs(epsg=CRS_EPSG_CODE)
 
+        # ==============================================================
+        # 4) ANALYSIS DISPATCH -----------------------------------------
+        # ==============================================================
         mode = ANALYSIS_MODE.lower()
         if mode == "network":
             do_network_analysis(
-                trips=trips,
-                stop_times=stop_times,
-                routes_df=routes_df,
-                stops_df=stops_df,
-                demographics_gdf=demographics_gdf,
-                routes_to_include=ROUTES_TO_INCLUDE,
-                routes_to_exclude=ROUTES_TO_EXCLUDE,
-                stop_ids_to_include=STOP_IDS_TO_INCLUDE,
-                stop_ids_to_exclude=STOP_IDS_TO_EXCLUDE,
-                buffer_distance_mi=BUFFER_DISTANCE,
-                large_buffer_distance_mi=LARGE_BUFFER_DISTANCE,
-                stop_ids_large_buffer=STOP_IDS_LARGE_BUFFER,
-                output_dir=OUTPUT_DIRECTORY,
-                synthetic_fields=SYNTHETIC_FIELDS,
+                trips, stop_times, routes_df, stops_df, demographics_gdf,
+                ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE,
+                STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE,
+                BUFFER_DISTANCE, LARGE_BUFFER_DISTANCE, STOP_IDS_LARGE_BUFFER,
+                str(OUTPUT_DIRECTORY), SYNTHETIC_FIELDS,
             )
         elif mode == "route":
             do_route_by_route_analysis(
-                trips=trips,
-                stop_times=stop_times,
-                routes_df=routes_df,
-                stops_df=stops_df,
-                demographics_gdf=demographics_gdf,
-                routes_to_include=ROUTES_TO_INCLUDE,
-                routes_to_exclude=ROUTES_TO_EXCLUDE,
-                stop_ids_to_include=STOP_IDS_TO_INCLUDE,
-                stop_ids_to_exclude=STOP_IDS_TO_EXCLUDE,
-                buffer_distance_mi=BUFFER_DISTANCE,
-                large_buffer_distance_mi=LARGE_BUFFER_DISTANCE,
-                stop_ids_large_buffer=STOP_IDS_LARGE_BUFFER,
-                output_dir=OUTPUT_DIRECTORY,
-                synthetic_fields=SYNTHETIC_FIELDS,
+                trips, stop_times, routes_df, stops_df, demographics_gdf,
+                ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE,
+                STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE,
+                BUFFER_DISTANCE, LARGE_BUFFER_DISTANCE, STOP_IDS_LARGE_BUFFER,
+                str(OUTPUT_DIRECTORY), SYNTHETIC_FIELDS,
             )
         elif mode == "stop":
             do_stop_by_stop_analysis(
-                trips=trips,
-                stop_times=stop_times,
-                routes_df=routes_df,
-                stops_df=stops_df,
-                demographics_gdf=demographics_gdf,
-                routes_to_include=ROUTES_TO_INCLUDE,
-                routes_to_exclude=ROUTES_TO_EXCLUDE,
-                stop_ids_to_include=STOP_IDS_TO_INCLUDE,
-                stop_ids_to_exclude=STOP_IDS_TO_EXCLUDE,
-                buffer_distance_mi=BUFFER_DISTANCE,
-                large_buffer_distance_mi=LARGE_BUFFER_DISTANCE,
-                stop_ids_large_buffer=STOP_IDS_LARGE_BUFFER,
-                output_dir=OUTPUT_DIRECTORY,
-                synthetic_fields=SYNTHETIC_FIELDS,
+                trips, stop_times, routes_df, stops_df, demographics_gdf,
+                ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE,
+                STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE,
+                BUFFER_DISTANCE, LARGE_BUFFER_DISTANCE, STOP_IDS_LARGE_BUFFER,
+                str(OUTPUT_DIRECTORY), SYNTHETIC_FIELDS,
             )
         else:
             raise ValueError(f"Invalid ANALYSIS_MODE: {ANALYSIS_MODE}")
 
         print("\nAnalysis completed successfully.")
 
-    except FileNotFoundError as fnf_err:
-        print(f"File not found error: {fnf_err}")
-    except Exception as err:
-        print(f"Unexpected error occurred: {err}")
+    except Exception as exc:   # catch and log any error
+        logging.error("Analysis terminated due to an error: %s", exc, exc_info=True)
 
-
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
