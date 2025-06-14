@@ -19,13 +19,14 @@ Outputs:
 """
 
 import logging
+import os
+from pathlib import Path
+from typing import Final
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 from shapely.geometry import Point
-import os
-from pathlib import Path
-from typing import Final
 
 # =============================================================================
 # CONFIGURATION
@@ -40,7 +41,7 @@ DEMOGRAPHICS_SHP_PATH = r"C:\Path\To\census_blocks.shp"
 OUTPUT_DIRECTORY = r"C:\Path\To\Output"
 
 # Calendar / service-pattern filter
-SERVICE_IDS_TO_INCLUDE: Final[list[str]] = ["3"]          # ← NEW
+SERVICE_IDS_TO_INCLUDE: Final[list[str]] = ["3"]  # ← NEW
 # e.g. ["1", "2", "3"] for your weekday patterns, [] for “no calendar filter”
 
 # Route filters:
@@ -48,18 +49,14 @@ SERVICE_IDS_TO_INCLUDE: Final[list[str]] = ["3"]          # ← NEW
 # 2) ROUTES_TO_EXCLUDE: If non-empty, these routes are removed.
 # If both are empty, all routes in routes.txt are used.
 ROUTES_TO_INCLUDE = ["101", "202"]  # e.g. [] for no include filter
-ROUTES_TO_EXCLUDE = [ ]  # e.g. [] for no exclude filter
+ROUTES_TO_EXCLUDE = []  # e.g. [] for no exclude filter
 
 # Stop filters:
 # 1) STOP_IDS_TO_INCLUDE: If non-empty, only these stops are considered (after route filter).
 # 2) STOP_IDS_TO_EXCLUDE: If non-empty, these stops are removed (after route filter).
 # If both are empty, all stops belonging to final routes are used.
-STOP_IDS_TO_INCLUDE = (
-    []
-)  # e.g. [] for no include filter or [1005, 1007] for include filter
-STOP_IDS_TO_EXCLUDE = (
-    []
-)  # e.g. [] for no include filter or [1010, 1011] for exclude filter
+STOP_IDS_TO_INCLUDE = []  # e.g. [] for no include filter or [1005, 1007] for include filter
+STOP_IDS_TO_EXCLUDE = []  # e.g. [] for no include filter or [1010, 1011] for exclude filter
 
 # Buffer distances in miles
 BUFFER_DISTANCE = 0.25  # Standard buffer distance
@@ -80,12 +77,12 @@ SYNTHETIC_FIELDS = [
     "mid_wage",
     "high_wage",
     "minority",
-#    "est_lep",
-#    "est_lo_veh",
-#    "est_lo_v_1",
-#    "est_youth",
-#    "est_elderl",
-#    "est_low_in",
+    #    "est_lep",
+    #    "est_lo_veh",
+    #    "est_lo_v_1",
+    #    "est_youth",
+    #    "est_elderl",
+    #    "est_low_in",
 ]
 
 # EPSG code for projected coordinate system used in area calculations
@@ -107,6 +104,7 @@ REQUIRED_GTFS_FILES = [
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """
@@ -350,9 +348,7 @@ def clip_and_calculate_synthetic_fields(
 
     # Handle divide-by-zero and NaN without chained-assignment warnings
     clipped_gdf["area_perc"] = (
-        clipped_gdf["area_perc"]
-        .replace([float("inf"), -float("inf")], 0)
-        .fillna(0)
+        clipped_gdf["area_perc"].replace([float("inf"), -float("inf")], 0).fillna(0)
     )
 
     # ---------------------------------------------------------------
@@ -360,9 +356,7 @@ def clip_and_calculate_synthetic_fields(
     # ---------------------------------------------------------------
     missing = [f for f in synthetic_fields if f not in clipped_gdf.columns]
     if missing:
-        logging.warning(
-            "Synthetic field(s) not found and will be skipped: %s", missing
-        )
+        logging.warning("Synthetic field(s) not found and will be skipped: %s", missing)
 
     for field in synthetic_fields:
         if field not in clipped_gdf.columns:
@@ -767,7 +761,9 @@ def apply_fips_filter(
         else:
             logging.warning(
                 "FIPS filter requested (%s) but no '%s' column or GEOID-like "
-                "field found.  Skipping the filter.", fips_filter, fips_col
+                "field found.  Skipping the filter.",
+                fips_filter,
+                fips_col,
             )
             return demog_gdf
 
@@ -775,7 +771,9 @@ def apply_fips_filter(
     demog_gdf = demog_gdf[demog_gdf[fips_col].isin(fips_filter)]
     logging.info(
         "Applied FIPS filter %s — %d → %d features.",
-        fips_filter, before, len(demog_gdf)
+        fips_filter,
+        before,
+        len(demog_gdf),
     )
     return demog_gdf
 
@@ -803,34 +801,36 @@ def main() -> None:
         gtfs_raw = load_gtfs_data(
             str(GTFS_DATA_PATH),
             files=REQUIRED_GTFS_FILES,
-            dtype=str,                       # keep everything as strings
+            dtype=str,  # keep everything as strings
         )
-        trips      = gtfs_raw["trips"]
+        trips = gtfs_raw["trips"]
         stop_times = gtfs_raw["stop_times"]
-        routes_df  = gtfs_raw["routes"]
-        stops_df   = gtfs_raw["stops"]
+        routes_df = gtfs_raw["routes"]
+        stops_df = gtfs_raw["stops"]
 
         # ==============================================================
         # 2) OPTIONAL CALENDAR FILTER ----------------------------------
         # ==============================================================
-        if SERVICE_IDS_TO_INCLUDE:                     # e.g. ["1", "2", "3"]
+        if SERVICE_IDS_TO_INCLUDE:  # e.g. ["1", "2", "3"]
             before = len(trips)
             trips = trips[trips["service_id"].isin(SERVICE_IDS_TO_INCLUDE)]
             logging.info(
                 "Applied calendar filter %s — trips: %d → %d",
-                SERVICE_IDS_TO_INCLUDE, before, len(trips)
+                SERVICE_IDS_TO_INCLUDE,
+                before,
+                len(trips),
             )
         else:
-            logging.info(
-                "No calendar filter applied; using all %d trips.", len(trips)
-            )
+            logging.info("No calendar filter applied; using all %d trips.", len(trips))
 
         # ==============================================================
         # 3) DEMOGRAPHICS LAYER ----------------------------------------
         # ==============================================================
         demographics_path = Path(DEMOGRAPHICS_SHP_PATH)
         if not demographics_path.is_file():
-            raise FileNotFoundError(f"Demographics shapefile not found: {demographics_path}")
+            raise FileNotFoundError(
+                f"Demographics shapefile not found: {demographics_path}"
+            )
 
         demographics_gdf = gpd.read_file(demographics_path)
         demographics_gdf = apply_fips_filter(demographics_gdf, FIPS_FILTER)
@@ -842,35 +842,63 @@ def main() -> None:
         mode = ANALYSIS_MODE.lower()
         if mode == "network":
             do_network_analysis(
-                trips, stop_times, routes_df, stops_df, demographics_gdf,
-                ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE,
-                STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE,
-                BUFFER_DISTANCE, LARGE_BUFFER_DISTANCE, STOP_IDS_LARGE_BUFFER,
-                str(OUTPUT_DIRECTORY), SYNTHETIC_FIELDS,
+                trips,
+                stop_times,
+                routes_df,
+                stops_df,
+                demographics_gdf,
+                ROUTES_TO_INCLUDE,
+                ROUTES_TO_EXCLUDE,
+                STOP_IDS_TO_INCLUDE,
+                STOP_IDS_TO_EXCLUDE,
+                BUFFER_DISTANCE,
+                LARGE_BUFFER_DISTANCE,
+                STOP_IDS_LARGE_BUFFER,
+                str(OUTPUT_DIRECTORY),
+                SYNTHETIC_FIELDS,
             )
         elif mode == "route":
             do_route_by_route_analysis(
-                trips, stop_times, routes_df, stops_df, demographics_gdf,
-                ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE,
-                STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE,
-                BUFFER_DISTANCE, LARGE_BUFFER_DISTANCE, STOP_IDS_LARGE_BUFFER,
-                str(OUTPUT_DIRECTORY), SYNTHETIC_FIELDS,
+                trips,
+                stop_times,
+                routes_df,
+                stops_df,
+                demographics_gdf,
+                ROUTES_TO_INCLUDE,
+                ROUTES_TO_EXCLUDE,
+                STOP_IDS_TO_INCLUDE,
+                STOP_IDS_TO_EXCLUDE,
+                BUFFER_DISTANCE,
+                LARGE_BUFFER_DISTANCE,
+                STOP_IDS_LARGE_BUFFER,
+                str(OUTPUT_DIRECTORY),
+                SYNTHETIC_FIELDS,
             )
         elif mode == "stop":
             do_stop_by_stop_analysis(
-                trips, stop_times, routes_df, stops_df, demographics_gdf,
-                ROUTES_TO_INCLUDE, ROUTES_TO_EXCLUDE,
-                STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE,
-                BUFFER_DISTANCE, LARGE_BUFFER_DISTANCE, STOP_IDS_LARGE_BUFFER,
-                str(OUTPUT_DIRECTORY), SYNTHETIC_FIELDS,
+                trips,
+                stop_times,
+                routes_df,
+                stops_df,
+                demographics_gdf,
+                ROUTES_TO_INCLUDE,
+                ROUTES_TO_EXCLUDE,
+                STOP_IDS_TO_INCLUDE,
+                STOP_IDS_TO_EXCLUDE,
+                BUFFER_DISTANCE,
+                LARGE_BUFFER_DISTANCE,
+                STOP_IDS_LARGE_BUFFER,
+                str(OUTPUT_DIRECTORY),
+                SYNTHETIC_FIELDS,
             )
         else:
             raise ValueError(f"Invalid ANALYSIS_MODE: {ANALYSIS_MODE}")
 
         print("\nAnalysis completed successfully.")
 
-    except Exception as exc:   # catch and log any error
+    except Exception as exc:  # catch and log any error
         logging.error("Analysis terminated due to an error: %s", exc, exc_info=True)
+
 
 if __name__ == "__main__":  # pragma: no cover
     main()
