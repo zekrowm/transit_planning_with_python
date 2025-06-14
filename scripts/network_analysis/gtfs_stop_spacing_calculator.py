@@ -133,9 +133,7 @@ def _build_stops_gdf(
     routes: pd.DataFrame,
     crs: str,
 ) -> gpd.GeoDataFrame:
-    """
-    Return GeoDataFrame of **served** stops with list fields for routes/directions.
-    """
+    """    Return GeoDataFrame of **served** stops with list fields for routes/directions."""
     served = stop_times.loc[stop_times["trip_id"].isin(trips["trip_id"])]
     stops = stops.loc[stops["stop_id"].isin(served["stop_id"])].copy()
 
@@ -292,10 +290,7 @@ def _flag_short_spacing(
     threshold_ft: float,
     log_path: Path,
 ) -> None:
-    """
-    Write a tab-delimited log of consecutive stops spaced closer
-    than *threshold_ft* along their route polyline.
-    """
+    """Write a log of consecutive stops spaced closer than *threshold_ft* along their route polyline."""
     crs_str = str(stops_gdf.crs) if stops_gdf.crs is not None else ""
     factor_ft: float = 1.0 if "2263" in crs_str else 3.28084
     sindex = stops_gdf.sindex
