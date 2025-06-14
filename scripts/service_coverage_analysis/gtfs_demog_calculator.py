@@ -503,7 +503,6 @@ def do_route_by_route_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-
     """Perform buffer/clip analysis for each individual route.
 
     The procedure repeats the buffer workflow for every `route_short_name`
@@ -620,8 +619,6 @@ def do_stop_by_stop_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-
-
     """Compute buffers and demographic catchments for each stop.
 
     Each GTFS stop that survives the route, trip, and stop filters is
