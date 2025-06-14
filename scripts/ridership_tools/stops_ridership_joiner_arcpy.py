@@ -32,7 +32,7 @@ EXCEL_FILE = r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).XLSX"
 
 # Optional: Filter your Excel data for certain routes. If empty, no filter.
 # Example: ROUTE_FILTER_LIST = ["101", "202"]
-ROUTE_FILTER_LIST = []
+ROUTE_FILTER_LIST: list[str] = []
 
 # Set to False to create one shapefile for all stops,
 # or True to create a separate shapefile per unique route.
