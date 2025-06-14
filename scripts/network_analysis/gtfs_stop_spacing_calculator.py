@@ -49,8 +49,7 @@ def _ensure_output_folder(folder: str | Path) -> Path:
 
 
 def _read_gtfs_tables(gtfs_path: Path) -> Dict[str, pd.DataFrame]:
-    """
-    Load the five core GTFS tables into DataFrames.
+    """Load the five core GTFS tables into DataFrames.
 
     Parameters
     ----------
@@ -119,9 +118,7 @@ def _filter_routes(
     include_ids: Sequence[str],
     exclude_ids: Sequence[str],
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Apply include/exclude lists and return filtered ``routes`` and ``trips``.
-    """
+    """Apply include/exclude lists and return filtered ``routes`` and ``trips``."""
     routes_ok = routes.loc[~routes["route_id"].isin(exclude_ids)].copy()
     if include_ids:
         routes_ok = routes_ok.loc[routes_ok["route_id"].isin(include_ids)].copy()
