@@ -809,7 +809,6 @@ def main() -> None:
         stop_times = gtfs_raw["stop_times"]
         routes_df  = gtfs_raw["routes"]
         stops_df   = gtfs_raw["stops"]
-        calendar   = gtfs_raw["calendar"]
 
         # ==============================================================
         # 2) OPTIONAL CALENDAR FILTER ----------------------------------
