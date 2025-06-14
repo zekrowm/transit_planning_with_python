@@ -1,5 +1,4 @@
-"""
-Joins ridership data to bus stop features, optionally with a spatial join to polygon areas.
+"""Joins ridership data to bus stop features, optionally with a spatial join to polygon areas.
 
 Designed for ArcGIS Pro workflows, this script merges stop-level ridership data from
 an Excel file with stop locations (from a shapefile or GTFS stops.txt), and optionally
@@ -76,8 +75,7 @@ arcpy.env.overwriteOutput = True
 
 
 def create_bus_stops_feature_class():
-    """
-    Create or identify the bus stops feature class.
+    """Create or identify the bus stops feature class.
 
     If input is a GTFS stops.txt file, convert it to a point feature class.
     Otherwise, assume we have a shapefile. Returns:
@@ -123,11 +121,7 @@ def create_bus_stops_feature_class():
 
 
 def spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export):
-    """
-    Perform a spatial join of bus stops to polygon features (if provided),
-    and export the result to CSV. Returns path to the joined FC or
-    the original FC if no polygon layer was provided.
-    """
+    """Perform a spatial join of bus stops to polygon features (if provided)."""
     polygon_layer_str = POLYGON_LAYER.strip()
     if polygon_layer_str:
         arcpy.SpatialJoin_analysis(
@@ -170,8 +164,8 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export):
 
 
 def read_and_filter_ridership_data():
-    """
-    Read ridership data from EXCEL_FILE and optionally filter by routes.
+    """Read ridership data from EXCEL_FILE and optionally filter by routes.
+    
     Return a DataFrame with aggregated totals.
     """
     df_excel = pd.read_excel(EXCEL_FILE)
@@ -191,8 +185,8 @@ def read_and_filter_ridership_data():
 
 
 def merge_ridership_and_csv(df_excel, fields_to_export):
-    """
-    Merge ridership data (df_excel) with the CSV from the spatial join.
+    """Merge ridership data (df_excel) with the CSV from the spatial join.
+    
     Raises error if no polygon layer was provided and CSV does not exist.
     Returns:
       - df_joined: merged DataFrame
@@ -222,8 +216,8 @@ def merge_ridership_and_csv(df_excel, fields_to_export):
 
 
 def filter_matched_bus_stops(current_fc, df_joined, key_field):
-    """
-    Filter the joined feature class to include only matched bus stops.
+    """Filter the joined feature class to include only matched bus stops.
+    
     Returns the path to the filtered shapefile.
     """
     matched_keys = df_joined[key_field].dropna().unique().tolist()
@@ -288,10 +282,7 @@ def filter_matched_bus_stops(current_fc, df_joined, key_field):
 
 
 def update_bus_stops_ridership(current_fc, df_joined, key_field):
-    """
-    Add ridership fields (XBOARD, XALIGHT, XTOTAL) to the bus stops shapefile
-    and update them with data from df_joined.
-    """
+    """Add ridership fields to the bus stops shapefile and update them with data from df_joined."""
     ridership_fields = [
         ("XBOARD", "DOUBLE"),
         ("XALIGHT", "DOUBLE"),
@@ -334,10 +325,9 @@ def update_bus_stops_ridership(current_fc, df_joined, key_field):
 
 
 def aggregate_ridership(df_joined):
-    """
-    Aggregate ridership (XBOARDINGS, XALIGHTINGS, TOTAL) by the polygon join
-    field and update the polygon layer shapefile.  Also exports the aggregated
-    data to CSV for verification.
+    """Aggregate ridership by the polygon join field and update the polygon layer shapefile.
+    
+    Also exports the aggregated data to CSV for verification.
     """
     if not POLYGON_LAYER.strip():
         print("POLYGON_LAYER is empty, so aggregation steps have been skipped.")
@@ -403,8 +393,8 @@ def aggregate_ridership(df_joined):
 
 
 def process_stops_for_single_run():
-    """
-    (Helper) Original single-run flow (no splitting by route).
+    """(Helper) Original single-run flow (no splitting by route).
+    
     Creates one shapefile for the entire network of bus stops,
     and now also exports an intermediate aggregated ridership CSV.
     """
@@ -449,10 +439,10 @@ def process_stops_for_single_run():
 
 
 def main():
-    """
-    Main entry point for the script. Either processes all routes at once
-    (creating a single shapefile) or splits by route (creating multiple
-    shapefiles), depending on SPLIT_BY_ROUTE.
+    """Main entry point for the script.
+    
+    Either processes all routes at once (creating a single shapefile) or splits
+    by route (creating multiple shapefiles), depending on SPLIT_BY_ROUTE.
     """
     # >>>>> NEW BRANCHING LOGIC <<<<<
     if not SPLIT_BY_ROUTE:
