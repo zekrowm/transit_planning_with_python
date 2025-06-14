@@ -141,9 +141,10 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export):
         print(f"Spatial join completed. Joined feature class created at:\n{JOINED_FC}")
 
         # Export joined data to CSV
-        with arcpy.da.SearchCursor(JOINED_FC, fields_to_export) as cursor, open(
-            OUTPUT_CSV, "w", newline="", encoding="utf-8"
-        ) as csvfile:
+        with (
+            arcpy.da.SearchCursor(JOINED_FC, fields_to_export) as cursor,
+            open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as csvfile,
+        ):
             writer = csv.writer(csvfile)
             writer.writerow(fields_to_export)
             for row in cursor:
@@ -154,9 +155,10 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export):
     else:
         print("POLYGON_LAYER is empty. Skipping spatial join.")
         # Export the bus stops feature class to CSV so that merge can still work.
-        with arcpy.da.SearchCursor(bus_stops_fc, fields_to_export) as cursor, open(
-            OUTPUT_CSV, "w", newline="", encoding="utf-8"
-        ) as csvfile:
+        with (
+            arcpy.da.SearchCursor(bus_stops_fc, fields_to_export) as cursor,
+            open(OUTPUT_CSV, "w", newline="", encoding="utf-8") as csvfile,
+        ):
             writer = csv.writer(csvfile)
             writer.writerow(fields_to_export)
             for row in cursor:
