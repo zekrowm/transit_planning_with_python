@@ -4,12 +4,14 @@ Overlap resolution (if enabled) is distance-based: the closer facility “wins.�
 """
 
 from __future__ import annotations
+
 import itertools
 from pathlib import Path
 from typing import Dict, List
-import pandas as pd
+
 import geopandas as gpd
 import networkx as nx
+import pandas as pd
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
 from shapely.ops import unary_union
 
@@ -21,25 +23,24 @@ ROADS_PATH: str = r"Path\To\Your\Roadway_Centerlines.shp"
 FACILITIES_PATH: str = r"Path\To\Your\park_and_rides.shp"
 OUTPUT_DIR: str = r"Path\To\Your\Output_Folder"
 
-DRIVE_TIME_MIN: int = 15          # minutes
-REMOVE_OVERLAPS: bool = False      # distance-based assignment when True
+DRIVE_TIME_MIN: int = 15  # minutes
+REMOVE_OVERLAPS: bool = False  # distance-based assignment when True
 
-SPEED_FIELD: str = "SPEED_LIMI"   # mph
-ONEWAY_FIELD: str = "ONEWAY"      # 'Y' or 'N'
+SPEED_FIELD: str = "SPEED_LIMI"  # mph
+ONEWAY_FIELD: str = "ONEWAY"  # 'Y' or 'N'
 
-BUFFER_SMOOTH_M: float = 75       # smoothing buffer around reached nodes (metres)
+BUFFER_SMOOTH_M: float = 75  # smoothing buffer around reached nodes (metres)
 
 # CRS used for routing/buffering
-WORK_CRS_EPSG: int = 3857         # metres; keep consistent throughout
+WORK_CRS_EPSG: int = 3857  # metres; keep consistent throughout
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
+
 def build_network(
-    roads: gpd.GeoDataFrame,
-    speed_field: str,
-    oneway_field: str
+    roads: gpd.GeoDataFrame, speed_field: str, oneway_field: str
 ) -> nx.DiGraph:
     """Create a directed graph with travel-time (seconds) weights from road centre-lines."""
     mph_to_mps = 0.44704
@@ -89,15 +90,14 @@ def build_network(
 
 
 def isochrone_polygon(
-    graph: nx.DiGraph,
-    origin: Point,
-    cutoff_sec: int,
-    smooth_m: float
+    graph: nx.DiGraph, origin: Point, cutoff_sec: int, smooth_m: float
 ) -> Polygon:
     """Return a single Polygon representing the isochrone."""
     nearest = min(graph.nodes, key=lambda n: origin.distance(Point(n)))
-    lengths = nx.single_source_dijkstra_path_length(graph, nearest, cutoff_sec, weight="weight")
-    if not lengths:       # unreachable
+    lengths = nx.single_source_dijkstra_path_length(
+        graph, nearest, cutoff_sec, weight="weight"
+    )
+    if not lengths:  # unreachable
         return Polygon()
     points = [Point(xy) for xy in lengths.keys()]
     poly = unary_union(gpd.GeoSeries(points).buffer(smooth_m))
@@ -105,8 +105,7 @@ def isochrone_polygon(
 
 
 def resolve_overlaps_by_proximity(
-    polys: Dict[str, Polygon],
-    centers: Dict[str, Point]
+    polys: Dict[str, Polygon], centers: Dict[str, Point]
 ) -> Dict[str, Polygon]:
     """
     Make all polygons in *polys* mutually disjoint.
@@ -137,9 +136,11 @@ def resolve_overlaps_by_proximity(
 def safe_filename(text: str) -> str:
     return "".join(c if c.isalnum() else "_" for c in text).strip("_").lower()
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     out_dir = Path(OUTPUT_DIR)
@@ -147,12 +148,12 @@ def main() -> None:
 
     # 1. Load once, project once, build spatial index once
     roads_full = gpd.read_file(ROADS_PATH).to_crs(epsg=WORK_CRS_EPSG)
-    roads_index = roads_full.sindex                       # STR-tree
+    roads_index = roads_full.sindex  # STR-tree
     facilities = gpd.read_file(FACILITIES_PATH).to_crs(epsg=WORK_CRS_EPSG)
 
     # 2. Pre-compute the *absolute* reach radius (worst-case: 70 mph on straight freeway)
     MAX_SPEED_MPS = 70 * 0.44704
-    RADIUS_M = DRIVE_TIME_MIN * 60 * MAX_SPEED_MPS        # metres (~28 km for 15 min)
+    RADIUS_M = DRIVE_TIME_MIN * 60 * MAX_SPEED_MPS  # metres (~28 km for 15 min)
 
     iso_polys: Dict[str, Polygon] = {}
     fac_points: Dict[str, Point] = {}
@@ -176,7 +177,9 @@ def main() -> None:
 
         # 4. Build *mini* graph and run Dijkstra -------------------------
         sub_graph = build_network(sub_roads, SPEED_FIELD, ONEWAY_FIELD)
-        poly = isochrone_polygon(sub_graph, centre, DRIVE_TIME_MIN * 60, BUFFER_SMOOTH_M)
+        poly = isochrone_polygon(
+            sub_graph, centre, DRIVE_TIME_MIN * 60, BUFFER_SMOOTH_M
+        )
 
         if poly.is_empty:
             print(f"  ⚠  Unreachable network for {name}.")
@@ -198,7 +201,9 @@ def main() -> None:
     for name, poly in iso_polys.items():
         if poly.is_empty:
             continue
-        gdf = gpd.GeoDataFrame({"name": [name]}, geometry=[poly], crs=f"EPSG:{WORK_CRS_EPSG}")
+        gdf = gpd.GeoDataFrame(
+            {"name": [name]}, geometry=[poly], crs=f"EPSG:{WORK_CRS_EPSG}"
+        )
         gdf.to_file(out_dir / f"{safe_filename(name)}_{DRIVE_TIME_MIN}min_iso.shp")
         combined_rows.append(gdf)
 
