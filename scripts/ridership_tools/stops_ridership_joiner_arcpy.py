@@ -16,7 +16,7 @@ Typical use:
 import csv
 import os
 
-import arcpy
+import arcpy   # type: ignore
 import pandas as pd
 
 # =============================================================================
