@@ -7,11 +7,13 @@ stops that violate a minimum spacing threshold.
 """
 
 from __future__ import annotations
+
 import sys
 import tempfile
 import zipfile
 from pathlib import Path
 from typing import Dict, Iterable, Sequence, Tuple
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -22,21 +24,22 @@ from shapely.ops import split as split_line
 # CONFIGURATION
 # =============================================================================
 
-GTFS_PATH: str = r"Path\To\Your\GTFS_Data_Folder"          # folder or .zip
+GTFS_PATH: str = r"Path\To\Your\GTFS_Data_Folder"  # folder or .zip
 OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
 
 FILTER_OUT_LIST: list[str] = ["9999A", "9999B", "9999C"]
 INCLUDE_ROUTE_IDS: list[str] = ["101", "202"]
 
 ROUTE_UNION: bool = False
-PROJECTED_CRS: str = "EPSG:2263"                         # feet-based CRS
+PROJECTED_CRS: str = "EPSG:2263"  # feet-based CRS
 
-MIN_SPACING_FT: float = 400.0                            # 1/8 mile default
+MIN_SPACING_FT: float = 400.0  # 1/8 mile default
 SPACING_LOG_FILE: str = "short_spacing_segments.txt"
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _ensure_output_folder(folder: str | Path) -> Path:
     """Create (if necessary) and return the output folder as a ``Path``."""
@@ -105,7 +108,9 @@ def _validate_columns(dfs: Dict[str, pd.DataFrame]) -> None:
 
     if missing_msgs:
         joined = "\n".join(" • " + msg for msg in missing_msgs)
-        raise ValueError(f"GTFS validation failed – required columns not found:\n{joined}")
+        raise ValueError(
+            f"GTFS validation failed – required columns not found:\n{joined}"
+        )
 
 
 def _filter_routes(
@@ -185,14 +190,11 @@ def _build_routes_gdf(
 
     gdf = gpd.GeoDataFrame(lines, geometry="geometry", crs="EPSG:4326").to_crs(crs)
 
-    gdf = (
-        gdf.merge(
-            trips.drop_duplicates("shape_id")[["shape_id", "route_id", "direction_id"]],
-            on="shape_id",
-            how="left",
-        )
-        .merge(routes, on="route_id", how="left")
-    )
+    gdf = gdf.merge(
+        trips.drop_duplicates("shape_id")[["shape_id", "route_id", "direction_id"]],
+        on="shape_id",
+        how="left",
+    ).merge(routes, on="route_id", how="left")
 
     # ---- NEW ---------------------------------------------------------------
     before = len(gdf)
@@ -206,14 +208,11 @@ def _build_routes_gdf(
     # ------------------------------------------------------------------------
 
     if union_shapes:
-        gdf = (
-            gdf.dissolve(
-                by=["route_id", "direction_id"],
-                as_index=False,
-                aggfunc={"route_short_name": "first", "route_long_name": "first"},
-            )
-            .explode(ignore_index=True)
-        )
+        gdf = gdf.dissolve(
+            by=["route_id", "direction_id"],
+            as_index=False,
+            aggfunc={"route_short_name": "first", "route_long_name": "first"},
+        ).explode(ignore_index=True)
 
     print(f"Routes GDF – built {len(gdf):,} shapes.")
     return gdf
@@ -230,7 +229,7 @@ def _split_into_segments(
 
     for _, r in routes_gdf.iterrows():
         # -------------------------------------------------------------------
-        if pd.isna(r.direction_id):          # extra safety – should not occur
+        if pd.isna(r.direction_id):  # extra safety – should not occur
             continue
         # -------------------------------------------------------------------
 
@@ -289,6 +288,7 @@ def _export_segments_by_route_dir(seg_gdf: gpd.GeoDataFrame, out_dir: Path) -> N
         grp.to_file(out_dir / fname)
         print(f"Wrote {fname}")
 
+
 def _flag_short_spacing(
     routes_gdf: gpd.GeoDataFrame,
     stops_gdf: gpd.GeoDataFrame,
@@ -339,9 +339,11 @@ def _flag_short_spacing(
 
     print(f"Wrote short-spacing log → {log_path.name}")
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:  # noqa: D401
     """Run the entire GTFS shapefile & spacing-log pipeline."""
@@ -374,7 +376,7 @@ def main() -> None:  # noqa: D401
 
     print("STEP 3  Splitting routes into stop-to-stop segments …")
     segs_gdf = _split_into_segments(routes_gdf, stops_gdf, PROJECTED_CRS)
-    _export(segs_gdf, out_dir, "segments")           # master file
+    _export(segs_gdf, out_dir, "segments")  # master file
     _export_segments_by_route_dir(segs_gdf, out_dir)  # per-route files
 
     print("STEP 4  Flagging closely-spaced stops …")
