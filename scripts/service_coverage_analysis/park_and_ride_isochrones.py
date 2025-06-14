@@ -6,7 +6,8 @@ Overlap resolution (if enabled) is distance-based: the closer facility â€œwins.â
 from __future__ import annotations
 import itertools
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
+import pandas as pd
 import geopandas as gpd
 import networkx as nx
 from shapely.geometry import LineString, MultiLineString, Point, Polygon
