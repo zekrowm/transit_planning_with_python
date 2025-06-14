@@ -18,13 +18,11 @@ Outputs:
     - Optional matplotlib plots for visual inspection.
 """
 
-import os
 import logging
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
 from shapely.geometry import Point
-import logging
 import os
 from pathlib import Path
 from typing import Final
@@ -216,29 +214,6 @@ def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
         & (calendar_df["friday"] == 1)
     )
     return calendar_df[weekday_filter]["service_id"]
-
-
-def apply_fips_filter(
-    demog_gdf: gpd.GeoDataFrame, fips_filter: list[str]
-) -> gpd.GeoDataFrame:
-    """
-    Filter a demographics GeoDataFrame by a list of FIPS codes (optional).
-
-    :param demog_gdf: A GeoDataFrame of demographic data with column 'FIPS'.
-    :param fips_filter: List of FIPS codes to keep. If empty, no filter is applied.
-    :return: Filtered or unfiltered GeoDataFrame.
-    """
-    if fips_filter:
-        before_count = len(demog_gdf)
-        demog_gdf = demog_gdf[demog_gdf["FIPS"].isin(fips_filter)]
-        after_count = len(demog_gdf)
-        print(
-            f"Applied FIPS filter: {fips_filter} "
-            f"(reduced from {before_count} to {after_count} records)"
-        )
-    else:
-        print("No FIPS filter applied; processing all FIPS codes.")
-    return demog_gdf
 
 
 def get_included_routes(
