@@ -165,7 +165,7 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export):
 
 def read_and_filter_ridership_data():
     """Read ridership data from EXCEL_FILE and optionally filter by routes.
-    
+
     Return a DataFrame with aggregated totals.
     """
     df_excel = pd.read_excel(EXCEL_FILE)
@@ -186,7 +186,7 @@ def read_and_filter_ridership_data():
 
 def merge_ridership_and_csv(df_excel, fields_to_export):
     """Merge ridership data (df_excel) with the CSV from the spatial join.
-    
+
     Raises error if no polygon layer was provided and CSV does not exist.
     Returns:
       - df_joined: merged DataFrame
@@ -217,7 +217,7 @@ def merge_ridership_and_csv(df_excel, fields_to_export):
 
 def filter_matched_bus_stops(current_fc, df_joined, key_field):
     """Filter the joined feature class to include only matched bus stops.
-    
+
     Returns the path to the filtered shapefile.
     """
     matched_keys = df_joined[key_field].dropna().unique().tolist()
@@ -326,7 +326,7 @@ def update_bus_stops_ridership(current_fc, df_joined, key_field):
 
 def aggregate_ridership(df_joined):
     """Aggregate ridership by the polygon join field and update the polygon layer shapefile.
-    
+
     Also exports the aggregated data to CSV for verification.
     """
     if not POLYGON_LAYER.strip():
@@ -394,7 +394,7 @@ def aggregate_ridership(df_joined):
 
 def process_stops_for_single_run():
     """(Helper) Original single-run flow (no splitting by route).
-    
+
     Creates one shapefile for the entire network of bus stops,
     and now also exports an intermediate aggregated ridership CSV.
     """
@@ -440,7 +440,7 @@ def process_stops_for_single_run():
 
 def main():
     """Main entry point for the script.
-    
+
     Either processes all routes at once (creating a single shapefile) or splits
     by route (creating multiple shapefiles), depending on SPLIT_BY_ROUTE.
     """
