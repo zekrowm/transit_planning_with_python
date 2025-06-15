@@ -423,7 +423,7 @@ def fill_stop_ids_for_dwell_layover_loading(df_in):
 
 def _create_trips_summary(block_subset):
     """Helper to build trip summaries for a block.
-    
+
     Returns a list of dictionaries with trip info and sorted stop times.
     """
     trips_summary = []
@@ -640,7 +640,7 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
 
 def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
     """Merge trips and stops, filter by service_id, route, etc.
-    
+
     Return a single merged DataFrame with arrival_min/departure_min.
     """
     # Filter by service_id if set
