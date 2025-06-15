@@ -65,12 +65,13 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
+
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """Loads GTFS files into pandas DataFrames from the specified directory.
 
     Args:
         gtfs_folder_path (str): The path to the directory containing GTFS files.
-        files (list[str], optional): A list of GTFS filenames to load. 
+        files (list[str], optional): A list of GTFS filenames to load.
             Defaults to a standard list of GTFS files if set to None.
             The standard list includes:
             [
@@ -83,7 +84,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             CSV files. Defaults to str.
 
     Returns:
-        dict[str, pd.DataFrame]: A dictionary where keys are the filenames 
+        dict[str, pd.DataFrame]: A dictionary where keys are the filenames
         without the '.txt' extension and values are the loaded pandas DataFrames.
 
     Raises:
