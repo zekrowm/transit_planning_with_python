@@ -219,11 +219,7 @@ def find_cluster(stop_id, bus_stop_clusters):
 
 
 def _status_for_same_trip(minute, stop_info):
-    """
-    Handle same-trip logic. stop_info is a tuple:
-      (arrival, departure, stop_id, stop_name, trip_id,
-       is_first, is_last, stop_seq, timepoint)
-    """
+    """Handle same-trip logic. stop_info is a tuple."""
     (arr, dep, s_id, s_name, t_id, is_first, is_last, s_seq, t_val) = stop_info
 
     # Check for arrive/depart/dwell
@@ -277,10 +273,7 @@ def _status_for_same_trip(minute, stop_info):
 def _status_for_different_trip(
     dep, next_arr, current_stop_id, current_stop_name, next_stop_id, bus_stop_clusters
 ):
-    """
-    Sub-logic for bridging between two different trips,
-    determining LAYOVER, DEADHEAD, etc.
-    """
+    """Sub-logic for bridging between two different trips, determining LAYOVER, DEADHEAD, etc."""
     gap = next_arr - dep
     current_cluster = find_cluster(current_stop_id, bus_stop_clusters)
     next_cluster = find_cluster(next_stop_id, bus_stop_clusters)
@@ -301,8 +294,7 @@ def _status_for_different_trip(
 
 
 def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
-    """
-    Determine the block's status at a specific 'minute'.
+    """Determine the block's status at a specific 'minute'.
 
     Returns tuple:
        (status, stop_id, stop_name, arrival_str, departure_str,
@@ -367,9 +359,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
 
 
 def check_for_overlapping_trips(block_subset, block_id):
-    """
-    Print a warning if any trips within this block overlap in time.
-    """
+    """Print a warning if any trips within this block overlap in time."""
     trip_times = []
     for trip_id, group in block_subset.groupby("trip_id"):
         start_val = group["arrival_min"].min()
@@ -391,8 +381,7 @@ def check_for_overlapping_trips(block_subset, block_id):
 
 
 def fill_stop_ids_for_dwell_layover_loading(df_in):
-    """
-    For rows where status is DWELL, LAYOVER, or LOADING (Stop ID is empty),
+    """For rows where status is DWELL, LAYOVER, or LOADING (Stop ID is empty),
     fill in the last known stop_id from the same block to make final
     spreadsheet more readable.
     """
@@ -433,8 +422,8 @@ def fill_stop_ids_for_dwell_layover_loading(df_in):
 
 
 def _create_trips_summary(block_subset):
-    """
-    Helper to build trip summaries for a block.
+    """Helper to build trip summaries for a block.
+    
     Returns a list of dictionaries with trip info and sorted stop times.
     """
     trips_summary = []
@@ -478,9 +467,7 @@ def _create_trips_summary(block_subset):
 
 
 def _status_for_active_trips(minute, active_trips, bus_stop_clusters):
-    """
-    Among all 'active' trips for the given minute, determine the single chosen status.
-    """
+    """Among all 'active' trips for the given minute, determine the single chosen status."""
     candidate_info = []
     for trip_obj in active_trips:
         status_tuple = get_status_for_minute(
@@ -512,9 +499,7 @@ def _status_for_active_trips(minute, active_trips, bus_stop_clusters):
 
 
 def _row_for_inactive(minute, block_id, all_trips):
-    """
-    Return the dictionary row for an 'inactive' minute (or bridging).
-    """
+    """Return the dictionary row for an 'inactive' minute (or bridging)."""
     # Identify trips just before and just after this minute
     prev_trip_info = None
     next_trip_info = None
@@ -565,9 +550,7 @@ def _row_for_inactive(minute, block_id, all_trips):
 
 
 def _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters):
-    """
-    Build the final minute-by-minute schedule rows for one block.
-    """
+    """Build the final minute-by-minute schedule rows for one block."""
     rows = []
     for minute in timeline:
         # Which trips are active at this minute?
@@ -643,9 +626,7 @@ def _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters):
 
 
 def process_block(block_subset, block_id, timeline, bus_stop_clusters):
-    """
-    Generate a minute-by-minute schedule DataFrame for a single block.
-    """
+    """Generate a minute-by-minute schedule DataFrame for a single block."""
     trips_summary = _create_trips_summary(block_subset)
     rows = _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters)
     df = pd.DataFrame(rows)
@@ -658,8 +639,8 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
 
 
 def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
-    """
-    Merge trips and stops, filter by service_id, route, etc.
+    """Merge trips and stops, filter by service_id, route, etc.
+    
     Return a single merged DataFrame with arrival_min/departure_min.
     """
     # Filter by service_id if set
@@ -740,9 +721,7 @@ def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
 
 
 def run_step1_gtfs_to_blocks():
-    """
-    Step 1: Generate block-level schedules from GTFS.
-    """
+    """Step 1: Generate block-level schedules from GTFS."""
     print("=== Step 1: Reading GTFS and generating block-level schedules ===")
     validate_folders(GTFS_FOLDER_PATH, BLOCK_OUTPUT_FOLDER)
 
@@ -819,9 +798,7 @@ def run_step1_gtfs_to_blocks():
 
 
 def main():
-    """
-    Master entry point.
-    """
+    """Master entry point."""
     run_step1_gtfs_to_blocks()
 
 
