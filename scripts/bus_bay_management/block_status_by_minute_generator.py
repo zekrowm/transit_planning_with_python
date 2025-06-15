@@ -1,5 +1,4 @@
-"""
-Generates minute-by-minute transit block status timelines from GTFS data.
+"""Generates minute-by-minute transit block status timelines from GTFS data.
 
 Processes GTFS files to determine operational statuses (e.g., DWELL, LAYOVER, TRAVELING)
 of transit blocks at one-minute intervals, producing Excel reports for further analysis.
@@ -68,9 +67,7 @@ BUS_STOP_CLUSTERS_STEP1 = [
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Loads GTFS files into pandas DataFrames from the specified directory while logging.
 
     Parameters:
         gtfs_folder_path (str): Path to the directory containing GTFS files.
@@ -164,10 +161,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
 
 def validate_folders(input_path, output_path):
-    """
-    Check that the input folder exists, and ensure the output folder
-    is created if it does not already exist.
-    """
+    """Check that the input folder exists, and ensure the output folder is created if not."""
     if not os.path.isdir(input_path):
         raise NotADirectoryError(
             f"Input path does not exist or is not a directory: {input_path}"
@@ -181,9 +175,7 @@ def validate_folders(input_path, output_path):
 
 
 def time_to_minutes(time_str):
-    """
-    Convert 'HH:MM:SS' or 'HH:MM' to integer minutes (e.g. "26:30:00" -> 1590).
-    """
+    """Convert 'HH:MM:SS' or 'HH:MM' to integer minutes (e.g. "26:30:00" -> 1590)."""
     parts = time_str.split(":")
     hours = int(parts[0])
     minutes = int(parts[1])
@@ -192,18 +184,14 @@ def time_to_minutes(time_str):
 
 
 def minutes_to_hhmm(total_minutes):
-    """
-    Convert integer minutes into 'HH:MM' (e.g. 1590 -> "26:30").
-    """
+    """Convert integer minutes into 'HH:MM' (e.g. 1590 -> "26:30")."""
     hours = total_minutes // 60
     mins = total_minutes % 60
     return f"{hours:02d}:{mins:02d}"
 
 
 def mark_first_and_last_stops(df_in):
-    """
-    Mark each stop in the trip as the first or last using boolean columns.
-    """
+    """Mark each stop in the trip as the first or last using boolean columns."""
     df_out = df_in.sort_values(["trip_id", "stop_sequence"]).copy()
     df_out["is_first_stop"] = False
     df_out["is_last_stop"] = False
@@ -218,9 +206,7 @@ def mark_first_and_last_stops(df_in):
 
 
 def find_cluster(stop_id, bus_stop_clusters):
-    """
-    Given a stop_id, return the named cluster (if any) or None if not found.
-    """
+    """Given a stop_id, return the named cluster (if any) or None if not found."""
     for cluster_item in bus_stop_clusters:
         if stop_id in cluster_item["stops"]:
             return cluster_item["name"]
@@ -830,7 +816,6 @@ def run_step1_gtfs_to_blocks():
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
-
 
 def main():
     """
