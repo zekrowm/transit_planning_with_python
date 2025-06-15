@@ -10,6 +10,7 @@ though direct execution via the command line is also supported.
 import logging
 import os
 from typing import Any, Optional
+
 import pandas as pd
 
 # ==================================================================================================
@@ -65,7 +66,10 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
-def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: Any = str):
+
+def load_gtfs_data(
+    gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: Any = str
+):
     """Loads GTFS files into pandas DataFrames from the specified directory.
 
     Args:
@@ -153,6 +157,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dty
 # VALIDATION UTILITY
 # --------------------------------------------------------------------------------------------------
 
+
 def validate_folders(input_path, output_path):
     """Check that the input folder exists, and ensure the output folder is created if not."""
     if not os.path.isdir(input_path):
@@ -165,6 +170,7 @@ def validate_folders(input_path, output_path):
 # --------------------------------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # --------------------------------------------------------------------------------------------------
+
 
 def time_to_minutes(time_str):
     """Convert 'HH:MM:SS' or 'HH:MM' to integer minutes (e.g. "26:30:00" -> 1590)."""
@@ -208,6 +214,7 @@ def find_cluster(stop_id, bus_stop_clusters):
 # --------------------------------------------------------------------------------------------------
 # BRIDGING LOGIC REFACTOR
 # --------------------------------------------------------------------------------------------------
+
 
 def _status_for_same_trip(minute, stop_info):
     """Handle same-trip logic. stop_info is a tuple."""
@@ -347,6 +354,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
 # --------------------------------------------------------------------------------------------------
 # MAIN BLOCK PROCESSING
 # --------------------------------------------------------------------------------------------------
+
 
 def check_for_overlapping_trips(block_subset, block_id):
     """Print a warning if any trips within this block overlap in time."""
@@ -639,6 +647,7 @@ def process_block(block_subset, block_id, timeline, bus_stop_clusters):
 # STEP 1: GTFS -> Block Spreadsheets
 # --------------------------------------------------------------------------------------------------
 
+
 def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
     """Merge trips and stops, filter by service_id, route, etc.
 
@@ -796,6 +805,7 @@ def run_step1_gtfs_to_blocks():
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main():
     """Master entry point."""
