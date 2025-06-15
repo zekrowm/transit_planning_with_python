@@ -9,7 +9,7 @@ though direct execution via the command line is also supported.
 
 import logging
 import os
-
+from typing import Any, Optional
 import pandas as pd
 
 # ==================================================================================================
@@ -28,9 +28,9 @@ MAX_TRIPS_PER_BLOCK = 150
 
 CALENDAR_SERVICE_IDS = ["3"]
 
-ROUTE_SHORTNAME_FILTER = []
-STOP_ID_FILTER = []
-STOP_CODE_FILTER = []
+ROUTE_SHORTNAME_FILTER: list[str] = []
+STOP_ID_FILTER: list[str] = []
+STOP_CODE_FILTER: list[str] = []
 
 CLUSTER_DEFINITIONS = {
     "Metro": {
