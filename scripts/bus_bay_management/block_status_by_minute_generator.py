@@ -381,9 +381,21 @@ def check_for_overlapping_trips(block_subset, block_id):
 
 
 def fill_stop_ids_for_dwell_layover_loading(df_in):
-    """For rows where status is DWELL, LAYOVER, or LOADING (Stop ID is empty),
-    fill in the last known stop_id from the same block to make final
-    spreadsheet more readable.
+    """Fills in missing stop information for certain vehicle statuses.
+
+    For rows with a status of 'DWELL', 'LAYOVER', or 'LOADING', where the
+    'Stop ID' is typically empty, this function populates the 'Stop ID',
+    'Stop Name', 'Stop Sequence', 'Arrival Time', 'Departure Time', and
+    'Trip ID' fields. The data used for filling is based on the last known
+    stop information from the same vehicle block, enhancing the readability
+    of the final output.
+
+    Args:
+        df_in (pd.DataFrame): The input DataFrame containing vehicle status and
+            stop information.
+
+    Returns:
+        pd.DataFrame: A new DataFrame with the missing stop information filled in.
     """
     df_out = df_in.copy()
     last_stop_id = None
