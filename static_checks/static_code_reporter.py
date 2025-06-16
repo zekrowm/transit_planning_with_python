@@ -68,6 +68,7 @@ CONSOLE = logging.getLogger(__name__)
 # FUNCTIONS
 # ============================================================================
 
+
 def _require_ws(raw_ws: Worksheet | None) -> Worksheet:
     """Cast a potentially-optional sheet to a real ``Worksheet``.
 
@@ -83,6 +84,7 @@ def _require_ws(raw_ws: Worksheet | None) -> Worksheet:
     if raw_ws is None:  # pragma: no cover
         raise RuntimeError("Workbook has no active worksheet")
     return cast(Worksheet, raw_ws)
+
 
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
@@ -496,7 +498,9 @@ def main() -> None:
         CONSOLE.info("\n=== Running vulture pass ===")
         failures = run_vulture(files)
         if failures > 0:
-            CONSOLE.warning("vulture found potential dead code in %d file(s).", failures)
+            CONSOLE.warning(
+                "vulture found potential dead code in %d file(s).", failures
+            )
             overall_tools_failed_files += failures
         else:
             CONSOLE.info("vulture pass: No issues found.")
