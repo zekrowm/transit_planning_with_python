@@ -490,7 +490,7 @@ def main() -> None:
         else:
             CONSOLE.info("Vulture pass: No issues found.")
 
-    if ENABLE_PYINT:
+    if ENABLE_PYLINT:
         CONSOLE.info("\n=== Running pylint pass ===")
         failures = run_pylint(files)
         if failures > 0:
