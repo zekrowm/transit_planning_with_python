@@ -279,6 +279,7 @@ def run_vulture(files: List[str]) -> int:
 
 _PYLINT_ISSUE = re.compile(r":\s*[EF]\d{4}:")  # only E(rror)/F(atal) codes
 
+
 def run_pylint(files: list[str]) -> int:
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "pylint_detailed_log")
     CONSOLE.info("pylint (errors-only) log → %s", log_fp)
@@ -287,7 +288,11 @@ def run_pylint(files: list[str]) -> int:
     for idx, py in enumerate(files, 1):
         logger.info(
             "\n%s\nFILE %d/%d → %s\n%s",
-            "=" * 80, idx, len(files), py, "=" * 80,
+            "=" * 80,
+            idx,
+            len(files),
+            py,
+            "=" * 80,
         )
         try:
             proc = subprocess.run(
@@ -314,9 +319,7 @@ def run_pylint(files: list[str]) -> int:
 
         issues = sum(1 for l in (out or "").splitlines() if _PYLINT_ISSUE.search(l))
         score = (
-            float(out.split("rated at")[1].split("/")[0])
-            if "rated at" in out
-            else 0.0
+            float(out.split("rated at")[1].split("/")[0]) if "rated at" in out else 0.0
         )
 
         summary.append(
