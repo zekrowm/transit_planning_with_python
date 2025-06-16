@@ -78,6 +78,7 @@ PASSENGER_SERVICE_STATUSES: Set[str] = {
 # CAPACITY AND STOP-LIST BUILDING BASED ON BAY COUNTS
 # --------------------------------------------------------------------------------------------------
 
+
 def get_all_official_stops(cinfo: Dict[str, List[str]]) -> List[str]:
     """Return a combined list of all *official* stops in a cluster.
 
@@ -122,7 +123,9 @@ def build_cluster_capacities() -> Dict[str, int]:
         n_triple = len(cinfo.get("triple_bay_stops", []))
         n_overflow = len(cinfo.get("overflow_bays", []))
 
-        cluster_cap = (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
+        cluster_cap = (
+            (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
+        )
         capacities[cname] = cluster_cap
     return capacities
 
@@ -152,6 +155,7 @@ def build_stop_capacities() -> Dict[str, int]:
 # --------------------------------------------------------------------------------------------------
 # CORE CONFLICT-DETECTION LOGIC
 # --------------------------------------------------------------------------------------------------
+
 
 def normalize_stop_id(stop_id: object) -> Optional[str]:
     """Return a normalized stop-ID string.
@@ -326,6 +330,7 @@ def annotate_conflicts(
 # I/O AND EXCEL WRITING LOGIC
 # --------------------------------------------------------------------------------------------------
 
+
 def gather_block_spreadsheets(block_folder: str) -> DataFrame:
     """Read and concatenate every ``block_*.xlsx`` spreadsheet in *block_folder*.
 
@@ -493,6 +498,7 @@ def run_step2_conflict_detection() -> None:
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:
     """Entry point when executing this module as a script."""
