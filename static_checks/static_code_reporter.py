@@ -491,7 +491,7 @@ def main() -> None:
             CONSOLE.info("Vulture pass: No issues found.")
 
     if ENABLE_PYINT:
-        CONSOLE.info("\n=== Running pylint/isort pass ===")
+        CONSOLE.info("\n=== Running pylint pass ===")
         failures = run_pylint(files)
         if failures > 0:
             CONSOLE.warning("Pylint/isort found issues in %d file(s).", failures)
