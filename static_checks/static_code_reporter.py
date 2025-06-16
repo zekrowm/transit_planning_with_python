@@ -89,6 +89,25 @@ def _require_ws(raw_ws: Worksheet | None) -> Worksheet:
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
 ) -> Tuple[logging.Logger, str]:
+    """Create a timestamped file logger.
+
+    A new :class:`logging.Logger` named ``prefix`` is returned with
+    propagation disabled and a single ``FileHandler`` that writes to
+    ``{out_folder}/{prefix}_YYYYMMDD_HHMMSS.log``.
+
+    Args:
+        out_folder: Directory where the log file will be created (created if
+            it does not exist).
+        prefix: Stem used for both the logger name and the log-file name.
+        level: Logging level applied to the handler. Defaults to
+            ``logging.DEBUG``.
+
+    Returns:
+        Tuple containing:
+
+        * The configured logger instance.
+        * Absolute path to the created log file.
+    """
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder = Path(out_folder).expanduser().resolve()
     folder.mkdir(parents=True, exist_ok=True)
@@ -139,6 +158,17 @@ _MYPY_RE = re.compile(r"Found\s+(\d+)\s+error")
 
 
 def run_mypy(files: List[str]) -> int:
+    """Run *mypy* on every file and write an Excel summary.
+
+    Each target file is analysed in its own subprocess so that failures are
+    isolated.  A per-run log is written by :pyfunc:`setup_detailed_logger`.
+
+    Args:
+        files: Fully-qualified paths to the ``.py`` files to check.
+
+    Returns:
+        Number of files that produced at least one mypy error.
+    """
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "mypy_detailed_log")
     CONSOLE.info("mypy log → %s", log_fp)
     results: List[Dict[str, Any]] = []
@@ -223,6 +253,15 @@ _VULTURE_LINE = re.compile(r"^(?:.+?:)?(\d+):\s*(.+?)\s*\((\d+%) confidence\)$")
 
 
 def run_vulture(files: List[str]) -> int:
+    """Detect dead code using *vulture* and write an Excel summary.
+
+    Args:
+        files: Fully-qualified paths to the ``.py`` files to inspect.
+
+    Returns:
+        Number of files that contained at least one item whose confidence is
+        greater than or equal to ``VULTURE_MIN_CONFIDENCE``.
+    """
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "vulture_detailed_log")
     CONSOLE.info("vulture log → %s", log_fp)
     summary: List[Dict[str, Any]] = []
@@ -301,6 +340,15 @@ _PYLINT_ISSUE = re.compile(r":\s*[EF]\d{4}:")
 
 
 def run_pylint(files: list[str]) -> int:
+    """Run *pylint* (errors-only) and export an Excel report.
+
+    Args:
+        files: Fully-qualified paths to the ``.py`` files to lint.
+
+    Returns:
+        Number of files that triggered at least one ``E****`` or ``F****``
+        message.
+    """
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "pylint_detailed_log")
     CONSOLE.info("pylint (errors-only) log → %s", log_fp)
 
@@ -387,6 +435,14 @@ def run_pylint(files: list[str]) -> int:
 # 4) PYDOCSTYLE CHECK
 # ----------------------------------------------------------------------------
 def run_pydocstyle(files: List[str]) -> int:
+    """Validate docstrings with *pydocstyle* and export an Excel report.
+
+    Args:
+        files: Fully-qualified paths to the ``.py`` files to check.
+
+    Returns:
+        Number of files that failed at least one pydocstyle rule.
+    """
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "pydocstyle_detailed_log")
     CONSOLE.info("pydocstyle log → %s", log_fp)
     summary: List[Dict[str, Any]] = []
@@ -477,6 +533,12 @@ def run_pydocstyle(files: List[str]) -> int:
 # MAIN
 # ============================================================================
 def main() -> None:
+    """Entry-point for command-line execution.
+
+    Collects target files, runs the enabled static-analysis tools, prints a
+    high-level summary to stdout, and exits with code 0 when all tools pass
+    or 1 when any tool reports issues.
+    """
     files = gather_python_files(FILES_OR_FOLDERS, SKIP_PATHS)
     if not files:
         CONSOLE.warning("No Python files found – nothing to do.")
