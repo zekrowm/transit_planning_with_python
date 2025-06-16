@@ -1,39 +1,34 @@
+"""Detect transit-cluster and stop-level scheduling conflicts.
+
+The script analyzes block-level transit data to flag times when more
+buses are scheduled than a bay or cluster can physically handle.  It
+reads the *Step 1* block-level XLSX outputs, calculates capacity
+constraints from the user-defined ``CLUSTER_DEFINITIONS``, and writes a
+detailed Excel workbook for each cluster showing every event and
+highlighting any conflicts.
+
+Typical use is from a Jupyter Notebook or ArcGIS Pro “Python” pane, but
+the module can also be invoked directly from the command line.
 """
-Analyzes block-level transit data to detect scheduling conflicts at bus clusters based on bay
-capacities and bus statuses.
 
-Processes input spreadsheets to identify cluster-level and stop-level over-capacity situations,
-and generates detailed Excel reports highlighting conflicts.
-
-Typically used interactively within a Jupyter notebook or ArcGIS Pro environment,
-though direct execution via the command line is also supported.
-
-Attributes:
-    BLOCK_OUTPUT_FOLDER (str): Directory containing input XLSX files from Step 1.
-    CLUSTER_CONFLICT_OUTPUT_FOLDER (str): Directory for saving conflict analysis Excel outputs.
-    CLUSTER_DEFINITIONS (dict): Definitions of transit clusters with bay capacities and overflow bays.
-    PRESENCE_STATUSES (set): Bus statuses indicating presence at a cluster.
-    PASSENGER_SERVICE_STATUSES (set): Bus statuses indicating bay occupancy.
-
-Dependencies:
-    pandas
-    openpyxl
-"""
+from __future__ import annotations
 
 import os
+from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from openpyxl.styles import Font
+from pandas import DataFrame
 
 # ==================================================================================================
 # CONFIGURATION
 # ==================================================================================================
 
 # Folder containing your block-level XLSX files from Step 1
-BLOCK_OUTPUT_FOLDER = r"\\Path\To\Your\Input_Folder"
+BLOCK_OUTPUT_FOLDER: str = r"\\Path\To\Your\Input_Folder"
 
-# Where to save the cluster conflict outputs
-CLUSTER_CONFLICT_OUTPUT_FOLDER = r"\\Path\To\Your\Output_Folder"
+# Where to save the cluster-conflict outputs
+CLUSTER_CONFLICT_OUTPUT_FOLDER: str = r"\\Path\To\Your\Output_Folder"
 
 # Dictionary of clusters, including single_bay, double_bay, triple_bay, and overflow.
 # Each key is the cluster name, the value is a dict with lists:
@@ -41,7 +36,7 @@ CLUSTER_CONFLICT_OUTPUT_FOLDER = r"\\Path\To\Your\Output_Folder"
 #   'double_bay_stops' -> capacity 2 each
 #   'triple_bay_stops' -> capacity 3 each
 #   'overflow_bays'    -> capacity 1 each
-CLUSTER_DEFINITIONS = {
+CLUSTER_DEFINITIONS: Dict[str, Dict[str, List[str]]] = {
     "Park & Ride": {
         "single_bay_stops": ["3882", "3881"],
         "double_bay_stops": [],
@@ -57,7 +52,7 @@ CLUSTER_DEFINITIONS = {
 }
 
 # Define which statuses indicate bus presence in the cluster
-PRESENCE_STATUSES = {
+PRESENCE_STATUSES: Set[str] = {
     "ARRIVE",
     "DEPART",
     "ARRIVE/DEPART",
@@ -68,7 +63,12 @@ PRESENCE_STATUSES = {
 }
 
 # Define which statuses indicate the bus is physically occupying a stop bay
-PASSENGER_SERVICE_STATUSES = {"ARRIVE", "DEPART", "ARRIVE/DEPART", "LOADING"}
+PASSENGER_SERVICE_STATUSES: Set[str] = {
+    "ARRIVE",
+    "DEPART",
+    "ARRIVE/DEPART",
+    "LOADING",
+}
 
 # ==================================================================================================
 # FUNCTIONS
@@ -78,11 +78,22 @@ PASSENGER_SERVICE_STATUSES = {"ARRIVE", "DEPART", "ARRIVE/DEPART", "LOADING"}
 # CAPACITY AND STOP-LIST BUILDING BASED ON BAY COUNTS
 # --------------------------------------------------------------------------------------------------
 
+def get_all_official_stops(cinfo: Dict[str, List[str]]) -> List[str]:
+    """Return a combined list of all *official* stops in a cluster.
 
-def get_all_official_stops(cinfo):
-    """
-    Return a combined list of all official stops in this cluster
-    (regardless of single, double, or triple bay).
+    Regardless of whether the stop is single-, double-, or triple-bay,
+    overflow bays are *excluded* here because they do not count toward
+    the “official” set used in certain analyses.
+
+    Args
+    ----
+    cinfo :
+        The cluster-definition dictionary for a single cluster.
+
+    Returns
+    -------
+    list[str]
+        Concatenated list of all official stop IDs.
     """
     return (
         cinfo.get("single_bay_stops", [])
@@ -91,38 +102,42 @@ def get_all_official_stops(cinfo):
     )
 
 
-def build_cluster_capacities():
+def build_cluster_capacities() -> Dict[str, int]:
+    """Compute total bay-capacity for every cluster.
+
+    Capacity is calculated as::
+
+        capacity = (#single * 1) + (#double * 2) + (#triple * 3) + (#overflow * 1)
+
+    Returns
+    -------
+    dict[str, int]
+        Mapping of ``cluster_name -> capacity`` (number of buses that
+        can be simultaneously present).
     """
-    Each cluster’s capacity = sum of:
-      - (# single-bay stops) * 1
-      - (# double-bay stops) * 2
-      - (# triple-bay stops) * 3
-      + (# overflow bays) * 1
-    """
-    capacities = {}
+    capacities: Dict[str, int] = {}
     for cname, cinfo in CLUSTER_DEFINITIONS.items():
         n_single = len(cinfo.get("single_bay_stops", []))
         n_double = len(cinfo.get("double_bay_stops", []))
         n_triple = len(cinfo.get("triple_bay_stops", []))
         n_overflow = len(cinfo.get("overflow_bays", []))
 
-        cluster_cap = (
-            (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
-        )
+        cluster_cap = (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
         capacities[cname] = cluster_cap
     return capacities
 
 
-def build_stop_capacities():
+def build_stop_capacities() -> Dict[str, int]:
+    """Generate a per-stop capacity dictionary.
+
+    Returns
+    -------
+    dict[str, int]
+        ``{stop_id: capacity}`` where single-bay = 1, double-bay = 2,
+        triple-bay = 3, and overflow = 1.
     """
-    Returns a dict {stop_id: capacity}, where:
-      - single-bay = capacity 1
-      - double-bay = capacity 2
-      - triple-bay = capacity 3
-      - overflow-bay = capacity 1
-    """
-    stop_caps = {}
-    for cname, cinfo in CLUSTER_DEFINITIONS.items():
+    stop_caps: Dict[str, int] = {}
+    for cinfo in CLUSTER_DEFINITIONS.values():
         for stop_id in cinfo.get("single_bay_stops", []):
             stop_caps[str(stop_id)] = 1
         for stop_id in cinfo.get("double_bay_stops", []):
@@ -138,9 +153,21 @@ def build_stop_capacities():
 # CORE CONFLICT-DETECTION LOGIC
 # --------------------------------------------------------------------------------------------------
 
+def normalize_stop_id(stop_id: object) -> Optional[str]:
+    """Return a normalized stop-ID string.
 
-def normalize_stop_id(stop_id):
-    """Convert stop IDs like '2956.0' -> '2956'. Handles NaN gracefully."""
+    Converts ``2956.0`` → ``"2956"`` and gracefully handles *NaN*.
+
+    Args
+    ----
+    stop_id :
+        Value from the ``Stop ID`` column, potentially numeric or NaN.
+
+    Returns
+    -------
+    str | None
+        Cleaned stop ID or *None* if ``stop_id`` is NaN.
+    """
     if pd.isna(stop_id):
         return None
     sid_str = str(stop_id).strip()
@@ -149,16 +176,27 @@ def normalize_stop_id(stop_id):
     return sid_str
 
 
-def assign_cluster_name(df_in):
-    """
-    Add a 'ClusterName' column to indicate which cluster the row’s stop is in.
-    If a stop appears in multiple clusters (unlikely), it will match the first found.
+def assign_cluster_name(df_in: DataFrame) -> DataFrame:
+    """Add a ``ClusterName`` column indicating which cluster each stop belongs to.
+
+    If a stop appears in multiple clusters (unlikely), the first match in
+    ``CLUSTER_DEFINITIONS`` wins.
+
+    Parameters
+    ----------
+    df_in :
+        Input DataFrame containing at least a ``Stop ID`` column.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Copy of ``df_in`` with the additional ``ClusterName`` column.
     """
     df_out = df_in.copy()
     df_out["ClusterName"] = None
 
-    # Build a map of cluster -> set_of_stop_ids
-    cluster_map = {}
+    # Build a map of cluster → set(stop_ids)
+    cluster_map: Dict[str, Set[str]] = {}
     for cname, cinfo in CLUSTER_DEFINITIONS.items():
         official_stops = get_all_official_stops(cinfo)
         overflow = cinfo.get("overflow_bays", [])
@@ -172,13 +210,24 @@ def assign_cluster_name(df_in):
     return df_out
 
 
-def find_cluster_conflicts(df_in):
-    """
-    Return a set of (cluster_name, timestamp) where the number of buses present
-    in that cluster at that time > cluster's capacity.
+def find_cluster_conflicts(df_in: DataFrame) -> Set[Tuple[str, str]]:
+    """Identify cluster-level conflicts.
+
+    A conflict occurs when the number of *present* buses exceeds the
+    cluster’s capacity at a specific timestamp.
+
+    Parameters
+    ----------
+    df_in :
+        DataFrame that already contains a ``ClusterName`` column.
+
+    Returns
+    -------
+    set[tuple[str, str]]
+        {(cluster_name, timestamp), …} representing each conflict point.
     """
     cluster_caps = build_cluster_capacities()
-    conflict_set = set()
+    conflict_set: Set[Tuple[str, str]] = set()
 
     present_df = df_in[df_in["Status"].isin(PRESENCE_STATUSES)].copy()
     present_df = present_df.dropna(subset=["ClusterName"])  # ignore rows w/o cluster
@@ -186,20 +235,30 @@ def find_cluster_conflicts(df_in):
     group = present_df.groupby(["ClusterName", "Timestamp"])
     for (cname, ts), grp in group:
         cap = cluster_caps.get(cname, 1)
-        # If more vehicles than capacity
-        if len(grp) > cap:
+        if len(grp) > cap:  # More vehicles than capacity
             conflict_set.add((cname, ts))
 
     return conflict_set
 
 
-def find_stop_conflicts(df_in):
-    """
-    Return a set of (stop_id, timestamp) where the number of buses
-    in passenger-service statuses at that stop > that stop’s capacity.
+def find_stop_conflicts(df_in: DataFrame) -> Set[Tuple[str, str]]:
+    """Identify stop-level conflicts.
+
+    A conflict occurs when the number of buses in passenger-service
+    statuses at a stop exceeds that stop’s capacity at a given timestamp.
+
+    Parameters
+    ----------
+    df_in :
+        Raw DataFrame containing ``Stop ID`` and ``Status`` columns.
+
+    Returns
+    -------
+    set[tuple[str, str]]
+        {(stop_id, timestamp), …} representing each conflict point.
     """
     stop_caps = build_stop_capacities()
-    conflict_set = set()
+    conflict_set: Set[Tuple[str, str]] = set()
 
     pass_df = df_in[df_in["Status"].isin(PASSENGER_SERVICE_STATUSES)].copy()
     pass_df = pass_df[pass_df["Stop ID"].notna()]
@@ -213,18 +272,36 @@ def find_stop_conflicts(df_in):
     return conflict_set
 
 
-def annotate_conflicts(df_in, cluster_conflicts, stop_conflicts):
-    """
-    Append a 'ConflictType' column with values:
-      - "NONE" (no conflict)
-      - "CLUSTER" (cluster conflict only)
-      - "STOP" (stop conflict only)
-      - "BOTH" (both cluster & stop conflict)
+def annotate_conflicts(
+    df_in: DataFrame,
+    cluster_conflicts: Set[Tuple[str, str]],
+    stop_conflicts: Set[Tuple[str, str]],
+) -> DataFrame:
+    """Append a ``ConflictType`` column categorizing each row.
+
+    ``ConflictType`` will be one of ``{"NONE", "CLUSTER", "STOP", "BOTH"}``.
+
+    Parameters
+    ----------
+    df_in :
+        Input DataFrame (must include ``ClusterName``, ``Stop ID``,
+        ``Timestamp``).
+    cluster_conflicts :
+        Set of cluster-level conflict keys as produced by
+        :func:`find_cluster_conflicts`.
+    stop_conflicts :
+        Set of stop-level conflict keys as produced by
+        :func:`find_stop_conflicts`.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Copy of ``df_in`` with the additional ``ConflictType`` column.
     """
     df_out = df_in.copy()
-    conflict_types = []
+    conflict_types: List[str] = []
 
-    for idx, row in df_out.iterrows():
+    for _, row in df_out.iterrows():
         cname = row["ClusterName"]
         ts = row["Timestamp"]
         sid = row["Stop ID"]
@@ -249,11 +326,23 @@ def annotate_conflicts(df_in, cluster_conflicts, stop_conflicts):
 # I/O AND EXCEL WRITING LOGIC
 # --------------------------------------------------------------------------------------------------
 
+def gather_block_spreadsheets(block_folder: str) -> DataFrame:
+    """Read and concatenate every ``block_*.xlsx`` spreadsheet in *block_folder*.
 
-def gather_block_spreadsheets(block_folder):
-    """
-    Read all 'block_*.xlsx' spreadsheets from Step 1 in `block_folder`,
-    and concatenate them into a single DataFrame.
+    Parameters
+    ----------
+    block_folder :
+        Directory containing the Step 1 block-level output workbooks.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Combined DataFrame of all block files.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no eligible ``block_*.xlsx`` files are found.
     """
     all_files = [
         f
@@ -263,7 +352,7 @@ def gather_block_spreadsheets(block_folder):
     if not all_files:
         raise FileNotFoundError(f"No block_*.xlsx files found in {block_folder}.")
 
-    big_df_list = []
+    big_df_list: List[DataFrame] = []
     for fname in all_files:
         path = os.path.join(block_folder, fname)
         temp_df = pd.read_excel(path)
@@ -275,14 +364,22 @@ def gather_block_spreadsheets(block_folder):
     return df_combined
 
 
-def run_step2_conflict_detection():
-    """
-    1) Read block-level spreadsheets (Step 1 output).
-    2) Normalize data, assign clusters, find conflicts with multi-bay logic.
-    3) For each cluster, create an output Excel file:
-       - "AllStops" sheet with all cluster events
-       - One sheet per official stop or overflow bay, listing only that stop's events
-       - Rows with conflicts are bolded.
+def run_step2_conflict_detection() -> None:
+    """Execute the full Step 2 conflict-detection workflow.
+
+    Steps
+    -----
+    1. Read block-level spreadsheets from :pydata:`BLOCK_OUTPUT_FOLDER`.
+    2. Normalise stop IDs, assign clusters, find conflicts.
+    3. For each cluster, build an Excel workbook containing:
+       * “AllStops” sheet (all events, bolding conflict rows).
+       * One sheet per stop/overflow bay (same bolding).
+    4. Print summary statistics.
+
+    Raises
+    ------
+    ValueError
+        If required columns are missing from the input spreadsheets.
     """
     print("=== Step 2: Conflict detection and per-cluster output (multi-bay) ===")
     os.makedirs(CLUSTER_CONFLICT_OUTPUT_FOLDER, exist_ok=True)
@@ -319,7 +416,7 @@ def run_step2_conflict_detection():
     stop_conflicts = find_stop_conflicts(df)
     df_annotated = annotate_conflicts(df, cluster_conflicts, stop_conflicts)
 
-    # 3) Write results per cluster, each cluster => single XLSX with multiple sheets
+    # 3) Write results per cluster, each cluster → single XLSX with multiple sheets
     for cname, cinfo in CLUSTER_DEFINITIONS.items():
         # Combine all official stops + overflow for that cluster
         official_stops = get_all_official_stops(cinfo)
@@ -333,28 +430,27 @@ def run_step2_conflict_detection():
 
         safe_name = cname.replace(" ", "_")
         out_path = os.path.join(
-            CLUSTER_CONFLICT_OUTPUT_FOLDER, f"{safe_name}_Conflicts.xlsx"
+            CLUSTER_CONFLICT_OUTPUT_FOLDER,
+            f"{safe_name}_Conflicts.xlsx",
         )
-        print(f"Building conflict output for cluster '{cname}' => {out_path}")
+        print(f"Building conflict output for cluster '{cname}' → {out_path}")
 
         # Sort by timestamp, then by block or stop ID
         sub.sort_values(["Timestamp", "Block", "Stop ID"], inplace=True)
 
         with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
-            # 3a) "AllStops" sheet
+            # 3a) “AllStops” sheet
             sub.to_excel(writer, sheet_name="AllStops", index=False)
 
-            # Bold the conflict rows in "AllStops"
-            conflict_col_index = (
-                sub.columns.get_loc("ConflictType") + 1
-            )  # +1 for 1-based indexing
+            # Bold the conflict rows in “AllStops”
+            conflict_col_index = sub.columns.get_loc("ConflictType") + 1  # 1-based
             worksheet_all = writer.sheets["AllStops"]
-            for row_idx in range(2, len(sub) + 2):  # data starts on row 2
+            for row_idx in range(2, len(sub) + 2):  # data start row 2
                 conflict_val = worksheet_all.cell(
-                    row=row_idx, column=conflict_col_index
+                    row=row_idx,
+                    column=conflict_col_index,
                 ).value
                 if conflict_val != "NONE":
-                    # Bold entire row
                     for col_idx in range(1, len(sub.columns) + 1):
                         cell = worksheet_all.cell(row=row_idx, column=col_idx)
                         cell.font = Font(bold=True)
@@ -364,10 +460,9 @@ def run_step2_conflict_detection():
                 sid_str = str(stop_id)
                 stop_df = sub[sub["Stop ID"] == sid_str].copy()
                 if stop_df.empty:
-                    # no usage => skip or write empty sheet
                     continue
 
-                # Make a sheet name that is safe in Excel (<=31 chars)
+                # Make a sheet name that is safe in Excel (≤31 chars)
                 sheet_name = f"Stop_{sid_str}"
                 if len(sheet_name) > 31:
                     sheet_name = sheet_name[:31]
@@ -379,14 +474,15 @@ def run_step2_conflict_detection():
                 worksheet_stop = writer.sheets[sheet_name]
                 for row_idx in range(2, len(stop_df) + 2):
                     conflict_val = worksheet_stop.cell(
-                        row=row_idx, column=conflict_col_index_stop
+                        row=row_idx,
+                        column=conflict_col_index_stop,
                     ).value
                     if conflict_val != "NONE":
                         for col_idx in range(1, len(stop_df.columns) + 1):
                             cell = worksheet_stop.cell(row=row_idx, column=col_idx)
                             cell.font = Font(bold=True)
 
-        print(f" -> Completed writing {out_path}")
+        print(f" → Completed writing {out_path}")
 
     # Final conflict summary stats
     print(f"\nDistinct cluster-conflict points: {len(cluster_conflicts)}")
@@ -398,26 +494,8 @@ def run_step2_conflict_detection():
 # MAIN
 # ==================================================================================================
 
-
-def main():
-    """
-    Main entry point for the conflict detection script.
-
-    1) Reads and combines block-level spreadsheets (the Step 1 outputs)
-       from the configured BLOCK_OUTPUT_FOLDER.
-    2) Normalizes stop IDs, assigns each record to a transit cluster,
-       and identifies potential conflicts based on cluster- and stop-level bay capacities.
-    3) For each cluster, writes an Excel file containing:
-       - An "AllStops" sheet with every record for that cluster, highlighting conflict rows.
-       - Individual sheets for each official stop or overflow bay, also highlighting conflicts.
-    4) Prints a final summary of how many cluster-level and stop-level conflict points were detected.
-
-    This function relies on the global configuration variables (e.g., CLUSTER_DEFINITIONS,
-    BLOCK_OUTPUT_FOLDER, CLUSTER_CONFLICT_OUTPUT_FOLDER, PRESENCE_STATUSES, PASSENGER_SERVICE_STATUSES),
-    which define the transit clusters, their bay capacities, and file locations.
-
-    No arguments are accepted and nothing is returned; all results are saved directly to disk.
-    """
+def main() -> None:
+    """Entry point when executing this module as a script."""
     run_step2_conflict_detection()
 
 
