@@ -1,15 +1,8 @@
-"""
-Runs static analysis tools on Python files and exports detailed logs and summaries.
+"""Runs static analysis tools on Python files and exports detailed logs and summaries.
 
-Executes multiple code quality tools—`mypy`, `vulture`, `pylint`, `isort`, and
-`pydocstyle`—on specified Python files and directories. Generates per-tool log files
+Executes multiple code quality tools—`mypy`, `vulture`, `pylint`, and `pydocstyle`
+—on specified Python files and directories. Generates per-tool log files
 and Excel summaries, intended for systematic QA in large or shared codebases.
-
-Inputs:
-    - FILES_OR_FOLDERS: List of file or directory paths to scan
-    - SKIP_PATHS: Paths to exclude from scanning
-    - ENABLE_* flags: Enable/disable each tool individually
-    - OUTPUT_FOLDER: Path where logs and summaries are saved
 
 Outputs:
     - Log files: One per tool with stdout/stderr from each scan
@@ -46,17 +39,17 @@ LOG_LEVEL: int = logging.INFO
 
 ENABLE_MYPY: bool = True
 ENABLE_VULTURE: bool = True
-ENABLE_LINT: bool = True  # pylint + isort
-ENABLE_PYDOCSTYLE: bool = True  # Added pydocstyle
+ENABLE_PYLINT: bool = True
+ENABLE_PYDOCSTYLE: bool = True
 
 # mypy
 MYPY_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--ignore-missing-imports"]
 # vulture
 VULTURE_MIN_CONFIDENCE: int = 60  # default is 60
 # pydocstyle
-PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = [
-    "--convention=google"
-]  # Modify style if desired
+PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = ["--convention=google"]
+# pylint
+PYLINT_ADDITIONAL_ARGS: list[str] = ["--errors-only"]  # == "-E"
 
 # ----------------------------------------------------------------------------
 # LOGGING
@@ -281,96 +274,67 @@ def run_vulture(files: List[str]) -> int:
 
 
 # ----------------------------------------------------------------------------
-# 3) PYLINT + ISORT CHECK
+# 3) PYLINT
 # ----------------------------------------------------------------------------
-_PYLINT_ISSUE = re.compile(r":\s*[CREFWE]\d{4}:")
-# Removed _docstring_ok function
 
+_PYLINT_ISSUE = re.compile(r":\s*[EF]\d{4}:")  # only E(rror)/F(atal) codes
 
-def run_lint(files: List[str]) -> int:
-    logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "lint_detailed_log")
-    CONSOLE.info("lint (pylint/isort) log → %s", log_fp)
-    summary: List[Dict[str, Any]] = []  # Explicitly typed
+def run_pylint(files: list[str]) -> int:
+    logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "pylint_detailed_log")
+    CONSOLE.info("pylint (errors-only) log → %s", log_fp)
+
+    summary: list[dict[str, Any]] = []
     for idx, py in enumerate(files, 1):
         logger.info(
-            "\n%s\nFILE %d/%d → %s\n%s", "=" * 80, idx, len(files), py, "=" * 80
+            "\n%s\nFILE %d/%d → %s\n%s",
+            "=" * 80, idx, len(files), py, "=" * 80,
         )
-        # pylint
         try:
-            pr = subprocess.run(
-                [sys.executable, "-m", "pylint", py],
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pylint",
+                    *PYLINT_ADDITIONAL_ARGS,  # <-- -E
+                    py,
+                ],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
             )
-            pout, perr = pr.stdout, pr.stderr
         except FileNotFoundError:
-            CONSOLE.error("python -m pylint not found – aborting lint pass.")
+            CONSOLE.error("python -m pylint not found – aborting pylint pass.")
             return len(files)
-        logger.info("--- pylint stdout ---\n%s", pout or "")
-        if perr:
-            logger.info("\n--- pylint stderr ---\n%s", perr)
-        score = 0.0
-        issues = 0
-        for line in (pout or "").splitlines():
-            if _PYLINT_ISSUE.search(line):
-                issues += 1
-            if "Your code has been rated at" in line:
-                try:
-                    score_str = line.split("rated at")[1].split("/")[0].strip()
-                    score = float(score_str)
-                except Exception:  # pylint: disable=broad-except
-                    pass  # Keep default score 0.0 if parsing fails
-        # isort
-        try:
-            ir = subprocess.run(
-                [sys.executable, "-m", "isort", "--check-only", "--diff", py],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-            iout, ierr = ir.stdout, ir.stderr
-            needs_isort = ir.returncode != 0
-        except FileNotFoundError:
-            CONSOLE.error("python -m isort not found – aborting lint pass.")
-            return len(files)
-        logger.info("\n--- isort diff ---\n%s", iout or "")
-        if ierr:
-            logger.info("\n--- isort stderr ---\n%s", ierr)
 
-        # Removed docstring check
+        out, err = proc.stdout, proc.stderr
+        logger.info(out or "")
+        if err:
+            logger.info("\n--- pylint stderr ---\n%s", err)
+
+        issues = sum(1 for l in (out or "").splitlines() if _PYLINT_ISSUE.search(l))
+        score = (
+            float(out.split("rated at")[1].split("/")[0])
+            if "rated at" in out
+            else 0.0
+        )
+
         summary.append(
             {
                 "script": Path(py).name,
                 "folder": Path(py).parent.name,
                 "score": score,
                 "issues": issues,
-                "isort": "Yes" if needs_isort else "No",
-                # Removed "doc" field
-                "stderr": (perr or "") + (ierr or ""),
+                "stderr": err or "",
                 "path": py,
             }
         )
+
+    # --- Excel summary (unchanged structure but no isort column) -------------
     wb = Workbook()
     ws = wb.active
-    if ws is None:
-        CONSOLE.error("Failed to create active worksheet for lint.")
-        return len(summary)
-    ws.title = "Lint Summary (Pylint & Isort)"
-    ws.append(
-        [
-            "Script",
-            "Folder",
-            "Pylint Score",
-            "Pylint Issues",
-            "Needs isort",
-            # Removed "Docstring OK" header
-            "Stderr (pylint+isort)",
-            "Path",
-        ]
-    )
+    ws.title = "Pylint (errors only)"
+    ws.append(["Script", "Folder", "Score", "# Errors", "Stderr", "Path"])
     for r in summary:
         ws.append(
             [
@@ -378,28 +342,19 @@ def run_lint(files: List[str]) -> int:
                 r["folder"],
                 r["score"],
                 r["issues"],
-                r["isort"],
-                # Removed r["doc"]
                 r["stderr"],
                 r["path"],
             ]
         )
-    for col_cells in ws.columns:  # Changed variable name
-        max_len = 0
-        for cell in col_cells:
-            if cell.value:
-                max_len = max(max_len, len(str(cell.value)))
-        ws.column_dimensions[col_cells[0].column_letter].width = min(max_len + 2, 80)
+    for col in ws.columns:
+        max_len = max(len(str(c.value)) if c.value else 0 for c in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 80)
 
-    xlsx = Path(OUTPUT_FOLDER) / f"lint_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
+    xlsx = Path(OUTPUT_FOLDER) / f"pylint_results_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
     wb.save(xlsx)
-    CONSOLE.info("lint (pylint/isort) summary → %s", xlsx)
+    CONSOLE.info("pylint summary → %s", xlsx)
 
-    def _has_issues(r: dict) -> bool:
-        # Updated condition
-        return (r["issues"] > 0) or (r["isort"] == "Yes")
-
-    return sum(1 for r in summary if _has_issues(r))
+    return sum(1 for r in summary if r["issues"] > 0)
 
 
 # ----------------------------------------------------------------------------
@@ -535,9 +490,9 @@ def main() -> None:
         else:
             CONSOLE.info("Vulture pass: No issues found.")
 
-    if ENABLE_LINT:
+    if ENABLE_PYINT:
         CONSOLE.info("\n=== Running pylint/isort pass ===")
-        failures = run_lint(files)
+        failures = run_pylint(files)
         if failures > 0:
             CONSOLE.warning("Pylint/isort found issues in %d file(s).", failures)
             overall_tools_failed_files += failures
