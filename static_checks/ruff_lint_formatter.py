@@ -24,7 +24,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import List, Tuple
 
 # =============================================================================
 # CONFIGURATION
