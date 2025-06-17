@@ -182,6 +182,7 @@ def _load_table(path: Path) -> pd.DataFrame:
 
 
 def main() -> None:  # noqa: D401
+    """Function serves as entry point and orchestrator for the script."""
     src = Path(INPUT_FILE)
     if not src.exists():
         raise FileNotFoundError(f"Sample file not found: {src}")
