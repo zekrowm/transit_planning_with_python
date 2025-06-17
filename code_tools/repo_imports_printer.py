@@ -1,5 +1,4 @@
-"""
-Scans a Python project to classify and export imports by type.
+"""Scans a Python project to classify and export imports by type.
 
 Recursively traverses a target directory, extracts all imported top-level modules,
 and categorizes them as standard-library, third-party, or local. Results are written
@@ -86,8 +85,7 @@ def _module_origin(name: str) -> Path | None:
 
 
 def _classify_modules(modules: Set[str], project_root: Path) -> Mapping[str, Set[str]]:
-    """
-    Split *modules* into {'stdlib', 'third_party', 'local'} according to:
+    """Split *modules* into {'stdlib', 'third_party', 'local'} according to:
 
       • stdlib       – present in sys.stdlib_module_names
       • local        – resolves inside *project_root*  (or relative import)
