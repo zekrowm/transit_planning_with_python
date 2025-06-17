@@ -1,5 +1,4 @@
-"""
-Generates a visual tree of a project directory and writes it to disk.
+"""Generates a visual tree of a project directory and writes it to disk.
 
 Walks a target directory and builds a UTF-8/ASCII-formatted tree showing
 only folders that contain at least one file. Outputs the tree to both stdout
