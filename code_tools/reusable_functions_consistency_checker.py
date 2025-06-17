@@ -1,5 +1,4 @@
-"""
-Audits function definitions across a codebase for consistency with canonical sources.
+"""Audits function definitions across a codebase for consistency with canonical sources.
 
 Compares top-level functions in a specified canonical file or folder against matching
 functions found elsewhere in the codebase. Uses AST comparison to detect semantic
