@@ -7,9 +7,11 @@
 """
 
 from __future__ import annotations
+
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Final, List, Tuple
+
 import numpy as np
 import pandas as pd
 from faker import Faker
@@ -22,7 +24,7 @@ from faker.providers import BaseProvider
 INPUT_FILE: str = r"File\Path\To\Your\stops_sample.parquet"
 OUTPUT_DIR: str = r"Folder\Path\To\Your\fake_output"
 
-N_ROWS: int = 10_000          # synthetic rows to create
+N_ROWS: int = 10_000  # synthetic rows to create
 GLOBAL_SEED: int | None = 42  # None = fresh randomness every run
 
 #: (min_lat, max_lat, min_lon, max_lon) – default = DC metro
@@ -50,6 +52,7 @@ faker.add_provider(_StopNameProvider)
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def _is_categorical(s: pd.Series) -> bool:
     uniq = s.nunique(dropna=True)
@@ -89,18 +92,20 @@ class _Schema:
 
             # ── Geospatial lat/long special cases ────────────────────────
             if any(key in col_lc for key in ("lat", "latitude")):
-                def _gen_lat(n: int,
-                             lo: float = min_lat,
-                             hi: float = max_lat) -> List[Any]:
+
+                def _gen_lat(
+                    n: int, lo: float = min_lat, hi: float = max_lat
+                ) -> List[Any]:
                     return np.random.uniform(lo, hi, size=n).round(6).tolist()
 
                 fields[col] = _SchemaField(col, _gen_lat)
                 continue
 
             if any(key in col_lc for key in ("lon", "lng", "long", "longitude")):
-                def _gen_lon(n: int,
-                             lo: float = min_lon,
-                             hi: float = max_lon) -> List[Any]:
+
+                def _gen_lon(
+                    n: int, lo: float = min_lon, hi: float = max_lon
+                ) -> List[Any]:
                     return np.random.uniform(lo, hi, size=n).round(6).tolist()
 
                 fields[col] = _SchemaField(col, _gen_lon)
@@ -110,9 +115,7 @@ class _Schema:
             if pd.api.types.is_numeric_dtype(s):
                 low, high = _num_range(s)
 
-                def _gen_num(n: int,
-                             lo: float = low,
-                             hi: float = high) -> List[Any]:
+                def _gen_num(n: int, lo: float = low, hi: float = high) -> List[Any]:
                     return np.random.uniform(lo, hi, size=n).round().tolist()
 
                 fields[col] = _SchemaField(col, _gen_num)
@@ -122,8 +125,7 @@ class _Schema:
             if _is_categorical(s):
                 pool = s.dropna().unique().tolist()
 
-                def _gen_cat(n: int,
-                             items: List[Any] = pool) -> List[Any]:
+                def _gen_cat(n: int, items: List[Any] = pool) -> List[Any]:
                     return np.random.choice(items, size=n, replace=True).tolist()
 
                 fields[col] = _SchemaField(col, _gen_cat)
@@ -149,9 +151,9 @@ class _Schema:
         return pd.DataFrame(data)
 
 
-def mock_dataframe(sample_df: pd.DataFrame,
-                   n_rows: int,
-                   seed: int | None = None) -> pd.DataFrame:
+def mock_dataframe(
+    sample_df: pd.DataFrame, n_rows: int, seed: int | None = None
+) -> pd.DataFrame:
     """Return a synthetic DataFrame matching `sample_df`’s structure."""
     if seed is not None:
         Faker.seed(seed)
@@ -173,9 +175,11 @@ def _load_table(path: Path) -> pd.DataFrame:
         return pd.read_excel(path)
     raise ValueError(f"Unsupported sample file type: {path}")
 
+
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:  # noqa: D401
     src = Path(INPUT_FILE)
