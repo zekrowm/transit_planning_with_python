@@ -85,12 +85,7 @@ def _module_origin(name: str) -> Path | None:
 
 
 def _classify_modules(modules: Set[str], project_root: Path) -> Mapping[str, Set[str]]:
-    """Split *modules* into {'stdlib', 'third_party', 'local'} according to:
-
-    • stdlib       – present in sys.stdlib_module_names
-    • local        – resolves inside *project_root*  (or relative import)
-    • third_party  – everything else
-    """
+    """Split *modules* into {'stdlib', 'third_party', 'local'} categories."""
     stdlib, third_party, local = set(), set(), set()
 
     for mod in modules:
