@@ -96,6 +96,15 @@ def _compare_ast(a: ast.AST, b: ast.AST) -> bool:
 
 
 class AuditResult(NamedTuple):
+    """Represents the outcome of auditing a single function across the codebase.
+
+    Attributes:
+        identical: A list of file paths where the function was found to be
+            an identical (semantically matching) copy of the canonical version.
+        mismatched: A list of file paths where the function was found to be
+            a mismatched (semantically different) copy compared to the
+            canonical version.
+    """
     identical: List[Path]
     mismatched: List[Path]
 
@@ -108,8 +117,7 @@ class AuditResult(NamedTuple):
 def _collect_canonical_funcs(
     source: Path,
 ) -> tuple[Dict[str, ast.AST], Set[Path]]:
-    """
-    Harvest canonical functions from *source* (file or directory).
+    """Harvest canonical functions from *source* (file or directory).
 
     Returns
     -------
