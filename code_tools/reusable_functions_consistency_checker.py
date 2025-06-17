@@ -56,10 +56,7 @@ def _normalise(node: ast.AST) -> ast.AST:
 
 
 def _extract_functions(path: Path) -> Dict[str, ast.AST]:
-    """
-    Return a mapping of {func_name: normalised_ast} for *top-level* functions
-    in *path*.  Raises RuntimeError on read/parse failure.
-    """
+    """Return a mapping of {func_name: normalised_ast} for *top-level* functions in *path*."""
     try:
         src = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as err:
@@ -80,6 +77,19 @@ def _extract_functions(path: Path) -> Dict[str, ast.AST]:
 
 
 def _compare_ast(a: ast.AST, b: ast.AST) -> bool:
+    """Compare two AST nodes for equality.
+
+    This function compares the abstract syntax trees of two nodes, ignoring
+    attributes like line numbers and column offsets, to determine if they are
+    semantically identical.
+
+    Args:
+        a: The first AST node.
+        b: The second AST node.
+
+    Returns:
+        True if the ASTs are identical (semantically), False otherwise.
+    """
     return ast.dump(a, include_attributes=False) == ast.dump(
         b, include_attributes=False
     )
@@ -154,7 +164,22 @@ def _audit_single_function(
     canon_ast: ast.AST,
     skip_paths: Set[Path],
 ) -> AuditResult:
-    """Compare *name* in every module under SEARCH_ROOT (recursive)."""
+    """Compare a canonical function against all its occurrences in the codebase.
+
+    This function searches the `SEARCH_ROOT` directory recursively for all Python
+    files. For each file, it extracts top-level functions and compares any
+    function matching `name` against the provided `canon_ast`. Paths listed
+    in `skip_paths` are excluded from the audit.
+
+    Args:
+        name: The name of the function to audit.
+        canon_ast: The normalized AST of the canonical function.
+        skip_paths: A set of file paths to exclude from the audit (e.g., canonical files).
+
+    Returns:
+        An `AuditResult` NamedTuple containing lists of paths where the function
+        was found to be identical and mismatched with the canonical version.
+    """
     identical, mismatched = [], []
 
     for root, _, files in os.walk(Path(SEARCH_ROOT)):
@@ -188,6 +213,12 @@ def _audit_single_function(
 
 
 def _setup_logging() -> None:
+    """Set up logging for the audit process.
+
+    This function configures the logging system to output messages to both
+    a timestamped log file within `LOG_DIR` and the console (standard output).
+    Log level is set to INFO.
+    """
     Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
     ts = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = Path(LOG_DIR, f"helpers_audit_{ts}.log")
@@ -208,6 +239,17 @@ def _setup_logging() -> None:
 
 
 def main() -> None:
+    """Run the codebase audit for canonical function consistency.
+
+    This is the main entry point for the audit script. It performs the following steps:
+    1. Sets up logging to a file and console.
+    2. Collects all top-level functions from the `CANONICAL_PATH`.
+    3. Iterates through each canonical function and audits its occurrences
+       across the `SEARCH_ROOT` codebase.
+    4. Logs identical and mismatched function definitions.
+    5. Exits with a status code: 0 if all functions are consistent, 1 if mismatches
+       are found, and 2 if a critical error occurs (e.g., cannot read canonical source).
+    """
     _setup_logging()
     source = Path(CANONICAL_PATH).resolve()
 
