@@ -8,9 +8,6 @@ geopandas==1.1.0             # Geospatial data handling (open-source)
 shapely==2.1.1               # Geometry operations
 pyproj==3.7.1                # Coordinate reference systems and transformations
 
-# GIS Platform Integration
-arcpy                        # Requires ArcGIS Pro Python environment; not installable via pip
-
 # Visualization
 matplotlib==3.10.0           # Plotting and visualization
 
@@ -29,7 +26,11 @@ rapidfuzz==3.11.0            # Fast fuzzy string matching
 pytest==8.3.5                # Unit testing framework
 pylint==2.15.10              # Code linting (development use only)
 
-# Notes
+# Notes on ArcPy and Dual Geospatial Support
 # This project supports two geospatial workflows:
-#   1. ArcPy-based (requires ArcGIS Pro)
-#   2. GeoPandas-based (open-source alternative)
+#   1. ArcPy-based (requires ArcGIS Pro and its Python environment)
+#   2. GeoPandas-based (open-source, fully pip-installable)
+#
+# ArcPy is not included here because it is not pip-installable.
+# If using scripts that require ArcPy, run them within the ArcGIS Pro conda environment,
+# which includes arcpy and most geospatial libraries by default.
