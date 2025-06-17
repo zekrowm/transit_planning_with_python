@@ -52,17 +52,14 @@ transit_planning_with_python-main/
 │   │   ├── stops_versus_road_name_typo_checker.py
 │   │   └── stops_versus_road_name_typo_checker_arcpy.py
 │   ├── network_analysis/
-│   │   ├── gtfs_stop_spacing_calculator.py
-│   │   ├── park_and_ride_accessibility.py
 │   │   ├── route_direction_calculator.py
-│   │   └── stop_spacing_calculator.py
+│   │   └── stop_spacing_flagger.py
 │   ├── operations_tools/
 │   │   ├── historical_otp_data_processor.py
 │   │   ├── otp_per_trip_processor.py
 │   │   ├── runtime_per_trip_processor.py
 │   │   └── segment_runtime_processor.py
 │   ├── ridership_tools/
-│   │   ├── arcpy_stops_ridership_joiner.py
 │   │   ├── data_request_by_stop_processor.py
 │   │   ├── historical_ntd_data_processor.py
 │   │   ├── load_factor_violation_flagger.py
@@ -70,19 +67,21 @@ transit_planning_with_python-main/
 │   │   ├── ntd_data_compiler.py
 │   │   ├── ridership_per_stop_processor.py
 │   │   ├── ridership_per_trip_processor.py
-│   │   └── stop_amenity_warrant_flagger.py
+│   │   ├── stop_amenity_warrant_flagger.py
+│   │   └── stops_ridership_joiner_arcpy.py
 │   └── service_coverage_analysis/
 │       ├── districts_served_counter.py
-│       ├── gtfs_demog_calculator.py
-│       ├── gtfs_proximity_stops_and_routes.py
-│       ├── sites_served_counter.py
+│       ├── nearest_stop_direction.py
+│       ├── park_and_ride_isochrones.py
+│       ├── strategic_facilities_served_counter.py
+│       ├── transit_buffer_demogs.py
 │       ├── transit_catchment_calculator.py
 │       └── walking_service_area_mapper.py
 ├── static_checks/
-│   ├── import_and_style_formatter.py
 │   ├── repo_file_tree_printer.py
 │   ├── repo_imports_printer.py
 │   ├── reusable_functions_consistency_checker.py
+│   ├── ruff_lint_formatter.py
 │   └── static_code_reporter.py
 └── tests/
     ├── test_bus_schedule_exporter_e2e.py
