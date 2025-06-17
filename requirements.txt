@@ -1,10 +1,35 @@
-pandas==1.5.3            # Data manipulation and analysis
-geopandas==0.14.0        # Geospatial data handling
-shapely==2.0.1           # Geometric operations
-matplotlib==3.7.1        # Plotting library
-networkx==3.1            # Network analysis
-openpyxl==3.1.2          # Excel file handling
-rapidfuzz==3.11.0        # Fuzzy string matching
-pulp==2.9.0              # Linear programming
-pylint==2.15.10          # Code linting (development)
-xlrd==2.0.1              # Excel file reader for legacy .xls files (no .xlsx support)
+# Core Data Science Libraries
+pandas==2.2.3                # Data manipulation and analysis
+numpy==1.26.4                # Numerical computing
+scipy==1.15.2                # Scientific computing and optimization
+
+# Geospatial Libraries (GeoPandas stack)
+geopandas==1.1.0             # Geospatial data handling (open-source)
+shapely==2.1.1               # Geometry operations
+pyproj==3.7.1                # Coordinate reference systems and transformations
+
+# GIS Platform Integration
+arcpy                        # Requires ArcGIS Pro Python environment; not installable via pip
+
+# Visualization
+matplotlib==3.10.0           # Plotting and visualization
+
+# Excel File Support
+openpyxl==3.1.5              # Read/write Excel .xlsx files
+xlrd==2.0.1                  # Read legacy Excel .xls files (no .xlsx support)
+
+# Optimization and Network Analysis
+pulp==2.9.0                  # Linear programming solver interface
+networkx==3.4.2              # Graph and network analysis
+
+# String Matching and Text Utilities
+rapidfuzz==3.11.0            # Fast fuzzy string matching
+
+# Development Tools
+pytest==8.3.5                # Unit testing framework
+pylint==2.15.10              # Code linting (development use only)
+
+# Notes
+# This project supports two geospatial workflows:
+#   1. ArcPy-based (requires ArcGIS Pro)
+#   2. GeoPandas-based (open-source alternative)
