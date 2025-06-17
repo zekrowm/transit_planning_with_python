@@ -105,6 +105,7 @@ class AuditResult(NamedTuple):
             a mismatched (semantically different) copy compared to the
             canonical version.
     """
+
     identical: List[Path]
     mismatched: List[Path]
 
