@@ -62,6 +62,7 @@ CONSOLE = logging.getLogger(__name__)
 # HELPERS
 # =============================================================================
 
+
 def _is_skipped(p: Path, skip_list: List[str]) -> bool:
     """Return *True* when *p* matches or is inside any ``skip_list`` path."""
     norm = p.resolve().as_posix().lower()
@@ -98,6 +99,7 @@ def gather_python_files(targets: List[str], skip_list: List[str]) -> List[str]:
 # RUFF PASS
 # =============================================================================
 
+
 def _setup_detailed_logger(out_folder: str) -> Tuple[logging.Logger, str]:
     """Create and return a file logger plus its log-file path."""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -115,6 +117,7 @@ def _setup_detailed_logger(out_folder: str) -> Tuple[logging.Logger, str]:
     lg.addHandler(fh)
     return lg, logfile
 
+
 def run_ruff(files: List[str], read_only: bool) -> int:
     """Run Ruff on *files*, write a detailed log, and return the number of files with issues.
 
@@ -123,7 +126,7 @@ def run_ruff(files: List[str], read_only: bool) -> int:
     files : List[str]
         Absolute or relative paths to Python source files.
     read_only : bool
-        • ``True``  → run ``ruff check`` (report only)  
+        • ``True``  → run ``ruff check`` (report only)
         • ``False`` → run ``ruff check --fix`` (apply autofixes)
 
     Returns
@@ -160,7 +163,9 @@ def run_ruff(files: List[str], read_only: bool) -> int:
                 errors="replace",
             )
         except FileNotFoundError:  # Ruff not installed / not on PATH
-            CONSOLE.error("'ruff' command not found. Install it via 'pip install ruff'.")
+            CONSOLE.error(
+                "'ruff' command not found. Install it via 'pip install ruff'."
+            )
             sys.exit(1)
 
         out, err, rc = proc.stdout, proc.stderr, proc.returncode
@@ -183,6 +188,7 @@ def run_ruff(files: List[str], read_only: bool) -> int:
         files_with_issues,
     )
     return files_with_issues
+
 
 # =============================================================================
 # MAIN
@@ -209,7 +215,8 @@ def main() -> None:
         sys.exit(0)
     else:
         CONSOLE.warning(
-            "⚠️  ruff detected problems in %d file(s). See the detailed log for details.", failed
+            "⚠️  ruff detected problems in %d file(s). See the detailed log for details.",
+            failed,
         )
         sys.exit(1)
 
