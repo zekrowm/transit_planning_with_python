@@ -116,6 +116,7 @@ class _Schema:
         self._fields = fields
 
     # ---------------------------------------------------------------------
+    # ---------------------------------------------------------------------
     @classmethod
     def from_sample(cls, df: pd.DataFrame) -> "_Schema":
         """Infer simple generation rules from a small real sample."""
@@ -126,11 +127,13 @@ class _Schema:
             s = df[col]
             col_lc = col.lower()
 
-            # ── Geospatial lat/long special cases ───────────────────────
+            # ── Geospatial lat / lon ────────────────────────────────────
             if _LAT_RGX.search(col_lc):
 
                 def _gen_lat(
-                    n: int, lo: float = min_lat, hi: float = max_lat
+                    n: int,
+                    lo: float = min_lat,
+                    hi: float = max_lat,
                 ) -> list[float]:
                     return np.random.uniform(lo, hi, size=n).round(6).tolist()
 
@@ -140,7 +143,9 @@ class _Schema:
             if _LON_RGX.search(col_lc):
 
                 def _gen_lon(
-                    n: int, lo: float = min_lon, hi: float = max_lon
+                    n: int,
+                    lo: float = min_lon,
+                    hi: float = max_lon,
                 ) -> list[float]:
                     return np.random.uniform(lo, hi, size=n).round(6).tolist()
 
@@ -149,22 +154,26 @@ class _Schema:
 
             # ── Numeric columns ─────────────────────────────────────────
             if pd.api.types.is_integer_dtype(s):
-                low, high = map(int, _num_range(s))
+                int_low, int_high = map(int, _num_range(s))
 
-                def _gen_int(n: int, lo: int = low, hi: int = high) -> list[int]:
+                def _gen_int(
+                    n: int,
+                    lo: int = int_low,
+                    hi: int = int_high,
+                ) -> list[int]:
                     return np.random.randint(lo, hi + 1, size=n).tolist()
 
                 fields[col] = _SchemaField(col, _gen_int)
                 continue
 
-            if pd.api.types.is_float_dtype(s):
-                low, high = _num_range(s)
+            elif pd.api.types.is_float_dtype(s):  # <- `elif` makes branches exclusive
+                flt_low, flt_high = _num_range(s)
                 decimals = _max_decimal_places(s)
 
                 def _gen_float(
                     n: int,
-                    lo: float = low,
-                    hi: float = high,
+                    lo: float = flt_low,
+                    hi: float = flt_high,
                     dp: int = decimals,
                 ) -> list[float]:
                     return np.random.uniform(lo, hi, size=n).round(dp).tolist()
@@ -172,17 +181,20 @@ class _Schema:
                 fields[col] = _SchemaField(col, _gen_float)
                 continue
 
-            # ── Low-cardinality categoricals ───────────────────────────
+            # ── Low-cardinality categoricals ────────────────────────────
             if _is_categorical(s):
                 pool = s.dropna().unique().tolist()
 
-                def _gen_cat(n: int, items: list[Any] = pool) -> list[Any]:
+                def _gen_cat(
+                    n: int,
+                    items: list[Any] = pool,
+                ) -> list[Any]:
                     return np.random.choice(items, size=n, replace=True).tolist()
 
                 fields[col] = _SchemaField(col, _gen_cat)
                 continue
 
-            # ── String heuristics (unchanged) ──────────────────────────
+            # ── String heuristics ───────────────────────────────────────
             if "name" in col_lc:
                 gen = lambda n: [faker.name() for _ in range(n)]
             elif "address" in col_lc or "stop" in col_lc:
