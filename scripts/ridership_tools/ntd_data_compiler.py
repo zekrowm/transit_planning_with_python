@@ -29,7 +29,10 @@ import pandas as pd
 
 FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
     (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Temporary_Query_N"),
-    (r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX", "Temporary_Query_N"),
+    (
+        r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX",
+        "Temporary_Query_N",
+    ),
     (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Sep.2024 Finals"),
 ]
 
@@ -53,6 +56,7 @@ SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
     "ALL ROUTES",  # “ALL ROUTES”
     "SYSTEM",  # “SYSTEM TOTAL”, “SYSTEM”, …
 )
+
 
 # =============================================================================
 # FUNCTIONS
