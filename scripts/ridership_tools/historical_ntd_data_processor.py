@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from typing import Any, Sequence, Dict, List, Tuple, cast
+from typing import Any, Dict, List, Sequence, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -202,14 +202,11 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
         ("Days", COL_DAYS),
         ("Average", "AVERAGE"),
     ]:
-        tmp = (
-            df_long.pivot(
-                index=COL_ROUTE,
-                columns=["MONTH_ABBR", COL_DAYTYPE],
-                values=val_col,
-            )
-            .rename_axis(None, axis=1)
-        )
+        tmp = df_long.pivot(
+            index=COL_ROUTE,
+            columns=["MONTH_ABBR", COL_DAYTYPE],
+            values=val_col,
+        ).rename_axis(None, axis=1)
 
         # Flatten MultiIndex column labels in a mypy-friendly way
         cols: Sequence[Tuple[str, str]] = cast(
