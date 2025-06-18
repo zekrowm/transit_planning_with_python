@@ -29,10 +29,7 @@ import pandas as pd
 
 FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
     (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Temporary_Query_N"),
-    (
-        r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX",
-        "Temporary_Query_N",
-    ),
+    (r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX", "Temporary_Query_N"),
     (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Sep.2024 Finals"),
 ]
 
@@ -57,14 +54,20 @@ SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
     "SYSTEM",  # “SYSTEM TOTAL”, “SYSTEM”, …
 )
 
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 def robust_numeric_converter(value):
-    """
-    Convert strings such as "1,234" → 1234.0 (float).
+    """Convert strings such as "1,234" to 1234.0 (float).
+
     Returns None on blanks / NA or on conversion failure (with a warning).
+
+    Args:
+        value: The value to attempt to convert to a float.
+
+    Returns:
+        The converted float value, or None if conversion fails or the input is
+        blank/NA.
     """
     if pd.isna(value):
         return None
@@ -99,9 +102,23 @@ COMMON_CONVERTERS = {
 def read_and_prepare_ntd_file(
     file_path: str, sheet_name: Optional[str] = None
 ) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
-    """
-    Return (kept_rows, discarded_rows) as DataFrames with identical columns.
-    Either element may be empty; both are None if the file cannot be read.
+    """Reads an NTD Excel file, applies cleansing rules, and separates rows.
+
+    Returns a tuple of two DataFrames: `(kept_rows, discarded_rows)`. Both
+    DataFrames will have identical columns. Either element may be empty; both
+    are None if the file cannot be read.
+
+    Args:
+        file_path: The full path to the Excel file to process.
+        sheet_name: The name of the sheet to read. If None, the first available
+            sheet will be used.
+
+    Returns:
+        A tuple containing:
+            - A pandas.DataFrame of rows that passed the cleansing rules.
+            - A pandas.DataFrame of rows that were discarded by the cleansing rules.
+        Returns (None, None) if the file does not exist or an error occurs during
+        reading.
     """
     if not os.path.exists(file_path):
         print(f"ERROR: File not found: {file_path}. Skipping.")
@@ -152,9 +169,16 @@ def read_and_prepare_ntd_file(
 
 
 def compile_ntd_data() -> Optional[pd.DataFrame]:
-    """
-    Iterate over FILES_TO_PROCESS, apply cleansing rules, write outputs,
-    and return the concatenated DataFrame (or None on failure).
+    """Iterates over a predefined list of files, applies cleansing rules,
+    writes outputs, and returns the concatenated DataFrame.
+
+    Processes each file listed in `FILES_TO_PROCESS`, applies row exclusion
+    rules, concatenates the kept rows into a single DataFrame, and saves
+    the compiled data and any discarded rows to specified output paths.
+
+    Returns:
+        A pandas.DataFrame containing all the compiled NTD data if successful,
+        otherwise None.
     """
     if not FILES_TO_PROCESS:
         print("ERROR: 'FILES_TO_PROCESS' list is empty.")
@@ -193,7 +217,12 @@ def compile_ntd_data() -> Optional[pd.DataFrame]:
                 print(f"Saving to current working directory as {out_path}")
 
         def write_dataframe(df: pd.DataFrame, path: str) -> None:
-            """Write DataFrame to XLSX or CSV based on file extension."""
+            """Write DataFrame to XLSX or CSV based on file extension.
+
+            Args:
+                df: The DataFrame to write.
+                path: The full path to the output file.
+            """
             if path.lower().endswith(".xlsx"):
                 df.to_excel(path, index=False)
             else:
@@ -221,13 +250,20 @@ def compile_ntd_data() -> Optional[pd.DataFrame]:
 
 
 def _is_summary_row(frame: pd.DataFrame) -> pd.Series:
-    """
-    Identify ridership summary / total rows.
+    """Identifies ridership summary or total rows within a DataFrame.
 
     A row is flagged as a summary if **either** of the following is true:
-      1. Any text identifier column contains a keyword in SUMMARY_ROW_PATTERNS.
-      2. All identifier columns are blank *and* at least one numeric field
-         contains data (typical unlabeled “Totals” row).
+      1. Any text identifier column (`ROUTE_NAME`, `SCHEDULE_NAME`,
+         `SERVICE_PERIOD`) contains a keyword defined in `SUMMARY_ROW_PATTERNS`.
+      2. All identifier columns (`ROUTE_NAME`, `SCHEDULE_NAME`) are blank
+         *and* at least one numeric field contains data (typical unlabeled
+         “Totals” row).
+
+    Args:
+        frame: The pandas.DataFrame to check for summary rows.
+
+    Returns:
+        A pandas.Series of boolean values, where True indicates a summary row.
     """
     # --- 1. keyword match --------------------------------------------------
     text_cols = ("ROUTE_NAME", "SCHEDULE_NAME", "SERVICE_PERIOD")
@@ -256,7 +292,12 @@ def _is_summary_row(frame: pd.DataFrame) -> pd.Series:
 # MAIN
 # =============================================================================
 def main() -> None:
-    """Entry point for CLI execution."""
+    """Entry point for CLI execution of the NTD Data Compilation Script.
+
+    Performs initial configuration checks and orchestrates the data compilation
+    process by calling `compile_ntd_data()`. Prints status and summary
+    messages to the console.
+    """
     print("--- Starting NTD Data Compilation Script ---")
 
     critical_ok = True
