@@ -36,7 +36,6 @@ BBOX: Tuple[float, float, float, float] = (38.60, 39.30, -77.50, -76.80)
 
 faker: Final[Faker] = Faker()  # global instance (seeded in main)
 
-
 class _StopNameProvider(BaseProvider):
     """Custom provider: 'Word Street & Nth' style stop names."""
 
@@ -46,13 +45,11 @@ class _StopNameProvider(BaseProvider):
         street_type = self.generator.street_suffix()
         return f"{word} {street_type} & {ordinal}"
 
-
 faker.add_provider(_StopNameProvider)
 
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
-
 
 def _is_categorical(s: pd.Series) -> bool:
     uniq = s.nunique(dropna=True)
@@ -179,7 +176,6 @@ def _load_table(path: Path) -> pd.DataFrame:
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
-
 
 def main() -> None:  # noqa: D401
     """Function serves as entry point and orchestrator for the script."""
