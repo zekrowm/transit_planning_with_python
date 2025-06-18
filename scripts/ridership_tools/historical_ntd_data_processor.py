@@ -241,6 +241,17 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_wide_csv(df_wide: pd.DataFrame) -> str:
+    """Saves the wide-format DataFrame to a CSV file.
+
+    The output file name is "Consolidated_Ridership_Data.csv" and it will be
+    saved in the directory specified by `OUTPUT_DIR`.
+
+    Args:
+        df_wide (pd.DataFrame): The DataFrame in wide format to be saved.
+
+    Returns:
+        str: The full path to the saved CSV file.
+    """
     out_csv = os.path.join(OUTPUT_DIR, "Consolidated_Ridership_Data.csv")
     df_wide.to_csv(out_csv, index=False)
     print(f"Wide file saved → {out_csv}")
@@ -251,7 +262,22 @@ def save_wide_csv(df_wide: pd.DataFrame) -> str:
 # PLOTTING
 # -----------------------------------------------------------------------------
 def plot_ridership(df_wide: pd.DataFrame) -> None:
-    """Plot one PNG per route × metric, re-using DAYTYPES_TO_PLOT."""
+    """Generates and saves ridership plots for each route and specified metric.
+
+    Plots are created for each route present in `df_wide` (or a subset if
+    `ROUTES_OF_INTEREST` is specified). Each plot displays a time series of
+    ridership for a specific day type and metric (e.g., "WeekdayTotal",
+    "MonthlyAverage"). Plots are saved as PNG files in the directory
+    specified by `PLOTS_OUTPUT_FOLDER`.
+
+    Expected external constants:
+        COL_ROUTE, ROUTES_OF_INTEREST, DAYTYPES_TO_PLOT, PLOTS_OUTPUT_FOLDER,
+        FIG_SIZE, MARKER_STYLE, LINE_STYLE, LINE_WIDTH
+
+    Args:
+        df_wide (pd.DataFrame): The wide-format DataFrame containing ridership
+                                data.
+    """
     pattern = re.compile(
         r"^([A-Za-z]{3}-\d{2})_(Weekday|Saturday|Sunday|Monthly)(Total|Days|Average)$"
     )
@@ -321,6 +347,11 @@ def plot_ridership(df_wide: pd.DataFrame) -> None:
 # MAIN
 # =============================================================================
 def main() -> None:
+    """Main function to execute the data transformation and plotting workflow.
+
+    Loads the compiled NTD dataset, transforms it into a wide format,
+    saves the wide-format data to a CSV, and optionally generates ridership plots.
+    """
     df_long = load_compiled_dataset(COMPILED_INPUT_FILE)
     if df_long.empty:
         sys.exit("ERROR: compiled dataset is empty after cleaning.")
