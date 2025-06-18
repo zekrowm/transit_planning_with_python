@@ -300,7 +300,7 @@ def main() -> None:
         sys.exit("ERROR: compiled dataset is empty after cleaning.")
 
     df_wide = pivot_to_wide(df_long)
-    csv_path = save_wide_csv(df_wide)
+    save_wide_csv(df_wide)
 
     if ENABLE_PLOTTING:
         plot_ridership(df_wide)
