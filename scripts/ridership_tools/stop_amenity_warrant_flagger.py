@@ -77,6 +77,7 @@ _AMENITY_ALIASES: Dict[str, str] = {
 # FUNCTIONS
 # =============================================================================
 
+
 def _standardise_yn(series: pd.Series) -> pd.Series:
     """Normalise a Y/N column to uppercase 'Y' or 'N' with no whitespace."""
     return series.fillna("N").astype(str).str.strip().str.upper()
@@ -100,9 +101,7 @@ def _prepare_amenity_columns(df: pd.DataFrame) -> pd.DataFrame:
 def _convert_ridership(df: pd.DataFrame) -> pd.DataFrame:
     """Cast the ridership column to int, coercing non-numerics to zero."""
     df[RIDERSHIP_FIELD] = (
-        pd.to_numeric(df[RIDERSHIP_FIELD], errors="coerce")
-        .fillna(0)
-        .astype(int)
+        pd.to_numeric(df[RIDERSHIP_FIELD], errors="coerce").fillna(0).astype(int)
     )
     return df
 
@@ -151,12 +150,15 @@ def _write_workbook(
                 writer, sheet_name=name, index=False
             )
 
+
 def _load_amenity_data(path: Path, sheet: int | str) -> pd.DataFrame:
     """Read and sanitise the separate amenities workbook."""
     df = pd.read_excel(path, sheet_name=sheet, dtype=str)
     # Normalise column names and apply known aliases
     df.columns = [c.strip() for c in df.columns]
-    df = df.rename(columns={k: v for k, v in _AMENITY_ALIASES.items() if k in df.columns})
+    df = df.rename(
+        columns={k: v for k, v in _AMENITY_ALIASES.items() if k in df.columns}
+    )
     # Standardise any amenity columns present
     for cfg in AMENITIES.values():
         col = cfg["field"]
@@ -214,11 +216,15 @@ def _write_txt_log(
             + [cfg["field"] for cfg in AMENITIES.values()]
             + flag_cols
         )
-        f.write(processed_df[processed_df["NEEDS_IMPROVEMENT"]][cols].to_string(index=False))
+        f.write(
+            processed_df[processed_df["NEEDS_IMPROVEMENT"]][cols].to_string(index=False)
+        )
+
 
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the ETL pipeline and produce both Excel and text outputs."""
