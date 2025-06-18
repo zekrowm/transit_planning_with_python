@@ -1,22 +1,21 @@
-"""
-Identify bus stops that merit amenity upgrades based on ridership thresholds.
+"""Identify bus stops that merit amenity upgrades based on ridership thresholds and
+supplemental amenity data.
 
-Reads stop-level ridership and amenity data from Excel, optionally aggregates
-duplicate stop IDs, and flags stops that meet usage thresholds but lack
-shelters, benches, trash cans, or pads.
+This script reads stop-level ridership and amenity information from one or
+(optionally) two Excel workbooks. It normalizes and (optionally) aggregates
+duplicate STOP_IDs, then computes boolean "FLAG_*" columns to highlight
+where usage warrants an upgrade but the amenity is missing.
 
-The script loads an Excel workbook containing stop-level ridership and amenity
-information, normalises and (optionally) aggregates duplicate *STOP_ID*s,
-computes boolean “FLAG_*” columns indicating where usage warrants an upgrade
-but the amenity is missing, and writes a multi-sheet Excel workbook:
+It outputs a multi-sheet Excel workbook and a plain-text log file:
 
-* **Raw Data** – unmodified import
-* **All Flags** – every stop plus boolean flag columns
-* **Shelter / Bench / TrashCan / Pad** – one sheet per amenity listing only the
-  stops that require that specific upgrade
+    stops_needing_improvement.xlsx:
+        Raw Data – Unmodified import.
+        All Flags – Every stop plus boolean flag columns for each amenity and a NEEDS_IMPROVEMENT summary flag.
+        Shelter / Bench / TrashCan / Pad – One sheet per amenity, listing only the stops that require that specific upgrade.
+    stops_needing_improvement.txt: A concise summary of flagged stops by category, followed by a detailed, human-readable list of all stops identified for improvement.
 
 Typical use-cases include batch reviews of bus-stop needs based on ArcGIS
-outputs or planning reports.
+outputs, planning reports, or independently maintained amenity inventories.
 """
 
 from __future__ import annotations
@@ -30,14 +29,18 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
+# Ridership source workbook
 RIDERSHIP_XLSX: Path = Path(r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).xlsx")
 RIDERSHIP_SHEET: int | str = 0
+# Output folder (Excel + TXT will be written here)
 OUTPUT_FOLDER: Path = Path(r"Your\Folder\Path\To\Output")
 OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 
+# Fields in ridership workbook
 RIDERSHIP_FIELD: str = "XBOARDINGS"
 STOP_ID_FIELD: str = "STOP_ID"
 
+# Amenity thresholds and fields (must match column names after standardisation)
 AMENITIES: Dict[str, Dict[str, Any]] = {
     "Shelter": {"field": "SHELTER", "thresh": 25},
     "Bench": {"field": "BENCH", "thresh": 10},
@@ -45,55 +48,47 @@ AMENITIES: Dict[str, Dict[str, Any]] = {
     "Pad": {"field": "PAD", "thresh": 1},
 }
 
-# True ▸ always aggregate
-# False ▸ never aggregate
-# "auto" ▸ aggregate only if duplicate STOP_IDs are present
+# Aggregation behaviour: True | False | "auto"
 AGGREGATE_BY_STOP: bool | str = "auto"
+
+# -----------------------------------------------------------------------------
+# OPTIONAL SECOND WORKBOOK – AMENITY DETAILS
+# -----------------------------------------------------------------------------
+
+AMENITIES_XLSX: Path = Path(r"Your\File\Path\To\bus_stop_amenities.xlsx")
+AMENITIES_SHEET: int | str = 0
+AMENITY_JOIN_FIELD: str = "stop_code"
+TXT_LOG_PATH: Path = OUTPUT_FOLDER / "stops_needing_improvement.txt"
+
+# -----------------------------------------------------------------------------
+# AMENITY FIELD MAPPINGS
+# -----------------------------------------------------------------------------
+
+_AMENITY_ALIASES: Dict[str, str] = {
+    "bus_shelte": "SHELTER",
+    "bus_shelter": "SHELTER",
+    "pad": "PAD",
+    "bench": "BENCH",
+    "trash_can": "TRASHCAN",
+    "trashcan": "TRASHCAN",
+}
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
-
 def _standardise_yn(series: pd.Series) -> pd.Series:
-    """Normalise a *Y/N* column.
-
-    Args:
-        series (pd.Series): A pandas Series that may contain 'Y', 'N', blanks,
-            or NaN values in any mixture of case and whitespace.
-
-    Returns:
-        pd.Series: The same Series with blanks/NaNs replaced by ``'N'``,
-        whitespace trimmed, and all values uppercase.
-    """
+    """Normalise a Y/N column to uppercase 'Y' or 'N' with no whitespace."""
     return series.fillna("N").astype(str).str.strip().str.upper()
 
 
 def _load_ridership_data(path: Path, sheet: int | str) -> pd.DataFrame:
-    """Load the raw Excel sheet as naïve strings.
-
-    Args:
-        path (Path): Path to the XLSX file.
-        sheet (int | str): Sheet index or sheet name.
-
-    Returns:
-        pd.DataFrame: DataFrame with every column coerced to ``str`` for
-        predictable downstream cleanup.
-    """
+    """Load ridership workbook, coercing all columns to strings."""
     return pd.read_excel(path, sheet_name=sheet, dtype=str)
 
 
 def _prepare_amenity_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Ensure amenity columns exist and are Y/N-standardised.
-
-    Missing amenity columns are invented and initialised to ``'N'``.
-
-    Args:
-        df (pd.DataFrame): Raw ridership DataFrame.
-
-    Returns:
-        pd.DataFrame: DataFrame with all amenity columns present and cleaned.
-    """
+    """Ensure every expected amenity column exists and is Y/N-standardised."""
     for cfg in AMENITIES.values():
         col = cfg["field"]
         if col not in df.columns:
@@ -103,72 +98,41 @@ def _prepare_amenity_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _convert_ridership(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert the ridership column to integer.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing a column named
-            :pydata:`RIDERSHIP_FIELD`.
-
-    Returns:
-        pd.DataFrame: The same DataFrame with :pydata:`RIDERSHIP_FIELD`
-        cast to ``int``, non-numeric values coerced to zero.
-    """
+    """Cast the ridership column to int, coercing non-numerics to zero."""
     df[RIDERSHIP_FIELD] = (
-        pd.to_numeric(df[RIDERSHIP_FIELD], errors="coerce").fillna(0).astype(int)
+        pd.to_numeric(df[RIDERSHIP_FIELD], errors="coerce")
+        .fillna(0)
+        .astype(int)
     )
     return df
 
 
 def _needs_aggregation(df: pd.DataFrame) -> bool:
-    """Determine whether STOP_ID-level aggregation is required.
-
-    Args:
-        df (pd.DataFrame): The current DataFrame.
-
-    Returns:
-        bool: ``True`` if aggregation should be performed, ``False`` otherwise.
-    """
-    table = {
+    """Decide if STOP_ID-level aggregation should be performed."""
+    decision_map = {
         True: True,
         False: False,
         "auto": df[STOP_ID_FIELD].duplicated().any(),
     }
-    return table[AGGREGATE_BY_STOP]
+    return decision_map[AGGREGATE_BY_STOP]
 
 
 def _aggregate_by_stop(df: pd.DataFrame) -> pd.DataFrame:
-    """Collapse to one row per STOP_ID.
-
-    Ridership is summed; amenity columns are logically OR-ed (any 'Y' ⇒ 'Y').
-
-    Args:
-        df (pd.DataFrame): DataFrame containing duplicate *STOP_ID* rows.
-
-    Returns:
-        pd.DataFrame: Aggregated DataFrame with unique *STOP_ID*s.
-    """
-    agg_map: Dict[str, Any] = {RIDERSHIP_FIELD: "sum"}  # type: ignore[arg-type]
+    """Aggregate duplicate STOP_ID rows: sum ridership, OR amenities."""
+    agg_map: Dict[str, Any] = {RIDERSHIP_FIELD: "sum"}
     for cfg in AMENITIES.values():
         col = cfg["field"]
-        agg_map[col] = lambda s: "Y" if (s.str.upper() == "Y").any() else "N"  # type: ignore[var-annotated]
+        agg_map[col] = lambda s: "Y" if (s.str.upper() == "Y").any() else "N"
     return df.groupby(STOP_ID_FIELD, as_index=False).agg(agg_map)
 
 
 def _compute_flags(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
-    """Add ``FLAG_*`` columns and a summary column.
-
-    Args:
-        df (pd.DataFrame): DataFrame after aggregation (or not).
-
-    Returns:
-        Tuple[pd.DataFrame, List[str]]: *(modified_df, list_of_flag_columns)*.
-    """
+    """Add FLAG_* columns and a summary NEEDS_IMPROVEMENT column."""
     for name, cfg in AMENITIES.items():
-        amen_col = cfg["field"]
+        col = cfg["field"]
         thresh = cfg["thresh"]
         flag_col = f"FLAG_{name.upper()}"
-        df[flag_col] = (df[RIDERSHIP_FIELD] >= thresh) & (df[amen_col] != "Y")
-
+        df[flag_col] = (df[RIDERSHIP_FIELD] >= thresh) & (df[col] != "Y")
     flag_cols = [c for c in df.columns if c.startswith("FLAG_")]
     df["NEEDS_IMPROVEMENT"] = df[flag_cols].any(axis=1)
     return df, flag_cols
@@ -177,13 +141,7 @@ def _compute_flags(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
 def _write_workbook(
     raw_df: pd.DataFrame, processed_df: pd.DataFrame, out_path: Path
 ) -> None:
-    """Write the results workbook with multiple sheets.
-
-    Args:
-        raw_df (pd.DataFrame): Unmodified import DataFrame.
-        processed_df (pd.DataFrame): DataFrame with flag columns added.
-        out_path (Path): Destination XLSX path.
-    """
+    """Write multi-sheet Excel: Raw Data, All Flags, plus one per amenity."""
     with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
         raw_df.to_excel(writer, sheet_name="Raw Data", index=False)
         processed_df.to_excel(writer, sheet_name="All Flags", index=False)
@@ -193,51 +151,108 @@ def _write_workbook(
                 writer, sheet_name=name, index=False
             )
 
+def _load_amenity_data(path: Path, sheet: int | str) -> pd.DataFrame:
+    """Read and sanitise the separate amenities workbook."""
+    df = pd.read_excel(path, sheet_name=sheet, dtype=str)
+    # Normalise column names and apply known aliases
+    df.columns = [c.strip() for c in df.columns]
+    df = df.rename(columns={k: v for k, v in _AMENITY_ALIASES.items() if k in df.columns})
+    # Standardise any amenity columns present
+    for cfg in AMENITIES.values():
+        col = cfg["field"]
+        if col in df.columns:
+            df[col] = _standardise_yn(df[col])
+    return df
+
+
+def _merge_ridership_and_amenities(
+    rider_df: pd.DataFrame, amen_df: pd.DataFrame
+) -> pd.DataFrame:
+    """Left-join amenity info onto ridership on STOP_ID_FIELD ↔ AMENITY_JOIN_FIELD."""
+    rider_df[STOP_ID_FIELD] = rider_df[STOP_ID_FIELD].astype(str).str.strip()
+    amen_df[AMENITY_JOIN_FIELD] = amen_df[AMENITY_JOIN_FIELD].astype(str).str.strip()
+
+    keep = [AMENITY_JOIN_FIELD] + [cfg["field"] for cfg in AMENITIES.values()]
+    amen_subset = amen_df[keep]
+
+    merged = rider_df.merge(
+        amen_subset,
+        how="left",
+        left_on=STOP_ID_FIELD,
+        right_on=AMENITY_JOIN_FIELD,
+        suffixes=("", "_amen"),
+    )
+
+    # Coalesce: prefer explicit amenity file, fall back to ridership data
+    for cfg in AMENITIES.values():
+        col = cfg["field"]
+        alt = f"{col}_amen"
+        if alt in merged.columns:
+            merged[col] = merged[col].fillna(merged[alt])
+            merged.drop(columns=[alt], inplace=True)
+    merged.drop(columns=[AMENITY_JOIN_FIELD], errors="ignore", inplace=True)
+    return merged
+
+
+def _write_txt_log(
+    processed_df: pd.DataFrame, flag_cols: List[str], out_path: Path
+) -> None:
+    """Write a plain-text summary of flagged stops and counts."""
+    with out_path.open("w", encoding="utf-8") as f:
+        f.write(f"Run date: {pd.Timestamp.now():%Y-%m-%d %H:%M}\n\n")
+        f.write("Stops needing improvement by category\n")
+        f.write("──────────────────────────────────────\n")
+        for name in AMENITIES:
+            col = f"FLAG_{name.upper()}"
+            f.write(f"{name:10s}: {processed_df[col].sum():>6}\n")
+        f.write(f"\nTotal flagged stops: {processed_df['NEEDS_IMPROVEMENT'].sum()}\n\n")
+
+        f.write("Detailed list (one row per stop)\n")
+        f.write("─────────────────────────────────\n")
+        cols = (
+            [STOP_ID_FIELD, RIDERSHIP_FIELD]
+            + [cfg["field"] for cfg in AMENITIES.values()]
+            + flag_cols
+        )
+        f.write(processed_df[processed_df["NEEDS_IMPROVEMENT"]][cols].to_string(index=False))
 
 # =============================================================================
 # MAIN
 # =============================================================================
 
-
 def main() -> None:
-    """Run the full ETL pipeline to flag bus stops for amenity upgrades.
-
-    Workflow:
-
-    1. Load ridership workbook.
-    2. Verify required ridership column exists.
-    3. Normalise amenity columns.
-    4. Convert ridership to integer.
-    5. Optionally aggregate duplicate *STOP_ID*s.
-    6. Compute ``FLAG_*`` columns and ``NEEDS_IMPROVEMENT``.
-    7. Write a multi-sheet Excel workbook summarising results.
-    8. Print a concise console summary.
-
-    Raises:
-        ValueError: If :pydata:`RIDERSHIP_FIELD` is missing from the input file.
-    """
+    """Run the ETL pipeline and produce both Excel and text outputs."""
+    # 1–2. LOAD SOURCE FILES
     df_raw = _load_ridership_data(RIDERSHIP_XLSX, RIDERSHIP_SHEET)
+    df_amen = _load_amenity_data(AMENITIES_XLSX, AMENITIES_SHEET)
 
+    # 3. MERGE + VALIDATE
+    df_raw = _merge_ridership_and_amenities(df_raw, df_amen)
     if RIDERSHIP_FIELD not in df_raw.columns:
         raise ValueError(f"Column '{RIDERSHIP_FIELD}' not found in workbook.")
 
+    # 4–5. CLEAN & AGGREGATE
     df_raw = _prepare_amenity_columns(df_raw)
     df_raw = _convert_ridership(df_raw)
 
     need_agg = _needs_aggregation(df_raw)
     df_processed = _aggregate_by_stop(df_raw) if need_agg else df_raw.copy()
 
-    df_processed, _ = _compute_flags(df_processed)
+    # 6. COMPUTE FLAGS
+    df_processed, flag_cols = _compute_flags(df_processed)
 
+    # 7. WRITE OUTPUTS
     out_xlsx = OUTPUT_FOLDER / "stops_needing_improvement.xlsx"
     _write_workbook(df_raw, df_processed, out_xlsx)
+    _write_txt_log(df_processed, flag_cols, TXT_LOG_PATH)
 
-    # Console summary
+    # 8. CONSOLE SUMMARY
     print(f"\n✓ Workbook created: {out_xlsx}")
+    print(f"✓ Text log created: {TXT_LOG_PATH}")
     if need_agg:
         dup_ct = df_raw.shape[0] - df_processed.shape[0]
         print(f"  (Aggregated {dup_ct} duplicate STOP_ID rows.)")
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     main()
