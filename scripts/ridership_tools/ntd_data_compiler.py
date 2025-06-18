@@ -57,20 +57,6 @@ SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
     "SYSTEM",         # “SYSTEM TOTAL”, “SYSTEM”, …
 )
 
-# -----------------------------------------------------------------------------
-# Mapping of column names → converters that will be passed to pandas.read_excel
-# -----------------------------------------------------------------------------
-
-COMMON_CONVERTERS = {
-    "MTH_BOARD": robust_numeric_converter,
-    "MTH_REV_HOURS": robust_numeric_converter,
-    "MTH_PASS_MILES": robust_numeric_converter,
-    "ASCH_TRIPS": robust_numeric_converter,
-    "ACTUAL_TRIPS": robust_numeric_converter,
-    "DAYS": robust_numeric_converter,
-    "REV_MILES": robust_numeric_converter,
-}
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -89,6 +75,20 @@ def robust_numeric_converter(value):
     except ValueError:
         print(f"Warning: Could not convert '{value}' to float. Returning None.")
         return None
+
+# -----------------------------------------------------------------------------
+# Mapping of column names → converters that will be passed to pandas.read_excel
+# -----------------------------------------------------------------------------
+
+COMMON_CONVERTERS = {
+    "MTH_BOARD": robust_numeric_converter,
+    "MTH_REV_HOURS": robust_numeric_converter,
+    "MTH_PASS_MILES": robust_numeric_converter,
+    "ASCH_TRIPS": robust_numeric_converter,
+    "ACTUAL_TRIPS": robust_numeric_converter,
+    "DAYS": robust_numeric_converter,
+    "REV_MILES": robust_numeric_converter,
+}
 
 # -----------------------------------------------------------------------------
 # PIPELINE FUNCTIONS
