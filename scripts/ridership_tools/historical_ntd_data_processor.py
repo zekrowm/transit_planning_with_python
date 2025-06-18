@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from typing import List
+from typing import Any, Dict, List, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -196,14 +196,15 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
         ("Days", COL_DAYS),
         ("Average", "AVERAGE"),
     ]:
+
         tmp = (
             df_long.pivot(
                 index=COL_ROUTE,
                 columns=["MONTH_ABBR", COL_DAYTYPE],
                 values=val_col,
-            ).rename_axis(columns=[None, None])  # keep index axis name
+            ).rename_axis(None, axis=1)         # <- one call, no List[None]
         )
-
+            
         # Flatten MultiIndex column labels
         tmp.columns = [
             f"{month}_{dtype.title().rstrip('s')}{metric}"  # <- changed: remove trailing 's'
@@ -303,7 +304,7 @@ def plot_ridership(df_wide: pd.DataFrame) -> None:
     for _, row in routes.iterrows():
         route = row[COL_ROUTE]
         # bucket by variable name ("WeekdayTotal", "MonthlyTotal", …)
-        series_lookup = {}
+        series_lookup: Dict[str, List[Tuple[str, Any]]] = {}
         for col, mon, dt, suf in matched_meta:
             tag = f"{dt}{suf}"  # e.g., WeekdayTotal
             if tag not in DAYTYPES_TO_PLOT:
