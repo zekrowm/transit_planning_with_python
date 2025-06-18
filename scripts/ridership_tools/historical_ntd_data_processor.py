@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from typing import Sequence, Tuple, cast
+from typing import Sequence, Dict, List, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
