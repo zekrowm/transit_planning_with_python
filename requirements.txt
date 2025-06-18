@@ -22,6 +22,9 @@ networkx==3.4.2              # Graph and network analysis
 # String Matching and Text Utilities
 rapidfuzz==3.11.0            # Fast fuzzy string matching
 
+# Fake Data Generation
+faker==25.8.0             # For generating fake data
+
 # Development Tools
 pytest==8.3.5                # Unit testing framework
 pylint==2.15.10              # Code linting (development use only)
