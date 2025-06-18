@@ -10,6 +10,7 @@ Outputs:
 """
 
 from __future__ import annotations
+
 import logging
 import os
 import re
@@ -60,6 +61,7 @@ CONSOLE = logging.getLogger(__name__)
 # ============================================================================
 # FUNCTIONS
 # ============================================================================
+
 
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
@@ -130,6 +132,7 @@ def gather_python_files(paths: List[str], skip_list: List[str]) -> List[str]:
 # 1) MYPY CHECK
 # ----------------------------------------------------------------------------
 _MYPY_RE = re.compile(r"Found\s+(\d+)\s+error")
+
 
 def run_mypy(files: list[str]) -> int:
     """Run *mypy* on each file and return the count of files with errors."""
@@ -228,7 +231,9 @@ def run_vulture(files: list[str]) -> int:
         if err:
             logger.info("\n--- stderr ---\n%s", err)
 
-        hit = any(_VULTURE_LINE.match(line.strip()) for line in (out or "").splitlines())
+        hit = any(
+            _VULTURE_LINE.match(line.strip()) for line in (out or "").splitlines()
+        )
         if hit:
             files_with_issues += 1
 
@@ -283,6 +288,7 @@ def run_pylint(files: list[str]) -> int:
 # 4) PYDOCSTYLE CHECK
 # ----------------------------------------------------------------------------
 
+
 def run_pydocstyle(files: list[str]) -> int:
     """Validate docstrings with *pydocstyle* and return files-with-issues count."""
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "pydocstyle_detailed_log")
@@ -325,6 +331,7 @@ def run_pydocstyle(files: list[str]) -> int:
 # ============================================================================
 # MAIN
 # ============================================================================
+
 
 def main() -> None:
     """Entry-point for command-line execution.
