@@ -7,11 +7,10 @@
 """
 
 from __future__ import annotations
-
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Final, List, Tuple
-
+import re
 import numpy as np
 import pandas as pd
 from faker import Faker
@@ -29,6 +28,9 @@ GLOBAL_SEED: int | None = 42  # None = fresh randomness every run
 
 #: (min_lat, max_lat, min_lon, max_lon) – default = DC metro
 BBOX: Tuple[float, float, float, float] = (38.60, 39.30, -77.50, -76.80)
+
+_LAT_RGX = re.compile(r"\b(lat|latitude|y)\b", re.I)
+_LON_RGX = re.compile(r"\b(lon|lng|long|longitude|x)\b", re.I)
 
 # --------------------------------------------------------------------------------------------------
 # SYNTHETIC DATA ENGINE (from your original code)
@@ -50,9 +52,36 @@ class _StopNameProvider(BaseProvider):
 faker.add_provider(_StopNameProvider)
 
 # ==================================================================================================
-# FUNCTIONS (from your original code)
+# FUNCTIONS
 # ==================================================================================================
 
+def _max_decimal_places(
+    s: pd.Series,
+    default: int = 3,
+    cap: int = 6,
+) -> int:
+    """Return the largest number of decimal places found in *s*.
+
+    - When nothing has a decimal, returns 0.  
+    - Never returns more than *cap*.  
+    - Guarantees at least *default* places whenever a non-integer value is present.
+    """
+    numeric = pd.to_numeric(s, errors="coerce").dropna()
+    if numeric.empty:
+        return 0
+
+    max_dp = 0
+    for val in numeric:
+        txt = f"{val}"
+        if "." in txt:
+            dp = len(txt.split(".")[1].rstrip("0"))
+            max_dp = max(max_dp, dp)
+            if max_dp >= cap:
+                break
+
+    if max_dp == 0:
+        return 0
+    return max(max_dp, default)
 
 def _is_categorical(s: pd.Series) -> bool:
     uniq = s.nunique(dropna=True)
@@ -75,14 +104,17 @@ class _SchemaField:
         return self._gen(n)
 
 
+# ── UPDATED _Schema CLASS (only the from_sample method is changed) ────────────
 class _Schema:
     """Lightweight schema built from a sample DataFrame."""
 
     def __init__(self, fields: dict[str, _SchemaField]) -> None:
         self._fields = fields
 
+    # ---------------------------------------------------------------------
     @classmethod
     def from_sample(cls, df: pd.DataFrame) -> "_Schema":
+        """Infer simple generation rules from a small real sample."""
         min_lat, max_lat, min_lon, max_lon = BBOX
         fields: dict[str, _SchemaField] = {}
 
@@ -90,48 +122,64 @@ class _Schema:
             s = df[col]
             col_lc = col.lower()
 
-            # ── Geospatial lat/long special cases ────────────────────────
-            if any(key in col_lc for key in ("lat", "latitude")):
+            # ── Geospatial lat/long special cases ───────────────────────
+            if _LAT_RGX.search(col_lc):
 
                 def _gen_lat(
                     n: int, lo: float = min_lat, hi: float = max_lat
-                ) -> List[Any]:
-                    return np.random.uniform(low=lo, high=hi, size=n).round().tolist()
+                ) -> list[float]:
+                    return np.random.uniform(lo, hi, size=n).round(6).tolist()
 
                 fields[col] = _SchemaField(col, _gen_lat)
                 continue
 
-            if any(key in col_lc for key in ("lon", "lng", "long", "longitude")):
+            if _LON_RGX.search(col_lc):
 
                 def _gen_lon(
                     n: int, lo: float = min_lon, hi: float = max_lon
-                ) -> List[Any]:
+                ) -> list[float]:
                     return np.random.uniform(lo, hi, size=n).round(6).tolist()
 
                 fields[col] = _SchemaField(col, _gen_lon)
                 continue
 
-            # ── Numeric columns ───────────────────────────────────────────
-            if pd.api.types.is_numeric_dtype(s):
-                low, high = _num_range(s)
+            # ── Numeric columns ─────────────────────────────────────────
+            if pd.api.types.is_integer_dtype(s):
 
-                def _gen_num(n: int, lo: float = low, hi: float = high) -> List[Any]:
-                    return np.random.uniform(lo, hi, size=n).round().tolist()
+                low, high = map(int, _num_range(s))
 
-                fields[col] = _SchemaField(col, _gen_num)
+                def _gen_int(n: int, lo: int = low, hi: int = high) -> list[int]:
+                    return np.random.randint(lo, hi + 1, size=n).tolist()
+
+                fields[col] = _SchemaField(col, _gen_int)
                 continue
 
-            # ── Low-cardinality categoricals ─────────────────────────────
+            if pd.api.types.is_float_dtype(s):
+                low, high = _num_range(s)
+                decimals = _max_decimal_places(s)
+
+                def _gen_float(
+                    n: int,
+                    lo: float = low,
+                    hi: float = high,
+                    dp: int = decimals,
+                ) -> list[float]:
+                    return np.random.uniform(lo, hi, size=n).round(dp).tolist()
+
+                fields[col] = _SchemaField(col, _gen_float)
+                continue
+
+            # ── Low-cardinality categoricals ───────────────────────────
             if _is_categorical(s):
                 pool = s.dropna().unique().tolist()
 
-                def _gen_cat(n: int, items: List[Any] = pool) -> List[Any]:
+                def _gen_cat(n: int, items: list[Any] = pool) -> list[Any]:
                     return np.random.choice(items, size=n, replace=True).tolist()
 
                 fields[col] = _SchemaField(col, _gen_cat)
                 continue
 
-            # ── String heuristics ─────────────────────────────────────────
+            # ── String heuristics (unchanged) ──────────────────────────
             if "name" in col_lc:
                 gen = lambda n: [faker.name() for _ in range(n)]
             elif "address" in col_lc or "stop" in col_lc:
@@ -171,9 +219,7 @@ def _load_table(path: Path) -> pd.DataFrame:
         try:
             return pd.read_parquet(path, engine="pyarrow")
         except ImportError:
-            raise ImportError(
-                "Please install 'pyarrow' (pip install pyarrow) to read parquet input files."
-            )
+            raise ImportError("Please install 'pyarrow' (pip install pyarrow) to read parquet input files.")
     if ext == ".csv":
         return pd.read_csv(path)
     if ext in {".feather", ".ft"}:
@@ -212,9 +258,7 @@ def main() -> None:  # noqa: D401
         try:
             fake_df.to_excel(dest, index=False)
         except ImportError:
-            raise ImportError(
-                "Please install 'openpyxl' (pip install openpyxl) to write XLSX files."
-            )
+            raise ImportError("Please install 'openpyxl' (pip install openpyxl) to write XLSX files.")
     else:
         raise ValueError(f"Unsupported output format: {output_format}")
     # --- MODIFICATION ENDS HERE ---
