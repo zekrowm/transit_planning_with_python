@@ -51,11 +51,12 @@ EXISTING_PERIOD_COLUMN_NAME: str = "NameOfYourExistingMonthYearColumn"  # ← up
 # -----------------------------------------------------------------------------
 
 SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
-    "TOTAL",          # “TOTAL”, “Grand Total”, etc.
-    "SUMMARY",        # “SUMMARY”
-    "ALL ROUTES",     # “ALL ROUTES”
-    "SYSTEM",         # “SYSTEM TOTAL”, “SYSTEM”, …
+    "TOTAL",  # “TOTAL”, “Grand Total”, etc.
+    "SUMMARY",  # “SUMMARY”
+    "ALL ROUTES",  # “ALL ROUTES”
+    "SYSTEM",  # “SYSTEM TOTAL”, “SYSTEM”, …
 )
+
 
 # =============================================================================
 # FUNCTIONS
@@ -76,6 +77,7 @@ def robust_numeric_converter(value):
         print(f"Warning: Could not convert '{value}' to float. Returning None.")
         return None
 
+
 # -----------------------------------------------------------------------------
 # Mapping of column names → converters that will be passed to pandas.read_excel
 # -----------------------------------------------------------------------------
@@ -89,6 +91,7 @@ COMMON_CONVERTERS = {
     "DAYS": robust_numeric_converter,
     "REV_MILES": robust_numeric_converter,
 }
+
 
 # -----------------------------------------------------------------------------
 # PIPELINE FUNCTIONS
@@ -125,7 +128,7 @@ def read_and_prepare_ntd_file(
 
         # (2) NEW SUMMARY-ROW FILTER
         summary_mask = _is_summary_row(df)
-        keep_mask &= ~summary_mask     # keep everything except summary rows
+        keep_mask &= ~summary_mask  # keep everything except summary rows
 
         kept_df = df[keep_mask].copy()
         dropped_df = df[~keep_mask].copy()
@@ -136,14 +139,10 @@ def read_and_prepare_ntd_file(
             and EXISTING_PERIOD_COLUMN_NAME not in df.columns
         ):
             print(
-                f"  Warning: period column "
-                f"'{EXISTING_PERIOD_COLUMN_NAME}' not found."
+                f"  Warning: period column '{EXISTING_PERIOD_COLUMN_NAME}' not found."
             )
 
-        print(
-            f"  Rows kept: {len(kept_df):>6} | "
-            f"Rows discarded: {len(dropped_df):>6}"
-        )
+        print(f"  Rows kept: {len(kept_df):>6} | Rows discarded: {len(dropped_df):>6}")
 
         return kept_df, dropped_df
 
@@ -220,6 +219,7 @@ def compile_ntd_data() -> Optional[pd.DataFrame]:
         print(f"ERROR during concatenation / saving: {exc}")
         return None
 
+
 def _is_summary_row(frame: pd.DataFrame) -> pd.Series:
     """
     Identify ridership summary / total rows.
@@ -231,22 +231,26 @@ def _is_summary_row(frame: pd.DataFrame) -> pd.Series:
     """
     # --- 1. keyword match --------------------------------------------------
     text_cols = ("ROUTE_NAME", "SCHEDULE_NAME", "SERVICE_PERIOD")
-    contains_keyword = frame.reindex(columns=text_cols, fill_value="") \
-        .apply(lambda col: col.astype(str, copy=False)
-                            .str.upper()
-                            .str.contains("|".join(SUMMARY_ROW_PATTERNS),
-                                          regex=True, na=False)) \
+    contains_keyword = (
+        frame.reindex(columns=text_cols, fill_value="")
+        .apply(
+            lambda col: col.astype(str, copy=False)
+            .str.upper()
+            .str.contains("|".join(SUMMARY_ROW_PATTERNS), regex=True, na=False)
+        )
         .any(axis=1)
+    )
 
     # --- 2. unlabeled totals ----------------------------------------------
     id_cols = ["ROUTE_NAME", "SCHEDULE_NAME"]
     num_cols = [c for c in frame.columns if frame[c].dtype.kind in "fi"]  # floats/ints
-    blank_ids   = frame[id_cols].isna().all(axis=1)
+    blank_ids = frame[id_cols].isna().all(axis=1)
     has_numbers = frame[num_cols].notna().any(axis=1)
 
     unlabeled_total = blank_ids & has_numbers
 
     return contains_keyword | unlabeled_total
+
 
 # =============================================================================
 # MAIN
