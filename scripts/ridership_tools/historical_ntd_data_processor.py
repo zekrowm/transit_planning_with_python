@@ -31,18 +31,18 @@ OUTPUT_DIR: str = r"\\File\Path\To\Your\Output_Folder"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # --- Columns as they exist in the compiled file -----------------------------
-COL_ROUTE   : str = "ROUTE_NAME"
-COL_PERIOD  : str = "MTH_YR"
-COL_DAYTYPE : str = "SERVICE_PERIOD"
+COL_ROUTE: str = "ROUTE_NAME"
+COL_PERIOD: str = "MTH_YR"
+COL_DAYTYPE: str = "SERVICE_PERIOD"
 COL_RIDERSHIP: str = "MTH_BOARD"
-COL_DAYS     : str = "DAYS"
-    
+COL_DAYS: str = "DAYS"
+
 # --- Business rules ----------------------------------------------------------
 ROUTES_TO_EXCLUDE: List[str] = ["101", "202", "303"]
 
 # --- Plotting ---------------------------------------------------------------
 ENABLE_PLOTTING = True
-ROUTES_OF_INTEREST: List[str] = []          # keep empty = all
+ROUTES_OF_INTEREST: List[str] = []  # keep empty = all
 PLOTS_OUTPUT_FOLDER = os.path.join(OUTPUT_DIR, "Plots")
 os.makedirs(PLOTS_OUTPUT_FOLDER, exist_ok=True)
 FIG_SIZE = (10, 6)
@@ -50,8 +50,13 @@ MARKER_STYLE = "o"
 LINE_STYLE = "-"
 LINE_WIDTH = 2.0
 DAYTYPES_TO_PLOT = [
-    "WeekdayTotal", "SaturdayTotal", "SundayTotal",
-    "MonthlyTotal", "WeekdayAverage", "SaturdayAverage", "SundayAverage",
+    "WeekdayTotal",
+    "SaturdayTotal",
+    "SundayTotal",
+    "MonthlyTotal",
+    "WeekdayAverage",
+    "SaturdayAverage",
+    "SundayAverage",
 ]
 
 # Mapping of canonical day types
@@ -60,6 +65,7 @@ DAYTYPE_NORMALISER = {
     "SATURDAY": "SATURDAYS",
     "SUNDAY": "SUNDAYS",
 }
+
 
 # =============================================================================
 # FUNCTIONS
@@ -75,7 +81,9 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
     if not os.path.exists(path):
         sys.exit(f"ERROR: compiled input file not found → {path}")
 
-    read_func = pd.read_excel if path.lower().endswith((".xlsx", ".xls")) else pd.read_csv
+    read_func = (
+        pd.read_excel if path.lower().endswith((".xlsx", ".xls")) else pd.read_csv
+    )
     # Read as *object* so nothing is silently coerced to float
     df = read_func(path, dtype="object")
 
@@ -90,7 +98,7 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
         """Ensure period values are clean strings (handles NaN, 202309.0, etc.)."""
         if pd.isna(v):
             return np.nan
-        if isinstance(v, (int, float)):        # Excel numeric artefacts
+        if isinstance(v, (int, float)):  # Excel numeric artefacts
             return str(int(v))
         return str(v).strip()
 
@@ -98,7 +106,8 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
 
     # ------------------------------------------------------------- ROUTE CLEAN
     df[COL_ROUTE] = (
-        df[COL_ROUTE].astype(str)
+        df[COL_ROUTE]
+        .astype(str)
         .str.strip()
         .str.upper()
         .str.replace(" ", "", regex=False)
@@ -115,14 +124,19 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
 
     # Map to canonical names (WEEKDAYS / SATURDAYS / SUNDAYS)
     df[COL_DAYTYPE] = (
-        df[COL_DAYTYPE].str.upper()
+        df[COL_DAYTYPE]
+        .str.upper()
         .map(DAYTYPE_NORMALISER)  # returns NaN if unmapped
         .fillna(df[COL_DAYTYPE])
     )
 
-    unknown = df[~df[COL_DAYTYPE].isin(DAYTYPE_NORMALISER.values())][COL_DAYTYPE].unique()
+    unknown = df[~df[COL_DAYTYPE].isin(DAYTYPE_NORMALISER.values())][
+        COL_DAYTYPE
+    ].unique()
     if unknown.size:
-        print(f"WARNING: unknown DAY_TYPE values encountered {unknown}; rows kept but may be ignored later.")
+        print(
+            f"WARNING: unknown DAY_TYPE values encountered {unknown}; rows kept but may be ignored later."
+        )
 
     # ------------------------------------------------------------- NUMERIC CAST
     for col in (COL_RIDERSHIP, COL_DAYS):
@@ -147,11 +161,12 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
     dup_mask = df.duplicated([COL_ROUTE, "MONTH_ABBR", COL_DAYTYPE], keep=False)
     if dup_mask.any():
         dups = df.loc[dup_mask, [COL_ROUTE, COL_PERIOD, COL_DAYTYPE]]
-        print("WARNING: duplicate (route, month, day-type) rows detected:\n", dups.head())
+        print(
+            "WARNING: duplicate (route, month, day-type) rows detected:\n", dups.head()
+        )
         # Aggregate duplicates (summing ridership and days)
-        df = (
-            df.groupby([COL_ROUTE, "MONTH_ABBR", COL_DAYTYPE], as_index=False)
-            .agg({COL_RIDERSHIP: "sum", COL_DAYS: "sum"})
+        df = df.groupby([COL_ROUTE, "MONTH_ABBR", COL_DAYTYPE], as_index=False).agg(
+            {COL_RIDERSHIP: "sum", COL_DAYS: "sum"}
         )
 
     return df
@@ -186,13 +201,12 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
                 index=COL_ROUTE,
                 columns=["MONTH_ABBR", COL_DAYTYPE],
                 values=val_col,
-            )
-            .rename_axis(columns=[None, None])        # keep index axis name
+            ).rename_axis(columns=[None, None])  # keep index axis name
         )
 
         # Flatten MultiIndex column labels
         tmp.columns = [
-            f"{month}_{dtype.title().rstrip('s')}{metric}"   # <- changed: remove trailing 's'
+            f"{month}_{dtype.title().rstrip('s')}{metric}"  # <- changed: remove trailing 's'
             for month, dtype in tmp.columns
         ]
         pieces.append(tmp)
@@ -201,7 +215,7 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
     wide = pd.concat(pieces, axis=1)
 
     # Bring ROUTE_NAME out of the index
-    wide.reset_index(inplace=True)                      # adds 'ROUTE_NAME'
+    wide.reset_index(inplace=True)  # adds 'ROUTE_NAME'
 
     # ---------------------------------------------------- monthly grand totals
     month_tags = {c.split("_")[0] for c in wide.columns if c.endswith("WeekdayTotal")}
@@ -238,7 +252,9 @@ def save_wide_csv(df_wide: pd.DataFrame) -> str:
 # -----------------------------------------------------------------------------
 def plot_ridership(df_wide: pd.DataFrame) -> None:
     """Plot one PNG per route × metric, re-using DAYTYPES_TO_PLOT."""
-    pattern = re.compile(r"^([A-Za-z]{3}-\d{2})_(Weekday|Saturday|Sunday|Monthly)(Total|Days|Average)$")
+    pattern = re.compile(
+        r"^([A-Za-z]{3}-\d{2})_(Weekday|Saturday|Sunday|Monthly)(Total|Days|Average)$"
+    )
 
     matched_meta = []
     for col in df_wide.columns:
@@ -246,14 +262,17 @@ def plot_ridership(df_wide: pd.DataFrame) -> None:
             continue
         m = pattern.match(col)
         if m:
-            matched_meta.append((col, *m.groups()))     # (col, month, daytype, suffix)
+            matched_meta.append((col, *m.groups()))  # (col, month, daytype, suffix)
 
     if not matched_meta:
         print("No *_Total/Days/Average columns found. Nothing to plot.")
         return
 
-    routes = (df_wide if not ROUTES_OF_INTEREST else
-              df_wide[df_wide[COL_ROUTE].isin(ROUTES_OF_INTEREST)])
+    routes = (
+        df_wide
+        if not ROUTES_OF_INTEREST
+        else df_wide[df_wide[COL_ROUTE].isin(ROUTES_OF_INTEREST)]
+    )
 
     for _, row in routes.iterrows():
         route = row[COL_ROUTE]
@@ -267,14 +286,21 @@ def plot_ridership(df_wide: pd.DataFrame) -> None:
 
         # plot one figure per tag
         for tag, pts in series_lookup.items():
-            pts.sort(key=lambda x: pd.to_datetime(x[0], format="%b-%y", errors="coerce"))
+            pts.sort(
+                key=lambda x: pd.to_datetime(x[0], format="%b-%y", errors="coerce")
+            )
             months, vals = zip(*pts) if pts else ([], [])
             if not months:
                 continue
 
             plt.figure(figsize=FIG_SIZE)
-            plt.plot(months, vals, marker=MARKER_STYLE,
-                     linestyle=LINE_STYLE, linewidth=LINE_WIDTH)
+            plt.plot(
+                months,
+                vals,
+                marker=MARKER_STYLE,
+                linestyle=LINE_STYLE,
+                linewidth=LINE_WIDTH,
+            )
             plt.title(f"{tag} — Route {route}")
             plt.xlabel("Month")
             plt.ylabel("Ridership")
