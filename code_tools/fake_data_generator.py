@@ -24,14 +24,14 @@ from faker.providers import BaseProvider
 INPUT_FILE: str = r"File\Path\To\Your\stops_sample.parquet"
 OUTPUT_DIR: str = r"Folder\Path\To\Your\fake_output"
 
-N_ROWS: int = 10_000  # synthetic rows to create
+N_ROWS: int = 100  # synthetic rows to create
 GLOBAL_SEED: int | None = 42  # None = fresh randomness every run
 
 #: (min_lat, max_lat, min_lon, max_lon) – default = DC metro
 BBOX: Tuple[float, float, float, float] = (38.60, 39.30, -77.50, -76.80)
 
 # --------------------------------------------------------------------------------------------------
-# SYNTHETIC DATA ENGINE
+# SYNTHETIC DATA ENGINE (from your original code)
 # --------------------------------------------------------------------------------------------------
 
 faker: Final[Faker] = Faker()  # global instance (seeded in main)
@@ -50,7 +50,7 @@ class _StopNameProvider(BaseProvider):
 faker.add_provider(_StopNameProvider)
 
 # ==================================================================================================
-# FUNCTIONS
+# FUNCTIONS (from your original code)
 # ==================================================================================================
 
 
@@ -96,7 +96,7 @@ class _Schema:
                 def _gen_lat(
                     n: int, lo: float = min_lat, hi: float = max_lat
                 ) -> List[Any]:
-                    return np.random.uniform(lo, hi, size=n).round(6).tolist()
+                    return np.random.uniform(low=lo, high=hi, size=n).round().tolist()
 
                 fields[col] = _SchemaField(col, _gen_lat)
                 continue
@@ -166,7 +166,12 @@ def _load_table(path: Path) -> pd.DataFrame:
     """Load a small sample, inferring loader from suffix."""
     ext = path.suffix.lower()
     if ext in {".parquet", ".pq"}:
-        return pd.read_parquet(path, engine="pyarrow")
+        # You'll still need pyarrow installed to read the *sample* parquet file if INPUT_FILE is a .parquet file.
+        # If your sample is also CSV/XLSX, you can remove this line and just rely on the other loaders.
+        try:
+            return pd.read_parquet(path, engine="pyarrow")
+        except ImportError:
+            raise ImportError("Please install 'pyarrow' (pip install pyarrow) to read parquet input files.")
     if ext == ".csv":
         return pd.read_csv(path)
     if ext in {".feather", ".ft"}:
@@ -193,8 +198,22 @@ def main() -> None:  # noqa: D401
     sample = _load_table(src)
     fake_df = mock_dataframe(sample, n_rows=N_ROWS, seed=GLOBAL_SEED)
 
-    dest = output_root / f"{src.stem}.parquet"
-    fake_df.to_parquet(dest, index=False)
+    # --- MODIFICATION STARTS HERE ---
+    # Change the output file extension and save method
+    output_format = "csv"  # or "xlsx"
+    dest = output_root / f"{src.stem}.{output_format}"
+
+    if output_format == "csv":
+        fake_df.to_csv(dest, index=False)
+    elif output_format == "xlsx":
+        # You'll need openpyxl installed for this: pip install openpyxl
+        try:
+            fake_df.to_excel(dest, index=False)
+        except ImportError:
+            raise ImportError("Please install 'openpyxl' (pip install openpyxl) to write XLSX files.")
+    else:
+        raise ValueError(f"Unsupported output format: {output_format}")
+    # --- MODIFICATION ENDS HERE ---
 
     print(f"✓ {src.stem}: {N_ROWS:,} fake rows → {dest}")
     print("All done.")
