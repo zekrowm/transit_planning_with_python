@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from typing import Any, Dict, List, Tuple, cast
+from typing import Sequence, Tuple, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -173,42 +173,51 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
 
 
 def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
-    """Convert the long-format DataFrame into the wide, route-by-month table.
+    """Convert the long-format DataFrame into a wide, route-by-month table.
 
     Output columns follow the pattern
         '<Mon-YY>_<Weekday|Saturday|Sunday><Total|Days|Average>'
-    plus
-        '<Mon-YY>_MonthlyTotal'
-    """
-    df_long = df_long.copy()
+    plus an aggregate
+        '<Mon-YY>_MonthlyTotal'.
 
-    # ---------------------------------------------------------------- averages
+    Args:
+        df_long: Long-format DataFrame returned by ``load_compiled_dataset``.
+
+    Returns:
+        Wide-format DataFrame with one row per route and one column per
+        (month × metric) combination.
+    """
+    # ──────────────────────────────── averages ───────────────────────────────
+    df_long = df_long.copy()
     df_long["AVERAGE"] = np.where(
         df_long[COL_DAYS] > 0,
         df_long[COL_RIDERSHIP] / df_long[COL_DAYS],
         0,
     )
 
-    # ---------------------------------------------------------------- pivots
-    pieces = []
+    # ──────────────────────────────── pivots ────────────────────────────────
+    pieces: list[pd.DataFrame] = []
     for metric, val_col in [
         ("Total", COL_RIDERSHIP),
         ("Days", COL_DAYS),
         ("Average", "AVERAGE"),
     ]:
-
         tmp = (
             df_long.pivot(
                 index=COL_ROUTE,
                 columns=["MONTH_ABBR", COL_DAYTYPE],
                 values=val_col,
-            ).rename_axis(None, axis=1)         # <- one call, no List[None]
+            )
+            .rename_axis(None, axis=1)
         )
-            
-        # Flatten MultiIndex column labels
+
+        # Flatten MultiIndex column labels in a mypy-friendly way
+        cols: Sequence[Tuple[str, str]] = cast(
+            Sequence[Tuple[str, str]], tmp.columns.to_list()
+        )
         tmp.columns = [
-            f"{month}_{dtype.title().rstrip('s')}{metric}"  # <- changed: remove trailing 's'
-            for month, dtype in tmp.columns
+            f"{month}_{day_type.title().rstrip('s')}{metric}"
+            for month, day_type in cols
         ]
         pieces.append(tmp)
 
@@ -216,9 +225,9 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
     wide = pd.concat(pieces, axis=1)
 
     # Bring ROUTE_NAME out of the index
-    wide.reset_index(inplace=True)  # adds 'ROUTE_NAME'
+    wide.reset_index(inplace=True)
 
-    # ---------------------------------------------------- monthly grand totals
+    # ──────────────────────── monthly grand totals ──────────────────────────
     month_tags = {c.split("_")[0] for c in wide.columns if c.endswith("WeekdayTotal")}
     for month in month_tags:
         total_cols = [
@@ -229,7 +238,7 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
         if total_cols:
             wide[f"{month}_MonthlyTotal"] = wide[total_cols].sum(axis=1)
 
-    # ---------------------------------------------------- route sorting
+    # ────────────────────────────── route sorting ───────────────────────────
     try:
         wide["ROUTE_SORT"] = wide[COL_ROUTE].astype(int)
     except ValueError:
