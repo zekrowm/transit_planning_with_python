@@ -7,10 +7,12 @@
 """
 
 from __future__ import annotations
+
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Final, List, Tuple
-import re
+
 import numpy as np
 import pandas as pd
 from faker import Faker
@@ -55,6 +57,7 @@ faker.add_provider(_StopNameProvider)
 # FUNCTIONS
 # ==================================================================================================
 
+
 def _max_decimal_places(
     s: pd.Series,
     default: int = 3,
@@ -62,8 +65,8 @@ def _max_decimal_places(
 ) -> int:
     """Return the largest number of decimal places found in *s*.
 
-    - When nothing has a decimal, returns 0.  
-    - Never returns more than *cap*.  
+    - When nothing has a decimal, returns 0.
+    - Never returns more than *cap*.
     - Guarantees at least *default* places whenever a non-integer value is present.
     """
     numeric = pd.to_numeric(s, errors="coerce").dropna()
@@ -82,6 +85,7 @@ def _max_decimal_places(
     if max_dp == 0:
         return 0
     return max(max_dp, default)
+
 
 def _is_categorical(s: pd.Series) -> bool:
     uniq = s.nunique(dropna=True)
@@ -145,7 +149,6 @@ class _Schema:
 
             # ── Numeric columns ─────────────────────────────────────────
             if pd.api.types.is_integer_dtype(s):
-
                 low, high = map(int, _num_range(s))
 
                 def _gen_int(n: int, lo: int = low, hi: int = high) -> list[int]:
@@ -219,7 +222,9 @@ def _load_table(path: Path) -> pd.DataFrame:
         try:
             return pd.read_parquet(path, engine="pyarrow")
         except ImportError:
-            raise ImportError("Please install 'pyarrow' (pip install pyarrow) to read parquet input files.")
+            raise ImportError(
+                "Please install 'pyarrow' (pip install pyarrow) to read parquet input files."
+            )
     if ext == ".csv":
         return pd.read_csv(path)
     if ext in {".feather", ".ft"}:
@@ -258,7 +263,9 @@ def main() -> None:  # noqa: D401
         try:
             fake_df.to_excel(dest, index=False)
         except ImportError:
-            raise ImportError("Please install 'openpyxl' (pip install openpyxl) to write XLSX files.")
+            raise ImportError(
+                "Please install 'openpyxl' (pip install openpyxl) to write XLSX files."
+            )
     else:
         raise ValueError(f"Unsupported output format: {output_format}")
     # --- MODIFICATION ENDS HERE ---
