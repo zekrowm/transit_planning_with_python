@@ -171,7 +171,9 @@ def _load_table(path: Path) -> pd.DataFrame:
         try:
             return pd.read_parquet(path, engine="pyarrow")
         except ImportError:
-            raise ImportError("Please install 'pyarrow' (pip install pyarrow) to read parquet input files.")
+            raise ImportError(
+                "Please install 'pyarrow' (pip install pyarrow) to read parquet input files."
+            )
     if ext == ".csv":
         return pd.read_csv(path)
     if ext in {".feather", ".ft"}:
@@ -210,7 +212,9 @@ def main() -> None:  # noqa: D401
         try:
             fake_df.to_excel(dest, index=False)
         except ImportError:
-            raise ImportError("Please install 'openpyxl' (pip install openpyxl) to write XLSX files.")
+            raise ImportError(
+                "Please install 'openpyxl' (pip install openpyxl) to write XLSX files."
+            )
     else:
         raise ValueError(f"Unsupported output format: {output_format}")
     # --- MODIFICATION ENDS HERE ---
