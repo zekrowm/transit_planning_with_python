@@ -325,8 +325,10 @@ def hanging_segments(stop_times: pd.DataFrame, stops: pd.DataFrame) -> pd.DataFr
         }
     )
 
-
 def unrealistic_timings(
+    stop_times: pd.DataFrame,
+    stops: pd.DataFrame,
+) -> pd.DataFrame:
     """Detect trip segments with unrealistically high speeds or long time gaps.
 
     Args:
@@ -336,9 +338,6 @@ def unrealistic_timings(
     Returns:
         DataFrame of problematic trip segments with computed speed and time gap.
     """
-    stop_times: pd.DataFrame,
-    stops: pd.DataFrame,
-) -> pd.DataFrame:
     st = stop_times.merge(
         stops[["stop_id", "stop_lat", "stop_lon"]], on="stop_id", how="left"
     )
