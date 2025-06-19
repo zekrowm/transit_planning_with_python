@@ -27,9 +27,9 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
-from shapely.ops import unary_union
 from pandas import DataFrame
 from shapely.geometry import Polygon
+from shapely.ops import unary_union
 
 # ==================================================================================================
 # CONFIGURATION
@@ -92,8 +92,12 @@ GEOM_CHANGE_THRESHOLD = 0.05  # 5% area difference
 # GLOBAL STORAGE
 # -----------------------------------------------------------------------------
 
-ALL_SIGNUP_FINAL_DATA: dict[str, list[DataFrame]] = {}  # { label: [DataFrame, DataFrame, ...] }
-ALL_SIGNUP_COVERAGES: dict[str, dict[str, Polygon]] = {}  # { label: { route_short_name: polygon } }
+ALL_SIGNUP_FINAL_DATA: dict[
+    str, list[DataFrame]
+] = {}  # { label: [DataFrame, DataFrame, ...] }
+ALL_SIGNUP_COVERAGES: dict[
+    str, dict[str, Polygon]
+] = {}  # { label: { route_short_name: polygon } }
 
 # ==================================================================================================
 # FUNCTIONS
