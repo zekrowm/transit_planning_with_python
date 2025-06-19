@@ -200,18 +200,15 @@ def identify_problem_stops(
     distance_allowance,
     route_number_col,
 ):
-    """
-    Identify stops that are problematic based on distance allowance and
-    missing route matches. Also determine which routes have out-of-buffer stops.
-
+    """Identify stops that are problematic based on distance allowance and missing route matches.
+    
+    Also determine which routes have out-of-buffer stops.
+    
     Returns:
-      1) problem_stops_gdf (GeoDataFrame) with columns:
-           stop_id, stop_name, geometry, reason, distance_to_route_feet, routes_serving_stop,
-           route_id
-      2) routes_with_stops_outside_buffer (list of route_id's that had at least one
-           out-of-buffer stop)
-      3) A reference table (DataFrame) with route_id + route_short_name + route_geometry,
-           so we can plot route by route.
+        tuple: A 3-element tuple containing:
+            1) GeoDataFrame: problem_stops_gdf with problem stop details.
+            2) list: route_ids with stops outside the buffer.
+            3) DataFrame: route_geometry_table with geometries for matched routes.
     """
     # Process matched routes
     matched_trips = trips_df[trips_df["route_id"].isin(matched_routes["route_id"])]
