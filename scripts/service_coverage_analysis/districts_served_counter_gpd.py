@@ -16,7 +16,7 @@ Outputs:
 
 import logging
 import os
-
+from typing import Optional
 import geopandas as gpd
 import pandas as pd
 
@@ -59,9 +59,7 @@ DISTRICT_FIELD = "DISTRICT"
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
-
-
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
+def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype=str):
     """Load GTFS files into pandas DataFrames.
 
     Loads each specified GTFS file from the given directory and returns
