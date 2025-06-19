@@ -237,7 +237,7 @@ def identify_first_last_stops(
 
 def determine_dominant_shapes(final_data: pd.DataFrame) -> pd.DataFrame:
     """Determines the 'dominant' shape, flags them, and merges the flag back into final_data."""
-    shape_counts = 
+    shape_counts = (
         final_data.groupby(["route_short_name", "direction_id", "shape_id"])
         .size()
         .reset_index(name="trip_count")
