@@ -79,38 +79,20 @@ DESCRIPTIONS_ROADWAY = {
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """Loads GTFS files into pandas DataFrames from the specified directory.
 
-    This function uses the logging module for output.
+    Uses logging to report progress and errors. Can selectively load files or load all standard GTFS files.
 
-    Parameters:
+    Args:
         gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use for reading the CSV files.
-            Default is str, which reads all columns as strings to prevent
-            unintended type inference issues.
+        files (list[str], optional): List of GTFS filenames to load. Defaults to all standard GTFS files if None.
+        dtype (str or dict, optional): Data type(s) to use when reading the CSV files. Defaults to reading all columns as strings.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        dict[str, pd.DataFrame]: Dictionary of DataFrames keyed by filename without extension.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: If the folder doesn't exist or any required file is missing.
+        ValueError: If a file is empty or contains parsing errors.
+        RuntimeError: For OS-related errors during file reading.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
