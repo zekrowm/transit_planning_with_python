@@ -319,10 +319,10 @@ def save_to_excel(final_data, output_dir, output_file):
 
 def build_coverage_polygons(gtfs_data, route_filter_out, label):
     """Build combined coverage polygon based on buffer for each route.
-    
+
     For each route, gather all stops used by that route,
     buffer them 0.25 miles, dissolve into a single coverage polygon.
-    
+
     Returns a dictionary: coverage_polygons[route_short_name] = polygon.
 
     Also, exports a single shapefile per signup (named with the label)
@@ -556,7 +556,7 @@ def process_gtfs_dataset(gtfs_path, label):
 
 
 def build_route_signatures_for_signup(final_data_list, coverage_dict):
-    """ Combine schedule-based data and coverage geometry for each route into a dict."""
+    """Combine schedule-based data and coverage geometry for each route into a dict."""
     combined_df = (
         pd.concat(final_data_list, ignore_index=True)
         if final_data_list
