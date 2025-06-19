@@ -1,5 +1,4 @@
-"""
-Detects potential typos in GTFS stop names using spatial and fuzzy matching.
+"""Detects potential typos in GTFS stop names using spatial and fuzzy matching.
 
 This script buffers GTFS stops, spatially joins them with nearby roadway
 centerlines, and uses fuzzy string comparison to flag discrepancies between
@@ -32,7 +31,7 @@ from rapidfuzz import fuzz, process
 GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
 
 ROADWAYS_PATH = (
-    r"path\to\your\roadways.shp"  # Replace with your roadways shapefile path
+    r"path\to\your\roadways.shp"  # Replace with your roadways centerline shapefile path
 )
 
 # Output settings
@@ -78,8 +77,8 @@ DESCRIPTIONS_ROADWAY = {
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
+    """Loads GTFS files into pandas DataFrames from the specified directory.
+    
     This function uses the logging module for output.
 
     Parameters:
@@ -174,8 +173,13 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
 
 def get_crs_unit(crs_code):
-    """
-    Determine the linear unit of a CRS.
+    """Determine the linear unit of a CRS.
+
+    Args:
+        crs_code: The CRS code (e.g., "EPSG:4326").
+
+    Returns:
+        str or None: The unit name if found, otherwise None.
     """
     try:
         crs = CRS.from_user_input(crs_code)
@@ -189,8 +193,18 @@ def get_crs_unit(crs_code):
 
 
 def convert_buffer_distance(value, from_unit, to_unit):
-    """
-    Convert buffer distance from `from_unit` to `to_unit` using known conversion factors.
+    """Convert buffer distance from `from_unit` to `to_unit` using known conversion factors.
+
+    Args:
+        value (float): The distance value to convert.
+        from_unit (str): The unit of the input value (e.g., "feet", "meters").
+        to_unit (str): The desired unit for the output value (e.g., "feet", "meters").
+
+    Returns:
+        float: The converted distance value.
+
+    Raises:
+        ValueError: If the conversion from `from_unit` to `to_unit` is not supported.
     """
     conversion_factors = {
         ("feet", "meters"): 0.3048,
@@ -213,25 +227,18 @@ def convert_buffer_distance(value, from_unit, to_unit):
 
 
 def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame:
-    """
-    Validate an in-memory GTFS stops DataFrame and return a GeoDataFrame.
+    """Validate an in-memory GTFS stops DataFrame and return a GeoDataFrame.
 
-    Parameters
-    ----------
-    stops_df : pandas.DataFrame
-        Frame created by `load_gtfs_data(..., files=["stops.txt"])`.
-    crs : str, optional
-        CRS to assign to the resulting GeoDataFrame.  Defaults to STOPS_CRS.
+    Args:
+        stops_df (pandas.DataFrame): Frame created by `load_gtfs_data(..., files=["stops.txt"])`.
+        crs (str, optional): CRS to assign to the resulting GeoDataFrame.
+            Defaults to STOPS_CRS.
 
-    Returns
-    -------
-    geopandas.GeoDataFrame
-        Stops with point geometries in the requested CRS.
+    Returns:
+        geopandas.GeoDataFrame: Stops with point geometries in the requested CRS.
 
-    Raises
-    ------
-    ValueError
-        If required columns are missing or lat/lon cannot be cast to float.
+    Raises:
+        ValueError: If required columns are missing or lat/lon cannot be cast to float.
     """
     required_cols = ["stop_id", "stop_name", "stop_lat", "stop_lon"]
     missing = [c for c in required_cols if c not in stops_df.columns]
@@ -254,8 +261,13 @@ def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame
 
 
 def load_roadways(roadways_path):
-    """
-    Load the roadway shapefile and return a GeoDataFrame.
+    """Load the roadway shapefile and return a GeoDataFrame.
+
+    Args:
+        roadways_path (str): The file path to the roadway shapefile.
+
+    Returns:
+        gpd.GeoDataFrame: A GeoDataFrame containing the roadway data.
     """
     return gpd.read_file(roadways_path)
 
@@ -266,9 +278,15 @@ def load_roadways(roadways_path):
 
 
 def map_roadway_columns(roadways_gdf):
-    """
-    Map the required roadway columns. Prompts the user to input the correct
-    column names if missing.
+    """Map the required roadway columns.
+
+    Prompts the user to input the correct column names if missing.
+
+    Args:
+        roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame containing roadway data.
+
+    Returns:
+        dict: A dictionary mapping required column names to their actual names in the GeoDataFrame.
     """
     column_mapping = {}
     for col in REQUIRED_COLUMNS_ROADWAY:
@@ -303,9 +321,14 @@ def map_roadway_columns(roadways_gdf):
 
 
 def extract_modifiers(roadways_gdf, column_mapping_roadway):
-    """
-    Extract unique modifier values (e.g., street types) from the roadway
-    GeoDataFrame.
+    """Extract unique modifier values (e.g., street types) from the roadway GeoDataFrame.
+
+    Args:
+        roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame containing roadway data.
+        column_mapping_roadway (dict): A dictionary mapping required column names to their actual names.
+
+    Returns:
+        set: A set of unique, normalized modifier strings.
     """
     modifiers_fields = ["RW_TYPE_US"]
     modifiers = set()
@@ -323,8 +346,14 @@ def extract_modifiers(roadways_gdf, column_mapping_roadway):
 
 
 def normalize_street_name(name, modifiers_set):
-    """
-    Normalize street name by removing known modifiers, punctuation, and spaces.
+    """Normalize a street name by removing known modifiers, punctuation, and extra spaces.
+
+    Args:
+        name (str): The street name to normalize.
+        modifiers_set (set): A set of known modifiers to remove from the name.
+
+    Returns:
+        str: The normalized street name.
     """
     if pd.isnull(name) or not isinstance(name, str):
         return ""
@@ -336,16 +365,28 @@ def normalize_street_name(name, modifiers_set):
 
 
 def create_buffered_stops(stops_gdf, buffer_distance):
-    """
-    Create a buffered geometry for each stop.
+    """Create a buffered geometry for each stop.
+
+    Args:
+        stops_gdf (gpd.GeoDataFrame): The GeoDataFrame of stops.
+        buffer_distance (float): The distance to buffer the stops by.
+
+    Returns:
+        gpd.GeoDataFrame: The GeoDataFrame with a new 'buffered_geometry' column.
     """
     stops_gdf["buffered_geometry"] = stops_gdf.geometry.buffer(buffer_distance)
     return stops_gdf.set_geometry("buffered_geometry")
 
 
 def spatial_join_stops_roadways(stops_buffered_gdf, roadways_gdf):
-    """
-    Spatially join the buffered stops with the roadways.
+    """Spatially join the buffered stops with the roadways.
+
+    Args:
+        stops_buffered_gdf (gpd.GeoDataFrame): The GeoDataFrame of buffered stops.
+        roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame of roadways.
+
+    Returns:
+        gpd.GeoDataFrame: A GeoDataFrame resulting from the spatial join.
     """
     return gpd.sjoin(
         stops_buffered_gdf[["stop_id", "stop_name", "buffered_geometry"]],
@@ -356,8 +397,14 @@ def spatial_join_stops_roadways(stops_buffered_gdf, roadways_gdf):
 
 
 def extract_street_names(stop_name, modifiers):
-    """
-    Extract potential street names from a stop name using common separators.
+    """Extract potential street names from a stop name using common separators.
+
+    Args:
+        stop_name (str): The name of the stop.
+        modifiers (set): A set of known modifiers to assist in normalization.
+
+    Returns:
+        list: A list of normalized street names extracted from the stop name.
     """
     if pd.isnull(stop_name) or not isinstance(stop_name, str):
         return []
@@ -370,8 +417,18 @@ def extract_street_names(stop_name, modifiers):
 def compare_stop_to_roads(
     stop_id, stop_name, stop_streets, road_names, roads_gdf, threshold
 ):
-    """
-    Compare each portion of the stop name to known road names via fuzzy matching.
+    """Compare each portion of the stop name to known road names via fuzzy matching.
+
+    Args:
+        stop_id (str): The ID of the stop.
+        stop_name (str): The original name of the stop.
+        stop_streets (list): A list of potential street names extracted from the stop name.
+        road_names (list): A list of normalized road names for comparison.
+        roads_gdf (gpd.GeoDataFrame): The GeoDataFrame of roadways (used to retrieve original road names).
+        threshold (int): The similarity score threshold (0-100) for considering a match.
+
+    Returns:
+        list[dict]: A list of dictionaries, each representing a potential typo.
     """
     potential_typos_list = []
     for street in stop_streets:
@@ -400,9 +457,17 @@ def compare_stop_to_roads(
 
 
 def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshold):
-    """
-    Process each stop, perform fuzzy matching to identify potential typos,
-    and return a deduplicated DataFrame.
+    """Process each stop and perform fuzzy matching to identify potential typos.
+
+    Args:
+        stops_gdf (gpd.GeoDataFrame): The GeoDataFrame of stops.
+        roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame of roadways.
+        modifiers (set): A set of known street name modifiers.
+        road_names_clean (set): A set of normalized roadway names.
+        threshold (int): The similarity score threshold for fuzzy matching.
+
+    Returns:
+        pd.DataFrame: A deduplicated DataFrame of potential typos, sorted by similarity score.
     """
     potential_typos = []
     for _, stop in stops_gdf.iterrows():
@@ -430,9 +495,7 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshol
 
 
 def main() -> None:
-    """
-    Entry point for the GTFS stop-vs-road typo-checker script.
-    """
+    """Entry point for the GTFS stop-vs-road typo-checker script."""
     # ------------------------------------------------------------------
     # 1. Configure logging *inside* main so importing this module is silent
     # ------------------------------------------------------------------
