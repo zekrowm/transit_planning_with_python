@@ -1,5 +1,4 @@
-"""
-Processes Capital Bikeshare trip and station data to generate usage reports.
+"""Processes Capital Bikeshare trip and station data to generate usage reports.
 
 Generates monthly trip totals and average daily activity by station, with optional
 clipping to a study area and interactive name reconciliation. Designed for adapting
@@ -46,8 +45,18 @@ FUZZY_THRESHOLD = 0.8
 
 
 def load_shapefiles(bikeshare_shp_path, boundary_shp_path=None):
-    """
-    Load the bikeshare shapefile and optionally the boundary shapefile.
+    """Loads the bikeshare shapefile and optionally the boundary shapefile.
+
+    Args:
+        bikeshare_shp_path (str): The file path to the bikeshare station shapefile.
+        boundary_shp_path (str, optional): The file path to the study area boundary
+            shapefile. Defaults to None.
+
+    Returns:
+        tuple: A tuple containing:
+            - geopandas.GeoDataFrame: The bikeshare stations GeoDataFrame.
+            - geopandas.GeoDataFrame or None: The boundary GeoDataFrame if provided
+              and exists, otherwise None.
     """
     print("Loading bikeshare shapefile...")
     bikeshare_gdf = gpd.read_file(bikeshare_shp_path)
@@ -62,9 +71,18 @@ def load_shapefiles(bikeshare_shp_path, boundary_shp_path=None):
 
 
 def load_and_concatenate_csv(csv_folder):
-    """
-    Find and load all CSV files in the specified folder, then
-    concatenate them into a single DataFrame.
+    """Finds and loads all CSV files in the specified folder.
+
+    Concatenates them into a single DataFrame.
+
+    Args:
+        csv_folder (str): The path to the folder containing CSV trip data files.
+
+    Returns:
+        pandas.DataFrame: A concatenated DataFrame of all trip data.
+
+    Raises:
+        FileNotFoundError: If no CSV files are found in the specified folder.
     """
     print(f"Loading and concatenating CSV files from folder: {csv_folder}")
     csv_files = glob.glob(os.path.join(csv_folder, "*.csv"))
@@ -76,8 +94,14 @@ def load_and_concatenate_csv(csv_folder):
 
 
 def clip_shapefile(bikeshare_gdf, boundary_gdf):
-    """
-    Reproject if needed and clip the bikeshare GeoDataFrame to the boundary.
+    """Reprojects if needed and clips the bikeshare GeoDataFrame to the boundary.
+
+    Args:
+        bikeshare_gdf (geopandas.GeoDataFrame): The bikeshare stations GeoDataFrame.
+        boundary_gdf (geopandas.GeoDataFrame): The boundary GeoDataFrame to clip by.
+
+    Returns:
+        geopandas.GeoDataFrame: The clipped bikeshare stations GeoDataFrame.
     """
     if bikeshare_gdf.crs != boundary_gdf.crs:
         bikeshare_gdf = bikeshare_gdf.to_crs(boundary_gdf.crs)
@@ -86,8 +110,11 @@ def clip_shapefile(bikeshare_gdf, boundary_gdf):
 
 
 def plot_shapefile(boundary_gdf, clipped_gdf):
-    """
-    Plot the boundary and clipped bikeshare locations.
+    """Plots the boundary and clipped bikeshare locations.
+
+    Args:
+        boundary_gdf (geopandas.GeoDataFrame): The boundary GeoDataFrame.
+        clipped_gdf (geopandas.GeoDataFrame): The clipped bikeshare stations GeoDataFrame.
     """
     print("Plotting clipped shapefile...")
     _, axis_obj = plt.subplots(figsize=(10, 10))
@@ -100,8 +127,15 @@ def plot_shapefile(boundary_gdf, clipped_gdf):
 
 
 def find_close_matches(station_name, valid_station_names, threshold):
-    """
-    Return the best fuzzy match for a station name from the valid_station_names list.
+   """Returns the best fuzzy match for a station name from the valid_station_names list.
+
+    Args:
+        station_name (str): The name of the station to match.
+        valid_station_names (list): A list of valid station names to search within.
+        threshold (float): The fuzzy matching cutoff threshold (0.0 to 1.0).
+
+    Returns:
+        str or None: The best matching station name if found, otherwise None.
     """
     matches = difflib.get_close_matches(
         station_name, valid_station_names, n=1, cutoff=threshold
@@ -110,8 +144,15 @@ def find_close_matches(station_name, valid_station_names, threshold):
 
 
 def rename_stations(data_frame):
-    """
-    Rename specific station names based on a predefined mapping dictionary.
+    """Renames specific station names based on a predefined mapping dictionary.
+
+    Args:
+        data_frame (pandas.DataFrame): The DataFrame containing 'start_station_name'
+            and 'end_station_name' columns.
+
+    Returns:
+        pandas.DataFrame: The DataFrame with station names updated according to
+            the predefined mapping.
     """
     rename_dict = {
         "John McCormack Dr & Michigan Ave NE": "John McCormack Rd & Michigan Ave NE",
@@ -137,13 +178,25 @@ def rename_stations(data_frame):
 def interactive_update_station_names(
     unmatched_start, unmatched_end, valid_station_names, threshold
 ):
-    """
-    For station names not matching any valid stop in the study area,
-    interactively prompt the user with a fuzzy match suggestion.
+    """Interactively prompts the user with fuzzy match suggestions for station names.
 
-    If the suggested name is different from the original, the user can confirm
-    the update. Otherwise, a message is shown advising manual correction.
-    Returns a mapping dictionary of updates.
+    For station names not matching any valid stop in the study area,
+    interactively prompts the user with a fuzzy match suggestion. If the suggested
+    name is different from the original, the user can confirm the update.
+    Otherwise, a message is shown advising manual correction.
+
+    Args:
+        unmatched_start (list): A list of unique start station names that did not
+            match valid stations.
+        unmatched_end (list): A list of unique end station names that did not
+            match valid stations.
+        valid_station_names (list): A list of all valid station names from the
+            clipped GeoDataFrame.
+        threshold (float): The fuzzy matching cutoff threshold (0.0 to 1.0).
+
+    Returns:
+        dict: A dictionary mapping original unmatched station names to their
+            user-confirmed suggested names.
     """
     update_mapping = {}
     combined_unmatched = set(unmatched_start).union(set(unmatched_end))
@@ -177,9 +230,20 @@ def interactive_update_station_names(
 
 
 def filter_valid_stations(combined_data_frame, clipped_gdf):
-    """
-    Filter trips that include at least one valid station in clipped_gdf,
-    and return the filtered DataFrame plus the list of valid station names.
+    """Filters trips that include at least one valid station in clipped_gdf.
+
+    Returns the filtered DataFrame and the list of valid station names.
+
+    Args:
+        combined_data_frame (pandas.DataFrame): The DataFrame containing all trip data.
+        clipped_gdf (geopandas.GeoDataFrame): The GeoDataFrame of valid bikeshare
+            stations within the study area.
+
+    Returns:
+        tuple: A tuple containing:
+            - pandas.DataFrame: The filtered DataFrame with valid trips and
+              time-related columns added.
+            - numpy.ndarray: An array of unique valid station names.
     """
     combined_data_frame["start_station_name"] = combined_data_frame[
         "start_station_name"
@@ -220,9 +284,17 @@ def filter_valid_stations(combined_data_frame, clipped_gdf):
 
 
 def aggregate_monthly_trips(filtered_data_frame, valid_stations):
-    """
-    Given a filtered DataFrame, group trips by station-month and return
-    monthly totals for each station plus a 'total_activity' column.
+    """Given a filtered DataFrame, groups trips by station-month.
+
+    Returns monthly totals for each station plus a 'total_activity' column.
+
+    Args:
+        filtered_data_frame (pandas.DataFrame): The DataFrame of filtered trip data.
+        valid_stations (numpy.ndarray): An array of unique valid station names.
+
+    Returns:
+        pandas.DataFrame: A DataFrame with stations as index, months as columns,
+            and a 'total_activity' column showing total monthly trips.
     """
     start_trip_counts = (
         filtered_data_frame[
@@ -247,9 +319,17 @@ def aggregate_monthly_trips(filtered_data_frame, valid_stations):
 
 
 def get_month_day_counts(year, month):
-    """
-    Given a year and month, return the number of weekdays (Mon-Fri),
-    Saturdays, and Sundays in that month.
+    """Returns the number of weekdays (Mon-Fri), Saturdays, and Sundays in that month.
+
+    Args:
+        year (int): The year.
+        month (int): The month (1-12).
+
+    Returns:
+        tuple: A tuple containing:
+            - int: The count of weekdays in the month.
+            - int: The count of Saturdays in the month.
+            - int: The count of Sundays in the month.
     """
     cal = calendar.monthcalendar(year, month)
     weekday_count = sum(1 for week in cal for i in range(5) if week[i] != 0)
@@ -259,9 +339,19 @@ def get_month_day_counts(year, month):
 
 
 def _create_average_record(station, month_str, row_data):
-    """
-    Helper function to compute average weekday/Saturday/Sunday trips for a single
-    station-month row. Returns a dict or None if parsing fails.
+    """Helper function to compute average weekday/Saturday/Sunday trips for a single station-month row.
+
+    Returns a dict or None if parsing fails.
+
+    Args:
+        station (str): The name of the station.
+        month_str (str): The month string in 'YYYY-MM' format.
+        row_data (pandas.Series): A Series containing trip counts for each day of the week
+            for the given station and month.
+
+    Returns:
+        dict or None: A dictionary containing the station, month, and computed
+            average trips per day type, or None if the month string cannot be parsed.
     """
     try:
         year, mon = map(int, month_str.split("-"))
@@ -291,9 +381,15 @@ def _create_average_record(station, month_str, row_data):
 
 
 def compute_daily_averages(filtered_data_frame, valid_station_names):
-    """
-    Compute, for each station and month, the average trips per day
-    for weekdays, Saturday, and Sunday.
+    """Computes, for each station and month, the average trips per day for weekdays, Saturday, and Sunday.
+
+    Args:
+        filtered_data_frame (pandas.DataFrame): The DataFrame of filtered trip data.
+        valid_station_names (numpy.ndarray): An array of unique valid station names.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing daily average trip counts
+            (weekday, Saturday, Sunday) for each station and month.
     """
     filtered_data_frame["start_day"] = filtered_data_frame["started_at"].dt.day_name()
     filtered_data_frame["end_day"] = filtered_data_frame["ended_at"].dt.day_name()
@@ -327,8 +423,7 @@ def compute_daily_averages(filtered_data_frame, valid_station_names):
 # MAIN
 # =============================================================================
 def main():
-    """
-    Process Capital Bikeshare data to generate trip activity reports.
+    """Processes Capital Bikeshare data to generate trip activity reports.
 
     This function:
       - Loads bikeshare station data (and optionally a study area boundary)
