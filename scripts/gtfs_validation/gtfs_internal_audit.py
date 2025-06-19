@@ -1,5 +1,4 @@
-"""
-Performs internal QA checks on a GTFS feed to identify common structural issues.
+"""Performs internal QA checks on a GTFS feed to identify common structural issues.
 
 Checks include orphan stops, unused routes/trips, isolated trips, shapes far from stops,
 disconnected stop sequences, unrealistic timings, and malformed stop distances. Each rule
@@ -52,6 +51,16 @@ DEG_TO_FEET = DEG_TO_MILES * 5280
 
 
 def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
+    """Read one or more GTFS text files from the given folder.
+
+    Args:
+        folder: Path to the GTFS folder.
+        *names: Filenames (without .txt extension) to read.
+
+    Returns:
+        Dictionary mapping each file name to a DataFrame. If a file is missing, an empty
+        DataFrame is returned in its place with a warning.
+    """
     dfs: Dict[str, pd.DataFrame] = {}
     for n in names:
         fp = folder / f"{n}.txt"
@@ -67,21 +76,13 @@ def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
 def safe_write(
     df: pd.DataFrame, out_dir: Path, fname: str, *, write_empty: bool = False
 ) -> None:
-    """
-    Write *fname* to *out_dir*.
+    """Write a DataFrame to CSV in the specified output directory.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The data to write.
-    out_dir : pathlib.Path
-        Destination directory. Created if it does not exist.
-    fname : str
-        File name, e.g. ``"orphan_stops.csv"``.
-    write_empty : bool, default False
-        If ``True`` an empty CSV is still created so that downstream
-        scripts can detect that the check ran.  If ``False`` (the new
-        default) no file is produced when *df* is empty.
+    Args:
+        df: DataFrame to write.
+        out_dir: Output directory to create if it does not exist.
+        fname: Output file name, e.g. "orphan_stops.csv".
+        write_empty: If True, creates an empty CSV even when df is empty.
     """
     tag = fname[:-4] if fname.lower().endswith(".csv") else fname
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -100,6 +101,17 @@ def safe_write(
 
 
 def haversine_miles(lat1, lon1, lat2, lon2) -> float:
+    """Calculate great-circle distance between two lat/lon points in miles.
+
+    Args:
+        lat1: Latitude of point 1.
+        lon1: Longitude of point 1.
+        lat2: Latitude of point 2.
+        lon2: Longitude of point 2.
+
+    Returns:
+        Distance in miles as a float.
+    """
     from math import atan2, cos, radians, sin, sqrt
 
     R_MI = 3958.8
@@ -112,6 +124,14 @@ def haversine_miles(lat1, lon1, lat2, lon2) -> float:
 
 
 def parse_time(t: str) -> int | None:
+    """Parse a GTFS time string (hh:mm:ss) into seconds after midnight.
+
+    Args:
+        t: Time string in HH:MM:SS format.
+
+    Returns:
+        Time in seconds as an integer, or None if parsing fails.
+    """
     try:
         hh, mm, ss = map(int, t.split(":"))
         return hh * 3600 + mm * 60 + ss
@@ -155,21 +175,56 @@ def build_route_id_set(routes: pd.DataFrame) -> Set[str]:
 
 
 def orphan_stops(stops: pd.DataFrame, stop_times: pd.DataFrame) -> pd.DataFrame:
+    """Identify stops that are not used in any trip.
+
+    Args:
+        stops: DataFrame of stops.txt.
+        stop_times: DataFrame of stop_times.txt.
+
+    Returns:
+        DataFrame of orphan stops with columns ['stop_id', 'stop_name'].
+    """
     used = set(stop_times["stop_id"].unique())
     return stops.loc[~stops["stop_id"].isin(used), ["stop_id", "stop_name"]]
 
 
 def unused_routes(routes: pd.DataFrame, trips: pd.DataFrame) -> pd.DataFrame:
+    """Identify routes with no associated trips.
+
+    Args:
+        routes: DataFrame of routes.txt.
+        trips: DataFrame of trips.txt.
+
+    Returns:
+        DataFrame of unused routes.
+    """
     used = set(trips["route_id"].unique())
     return routes.loc[~routes["route_id"].isin(used)].copy()
 
 
 def unused_trips(trips: pd.DataFrame, stop_times: pd.DataFrame) -> pd.DataFrame:
+    """Identify trips that do not appear in stop_times.txt.
+
+    Args:
+        trips: DataFrame of trips.txt.
+        stop_times: DataFrame of stop_times.txt.
+
+    Returns:
+        DataFrame of unused trips.
+    """
     used = set(stop_times["trip_id"].unique())
     return trips.loc[~trips["trip_id"].isin(used)].copy()
 
 
 def isolated_trips(stop_times: pd.DataFrame) -> pd.DataFrame:
+    """Identify trips that use only stops not used by any other trip.
+
+    Args:
+        stop_times: DataFrame of stop_times.txt.
+
+    Returns:
+        DataFrame with one column, 'trip_id', listing isolated trips.
+    """
     counts = stop_times.groupby("stop_id")["trip_id"].nunique()
     unique_stops = counts[counts == 1].index
     grp = stop_times.groupby("trip_id")["stop_id"].apply(
@@ -184,6 +239,17 @@ def shapes_far_from_stops(
     stop_times: pd.DataFrame,
     stops: pd.DataFrame,
 ) -> pd.DataFrame:
+    """Identify trips whose stops are too far from the shape path.
+
+    Args:
+        trips: DataFrame of trips.txt.
+        shapes: DataFrame of shapes.txt.
+        stop_times: DataFrame of stop_times.txt.
+        stops: DataFrame of stops.txt.
+
+    Returns:
+        DataFrame of trips with route_id, trip_id, and shape_id that violate the threshold.
+    """
     if sgeom is None or shapes.empty:
         logging.warning(
             "Shapely not installed or shapes.txt missing – skipping rule 4."
@@ -224,6 +290,15 @@ def shapes_far_from_stops(
 
 
 def hanging_segments(stop_times: pd.DataFrame, stops: pd.DataFrame) -> pd.DataFrame:
+    """Detect disconnected stop subgraphs in the network.
+
+    Args:
+        stop_times: DataFrame of stop_times.txt.
+        stops: DataFrame of stops.txt.
+
+    Returns:
+        DataFrame listing each disconnected component with size and sample stop_id.
+    """
     if nx is None:
         logging.warning("NetworkX not installed – skipping rule 6.")
         return pd.DataFrame()
@@ -252,6 +327,15 @@ def hanging_segments(stop_times: pd.DataFrame, stops: pd.DataFrame) -> pd.DataFr
 
 
 def unrealistic_timings(
+    """Detect trip segments with unrealistically high speeds or long time gaps.
+
+    Args:
+        stop_times: DataFrame of stop_times.txt.
+        stops: DataFrame of stops.txt.
+
+    Returns:
+        DataFrame of problematic trip segments with computed speed and time gap.
+    """
     stop_times: pd.DataFrame,
     stops: pd.DataFrame,
 ) -> pd.DataFrame:
@@ -293,6 +377,14 @@ def unrealistic_timings(
 
 
 def bad_stop_sequences(stop_times: pd.DataFrame) -> pd.DataFrame:
+    """Detect trips with decreasing shape_dist_traveled values.
+
+    Args:
+        stop_times: DataFrame of stop_times.txt.
+
+    Returns:
+        DataFrame of trip_ids with malformed stop sequences.
+    """
     if "shape_dist_traveled" not in stop_times.columns:
         logging.warning("shape_dist_traveled missing – skipping rule 8.")
         return pd.DataFrame()
@@ -311,6 +403,12 @@ def bad_stop_sequences(stop_times: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(gtfs_path: Path, out_path: Path) -> None:
+    """Run all internal validation checks on the specified GTFS dataset.
+
+    Args:
+        gtfs_path: Path to the GTFS folder.
+        out_path: Path to the output folder where reports will be saved.
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(levelname)s: %(message)s",
