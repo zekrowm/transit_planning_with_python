@@ -32,7 +32,7 @@ GTFS_FOLDER = r"/path/to/your/gtfs_folder"
 OUTPUT_FOLDER = r"/path/to/your/output_folder"
 
 # Optional: Include only these route_short_name values
-ROUTE_FILTER_IN = []
+ROUTE_FILTER_IN: list[str] = []
 # Routes to exclude
 ROUTE_FILTER_OUT = ["9999A", "9999B", "9999C"]
 
@@ -197,7 +197,7 @@ def merge_and_classify_shapes(
     for idx, row in gdf_shapes.iterrows():
         shape_id = row["shape_id"]
         geom_4326 = row["geometry"]
-        geom_proj = gdf_shapes_proj.loc[idx, "geometry"]
+        geom_proj = gdf_shapes_proj[gdf_shapes_proj["shape_id"] == shape_id].iloc[0].geometry
         directions.append((shape_id, classify_direction(geom_4326, geom_proj)))
 
     direction_df = pd.DataFrame(directions, columns=["shape_id", "shape_direction"])
@@ -236,22 +236,33 @@ def identify_first_last_stops(
 
 
 def determine_dominant_shapes(final_data: pd.DataFrame) -> pd.DataFrame:
-    """Determines the 'dominant' shape, flags them, and merges the flag back into final_data."""
+    """Determines the dominant shape per route and direction.
+
+    A dominant shape is the one associated with the most trips for a given
+    (route_short_name, direction_id) pair. This function flags these shapes
+    with a boolean column 'is_dominant' in the returned DataFrame.
+
+    Args:
+        final_data: Merged trip-shape-stop DataFrame.
+
+    Returns:
+        DataFrame with 'is_dominant' column added, True for dominant shapes.
+    """
     shape_counts = (
         final_data.groupby(["route_short_name", "direction_id", "shape_id"])
         .size()
         .reset_index(name="trip_count")
     )
-    idx_max = shape_counts.groupby(["route_short_name", "direction_id"])[
-        "trip_count"
-    ].idxmax()
+
+    idx_max = shape_counts.groupby(
+        ["route_short_name", "direction_id"]
+    )["trip_count"].idxmax()
+
     dominant_shapes = shape_counts.loc[idx_max]
     dominant_shapes["is_dominant"] = True
 
     return final_data.merge(
-        dominant_shapes[
-            ["route_short_name", "direction_id", "shape_id", "is_dominant"]
-        ],
+        dominant_shapes[["route_short_name", "direction_id", "shape_id", "is_dominant"]],
         on=["route_short_name", "direction_id", "shape_id"],
         how="left",
     )
