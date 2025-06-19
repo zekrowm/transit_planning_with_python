@@ -208,7 +208,7 @@ def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
     Shapefile drivers cannot store pandas' nullable integer extension type.
     """
     int_cols: list[str] = [
-        col for col, dtype in gdf.dtypes.items() if pd.api.types.is_integer_dtype(dtype)
+        str(col) for col, dtype in gdf.dtypes.items() if pd.api.types.is_integer_dtype(dtype)
     ]
     if int_cols:
         LOGGER.debug(
