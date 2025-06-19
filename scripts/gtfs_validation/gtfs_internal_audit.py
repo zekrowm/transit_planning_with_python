@@ -190,16 +190,22 @@ def shapes_far_from_stops(
         )
         return pd.DataFrame()
 
+    # Ensure correct dtypes
     shapes = shapes.astype({"shape_pt_lat": float, "shape_pt_lon": float})
+    shapes["shape_id"] = shapes["shape_id"].astype(str)
+    trips["shape_id"] = trips["shape_id"].astype(str)
+
+    # Precompute LineString geometry by shape_id
     geom_by_id: dict[str, sgeom.LineString] = {
-        shape_id: sgeom.LineString(df[["shape_pt_lon", "shape_pt_lat"]].values)
+        str(shape_id): sgeom.LineString(df[["shape_pt_lon", "shape_pt_lat"]].values)
         for shape_id, df in shapes.sort_values(
             ["shape_id", "shape_pt_sequence"]
         ).groupby("shape_id")
     }
 
-    def far(trip):
-        line = geom_by_id.get(trip.shape_id)
+    def far(trip: pd.Series) -> bool:
+        shape_id = trip.shape_id
+        line = geom_by_id.get(shape_id)
         if not line:
             return False
         tid = trip.trip_id
