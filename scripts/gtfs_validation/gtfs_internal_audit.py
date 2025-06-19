@@ -191,11 +191,11 @@ def shapes_far_from_stops(
         return pd.DataFrame()
 
     shapes = shapes.astype({"shape_pt_lat": float, "shape_pt_lon": float})
-    geom_by_id = (
-        shapes.sort_values(["shape_id", "shape_pt_sequence"])
-        .groupby("shape_id")[["shape_pt_lon", "shape_pt_lat"]]
-        .apply(lambda df: sgeom.LineString(df[["shape_pt_lon", "shape_pt_lat"]].values))
-    )
+    geom_by_id: dict[str, sgeom.LineString] = {
+    shape_id: sgeom.LineString(df[["shape_pt_lon", "shape_pt_lat"]].values)
+    for shape_id, df in shapes.sort_values(["shape_id", "shape_pt_sequence"])
+                              .groupby("shape_id")
+    }
 
     def far(trip):
         line = geom_by_id.get(trip.shape_id)
@@ -220,8 +220,8 @@ def hanging_segments(stop_times: pd.DataFrame, stops: pd.DataFrame) -> pd.DataFr
     if nx is None:
         logging.warning("NetworkX not installed – skipping rule 6.")
         return pd.DataFrame()
-
-    G = nx.Graph()
+        
+    G: nx.Graph = nx.Graph()    
     G.add_nodes_from(stops.stop_id)
 
     st_sorted = stop_times.sort_values(["trip_id", "stop_sequence"])
