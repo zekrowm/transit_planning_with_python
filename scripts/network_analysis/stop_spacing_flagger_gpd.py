@@ -240,7 +240,9 @@ def _split_into_segments(
         if cand.empty:
             continue
 
-        dists = np.array([line.project(pt) for pt in cand.geometry if isinstance(pt, Point)])
+        dists = np.array(
+            [line.project(pt) for pt in cand.geometry if isinstance(pt, Point)]
+        )
         uniq_dists = np.unique(dists)
         snap_pts: list[Point] = [line.interpolate(d) for d in uniq_dists]
 
