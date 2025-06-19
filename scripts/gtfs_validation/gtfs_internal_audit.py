@@ -14,26 +14,14 @@ Outputs:
 """
 
 from __future__ import annotations
-
 import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Set
-
 import pandas as pd
-
-# Optional heavy-weight dependencies
-try:
-    import networkx as nx
-except ModuleNotFoundError:  # pragma: no cover
-    nx = None  # type: ignore[assignment]
-
-try:
-    from shapely import geometry as sgeom
-    from shapely.ops import nearest_points
-except ModuleNotFoundError:  # pragma: no cover
-    sgeom = None  # type: ignore[assignment]
-    nearest_points = None  # type: ignore[assignment]
+import networkx as nx
+from shapely import geometry as sgeom
+from shapely.ops import nearest_points
 
 # =============================================================================
 # CONFIGURATION
