@@ -82,8 +82,7 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
     for col in ["stop_lat", "stop_lon"]:
         if not pd.api.types.is_numeric_dtype(df[col]):
             print(
-                f"Warning: Non-numeric values found in '{col}'. "
-                "Attempting conversion."
+                f"Warning: Non-numeric values found in '{col}'. Attempting conversion."
             )
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -157,8 +156,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     for col in coord_cols:
         if not pd.api.types.is_numeric_dtype(df[col]):
             print(
-                f"Warning: Non-numeric values found in '{col}'. "
-                "Attempting conversion."
+                f"Warning: Non-numeric values found in '{col}'. Attempting conversion."
             )
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -283,8 +281,7 @@ def gtfs_to_shapefiles(
 
     if not resolved_gtfs_dir.is_dir():
         raise NotADirectoryError(
-            "Input GTFS directory not found or is not a directory: "
-            f"{resolved_gtfs_dir}"
+            f"Input GTFS directory not found or is not a directory: {resolved_gtfs_dir}"
         )
 
     # Ensure output directory exists before processing files
