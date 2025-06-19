@@ -62,38 +62,24 @@ DISTRICT_FIELD = "DISTRICT"
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load GTFS files into pandas DataFrames.
 
-    Parameters:
+    Loads each specified GTFS file from the given directory and returns
+    a dictionary of DataFrames keyed by file name (without extension).
+
+    Args:
         gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+        files (list[str], optional): List of GTFS file names to load. Defaults
+            to standard GTFS files.
+        dtype (str or dict, optional): Data type to use for loading CSVs. Defaults to str.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        dict[str, pd.DataFrame]: Dictionary of GTFS tables keyed by file base name.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: If the directory or any required file is missing.
+        ValueError: If a file is empty or cannot be parsed.
+        RuntimeError: If a file fails to load due to an OS error.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -153,10 +139,17 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
 
 def create_projected_stops_gdf(stops_df, epsg_out):
-    """
-    Convert GTFS stops (lat/lon in WGS84) into a GeoDataFrame,
-    then project to EPSG `epsg_out`.
-    Returns a projected GeoDataFrame of stops.
+    """Create a projected GeoDataFrame from GTFS stops.
+
+    Converts a GTFS stops DataFrame with WGS84 coordinates into a projected
+    GeoDataFrame using the specified EPSG code.
+
+    Args:
+        stops_df (pd.DataFrame): GTFS stops table containing 'stop_lat' and 'stop_lon'.
+        epsg_out (int): EPSG code to project the GeoDataFrame to.
+
+    Returns:
+        gpd.GeoDataFrame: Projected GeoDataFrame of stops.
     """
     # 1) Convert lat/lon columns to float
     stops_df["stop_lat"] = stops_df["stop_lat"].astype(float)
@@ -173,9 +166,14 @@ def create_projected_stops_gdf(stops_df, epsg_out):
 
 
 def buffer_stops_gdf(stops_gdf, buffer_dist):
-    """
-    Buffer the stops by `buffer_dist` (feet or meters, depending on CRS).
-    Returns a new GeoDataFrame with the buffered geometries.
+    """Buffer the stop geometries by a given distance.
+
+    Args:
+        stops_gdf (gpd.GeoDataFrame): GeoDataFrame of projected stop points.
+        buffer_dist (float): Buffer distance in units of the CRS (e.g., feet or meters).
+
+    Returns:
+        gpd.GeoDataFrame: GeoDataFrame with buffered geometries.
     """
     # Copy so we don't overwrite the original geometry
     stops_buffered = stops_gdf.copy()
@@ -185,10 +183,17 @@ def buffer_stops_gdf(stops_gdf, buffer_dist):
 
 
 def intersect_districts_gdf(stops_buffer_gdf, districts_gdf):
-    """
-    Use geopandas overlay (intersection) between the buffered stops polygons
-    and the districts polygons.
-    Returns a GeoDataFrame that includes columns from both layers.
+    """Intersect buffered stops with district boundaries.
+
+    Uses a spatial overlay to find intersections between buffered stop areas
+    and district polygons.
+
+    Args:
+        stops_buffer_gdf (gpd.GeoDataFrame): Buffered stop geometries.
+        districts_gdf (gpd.GeoDataFrame): District boundary polygons.
+
+    Returns:
+        gpd.GeoDataFrame: Intersected geometries containing attributes from both inputs.
     """
     # Use gpd.overlay with how='intersection'
     intersected = gpd.overlay(stops_buffer_gdf, districts_gdf, how="intersection")
@@ -196,16 +201,18 @@ def intersect_districts_gdf(stops_buffer_gdf, districts_gdf):
 
 
 def build_route_district_matrix(gtfs_data, intersect_gdf, district_field="DISTRICT"):
-    """
-    Build a DataFrame that shows route_short_name vs. district coverage (y/n).
+    """Build a route-vs-district matrix based on GTFS stop coverage.
 
-    We rely on the 'stop_id' being in `intersect_gdf` from the stops layer,
-    and the `district_field` coming from the District shapefile.
+    Computes which GTFS routes serve which districts using stop->trip->route
+    relationships and buffered stop intersections with district boundaries.
 
-    Steps:
-      1) Build route->trip->stop relationships from GTFS
-      2) For each stop_id, see which districts it intersects
-      3) Combine to create route vs. district coverage
+    Args:
+        gtfs_data (dict[str, pd.DataFrame]): Dictionary of GTFS tables.
+        intersect_gdf (gpd.GeoDataFrame): GeoDataFrame with stop and district attributes.
+        district_field (str): Name of the district identifier column.
+
+    Returns:
+        pd.DataFrame: Matrix with 'route_short_name' and one column per district, containing 'y' or 'n'.
     """
     routes_df = gtfs_data["routes"]
     trips_df = gtfs_data["trips"]
@@ -261,8 +268,12 @@ def build_route_district_matrix(gtfs_data, intersect_gdf, district_field="DISTRI
 
 
 def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
-    """
-    Write the DataFrame to an Excel file (using openpyxl).
+    """Write a DataFrame to an Excel file.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to write.
+        excel_path (str): Full path to the output Excel file.
+        sheet_name (str, optional): Name of the sheet to write to. Defaults to "districts_vs_routes".
     """
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -274,16 +285,16 @@ def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
 
 
 def main() -> None:
-    """
-    End-to-end workflow:
+    """Run the full route-to-district matrix generation workflow.
 
-      1. Configure logging.
-      2. Load GTFS data (using the new loader).
-      3. Read / re-project district polygons.
-      4. Build a projected GeoDataFrame of stops.
-      5. Buffer the stops and intersect with districts.
-      6. Build the route-vs-district matrix.
-      7. Write the result to Excel.
+    Steps:
+        1. Configure logging.
+        2. Load GTFS data.
+        3. Read and reproject district polygons.
+        4. Convert GTFS stops to GeoDataFrame and project.
+        5. Buffer the stops and intersect with districts.
+        6. Build route-vs-district matrix.
+        7. Write result to Excel.
     """
     # ------------------------------------------------------------------ 1 — LOGGING
     logging.basicConfig(
