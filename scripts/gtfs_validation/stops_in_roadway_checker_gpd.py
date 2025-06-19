@@ -1,5 +1,4 @@
-"""
-Identifies GTFS stops that intersect with roadway features and evaluates conflict depth.
+"""Identifies GTFS stops that intersect with roadway features and evaluates conflict depth.
 
 This script performs a spatial analysis to find stops that fall within roadway geometries.
 It uses negative buffering to assess how deeply stops are embedded in roadways and
@@ -51,32 +50,24 @@ OUTPUT_CSV_NAME = "intersecting_stops.csv"
 
 
 def create_output_directory(output_dir):
-    """
-    Creates the output directory if it doesn't exist.
-    """
+    """Creates the output directory if it doesn't exist."""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
 
 def validate_stops_file_exists(stops_path):
-    """
-    Raises a FileNotFoundError if the stops.txt file is missing.
-    """
+    """Raises a FileNotFoundError if the stops.txt file is missing."""
     if not os.path.isfile(stops_path):
         raise FileNotFoundError(f"'stops.txt' not found at: {stops_path}")
 
 
 def load_roadways(roadways_path):
-    """
-    Reads and returns the roadway shapefile as a GeoDataFrame.
-    """
+    """Reads and returns the roadway shapefile as a GeoDataFrame."""
     return gpd.read_file(roadways_path)
 
 
 def load_stops(stops_path):
-    """
-    Reads the stops.txt file into a DataFrame and converts it into a GeoDataFrame.
-    """
+    """Reads the stops.txt file into a DataFrame and converts it into a GeoDataFrame."""
     stops_df = pd.read_csv(stops_path)
     geometry = [Point(xy) for xy in zip(stops_df.stop_lon, stops_df.stop_lat)]
     stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry)
@@ -84,15 +75,13 @@ def load_stops(stops_path):
 
 
 def reproject_data(gdf, target_crs):
-    """
-    Reprojects a GeoDataFrame to the specified target CRS.
-    """
+    """Reprojects a GeoDataFrame to the specified target CRS."""
     return gdf.to_crs(target_crs)
 
 
 def find_intersecting_stops(stops_gdf, roadways_gdf):
-    """
-    Performs a spatial join to find stops that intersect with roadways.
+    """Performs a spatial join to find stops that intersect with roadways.
+    
     Returns only columns from stops_gdf.
     """
     intersecting = gpd.sjoin(
@@ -102,17 +91,14 @@ def find_intersecting_stops(stops_gdf, roadways_gdf):
 
 
 def add_xy_columns(gdf):
-    """
-    Adds 'x' and 'y' columns to a GeoDataFrame from its geometry.
-    """
+    """Adds 'x' and 'y' columns to a GeoDataFrame from its geometry."""
     gdf["x"] = gdf.geometry.x
     gdf["y"] = gdf.geometry.y
     return gdf
 
 
 def determine_conflict_depth(stops_gdf, roadways_gdf, buffer_distances):
-    """
-    Determines the depth of conflict between stops and roadways based on buffer distances.
+    """Determines the depth of conflict between stops and roadways based on buffer distances.
 
     For each buffer distance, buffers the roadways and performs a spatial join
     to identify stops that intersect the buffered roadways. Updates the stops_gdf
@@ -153,9 +139,7 @@ def determine_conflict_depth(stops_gdf, roadways_gdf, buffer_distances):
 
 
 def sort_stops_by_conflict_depth(stops_gdf, buffer_distances):
-    """
-    Sorts the stops by conflict depth columns in descending order.
-    """
+    """Sorts the stops by conflict depth columns in descending order."""
     conflict_columns = [f"conflict_{-bd}ft" for bd in buffer_distances]
     return stops_gdf.sort_values(
         by=conflict_columns, ascending=[False] * len(conflict_columns)
@@ -163,17 +147,13 @@ def sort_stops_by_conflict_depth(stops_gdf, buffer_distances):
 
 
 def save_shapefile(gdf, output_dir, shp_name):
-    """
-    Saves the GeoDataFrame to a shapefile in the specified output directory.
-    """
+    """Saves the GeoDataFrame to a shapefile in the specified output directory."""
     output_shp_path = os.path.join(output_dir, shp_name)
     gdf.to_file(output_shp_path)
 
 
 def save_csv(gdf, output_dir, csv_name):
-    """
-    Saves the GeoDataFrame to a CSV file in the specified output directory.
-    """
+    """Saves the GeoDataFrame to a CSV file in the specified output directory."""
     output_csv_path = os.path.join(output_dir, csv_name)
     gdf.to_csv(output_csv_path, index=False)
 
@@ -184,9 +164,7 @@ def save_csv(gdf, output_dir, csv_name):
 
 
 def main():
-    """
-    Main entry point for running the GTFS stop–roadway shapefile intersection checks.
-    """
+    """Main entry point for running the GTFS stop–roadway shapefile intersection checks."""
     # Create output directory if it doesn't exist
     create_output_directory(OUTPUT_DIR)
 
