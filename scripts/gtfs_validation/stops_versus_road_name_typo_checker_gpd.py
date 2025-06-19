@@ -78,7 +78,7 @@ DESCRIPTIONS_ROADWAY = {
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """Loads GTFS files into pandas DataFrames from the specified directory.
-    
+
     This function uses the logging module for output.
 
     Parameters:
