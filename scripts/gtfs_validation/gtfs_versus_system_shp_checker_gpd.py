@@ -201,9 +201,9 @@ def identify_problem_stops(
     route_number_col,
 ):
     """Identify stops that are problematic based on distance allowance and missing route matches.
-    
+
     Also determine which routes have out-of-buffer stops.
-    
+
     Returns:
         tuple: A 3-element tuple containing:
             1) GeoDataFrame: problem_stops_gdf with problem stop details.
