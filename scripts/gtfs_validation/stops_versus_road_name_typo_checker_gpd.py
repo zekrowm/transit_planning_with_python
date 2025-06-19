@@ -17,7 +17,7 @@ Outputs:
 import logging
 import os
 import re
-
+from typing import Optional
 import geopandas as gpd
 import pandas as pd
 from pyproj import CRS
@@ -75,8 +75,7 @@ DESCRIPTIONS_ROADWAY = {
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
+def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype=str):
     """Loads GTFS files into pandas DataFrames from the specified directory.
 
     Uses logging to report progress and errors. Can selectively load files or load all standard GTFS files.
