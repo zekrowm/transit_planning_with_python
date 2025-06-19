@@ -28,6 +28,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 from shapely.ops import unary_union
+from pandas import DataFrame
+from shapely.geometry import Polygon
 
 # ==================================================================================================
 # CONFIGURATION
