@@ -81,7 +81,7 @@ def reproject_data(gdf, target_crs):
 
 def find_intersecting_stops(stops_gdf, roadways_gdf):
     """Performs a spatial join to find stops that intersect with roadways.
-    
+
     Returns only columns from stops_gdf.
     """
     intersecting = gpd.sjoin(
