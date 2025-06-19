@@ -1,5 +1,4 @@
-"""
-Classifies GTFS route directions and identifies dominant shapes per route and direction.
+"""Classifies GTFS route directions and identifies dominant shapes per route and direction.
 
 Determines whether GTFS shapes are cardinal (NB, SB, EB, WB) or looped (CW, CCW, LOOP),
 flags suspicious direction inconsistencies, and optionally exports Excel summaries and
@@ -58,8 +57,7 @@ def classify_direction(
     line_projected: LineString,
     loop_threshold: int = LOOP_THRESHOLD,
 ) -> str:
-    """
-    Classify the direction of a GTFS shape between its start and end points.
+    """Classify the direction of a GTFS shape between its start and end points.
 
     If the start/end points are close (less than loop_threshold), the shape
     is treated as a loop and classified based on the polygon's signed area.
@@ -97,8 +95,8 @@ def classify_direction(
 
 
 def plot_route_shape(gdf_shape, route, direction, output_path):
-    """
-    Plot the given shape geometry and save as a .jpeg.
+    """Plot the given shape geometry and save as a .jpeg.
+    
     Highlights the start and end of the route shape, and includes a simple
     'N' arrow for orientation in the top-left corner of the map.
     """
@@ -146,10 +144,7 @@ def plot_route_shape(gdf_shape, route, direction, output_path):
 
 
 def read_gtfs_data():
-    """
-    Reads GTFS files and returns the dataframes as a tuple:
-    (routes, trips, stop_times, shapes, stops).
-    """
+    """Reads GTFS files and returns the dataframes as a tuple."""
     routes = pd.read_csv(os.path.join(GTFS_FOLDER, "routes.txt"))
     trips = pd.read_csv(os.path.join(GTFS_FOLDER, "trips.txt"))
     stop_times = pd.read_csv(os.path.join(GTFS_FOLDER, "stop_times.txt"))
@@ -159,10 +154,7 @@ def read_gtfs_data():
 
 
 def filter_routes(routes: pd.DataFrame) -> pd.DataFrame:
-    """
-    Applies the ROUTE_FILTER_IN and ROUTE_FILTER_OUT conditions to the
-    routes DataFrame and returns the filtered routes.
-    """
+    """Applies the route filters to the routes DataFrame and returns the filtered routes."""
     if ROUTE_FILTER_IN:
         routes_filtered = routes[routes["route_short_name"].isin(ROUTE_FILTER_IN)]
     else:
@@ -176,10 +168,7 @@ def filter_routes(routes: pd.DataFrame) -> pd.DataFrame:
 
 
 def create_lines_from_shapes(shapes: pd.DataFrame) -> gpd.GeoDataFrame:
-    """
-    Sorts shapes by (shape_id, shape_pt_sequence), builds LineString geometries
-    for each shape, and returns a GeoDataFrame (EPSG:4326).
-    """
+    """Sorts shapes, builds LineString geometries, and returns a GeoDataFrame (EPSG:4326)."""
     shapes_grouped = shapes.sort_values(["shape_id", "shape_pt_sequence"]).groupby(
         "shape_id"
     )
@@ -196,10 +185,7 @@ def create_lines_from_shapes(shapes: pd.DataFrame) -> gpd.GeoDataFrame:
 def merge_and_classify_shapes(
     trips: pd.DataFrame, routes_filtered: pd.DataFrame, gdf_shapes: gpd.GeoDataFrame
 ) -> pd.DataFrame:
-    """
-    Filters trips by routes, merges them with shape-based direction classification,
-    and returns a DataFrame with shape_direction appended.
-    """
+    """Filters trips by routes, merges them with direction classification, and returns a DataFrame."""
     trips_filtered = trips[trips["route_id"].isin(routes_filtered["route_id"])]
     trips_merged = trips_filtered.merge(
         routes_filtered[["route_id", "route_short_name", "route_long_name"]],
@@ -221,10 +207,7 @@ def merge_and_classify_shapes(
 def identify_first_last_stops(
     trips_merged: pd.DataFrame, stop_times: pd.DataFrame, stops: pd.DataFrame
 ) -> pd.DataFrame:
-    """
-    Identifies first and last stops (with names), merges them into the trips_merged DataFrame,
-    and returns the augmented DataFrame.
-    """
+    """Identifies first and last stops (with names), merges them, and returns the augmented DataFrame."""
     stop_times_sorted = stop_times.sort_values(["trip_id", "stop_sequence"])
     first_stops = stop_times_sorted.groupby("trip_id").first().reset_index()
     last_stops = stop_times_sorted.groupby("trip_id").last().reset_index()
@@ -253,11 +236,8 @@ def identify_first_last_stops(
 
 
 def determine_dominant_shapes(final_data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Determines the 'dominant' shape per (route_short_name, direction_id) based on
-    the max trip_count, flags them, and merges the flag back into final_data.
-    """
-    shape_counts = (
+    """Determines the 'dominant' shape, flags them, and merges the flag back into final_data."""
+    shape_counts = 
         final_data.groupby(["route_short_name", "direction_id", "shape_id"])
         .size()
         .reset_index(name="trip_count")
@@ -278,9 +258,7 @@ def determine_dominant_shapes(final_data: pd.DataFrame) -> pd.DataFrame:
 
 
 def export_excel_summaries(summary: pd.DataFrame, final_data: pd.DataFrame) -> None:
-    """
-    Exports an overall Directions_Summary.xlsx and per-route/direction files with departure times.
-    """
+    """Exports an overall Directions_Summary.xlsx and per-route/direction files with departure times."""
     summary_path = os.path.join(OUTPUT_FOLDER, "Directions_Summary.xlsx")
     summary.to_excel(summary_path, index=False)
 
@@ -292,9 +270,7 @@ def export_excel_summaries(summary: pd.DataFrame, final_data: pd.DataFrame) -> N
 
 
 def export_jpegs(summary: pd.DataFrame, gdf_shapes: gpd.GeoDataFrame) -> None:
-    """
-    Exports one JPEG map of the dominant shape per (route, direction).
-    """
+    """Exports one JPEG map of the dominant shape per (route, direction)."""
     remaining_shape_ids = summary["shape_id"].unique().tolist()
     gdf_shapes_dominant = gdf_shapes[gdf_shapes["shape_id"].isin(remaining_shape_ids)]
 
@@ -317,10 +293,7 @@ def export_jpegs(summary: pd.DataFrame, gdf_shapes: gpd.GeoDataFrame) -> None:
 
 
 def flag_suspicious_data(summary: pd.DataFrame) -> None:
-    """
-    Flags suspicious cases where shape_direction vs. direction_id are inconsistent
-    and exports them to 'Suspicious_RouteDirections.xlsx' if found.
-    """
+    """Flags suspicious cases where shape_direction vs. direction_id are inconsistent and exports them."""
     summary_simplified = summary[
         ["route_short_name", "direction_id", "shape_direction"]
     ].drop_duplicates()
@@ -376,8 +349,7 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
 
 
 def main():
-    """
-    Primary entry point for GTFS direction classification.
+    """Primary entry point for GTFS direction classification.
 
     1. Reads GTFS files (routes, trips, stop_times, shapes, stops).
     2. Filters the routes according to user-defined inclusion/exclusion lists.
