@@ -1,5 +1,4 @@
-"""
-Converts GTFS `stops.txt` and `shapes.txt` files into ESRI Shapefiles.
+"""Converts GTFS `stops.txt` and `shapes.txt` files into ESRI Shapefiles.
 
 Exports GTFS stops as point features and routes as LineStrings using
 standard WGS 84 coordinates. Designed for notebook workflows.
@@ -50,8 +49,7 @@ DEFAULT_OUTPUT_DIR: Optional[Path] = Path(
 
 
 def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
-    """
-    Reads GTFS 'stops.txt' file into a Point GeoDataFrame.
+    """Reads GTFS 'stops.txt' file into a Point GeoDataFrame.
 
     Args:
         gtfs_dir: Path to the directory containing the GTFS files.
@@ -115,8 +113,7 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
 
 def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
-    """
-    Reads GTFS 'shapes.txt' file into a LineString GeoDataFrame.
+    """Reads GTFS 'shapes.txt' file into a LineString GeoDataFrame.
 
     If 'shapes.txt' is missing, an empty GeoDataFrame is returned.
 
@@ -205,8 +202,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
 
 def export_gdf(gdf: gpd.GeoDataFrame, out_path: Path) -> None:
-    """
-    Exports a GeoDataFrame to an ESRI Shapefile.
+    """Exports a GeoDataFrame to an ESRI Shapefile.
 
     Creates the output directory if needed. Skips export if GDF is empty.
 
@@ -240,8 +236,7 @@ def gtfs_to_shapefiles(
     output_dir: Optional[Path] = None,
     kind: ExportKind = "both",
 ) -> None:
-    """
-    Converts GTFS stops and/or shapes files to ESRI Shapefiles.
+    """Converts GTFS stops and/or shapes files to ESRI Shapefiles.
 
     Reads data from GTFS directory and writes Shapefiles to output directory.
     Uses default paths from the User Configuration section if arguments
@@ -334,8 +329,7 @@ def gtfs_to_shapefiles(
 
 
 def main():
-    """
-    Runs example scenarios for the GTFS to Shapefile conversion.
+    """Runs example scenarios for the GTFS to Shapefile conversion.
 
     This function is executed only when the script is run directly.
     It demonstrates calling `gtfs_to_shapefiles` using both configured
