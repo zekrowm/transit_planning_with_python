@@ -96,7 +96,7 @@ def classify_direction(
 
 def plot_route_shape(gdf_shape, route, direction, output_path):
     """Plot the given shape geometry and save as a .jpeg.
-    
+
     Highlights the start and end of the route shape, and includes a simple
     'N' arrow for orientation in the top-left corner of the map.
     """
