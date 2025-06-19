@@ -1,5 +1,4 @@
-"""
-Validates GTFS route and stop data against a transit system shapefile.
+"""Validates GTFS route and stop data against a transit system shapefile.
 
 Compares GTFS route names with system shapefile attributes to identify mismatches.
 Checks whether GTFS stops fall within an allowable distance from their assigned
