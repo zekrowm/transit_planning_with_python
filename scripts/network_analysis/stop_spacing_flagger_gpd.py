@@ -240,7 +240,7 @@ def _split_into_segments(
         if cand.empty:
             continue
 
-        dists = np.array([line.project(pt) for pt in cand.geometry])
+        dists = np.array([line.project(pt) for pt in cand.geometry if isinstance(pt, Point)])
         uniq_dists = np.unique(dists)
         snap_pts: list[Point] = [line.interpolate(d) for d in uniq_dists]
 
@@ -280,7 +280,8 @@ def _export_segments_by_route_dir(seg_gdf: gpd.GeoDataFrame, out_dir: Path) -> N
     for (rid, drn), grp in seg_gdf.groupby(["route_id", "direction_id"]):
         suffix = f"dir{drn}"
         fname = f"{rid}_{suffix}.shp"
-        grp.to_file(out_dir / fname)
+        grp_gdf: gpd.GeoDataFrame = grp  # type: ignore[assignment]
+        grp_gdf.to_file(out_dir / fname)
         print(f"Wrote {fname}")
 
 
