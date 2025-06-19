@@ -325,6 +325,7 @@ def hanging_segments(stop_times: pd.DataFrame, stops: pd.DataFrame) -> pd.DataFr
         }
     )
 
+
 def unrealistic_timings(
     stop_times: pd.DataFrame,
     stops: pd.DataFrame,
