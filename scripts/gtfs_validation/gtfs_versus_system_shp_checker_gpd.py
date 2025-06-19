@@ -344,9 +344,7 @@ def identify_problem_stops(
                     "distance_to_route_feet",
                     "routes_serving_stop",
                 ]
-            ].assign(
-                route_id=None
-            ),  # Unmatched => no route_id
+            ].assign(route_id=None),  # Unmatched => no route_id
         ],
         ignore_index=True,
     )
