@@ -84,23 +84,9 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     Parameters:
         gtfs_folder_path (str): Path to the directory containing GTFS files.
         files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+            standard GTFS files.
+        dtype (str or dict, optional): Pandas dtype to use when reading the CSV files.
+            Default is str.
 
     Returns:
         dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
