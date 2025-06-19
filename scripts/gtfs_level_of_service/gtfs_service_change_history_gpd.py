@@ -90,8 +90,8 @@ GEOM_CHANGE_THRESHOLD = 0.05  # 5% area difference
 # GLOBAL STORAGE
 # -----------------------------------------------------------------------------
 
-ALL_SIGNUP_FINAL_DATA = {}  # { label: [DataFrame, DataFrame, ...] }
-ALL_SIGNUP_COVERAGES = {}  # { label: { route_short_name: polygon } }
+ALL_SIGNUP_FINAL_DATA: dict[str, list[DataFrame]] = {}  # { label: [DataFrame, DataFrame, ...] }
+ALL_SIGNUP_COVERAGES: dict[str, dict[str, Polygon]] = {}  # { label: { route_short_name: polygon } }
 
 # ==================================================================================================
 # FUNCTIONS
