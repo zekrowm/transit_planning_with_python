@@ -1,12 +1,11 @@
-"""
-Validates GTFS stop clusters by checking spatial and naming consistency.
+"""Validates GTFS stop clusters by checking spatial and naming consistency.
 
 Analyzes predefined bus bay clusters for errors such as nearby excluded stops,
 distant included stops, and inconsistent stop names. Useful for creating bus
 stop cluster lists for subsequent analysis.
 
 Typical Usage:
-        Python notebooks or command line
+    ArcPro or standalone Python notebooks
 
 Inputs:
     - GTFS 'stops.txt', 'trips.txt', and 'stop_times.txt' from GTFS_FOLDER_PATH
@@ -59,30 +58,15 @@ DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
+    """Loads GTFS files into pandas DataFrames from the specified directory.
+
     This function uses the logging module for output.
 
-    Parameters:
+    Args:
         gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+        files (list[str], optional): GTFS filenames to load. Defaults to all
+            standard GTFS files.
+        dtype (str or dict, optional): Pandas dtype to use. Defaults to str.
 
     Returns:
         dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
@@ -155,22 +139,16 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
 
 def prepare_stops_gdf(crs_epsg: int, service_id: str = "3"):
-    """
-    Load stops, trips and stop_times with the new load_gtfs_data(), filter to the
+    """Load stops, trips and stop_times with the new load_gtfs_data(), filter to the
     specified service_id, and return a re-projected GeoDataFrame of the *active*
     stops only.
 
-    Parameters
-    ----------
-    crs_epsg : int
-        Target CRS for distance calculations (e.g. 2248).
-    service_id : str, optional
-        GTFS service_id to analyse.  Defaults to "3".
+    Args:
+        crs_epsg (int): Target CRS for distance calculations (e.g. 2248).
+        service_id (str, optional): GTFS service_id to analyse. Defaults to "3".
 
-    Returns
-    -------
-    geopandas.GeoDataFrame
-        Stops used by the chosen service, projected to `crs_epsg`.
+    Returns:
+        geopandas.GeoDataFrame: Stops used by the chosen service, projected to `crs_epsg`.
     """
     # ------------------------------------------------------------------
     # Load the three core files we need
@@ -229,13 +207,17 @@ def prepare_stops_gdf(crs_epsg: int, service_id: str = "3"):
 
 
 def initialize_clusters(stops_gdf, clusters_dict):
-    """
-    Splits stops into included and excluded sets based on cluster definitions.
+    """Splits stops into included and excluded sets based on cluster definitions.
+
+    Args:
+        stops_gdf (geopandas.GeoDataFrame): GeoDataFrame of all stops.
+        clusters_dict (dict): Dictionary defining clusters.
 
     Returns:
-        included_stops_global (GeoDataFrame),
-        excluded_stops_global (GeoDataFrame),
-        updated_clusters_dict (dict, with stop IDs as strings).
+        tuple: A tuple containing:
+            - included_stops_global (geopandas.GeoDataFrame): Stops included in clusters.
+            - excluded_stops_global (geopandas.GeoDataFrame): Stops not included in clusters.
+            - updated_clusters_dict (dict): The clusters dictionary with stop IDs as strings.
     """
     if not clusters_dict:
         print("No clusters defined. Proceeding without cluster analysis.")
@@ -274,8 +256,15 @@ def initialize_clusters(stops_gdf, clusters_dict):
 
 
 def find_similar_stop_names(inc_stops, exc_stops, threshold):
-    """
-    Find excluded stops whose names are similar to included stops above a threshold.
+    """Find excluded stops whose names are similar to included stops above a threshold.
+
+    Args:
+        inc_stops (geopandas.GeoDataFrame): GeoDataFrame of included stops.
+        exc_stops (geopandas.GeoDataFrame): GeoDataFrame of excluded stops.
+        threshold (int): Similarity threshold (0-100).
+
+    Returns:
+        pd.DataFrame: DataFrame of excluded stops with similar names.
     """
     if inc_stops.empty or exc_stops.empty:
         return pd.DataFrame(
@@ -329,8 +318,15 @@ def find_similar_stop_names(inc_stops, exc_stops, threshold):
 
 
 def find_nearby_excluded_stops(inc_stops, exc_stops, distance_threshold):
-    """
-    Find excluded stops that are within distance_threshold from included stops.
+    """Find excluded stops that are within distance_threshold from included stops.
+
+    Args:
+        inc_stops (geopandas.GeoDataFrame): GeoDataFrame of included stops.
+        exc_stops (geopandas.GeoDataFrame): GeoDataFrame of excluded stops.
+        distance_threshold (float): Distance threshold in meters.
+
+    Returns:
+        pd.DataFrame: DataFrame of excluded stops found nearby.
     """
     if inc_stops.empty or exc_stops.empty:
         return pd.DataFrame(
@@ -372,8 +368,14 @@ def find_nearby_excluded_stops(inc_stops, exc_stops, distance_threshold):
 
 
 def find_distant_included_stops(inc_stops, distance_threshold):
-    """
-    Find included stops that are far from all other stops in their cluster.
+    """Find included stops that are far from all other stops in their cluster.
+
+    Args:
+        inc_stops (geopandas.GeoDataFrame): GeoDataFrame of included stops.
+        distance_threshold (float): Distance threshold in meters.
+
+    Returns:
+        pd.DataFrame: DataFrame of included stops found to be distant.
     """
     if inc_stops.empty:
         return pd.DataFrame(
@@ -405,8 +407,14 @@ def find_distant_included_stops(inc_stops, distance_threshold):
 
 
 def find_different_named_included_stops(inc_stops, similarity_threshold):
-    """
-    Find included stops in the same cluster whose name similarity is below similarity_threshold.
+    """Find included stops in the same cluster whose name similarity is below similarity_threshold.
+
+    Args:
+        inc_stops (geopandas.GeoDataFrame): GeoDataFrame of included stops.
+        similarity_threshold (int): Similarity threshold (0-100).
+
+    Returns:
+        pd.DataFrame: DataFrame of included stops with different names.
     """
     if inc_stops.empty:
         return pd.DataFrame(
@@ -441,8 +449,12 @@ def find_different_named_included_stops(inc_stops, similarity_threshold):
 
 
 def save_to_excel(data_frame, filename, output_directory):
-    """
-    Save a DataFrame to Excel with headers, even if empty.
+    """Save a DataFrame to Excel with headers, even if empty.
+
+    Args:
+        data_frame (pd.DataFrame): The DataFrame to save.
+        filename (str): The name of the Excel file.
+        output_directory (str): The directory to save the file in.
     """
     file_path = os.path.join(output_directory, filename)
 
@@ -482,15 +494,16 @@ def save_to_excel(data_frame, filename, output_directory):
 
 
 def main(service_id: str = "3"):
-    """
-    Main entry point for the GTFS Bus-Bay Cluster Validation script.
+    """Main entry point for the GTFS Bus-Bay Cluster Validation script.
 
-    Steps
-    -----
+    Steps:
     1. Configure logging (console + file) exactly once.
     2. Create required output folders.
     3. Load and filter GTFS data, build GeoDataFrames.
     4. Run cluster checks and store Excel / shapefile outputs.
+
+    Args:
+        service_id (str, optional): GTFS service_id to analyze. Defaults to "3".
     """
     # ------------------------------------------------------------------
     # Logging ─ single centralised configuration
