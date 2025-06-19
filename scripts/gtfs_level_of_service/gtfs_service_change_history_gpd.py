@@ -514,9 +514,7 @@ def process_schedule_type(schedule_type, days, data, label):
 
     # 12. Add interlined_routes column
     def get_interlined(route_name):
-        """
-        Build a comma-separated string of routes that share the same block_id.
-        """
+        """Build a comma-separated string of routes that share the same block_id."""
         return ", ".join(sorted(interlined_routes_map.get(route_name, [])))
 
     final_data["interlined_routes"] = final_data["route_short_name"].apply(
@@ -637,7 +635,6 @@ def classify_geometry_change(poly_old, poly_new, threshold=GEOM_CHANGE_THRESHOLD
 
 def compare_signups_detailed(labels_in_order, all_signups_data):
     """Build a DataFrame comparing each signup to the previous one, labeling each route."""
-
     # Gather all routes from all signups
     all_routes = set()
     for lab in labels_in_order:
