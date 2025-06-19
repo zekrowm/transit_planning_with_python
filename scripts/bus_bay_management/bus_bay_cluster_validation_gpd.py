@@ -139,9 +139,10 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
 
 def prepare_stops_gdf(crs_epsg: int, service_id: str = "3"):
-    """Load stops, trips and stop_times with the new load_gtfs_data(), filter to the
-    specified service_id, and return a re-projected GeoDataFrame of the *active*
-    stops only.
+    """Loads stops, trips, and stop_times with `load_gtfs_data()`.
+
+    It filters the data to the specified `service_id` and returns a re-projected
+    GeoDataFrame of *active* stops only.
 
     Args:
         crs_epsg (int): Target CRS for distance calculations (e.g. 2248).
