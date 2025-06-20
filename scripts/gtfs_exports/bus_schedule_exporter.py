@@ -54,7 +54,7 @@ MAX_COLUMN_WIDTH = 30
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-   
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
