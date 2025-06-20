@@ -16,13 +16,15 @@ Outputs:
     - One Excel file per route × service type with schedule sheets by direction
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import re
 import sys
 from collections import defaultdict
-from __future__ import annotations
-from typing import Optional, Union, Any
+from typing import Any, Optional, Union
+
 import pandas as pd
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
@@ -37,9 +39,9 @@ BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output_Folder"
 if not os.path.exists(BASE_OUTPUT_PATH):
     os.makedirs(BASE_OUTPUT_PATH)
 
-FILTER_SERVICE_IDS: list[str] = []   # e.g. ["1", "2"]
-FILTER_IN_ROUTES:  list[str] = []   # routes to keep
-FILTER_OUT_ROUTES: list[str] = []   # routes to exclude
+FILTER_SERVICE_IDS: list[str] = []  # e.g. ["1", "2"]
+FILTER_IN_ROUTES: list[str] = []  # routes to keep
+FILTER_OUT_ROUTES: list[str] = []  # routes to exclude
 
 TIME_FORMAT_OPTION = "24"  # "12" or "24"
 MISSING_TIME = "---"
@@ -52,6 +54,7 @@ MAX_COLUMN_WIDTH = 30
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
