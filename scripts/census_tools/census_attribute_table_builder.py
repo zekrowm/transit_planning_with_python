@@ -15,7 +15,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Mapping, Sequence, Hashable
+from typing import Any, Callable, Hashable, Iterable, Literal, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
