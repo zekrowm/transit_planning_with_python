@@ -15,7 +15,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable, Literal, Mapping, Sequence
+from typing import Any, Callable, Iterable, Literal, Mapping, Sequence, Hashable
 
 import numpy as np
 import pandas as pd
@@ -108,8 +108,8 @@ def _load_and_concat(
     files: Sequence[str],
     *,
     skiprows: int | Sequence[int] | Callable[[int], bool] | None = None,
-    dtype: Mapping[str, np.dtype[Any] | str] | None = None,
-    usecols: Sequence[str] | None = None,
+    dtype: Mapping[Hashable, str | np.dtype[Any]] | None = None,
+    usecols: Sequence[Hashable] | None = None,
     rename: Mapping[str, str] | None = None,
     compression: Literal["infer", "gzip", "bz2", "zip", "xz", "zstd"] | None = None,
 ) -> pd.DataFrame:
@@ -117,33 +117,24 @@ def _load_and_concat(
 
     Only explicitly selected or renamed columns are retained to minimise memory
     use and noise upstream.
-
-    Args:
-        files: Paths to CSV or CSV-GZ files.
-        skiprows: Rows to skip (single int, sequence of ints, or predicate).
-        dtype: Column-specific dtype overrides compatible with ``pandas.read_csv``.
-        usecols: Columns to load (sequence, not a bare string).
-        rename: Optional mapping of original → new column names.
-        compression: Explicit compression hint; set to ``None`` for auto.
-
-    Returns:
-        Concatenated ``pandas.DataFrame`` containing all records from *files*.
     """
     frames: list[pd.DataFrame] = []
 
     for path in files:
-        df = pd.read_csv(
-            path,
-            skiprows=skiprows,
-            dtype=dtype,
-            usecols=usecols,
-            compression=compression,
-        )
+        # Build kwargs dynamically so pandas receives only non-None values
+        read_kwargs: dict[str, Any] = {"compression": compression}
+        if skiprows is not None:
+            read_kwargs["skiprows"] = skiprows
+        if dtype is not None:
+            read_kwargs["dtype"] = dtype
+        if usecols is not None:
+            read_kwargs["usecols"] = usecols
+
+        df = pd.read_csv(path, **read_kwargs)
 
         if rename:
             df.rename(columns=rename, inplace=True)
-
-            # If we loaded *all* columns, drop those we didn't rename
+            # If all columns were loaded, retain only those we explicitly renamed
             if usecols is None:
                 keep = {GEO_ID_COL, "NAME", *rename.values()}
                 df = df.loc[:, df.columns.intersection(keep)]
