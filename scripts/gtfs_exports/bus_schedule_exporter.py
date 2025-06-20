@@ -21,7 +21,8 @@ import os
 import re
 import sys
 from collections import defaultdict
-
+from __future__ import annotations
+from typing import Optional, Union, Any
 import pandas as pd
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
@@ -36,9 +37,9 @@ BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output_Folder"
 if not os.path.exists(BASE_OUTPUT_PATH):
     os.makedirs(BASE_OUTPUT_PATH)
 
-FILTER_SERVICE_IDS = []  # e.g. ['1','2'] => only process these. Empty => process all
-FILTER_IN_ROUTES = []  # If non-empty, only process these route short names
-FILTER_OUT_ROUTES = []  # Exclude these route short names if non-empty
+FILTER_SERVICE_IDS: list[str] = []   # e.g. ["1", "2"]
+FILTER_IN_ROUTES:  list[str] = []   # routes to keep
+FILTER_OUT_ROUTES: list[str] = []   # routes to exclude
 
 TIME_FORMAT_OPTION = "24"  # "12" or "24"
 MISSING_TIME = "---"
@@ -52,8 +53,11 @@ MAX_COLUMN_WIDTH = 30
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
+def load_gtfs_data(
+    gtfs_folder_path: str,
+    files: Optional[list[str]] = None,
+    dtype: Union[str, dict[str, Any]] = str,
+) -> dict[str, pd.DataFrame]:
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
     This function uses the logging module for output.
