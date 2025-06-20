@@ -471,7 +471,7 @@ def do_network_analysis(
 
     print("Network-wide totals:")
     for col, value in totals.items():
-        display_col = col.replace("synthetic_", "").replace("_", " ").title()
+        display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
         print(f"  Total Synthetic {display_col}: {int(value)}")
 
     os.makedirs(output_dir, exist_ok=True)
@@ -587,7 +587,7 @@ def do_route_by_route_analysis(
         synthetic_cols = [f"synthetic_{f}" for f in synthetic_fields]
         totals = clipped_result[synthetic_cols].sum().round(0)
         for col, val in totals.items():
-            display_col = col.replace("synthetic_", "").replace("_", " ").title()
+            display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
             print(f"  Total Synthetic {display_col} for route {route_name}: {int(val)}")
 
         # Shapefile export
@@ -704,7 +704,7 @@ def do_stop_by_stop_analysis(
 
         print(f"\nStop {stop_id_str} totals:")
         for col, val in totals.items():
-            display_col = col.replace("synthetic_", "").replace("_", " ").title()
+            display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
             print(f"  Total Synthetic {display_col}: {int(val)}")
 
         # Export shapefile
