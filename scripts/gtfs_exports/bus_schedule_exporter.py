@@ -23,7 +23,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from typing import Any, Optional, Union
+from typing import Any, Mapping, Optional
 
 import pandas as pd
 from openpyxl.styles import Alignment
@@ -55,11 +55,10 @@ MAX_COLUMN_WIDTH = 30
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
-    dtype: Union[str, dict[str, Any]] = str,
+    dtype: str | type[str] | Mapping[str, Any] = str,   # ← expanded
 ) -> dict[str, pd.DataFrame]:
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
