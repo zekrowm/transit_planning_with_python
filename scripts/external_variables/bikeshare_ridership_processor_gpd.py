@@ -127,7 +127,7 @@ def plot_shapefile(boundary_gdf, clipped_gdf):
 
 
 def find_close_matches(station_name, valid_station_names, threshold):
-   """Returns the best fuzzy match for a station name from the valid_station_names list.
+    """Returns the best fuzzy match for a station name from the valid_station_names list.
 
     Args:
         station_name (str): The name of the station to match.
