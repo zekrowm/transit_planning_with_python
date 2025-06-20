@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Set, Optional, TypedDict
+from typing import Dict, List, Optional, Set, TypedDict
 
 import networkx as nx
 import pandas as pd
@@ -45,6 +45,7 @@ LONG_GAP_MIN = 60  # minutes
 DEG_TO_MILES = 69.172  # rough miles per degree
 DEG_TO_FEET = DEG_TO_MILES * 5280
 
+
 # -----------------------------------------------------------------------------
 # TYPE DEFINITIONS
 # -----------------------------------------------------------------------------
@@ -56,9 +57,11 @@ class StopSnapshot(TypedDict):
     lat: float
     lon: float
 
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     """Read one or more GTFS text files from the given folder.
@@ -369,11 +372,7 @@ def unrealistic_timings(
             tsec = parse_time(row.departure_time or row.arrival_time)
 
             # --------------------------- speed / gap check ---------------------------
-            if (
-                prev is not None
-                and tsec is not None
-                and prev["t"] is not None
-            ):
+            if prev is not None and tsec is not None and prev["t"] is not None:
                 dt = tsec - prev["t"]
                 if dt <= 0:
                     # Non-positive dwell/travel times are ignored (often scheduling quirks)
