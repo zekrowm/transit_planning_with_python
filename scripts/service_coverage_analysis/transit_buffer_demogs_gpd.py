@@ -22,6 +22,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Final, Optional
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -48,14 +49,18 @@ SERVICE_IDS_TO_INCLUDE: Final[list[str]] = ["3"]  # ← NEW
 # 2) ROUTES_TO_EXCLUDE: If non-empty, these routes are removed.
 # If both are empty, all routes in routes.txt are used.
 ROUTES_TO_INCLUDE: list[str] = ["101", "202"]  # e.g. [] for no include filter
-ROUTES_TO_EXCLUDE: list[str] = [] # e.g. [] for no exclude filter
+ROUTES_TO_EXCLUDE: list[str] = []  # e.g. [] for no exclude filter
 
 # Stop filters:
 # 1) STOP_IDS_TO_INCLUDE: If non-empty, only these stops are considered (after route filter).
 # 2) STOP_IDS_TO_EXCLUDE: If non-empty, these stops are removed (after route filter).
 # If both are empty, all stops belonging to final routes are used.
-STOP_IDS_TO_INCLUDE: list[str] = [] # e.g. [] for no include filter or [1005, 1007] for include filter
-STOP_IDS_TO_EXCLUDE: list[str] = [] # e.g. [] for no include filter or [1010, 1011] for exclude filter
+STOP_IDS_TO_INCLUDE: list[
+    str
+] = []  # e.g. [] for no include filter or [1005, 1007] for include filter
+STOP_IDS_TO_EXCLUDE: list[
+    str
+] = []  # e.g. [] for no include filter or [1010, 1011] for exclude filter
 
 # Buffer distances in miles
 BUFFER_DISTANCE = 0.25  # Standard buffer distance
@@ -65,7 +70,9 @@ LARGE_BUFFER_DISTANCE = 2.0  # Larger buffer distance for specified stops
 STOP_IDS_LARGE_BUFFER: list[str] = []
 
 # Optional FIPS filter (list of codes). Empty list = no filter.
-FIPS_FILTER: list[str] = [] # Replace with FIPS code(s) for desired jurisdictions (e.g. "11001")
+FIPS_FILTER: list[
+    str
+] = []  # Replace with FIPS code(s) for desired jurisdictions (e.g. "11001")
 
 # Fields in demographics shapefile to multiply by area ratio
 SYNTHETIC_FIELDS = [
@@ -103,6 +110,7 @@ REQUIRED_GTFS_FILES = [
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype=str):
     """Load GTFS text files from *gtfs_folder_path*.
