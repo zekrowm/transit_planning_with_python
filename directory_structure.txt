@@ -9,51 +9,60 @@ transit_planning_with_python-main/
 │       ├── auto_format_ruff.yml
 │       ├── docstring_check_pydocstyle.yml
 │       └── type_check_mypy.yml
+├── code_tools/
+│   ├── fake_data_generator.py
+│   ├── repo_file_tree_printer.py
+│   ├── repo_imports_printer.py
+│   ├── reusable_functions_consistency_checker.py
+│   ├── ruff_lint_formatter.py
+│   └── static_code_reporter.py
 ├── helpers/
 │   └── gtfs_helpers.py
 ├── scripts/
 │   ├── bus_bay_management/
 │   │   ├── block_status_by_minute_generator.py
 │   │   ├── bus_bay_by_min_conflict_checker.py
-│   │   ├── bus_bay_cluster_validation.py
+│   │   ├── bus_bay_cluster_validation_gpd.py
 │   │   └── bus_bay_conflict_solver.py
 │   ├── census_tools/
 │   │   ├── census_attribute_table_builder.py
-│   │   ├── census_shp_filter_export.py
 │   │   ├── census_shp_filter_export_arcpy.py
-│   │   └── join_blocks_with_attributes.py
+│   │   ├── census_shp_filter_export_gpd.py
+│   │   └── join_blocks_with_attributes_gpd.py
 │   ├── external_variables/
-│   │   ├── bikeshare_ridership_processor.py
+│   │   ├── bikeshare_ridership_processor_gpd.py
 │   │   ├── eia_gas_price_processor.py
 │   │   ├── fred_unemployment_processor.py
 │   │   └── noaa_weather_processor.py
+│   ├── facilities_tools/
+│   │   └── stop_amenity_warrant_flagger.py
 │   ├── field_tools/
 │   │   ├── bus_block_stop_sequence_printable.py
 │   │   ├── bus_cluster_arrivals_checklist_printable.py
 │   │   ├── bus_cluster_arrivals_observations_processor.py
-│   │   └── site_visit_route_planner.py
+│   │   └── site_visit_route_planner_gpd.py
 │   ├── gtfs_exports/
 │   │   ├── bus_schedule_exporter.py
-│   │   ├── gtfs_shapefile_converter.py
+│   │   ├── gtfs_shapefile_converter_gpd.py
 │   │   ├── speed_table_exporter.py
 │   │   ├── stop_pattern_exporter.py
 │   │   ├── stop_sequence_exporter.py
 │   │   └── time_band_exporter.py
 │   ├── gtfs_level_of_service/
-│   │   ├── gtfs_service_change_history.py
 │   │   ├── gtfs_service_change_history_arcpy.py
+│   │   ├── gtfs_service_change_history_gpd.py
 │   │   ├── gtfs_trips_hourly_reporter.py
 │   │   └── headway_span_trips_calculator.py
 │   ├── gtfs_validation/
 │   │   ├── gtfs_internal_audit.py
 │   │   ├── gtfs_usps_suffix_validator.py
-│   │   ├── gtfs_versus_system_shp_checker.py
-│   │   ├── stops_in_roadway_checker.py
-│   │   ├── stops_versus_road_name_typo_checker.py
-│   │   └── stops_versus_road_name_typo_checker_arcpy.py
+│   │   ├── gtfs_versus_system_shp_checker_gpd.py
+│   │   ├── stops_in_roadway_checker_gpd.py
+│   │   ├── stops_versus_road_name_typo_checker_arcpy.py
+│   │   └── stops_versus_road_name_typo_checker_gpd.py
 │   ├── network_analysis/
-│   │   ├── route_direction_calculator.py
-│   │   └── stop_spacing_flagger.py
+│   │   ├── route_direction_calculator_gpd.py
+│   │   └── stop_spacing_flagger_gpd.py
 │   ├── operations_tools/
 │   │   ├── historical_otp_data_processor.py
 │   │   ├── otp_per_trip_processor.py
@@ -67,22 +76,14 @@ transit_planning_with_python-main/
 │   │   ├── ntd_data_compiler.py
 │   │   ├── ridership_per_stop_processor.py
 │   │   ├── ridership_per_trip_processor.py
-│   │   ├── stop_amenity_warrant_flagger.py
 │   │   └── stops_ridership_joiner_arcpy.py
 │   └── service_coverage_analysis/
-│       ├── districts_served_counter.py
-│       ├── nearest_stop_direction.py
-│       ├── park_and_ride_isochrones.py
+│       ├── districts_served_counter_gpd.py
+│       ├── nearest_stop_direction_gpd.py
 │       ├── strategic_facilities_served_counter.py
-│       ├── transit_buffer_demogs.py
-│       ├── transit_catchment_calculator.py
-│       └── walking_service_area_mapper.py
-├── static_checks/
-│   ├── repo_file_tree_printer.py
-│   ├── repo_imports_printer.py
-│   ├── reusable_functions_consistency_checker.py
-│   ├── ruff_lint_formatter.py
-│   └── static_code_reporter.py
+│       └── transit_catchment_calculator.py
 └── tests/
     ├── test_bus_schedule_exporter_e2e.py
-    └── test_load_gtfs_data.py
+    ├── test_load_gtfs_data.py
+    └── test_data/
+        └── bus_stop_amenities_sample.csv
