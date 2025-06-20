@@ -60,25 +60,18 @@ def load_gtfs_data(
     files: Optional[list[str]] = None,
     dtype: str | type[str] | Mapping[str, Any] = str,  # ← expanded
 ) -> dict[str, pd.DataFrame]:
-    """Load one or more GTFS text files into a dictionary of DataFrames.
+    """Validate that times increase by stop (row) and by trip (column).
+
+    Emits ``logging.warning`` messages for every monotonicity breach.
 
     Args:
-        gtfs_folder_path: Absolute or relative path to the directory
-            containing GTFS text files.
-        files: Explicit list of GTFS filenames to load.  If *None*, the
-            full standard GTFS set is read.
-        dtype: Value passed to :pyfunc:`pandas.read_csv` to control data
-            types; defaults to ``str``.
-
-    Returns:
-        Mapping of filename stem → DataFrame.  For example,
-        ``data["trips"]`` is the parsed *trips.txt* file.
-
-    Raises:
-        OSError: The folder does not exist or one of the expected files
-            is missing.
-        ValueError: The file is empty or contains malformed CSV.
-        RuntimeError: An OS-level error occurs while reading a file.
+        input_df: A DataFrame where each row is a trip and each column (aside from metadata)
+            represents scheduled times for a stop. Used to check for monotonicity.
+        ordered_stop_names: List of stop names in expected physical order, used to define
+            the schedule column order (e.g., ['Main St', '2nd Ave']).
+        route_short_name: Route identifier (e.g., '42'), used in warning messages.
+        schedule_type: Name of the service period (e.g., 'Weekday'), used in logging.
+        dir_id: Direction of service (usually 0 or 1), also used for logging context.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
