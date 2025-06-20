@@ -21,6 +21,7 @@ import os
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font
+from typing import Dict, List, Tuple, Set
 
 try:
     import pulp
@@ -49,9 +50,9 @@ CLUSTER_DEFINITIONS = {
 }
 
 ALLOW_ROUTE_DIRECTION_SPLIT = False
-ROUTE_TO_SPECIFIC_STOPS = {}
-ROUTE_PAIRS_TOGETHER = {}
-ROUTE_TO_LAYOVER_BAYS = {}
+ROUTE_TO_SPECIFIC_STOPS: Dict[Tuple[str, str], List[str]] = {}
+ROUTE_PAIRS_TOGETHER: Set[Tuple[str, str]] = set()
+ROUTE_TO_LAYOVER_BAYS: Dict[str, List[str]] = {}
 ALLOW_LAYOVER_AT_REAL_STOPS = False
 
 PASSENGER_SERVICE_STATUSES = {"ARRIVE", "DEPART", "ARRIVE/DEPART", "LOADING"}
