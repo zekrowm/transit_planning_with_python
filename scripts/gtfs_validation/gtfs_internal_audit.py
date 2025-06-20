@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional, TypedDict
 
 import networkx as nx
 import pandas as pd
@@ -45,10 +45,20 @@ LONG_GAP_MIN = 60  # minutes
 DEG_TO_MILES = 69.172  # rough miles per degree
 DEG_TO_FEET = DEG_TO_MILES * 5280
 
+# -----------------------------------------------------------------------------
+# TYPE DEFINITIONS
+# -----------------------------------------------------------------------------
+class StopSnapshot(TypedDict):
+    """Snapshot of the previous stop used for speed/gap checks."""
+
+    sid: str
+    t: int | None
+    lat: float
+    lon: float
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
 
 def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     """Read one or more GTFS text files from the given folder.
@@ -330,15 +340,21 @@ def unrealistic_timings(
     stop_times: pd.DataFrame,
     stops: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Detect trip segments with unrealistically high speeds or long time gaps.
+    """Detect trip segments with unrealistically high speeds or long dwell gaps.
 
     Args:
-        stop_times: DataFrame of stop_times.txt.
-        stops: DataFrame of stops.txt.
+        stop_times: Contents of *stop_times.txt* as a DataFrame.
+        stops: Contents of *stops.txt* as a DataFrame.
 
     Returns:
-        DataFrame of problematic trip segments with computed speed and time gap.
+        DataFrame with one row per offending segment and the columns:
+            * trip_id   – ID of the trip containing the segment
+            * prev_stop – stop_id of the first stop in the segment
+            * next_stop – stop_id of the following stop
+            * gap_min   – dwell or travel time between the two stops (minutes)
+            * speed_mph – average speed over the segment (mph)
     """
+    # Merge lat/lon onto each stop_time record
     st = stop_times.merge(
         stops[["stop_id", "stop_lat", "stop_lon"]], on="stop_id", how="left"
     )
@@ -346,33 +362,50 @@ def unrealistic_timings(
     offenders: List[Dict] = []
     for tid, grp in st.groupby("trip_id"):
         grp = grp.sort_values("stop_sequence")
-        prev = None
+        prev: Optional[StopSnapshot] = None
+
+        # iterrows is retained for readability; switch to itertuples if performance matters
         for _, row in grp.iterrows():
             tsec = parse_time(row.departure_time or row.arrival_time)
-            if prev and tsec and prev["t"]:
+
+            # --------------------------- speed / gap check ---------------------------
+            if (
+                prev is not None
+                and tsec is not None
+                and prev["t"] is not None
+            ):
                 dt = tsec - prev["t"]
                 if dt <= 0:
+                    # Non-positive dwell/travel times are ignored (often scheduling quirks)
                     continue
+
                 dist_mi = haversine_miles(
-                    prev["lat"], prev["lon"], float(row.stop_lat), float(row.stop_lon)
+                    prev["lat"],
+                    prev["lon"],
+                    float(row.stop_lat),
+                    float(row.stop_lon),
                 )
-                speed = (dist_mi / dt) * 3600
-                if speed > UNREALISTIC_SPEED_MPH or dt / 60 > LONG_GAP_MIN:
+                speed = (dist_mi / dt) * 3600.0  # mph
+
+                if speed > UNREALISTIC_SPEED_MPH or dt / 60.0 > LONG_GAP_MIN:
                     offenders.append(
                         {
                             "trip_id": tid,
                             "prev_stop": prev["sid"],
                             "next_stop": row.stop_id,
-                            "gap_min": round(dt / 60, 1),
+                            "gap_min": round(dt / 60.0, 1),
                             "speed_mph": round(speed, 1),
                         }
                     )
-            prev = {
-                "sid": row.stop_id,
-                "t": tsec,
-                "lat": float(row.stop_lat),
-                "lon": float(row.stop_lon),
-            }
+
+            # --------------------------- snapshot current stop ---------------------------
+            prev = StopSnapshot(
+                sid=row.stop_id,
+                t=tsec,
+                lat=float(row.stop_lat),
+                lon=float(row.stop_lon),
+            )
+
     return pd.DataFrame(offenders)
 
 
