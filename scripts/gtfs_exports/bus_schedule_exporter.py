@@ -1,5 +1,4 @@
-"""
-Generates Excel-formatted transit schedules from GTFS data.
+"""Generates Excel-formatted transit schedules from GTFS data.
 
 This script processes GTFS files (e.g., trips.txt, stop_times.txt) to export
 Excel schedule sheets by route, direction, and service type. Output mimics
@@ -61,38 +60,25 @@ def load_gtfs_data(
     files: Optional[list[str]] = None,
     dtype: str | type[str] | Mapping[str, Any] = str,  # ← expanded
 ) -> dict[str, pd.DataFrame]:
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load one or more GTFS text files into a dictionary of DataFrames.
 
-    Parameters:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+    Args:
+        gtfs_folder_path: Absolute or relative path to the directory
+            containing GTFS text files.
+        files: Explicit list of GTFS filenames to load.  If *None*, the
+            full standard GTFS set is read.
+        dtype: Value passed to :pyfunc:`pandas.read_csv` to control data
+            types; defaults to ``str``.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        Mapping of filename stem → DataFrame.  For example,
+        ``data["trips"]`` is the parsed *trips.txt* file.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: The folder does not exist or one of the expected files
+            is missing.
+        ValueError: The file is empty or contains malformed CSV.
+        RuntimeError: An OS-level error occurs while reading a file.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -156,10 +142,17 @@ def load_gtfs_data(
 
 
 def time_to_minutes(time_str):
-    """
-    Converts a time string to total minutes since midnight.
-    Supports 'HH:MM' and 'HH:MM AM/PM' formats, including hours >= 24
-    in 24-hour mode. Returns None if invalid or if time_str == MISSING_TIME.
+    """Convert a time string to minutes after midnight.
+
+    Supports both *HH:MM* and *HH:MM AM/PM* tokens.  Times such as
+    ``'25:15'`` (for past-midnight service) are accepted.  ``MISSING_TIME``
+    or invalid inputs return ``None``.
+
+    Args:
+        time_str: Raw time string.
+
+    Returns:
+        Minutes after midnight, or ``None`` if the string is invalid.
     """
     if not isinstance(time_str, str):
         return None
@@ -189,12 +182,16 @@ def time_to_minutes(time_str):
 
 
 def adjust_time(time_str, time_format="24"):
-    """
-    Adjusts time strings to the desired format:
-      - '12' => 12-hour with AM/PM
-      - '24' => 24-hour
+    """Re-format a GTFS time string.
 
-    Returns MISSING_TIME if input is MISSING_TIME, or None if invalid.
+    Args:
+        time_str: Raw *arrival_time* or *departure_time* field.
+        time_format: Either ``"12"`` for 12-hour *h:MM AM/PM* output or
+            ``"24"`` for zero-padded 24-hour output.
+
+    Returns:
+        The re-formatted time, ``MISSING_TIME`` if no time should be
+        shown, or ``None`` for an unparsable input.
     """
     if not isinstance(time_str, str):
         return None
@@ -224,9 +221,16 @@ def adjust_time(time_str, time_format="24"):
 
 
 def prepare_timepoints(stop_times):
-    """
-    Subset STOP_TIMES to timepoint=1 if available, else use all.
-    Returns a DataFrame (TIMEPOINTS).
+    """Return only the rows in *stop_times* where ``timepoint == 1``.
+
+    If the ``timepoint`` column is missing, the original DataFrame is
+    returned unchanged.
+
+    Args:
+        stop_times: Raw *stop_times.txt* DataFrame.
+
+    Returns:
+        A DataFrame containing just the timepoint rows.
     """
     stop_times = stop_times.copy()
     stop_times["stop_sequence"] = pd.to_numeric(
@@ -251,8 +255,14 @@ def prepare_timepoints(stop_times):
 
 
 def remove_empty_schedule_columns(input_df):
-    """
-    Drops any columns in input_df that are entirely '---' (MISSING_TIME).
+    """Drop columns whose **entire** contents equal ``MISSING_TIME``.
+
+    Args:
+        df: A schedule DataFrame whose columns end with ``" Schedule"``.
+
+    Returns:
+        The same DataFrame instance, modified in-place and also returned
+        for convenience.
     """
     schedule_cols = [col for col in input_df.columns if col.endswith("Schedule")]
     all_blank_cols = [
@@ -265,10 +275,16 @@ def remove_empty_schedule_columns(input_df):
 def check_schedule_order(
     input_df, ordered_stop_names, route_short_name, schedule_type, dir_id
 ):
-    """
-    Checks times in the DataFrame to ensure they increase across rows
-    (within a trip) and down columns (across trips). Prints warnings
-    if a violation is found.
+    """Validate that times increase by stop (row) and by trip (column).
+
+    Emits ``logging.warning`` messages for every monotonicity breach.
+
+    Args:
+        df: Schedule grid to inspect.
+        ordered_stop_names: Stops in the expected physical order.
+        route_short_name: Human-readable route label.
+        schedule_type: *Weekday*, *Saturday*, *Holiday*, etc.
+        dir_id: ``direction_id`` value (0 or 1).
     """
     # Row-wise check
     for _, row in input_df.iterrows():
@@ -320,10 +336,7 @@ def check_schedule_order(
 def safe_check_schedule_order(
     input_df, ordered_stop_names, route_short_name, schedule_type, dir_id
 ):
-    """
-    Wraps the check_schedule_order function in a try/except so that
-    if there's a data error, we skip only that schedule order check.
-    """
+    """Run :func:`check_schedule_order` but never propagate its errors."""
     try:
         check_schedule_order(
             input_df, ordered_stop_names, route_short_name, schedule_type, dir_id
@@ -336,8 +349,13 @@ def safe_check_schedule_order(
 
 
 def map_service_id_to_schedule(service_row_local):
-    """
-    Maps a service_id row to a 'type' label based on the days it serves.
+    """Translate a **calendar.txt** row into a semantic schedule label.
+
+    Args:
+        service_row: Single calendar record.
+
+    Returns:
+        ``"Weekday"``, ``"Saturday"``, ``"Daily"``, etc.
     """
     days = [
         "monday",
@@ -380,9 +398,7 @@ def map_service_id_to_schedule(service_row_local):
 
 
 def build_service_id_schedule_map(calendar_df):
-    """
-    Creates a dict: service_id -> schedule_type from CALENDAR.
-    """
+    """Create ``service_id → schedule_type`` lookup."""
     service_id_schedule_map = {}
     for _, service_row_local in calendar_df.iterrows():
         sid_val = service_row_local["service_id"]
@@ -392,19 +408,12 @@ def build_service_id_schedule_map(calendar_df):
 
 
 def get_all_route_short_names(routes_df):
-    """
-    Returns a sorted list of all route_short_names found in ROUTES.
-    """
+    """Return every unique ``route_short_name`` in ascending order."""
     return sorted(routes_df["route_short_name"].dropna().unique().tolist())
 
 
 def apply_in_out_filters(route_list):
-    """
-    Takes the list of all route short names.
-    If FILTER_IN_ROUTES is non-empty, keep only those in that list.
-    If FILTER_OUT_ROUTES is non-empty, remove those in that list.
-    If both are empty, keep everything.
-    """
+    """Apply ``FILTER_IN_ROUTES`` and ``FILTER_OUT_ROUTES`` to *route_list*."""
     route_set = set(route_list)
 
     if FILTER_IN_ROUTES:
@@ -417,9 +426,16 @@ def apply_in_out_filters(route_list):
 
 
 def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
-    """
-    Among all trips in 'relevant_trips_dir' for direction=dir_id, pick the trip
-    with the largest number of timepoints. Return a DataFrame of that trip's stops.
+    """Select the trip with the most timepoints and return its ordered stops.
+
+    Args:
+        dir_id: Direction being processed (0 or 1).
+        relevant_trips_dir: Trips for one route and one ``service_id``.
+        timepoints: Pre-filtered timepoint rows.
+        stops_df: Parsed *stops.txt* file.
+
+    Returns:
+        DataFrame describing the “master” trip’s stop sequence.
     """
     relevant_dir = relevant_trips_dir[relevant_trips_dir["direction_id"] == dir_id]
     if relevant_dir.empty:
@@ -502,9 +518,7 @@ def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
 
 
 def process_single_trip(trip_id, trip_stop_times, master_trip_stops, master_dict, ctx):
-    """
-    For each trip, produce a single schedule row. Uses a "forward-only" approach.
-    """
+    """Build one row of the schedule grid for *trip_id*."""
     trips_df = ctx["trips"]
     routes_df = ctx["routes"]
     time_fmt = ctx["time_fmt"]
@@ -612,18 +626,7 @@ def process_single_trip(trip_id, trip_stop_times, master_trip_stops, master_dict
 
 
 def process_trips_for_direction(params):
-    """
-    Processes trips for a specific direction_id => returns a DataFrame for that direction.
-
-    params expects a dictionary containing:
-        - 'trips_dir'
-        - 'master_trip_stops'
-        - 'dir_id'
-        - 'timepoints'
-        - 'ctx' (the context dict with time_fmt, trips, routes)
-        - 'route_short'
-        - 'sched_type'
-    """
+    """Generate the schedule grid for a single ``direction_id``."""
     trips_dir = params["trips_dir"]
     master_trip_stops = params["master_trip_stops"]
     dir_id = params["dir_id"]
@@ -691,10 +694,7 @@ def process_trips_for_direction(params):
 
 
 def export_to_excel_multiple_sheets(df_dict, out_file):
-    """
-    Exports multiple DataFrames to an Excel file with each DataFrame on its own sheet
-    using openpyxl.
-    """
+    """Write each DataFrame in *df_dict* to its own sheet in *out_file*."""
     if not df_dict:
         logging.info(f"No data to export to {out_file}.")  # Changed to logging
         return
@@ -741,11 +741,7 @@ def export_to_excel_multiple_sheets(df_dict, out_file):
 
 
 def format_service_id_folder_name(service_row):
-    """
-    Builds a subfolder name like "calendar_3_mon_tue_wed_thu_fri" based on:
-    - service_id in the row
-    - which days are marked '1'
-    """
+    """Return a folder slug such as ``'calendar_3_mon_tue_wed_thu_fri'``."""
     service_id = service_row["service_id"]
     day_map = [
         ("monday", "mon"),
@@ -775,9 +771,7 @@ def format_service_id_folder_name(service_row):
 
 
 def filter_calendar_df(calendar_df):
-    """
-    Applies FILTER_SERVICE_IDS if any, returns filtered df or None if empty.
-    """
+    """Filter *calendar_df* by ``FILTER_SERVICE_IDS``; return *None* if empty."""
     if FILTER_SERVICE_IDS:
         calendar_df = calendar_df[calendar_df["service_id"].isin(FILTER_SERVICE_IDS)]
     if calendar_df.empty:
@@ -789,9 +783,7 @@ def filter_calendar_df(calendar_df):
 
 
 def process_route_service_combinations(ctx):
-    """
-    Loops over final routes + service rows and builds Excel exports.
-    """
+    """Loop through every ``route × service_id`` and export schedule files."""
     routes_df = ctx["routes"]
     trips_df = ctx["trips"]
     calendar_df = ctx["calendar"]
@@ -896,17 +888,16 @@ def process_route_service_combinations(ctx):
 # MAIN
 # =============================================================================
 
-
 def main():
-    """
-    Orchestrates the end-to-end GTFS schedule export process:
-      1. Load GTFS input files directly via load_gtfs_data().
-      2. Filter specific service IDs (calendar).
-      3. Prepare timepoints.
-      4. Build schedule map from calendar => service_id => schedule_type
-      5. Process route-service-direction combos and export Excel.
-    """
+    """Coordinate the end-to-end GTFS → Excel workflow.
 
+    Steps
+    1. Read GTFS text files.
+    2. Optionally subset *calendar.txt*.
+    3. Identify timepoints.
+    4. Build a ``service_id → schedule_type`` map.
+    5. Produce Excel schedules.
+    """
     # Configure basic logging
     logging.basicConfig(
         level=logging.INFO,
