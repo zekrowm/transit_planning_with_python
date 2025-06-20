@@ -55,10 +55,11 @@ MAX_COLUMN_WIDTH = 30
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
-    dtype: str | type[str] | Mapping[str, Any] = str,   # ← expanded
+    dtype: str | type[str] | Mapping[str, Any] = str,  # ← expanded
 ) -> dict[str, pd.DataFrame]:
     """
     Loads GTFS files into pandas DataFrames from the specified directory.
