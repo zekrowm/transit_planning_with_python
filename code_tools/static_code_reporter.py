@@ -39,14 +39,16 @@ ENABLE_PYLINT: bool = True
 ENABLE_PYDOCSTYLE: bool = True
 
 # mypy
-MYPY_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--ignore-missing-imports"]
+MYPY_ADDITIONAL_ARGS: List[str] = ["--ignore-missing-imports"]
 # vulture
 VULTURE_MIN_CONFIDENCE: int = 60  # default is 60
 # pydocstyle
 PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = ["--convention=google"]
 # pylint
-PYLINT_ADDITIONAL_ARGS: list[str] = ["--errors-only"]  # == "-E"
-
+PYLINT_ADDITIONAL_ARGS: list[str] = [
+    "--errors-only",
+    "--ignored-modules=arcpy",
+]
 # ----------------------------------------------------------------------------
 # LOGGING
 # ----------------------------------------------------------------------------
