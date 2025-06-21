@@ -215,20 +215,20 @@ def process_data(
         5. Sort rows by descending ``LOAD_FACTOR``.
 
     Args:
-        data_frame (pd.DataFrame):  
+        data_frame (pd.DataFrame):
             Raw trip-level ridership data.
-        bus_capacity (int):  
+        bus_capacity (int):
             Seated + crush load used as the divisor when calculating the
             load factor.
-        filter_in_routes (list[str]):  
+        filter_in_routes (list[str]):
             If truthy, **keep only** routes whose short name appears here.
-        filter_out_routes (list[str]):  
+        filter_out_routes (list[str]):
             If truthy, **drop** routes whose short name appears here.
-        decimals (int):  
+        decimals (int):
             Number of decimal places to retain for ``LOAD_FACTOR``.
 
     Returns:
-        pandas.DataFrame:  
+        pandas.DataFrame:
             A fully processed and neatly sorted DataFrame.
     """
     # 1) Apply filters
