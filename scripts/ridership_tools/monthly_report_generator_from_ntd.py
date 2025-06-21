@@ -589,13 +589,6 @@ def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFra
         # Weighted daily averages for weekday/sat/sun (or we can do sum of board/days again)
         # If you prefer a simpler approach, we can sum the board/days across all routes.
         # But for now, let's just do a simple sum->divide approach, same logic as above:
-        wd_sum = df_period[
-            "weekday_avg"
-        ].count()  # actually we need raw board/days from original...
-        # For simplicity, let's just treat it as a system-level average daily ridership:
-        # We'll re-aggregate from the original dataset to be more accurate, but let's keep it short:
-        # If you truly want a system-level average, you'd sum boardings and sum days from each route
-        # for that day type. That requires referencing the "agg_df" again. This is a demonstration:
         df_p = agg_df[
             (agg_df["period"] == period) & (agg_df["SERVICE_PERIOD"] == "Weekday")
         ]
