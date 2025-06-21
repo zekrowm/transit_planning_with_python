@@ -1,21 +1,13 @@
-"""
-Aggregates per-stop ridership data and outputs one Excel file per route.
+"""Aggregate per-stop ridership data and outputs one Excel file per route.
 
-Reads a stop-level ridership Excel file, optionally filters by STOP_ID,
-aggregates boardings and/or alightings by route, and calculates percentage
-contributions per stop. Outputs one Excel workbook per route with totals
-and percentage columns for each metric.
+This utility reads stop-level ridership data from a single Excel workbook,
+optionally filters the records by ``STOP_ID``, aggregates boardings and/or
+alightings per route, computes each stop’s share of the totals, and writes
+**one Excel workbook per route**.
 
-Typical use: Identify key stops by volume and share of ridership.
-
-Inputs:
-    - Excel file with stop-level ridership fields (e.g., 'ROUTE_NAME', 'STOP_ID',
-      'XBOARDINGS', 'XALIGHTINGS')
-    - Configurable flags for filtering STOP_IDs and including boardings/alightings
-
-Outputs:
-    - One Excel file per route with aggregated stop data and calculated percentages
-    - Console messages listing processed routes
+Typical use
+Identify the key stops on each route by absolute volume and by percentage
+share of ridership.
 """
 
 import os
@@ -45,17 +37,32 @@ USE_ALIGHTINGS = True
 
 
 def load_data(excel_path):
-    """
-    Reads the Excel file into a pandas DataFrame.
+    """Load stop-level ridership data from an Excel workbook.
+
+    Args:
+        excel_path: Absolute or relative path to the source workbook.
+
+    Returns:
+        A :class:`pandas.DataFrame` containing the workbook contents.
+
+    Raises:
+        FileNotFoundError: If *excel_path* does not exist.
+        ValueError: If *excel_path* cannot be parsed as an Excel file.
     """
     data_frame = pd.read_excel(excel_path)
     return data_frame
 
 
 def filter_by_stops(data_frame, stop_ids):
-    """
-    Filters the DataFrame by a list of stop_ids if the list is not empty.
-    If stop_ids is empty, returns the original data_frame.
+    """Return rows whose ``STOP_ID`` is in *stop_ids*.
+
+    Args:
+        data_frame: DataFrame produced by :func:`load_data`.
+        stop_ids: Sequence of ``STOP_ID`` values to retain.  
+            If empty, *data_frame* is returned unchanged.
+
+    Returns:
+        A filtered copy of *data_frame*.
     """
     if stop_ids:
         return data_frame[data_frame["STOP_ID"].isin(stop_ids)]
@@ -63,17 +70,38 @@ def filter_by_stops(data_frame, stop_ids):
 
 
 def get_route_names(data_frame):
-    """
-    Returns a list of unique route names in the given DataFrame.
+    """Extract the distinct route names present in *data_frame*.
+
+    Args:
+        data_frame: DataFrame containing a ``ROUTE_NAME`` column.
+
+    Returns:
+        A list of unique route name strings, unsorted.
     """
     return data_frame["ROUTE_NAME"].unique()
 
 
 def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag):
-    """
-    For a given route_name, creates a DataFrame of stops served by that route,
-    and calculates totals and percentages for boardings and/or alightings.
-    Rounded to 1 decimal place for XBOARDINGS, XALIGHTINGS, and XTOTAL.
+    """Aggregate ridership for a single route.
+
+    The function groups by ``STOP_ID`` + ``STOP_NAME``, sums the selected
+    metrics, and derives percentage-of-total columns. Values are rounded
+    to one decimal place to match the original precision.
+
+    Args:
+        data_frame: Full stop-level ridership DataFrame.
+        route_name: Name of the route to process.
+        boardings_flag: ``True`` to include ``XBOARDINGS``.
+        alightings_flag: ``True`` to include ``XALIGHTINGS``.
+
+    Returns:
+        * A DataFrame with aggregated totals and percentages when at least
+          one flag is ``True``.
+        * ``None`` if both *boardings_flag* and *alightings_flag* are
+          ``False``.
+
+    Raises:
+        ValueError: If *route_name* is absent from *data_frame*.
     """
     # Filter the route
     route_df = data_frame[data_frame["ROUTE_NAME"] == route_name].copy()
@@ -128,8 +156,16 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
 
 
 def save_route_data(route_data, route_name, output_directory):
-    """
-    Saves the route_data DataFrame to an Excel file named after the route.
+    """Write *route_data* to ``<output_directory>/<route_name>.xlsx``.
+
+    Args:
+        route_data: Aggregated DataFrame from
+            :func:`aggregate_route_data`.
+        route_name: Route identifier used to build the filename.
+        output_directory: Directory that will receive the workbook.
+
+    Returns:
+        None
     """
     filename = f"{route_name}.xlsx"
     filepath = os.path.join(output_directory, filename)
@@ -142,13 +178,19 @@ def save_route_data(route_data, route_name, output_directory):
 
 
 def main():
-    """
-    Main function to:
-      1. Load data from Excel.
-      2. Optionally filter for specific stops.
-      3. Identify route names to process.
-      4. Aggregate boardings/alightings for each route.
-      5. Save each route's results to an individual Excel file.
+    """Coordinate the end-to-end aggregation workflow.
+
+    Steps
+    -----
+    1. Load the source workbook.
+    2. Optionally filter to the stops listed in *STOP_FILTER_LIST*.
+    3. Determine which routes to process.
+    4. Aggregate ridership per route.
+    5. Export each route’s results to an individual workbook.
+    6. Log progress to stdout.
+
+    Returns:
+        None
     """
     # 1. Read the Excel file
     data_frame = load_data(INPUT_FILE_PATH)
