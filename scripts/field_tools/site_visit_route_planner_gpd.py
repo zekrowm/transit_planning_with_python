@@ -16,10 +16,6 @@ The workflow:
    - a quick-look Matplotlib plot of the route.
 
 Typical usage is from a Jupyter notebook or the command line.
-
-Example:
-    >>> python visit_route.py --stops 1001 1002 1003 \
-    ...     --start "38°51'54.5\"N 77°21'53.6\"W"
 """
 
 import math
@@ -103,8 +99,7 @@ def dms_to_decimal(dms_str):
     """Convert a DMS coordinate string to decimal degrees.
 
     Args:
-        dms_str: Coordinate in the form ``"38°50'38.5\"N"`` (any
-            of N, S, E, W).
+        dms_str: Coordinate in Google form.
 
     Returns:
         The coordinate expressed in decimal degrees.
@@ -134,8 +129,7 @@ def parse_google_maps_coords(coord_str):
     """Parse a single Google-Maps DMS pair into decimal **lat**, **lon**.
 
     Args:
-        coord_str: A string such as
-            ``"38°51'54.5\"N 77°21'53.6\"W"`` (lat first, lon second).
+        coord_str: Coordinate in string Google form.
 
     Returns:
         ``(lat_dd, lon_dd)`` in decimal degrees.
