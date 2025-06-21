@@ -1,5 +1,4 @@
-"""
-Analyzes scheduled vs. actual running times for bus trips and flags deviations.
+"""Analyzes scheduled vs. actual running times for bus trips and flags deviations.
 
 Automatically normalizes column names and formats from varying input files,
 calculates trip-level and route-direction-level deviation metrics, applies
@@ -70,10 +69,7 @@ def first_existing(df: pd.DataFrame, names: list[str]) -> str | None:
 
 
 def parse_time_to_minutes(value) -> float:
-    """
-    Convert HH:MM:SS (or H:MM) strings to a float number of minutes.
-    If *value* is already numeric, return it unchanged (rounded to 1 dp).
-    """
+    """Convert HH:MM:SS (or H:MM) strings to a float number of minutes."""
     # value already numeric?
     if isinstance(value, (int, float)) and not pd.isna(value):
         return round(float(value), 1)
