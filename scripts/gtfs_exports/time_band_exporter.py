@@ -1,14 +1,18 @@
-"""
-Export consolidated time-band tables from schedule-based data.
-Groups trips by exact pattern and segment runtimes, then outputs
-Excel workbooks by route and service ID.
+"""Export consolidated time-band tables from GTFS schedule data.
 
-For every group of trips that share **exactly the same** time-point
-pattern *and* identical segment run-times, produce one row like:
+The script groups trips that share **both** an identical sequence of
+time-points *and* identical segment run-times. For each unique
+(time-point pattern + segment runtimes) combination it produces a single
+row with:
 
-* FrTime / ToTime  – earliest & latest first-stop departures.
-* Segment columns  – runtime (min) from previous time-point; first cell “–”.
-* One workbook per (route_id, service_id); one sheet per direction.
+- **FrTime / ToTime** – earliest and latest first-stop departures  
+- **Segment columns** – runtime (minutes) from the previous time-point
+  (first cell is ``MISSING_TIME``)
+
+Output structure
+----------------
+- One Excel workbook per ``(route_id, service_id)``
+- One sheet per ``direction_id`` within that workbook
 """
 
 from __future__ import annotations
@@ -53,7 +57,17 @@ _TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$")
 
 
 def hhmmss_to_min(t: Optional[str]) -> Optional[int]:
-    """HH:MM[:SS] → minutes (can be ≥24 h)."""
+    """Convert *HH:MM* or *HH:MM:SS* to absolute minutes.
+
+    A schedule can exceed 24 h (e.g. ``'27:35:00'``); those values are
+    preserved as numbers ≥ 1440.
+
+    Args:
+        t: Time string in GTFS format or None.
+
+    Returns:
+        The number of minutes since 00:00 or None when t is missing or malformed.
+    """
     if not isinstance(t, str):
         return None
     m = _TIME_RE.match(t.strip())
@@ -64,7 +78,14 @@ def hhmmss_to_min(t: Optional[str]) -> Optional[int]:
 
 
 def min_to_hhmm(mn: Optional[int]) -> str:
-    """Minutes → 'H:MM'; preserves ≥24 h."""
+    """Convert minutes back to 'H:MM' (24 h-plus safe).
+
+    Args:
+        mn: Minutes since midnight or None.
+
+    Returns:
+        A string such as '5:07' or the sentinel MISSING_TIME when mn is None.
+    """
     if mn is None:
         return MISSING_TIME
     h, m = divmod(mn, 60)
@@ -72,7 +93,17 @@ def min_to_hhmm(mn: Optional[int]) -> str:
 
 
 def safe_sheet(name: str) -> str:
-    """Excel-safe sheet title ≤31 chars."""
+    """Return an Excel-compliant sheet name.
+
+    Excel forbids the characters []:*?/\\ and limits names to 31
+    characters. Invalid characters are replaced with “_”.
+
+    Args:
+        name: Desired sheet name.
+
+    Returns:
+        A sanitized sheet name that is never empty.
+    """
     return re.sub(r"[:\\/*?\[\]]", "_", name)[:31] or "Sheet"
 
 
@@ -81,6 +112,21 @@ REQ = ["trips.txt", "stop_times.txt", "routes.txt", "stops.txt"]
 
 
 def load_gtfs(folder: Path) -> Dict[str, pd.DataFrame]:
+    """Load the four core GTFS text files into memory.
+
+    Args:
+        folder: Path that contains trips.txt, stop_times.txt,
+            routes.txt and stops.txt.
+
+    Returns:
+        A mapping {'trips': df, 'stop_times': df, ...} with all
+        columns typed as str except stop_sequence (int) and
+        timepoint (float).
+
+    Raises:
+        FileNotFoundError: If any of the required files are missing.
+        ValueError: If numeric coercion fails.
+    """
     missing = [f for f in REQ if not (folder / f).exists()]
     if missing:
         raise FileNotFoundError("Missing GTFS file(s): " + ", ".join(missing))
@@ -100,7 +146,17 @@ RuntimeSegTuple = Tuple[Union[int, str], ...]  # first element is "–"
 
 
 def segment_runtimes(grp: pd.DataFrame) -> RuntimeSegTuple:
-    """Return tuple of segment runtimes; first element '–'."""
+    """Calculate segment runtimes for a single trip.
+
+    Args:
+        grp: A stop_times subset for one trip, ordered by
+            stop_sequence and containing arrival_time and/or departure_time.
+
+    Returns:
+        A tuple where element 0 is MISSING_TIME followed by the running
+        time (minutes) between successive stops. An empty string ''
+        marks segments where either time is missing.
+    """
     times: List[Optional[int]] = []
     for _, row in grp.iterrows():
         dep = hhmmss_to_min(row.get("departure_time"))
@@ -121,15 +177,19 @@ def build_index(
     Dict[int, RuntimeSegTuple],
     Dict[int, List[str]],
 ]:
-    """
-    Build trip-level index plus lookup dictionaries.
+    """Build the master trip index and ancillary lookup tables.
 
-    Returns
-    -------
-    trips_df      rows = one trip
-    stop_dict     pattern_hash → stop_id tuple
-    seg_dict      seg_hash → segment runtime tuple
-    header_names  pattern_hash → list of 'Stop name (code)'
+    Filtering is applied according to the global FILTER_* lists.
+
+    Args:
+        gtfs: Output from load_gtfs().
+
+    Returns:
+        Tuple of:
+            - trips_df: One row per trip with pattern/segment hashes.
+            - stop_dict: Pattern hash → tuple of stop_id strings.
+            - seg_dict: Segment hash → tuple of segment runtimes.
+            - header_names: Pattern hash → list of 'Stop name (code)' strings.
     """
     trips = gtfs["trips"].copy()
     routes = gtfs["routes"][["route_id", "route_short_name"]]
@@ -209,6 +269,16 @@ def build_index(
 
 # ───────────────────  GROUP into TIME-BAND ROWS  ──────────────────── #
 def make_bands(idx: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate trips into time-bands.
+
+    Args:
+        idx: DataFrame returned by build_index().
+
+    Returns:
+        A DataFrame where each row represents a unique
+        (route_id, service_id, direction_id, pattern_hash, seg_hash)
+        with FrTime, ToTime and Total (trip count).
+    """
     gb = idx.groupby(
         ["route_id", "service_id", "direction_id", "pattern_hash", "seg_hash"]
     )
@@ -230,6 +300,19 @@ def export_excel(
     header_names: Dict[int, List[str]],
     routes: pd.DataFrame,
 ) -> None:
+    """Write one workbook per route/service with time-band tables.
+
+    Args:
+        bands: Output from make_bands().
+        stop_dict: Pattern hash lookup from build_index().
+        seg_dict: Segment hash lookup from build_index().
+        header_names: Column headers keyed by pattern hash.
+        routes: Original routes.txt table (for short names).
+
+    Side Effects:
+        Creates one .xlsx file per (route_id, service_id)
+        in OUTPUT_FOLDER and logs each filename.
+    """
     OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
     route_short = routes.set_index("route_id")["route_short_name"].to_dict()
 
@@ -273,6 +356,7 @@ def export_excel(
 
 
 def main() -> None:
+    """Entry-point when the module is executed as a script."""
     logging.basicConfig(
         level=LOG_LEVEL,
         format="%(asctime)s %(levelname)s %(message)s",
