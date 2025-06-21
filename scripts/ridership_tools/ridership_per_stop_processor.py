@@ -58,7 +58,7 @@ def filter_by_stops(data_frame, stop_ids):
 
     Args:
         data_frame: DataFrame produced by :func:`load_data`.
-        stop_ids: Sequence of ``STOP_ID`` values to retain.  
+        stop_ids: Sequence of ``STOP_ID`` values to retain.
             If empty, *data_frame* is returned unchanged.
 
     Returns:
