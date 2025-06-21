@@ -1,24 +1,29 @@
-"""
-Generates a monthly NTD ridership performance report with plots and Excel exports.
+"""Generates a Monthly summary performance report with plots and Excel exports based on historical NTD ridership reports.
 
-Reads a year’s worth of agency ridership Excel files, computes key performance metrics,
-classifies routes, and generates summary workbooks and optional time-series plots.
+Transforms a fiscal year of monthly Excel workbooks into a National
+Transit Database (NTD) performance package:
 
-Typical Use:
-    - Monthly and year-to-date transit performance monitoring
-    - Route-level and service-type performance summaries
-    - Time-series visualization of ridership trends
+* Cleans and merges the monthly data.
+* Classifies each route by service type and corridor.
+* Derives passengers-per-hour, -trip, and -mile metrics.
+* Writes multi-sheet Excel summaries (detailed, service-type, route-level).
+* Optionally produces time-series PNG plots for selected metrics.
 
-Inputs:
-    - Monthly Excel files configured in CONFIG
-    - Classification rules for routes and corridors
-    - Plotting preferences in PLOT_CONFIG
+Typical use cases
+-----------------
+* Monthly and year-to-date performance monitoring.
+* Rapid generation of NTD-style summaries for board reports.
+* Historical trend analysis and data visualization.
 
-Outputs:
-    - DetailedAllPeriods_andMonthlySheets.xlsx
-    - AggByServiceType.xlsx
-    - RouteLevelSummary_[Combined|Weekday|Saturday|Sunday].xlsx
-    - PNG plots for selected metrics by route
+Attributes
+----------
+CONFIG : dict[str, Any]
+    File paths, ordered periods, classification dictionaries, and constants
+    used throughout the pipeline.
+PLOT_CONFIG : dict[str, bool]
+    Feature flags controlling which plots are created.
+PLOT_STYLE : dict[str, Any]
+    Matplotlib keyword arguments that standardize the look of every plot.
 """
 
 import os
@@ -152,23 +157,38 @@ PLOT_STYLE = {
 def safe_div(numerator: float | int,
              denominator: float | int,
              precision: int = 1) -> float | None:
-    """Return *numerator / denominator* rounded to *precision*,
-    or ``None`` when *denominator* is zero / falsy."""
+    """Divide *numerator* by *denominator* with graceful zero handling.
+
+    Args:
+        numerator: Dividend.
+        denominator: Divisor. If falsy or zero, the function returns ``None``.
+        precision: Number of decimal places in the rounded result.
+
+    Returns:
+        The rounded quotient, or ``None`` when division is undefined.
+    """
     try:
         return round(numerator / denominator, precision)  # type: ignore[arg-type]
     except (ZeroDivisionError, TypeError):
         return None
 
 def read_excel_data(config: dict) -> dict:
-    """
-    Read each period’s Excel sheet, keep only Weekday/Saturday/Sunday rows,
-    and return a dict {period: DataFrame}.
+    """Load, clean, and filter the monthly Excel worksheets.
 
-    Key change: uses `safe_float()` so a cell containing 0 (or "0")
-    is retained as 0.0 instead of being coerced to None.
-    """
-    import pandas as pd  # local import keeps signature unchanged
+    The helper performs the following steps for each period configured in
+    ``config``:
 
+    1. Read the sheet specified in *CONFIG['periods']* with robust converters.
+    2. Drop rows lacking critical ridership data.
+    3. Keep only *Weekday*, *Saturday*, and *Sunday* service periods.
+    4. Normalize ``ROUTE_NAME`` strings (strip, upper-case, remove spaces).
+
+    Args:
+        config: The global :pydata:`CONFIG` dictionary.
+
+    Returns:
+        A mapping of *period label* → cleaned :class:`pandas.DataFrame`.
+    """
     # ------------------------------------------------------------------
     # 1. robust numeric converter
     # ------------------------------------------------------------------
@@ -235,9 +255,17 @@ def read_excel_data(config: dict) -> dict:
 
 
 def classify_route(route_name: str, cfg: dict) -> str:
-    """
-    Returns the first service_type in which this route is found.
-    If no match, 'unknown'. If the dictionary is empty, 'SYSTEMWIDE'.
+    """Map a route name to its first matching service type.
+
+    Args:
+        route_name: Canonical route identifier (e.g. ``"101"``).
+        cfg: The :pydata:`CONFIG` dictionary containing ``SERVICE_TYPE_DICT``.
+
+    Returns:
+        The service-type key (e.g. ``"local"``) or:
+
+        * ``"unknown"`` – route found in no list.
+        * ``"SYSTEMWIDE"`` – classification dictionary is empty.
     """
     st_dict = cfg["SERVICE_TYPE_DICT"]
     if not st_dict:
@@ -249,9 +277,15 @@ def classify_route(route_name: str, cfg: dict) -> str:
 
 
 def classify_corridor(route_name: str, cfg: dict) -> list:
-    """
-    A route can belong to multiple corridors if it appears in more than one list.
-    Returns that list, or ['other'] if none match.
+    """Return all corridors that include *route_name*.
+
+    Args:
+        route_name: Canonical route identifier.
+        cfg: The :pydata:`CONFIG` dictionary with ``CORRIDOR_DICT``.
+
+    Returns:
+        A non-empty list of corridor labels.  ``["other"]`` when no corridor
+        matches.
     """
     corridor_dict = cfg["CORRIDOR_DICT"]
     corridors = []
@@ -262,14 +296,26 @@ def classify_corridor(route_name: str, cfg: dict) -> list:
 
 
 def calculate_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Derive trip- and mileage-based performance metrics.
+    """Append trip- and mileage-based indicators to *df*.
 
-    • TOTAL_TRIPS           = ASCH_TRIPS × DAYS
-    • BOARDS_PER_HOUR       = MTH_BOARD ÷ MTH_REV_HOURS
-    • PASSENGERS_PER_TRIP   = MTH_BOARD ÷ TOTAL_TRIPS
-    • MTH_REV_MILES         = REV_MILES × DAYS
-    • PASSENGERS_PER_MILE   = MTH_BOARD ÷ MTH_REV_MILES
+    Added columns
+    -------------
+    TOTAL_TRIPS
+        ``ASCH_TRIPS * DAYS``.
+    BOARDS_PER_HOUR
+        ``MTH_BOARD / MTH_REV_HOURS``.
+    PASSENGERS_PER_TRIP
+        ``MTH_BOARD / TOTAL_TRIPS``.
+    MTH_REV_MILES
+        ``REV_MILES * DAYS``.
+    PASSENGERS_PER_MILE
+        ``MTH_BOARD / MTH_REV_MILES``.
+
+    Args:
+        df: Monthly ridership table returned by :func:`read_excel_data`.
+
+    Returns:
+        A copy of *df* with the five derived metrics, rounded appropriately.
     """
     df = df.copy()
 
@@ -315,16 +361,17 @@ def calculate_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def aggregate_by_service_type(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Summarize at the service-type level:
+    """Summarize performance at the service-type level.
 
-    • Sums: boardings, revenue hours, passenger miles, revenue miles, total trips
-    • Re-computes ratios: BOARDS_PER_HOUR, PASSENGERS_PER_TRIP, PASSENGERS_PER_MILE
-    • Adds a FINAL 'TOTAL' row across all service types.
+    Sums raw totals and recomputes ratio metrics, then appends a systemwide
+    **TOTAL** row.
 
-    Returns
-    -------
-    pd.DataFrame
+    Args:
+        df: Detailed ridership data for a single period or year-to-date.
+
+    Returns:
+        A tidy DataFrame with one row per service type plus the final **TOTAL**
+        row, ready for Excel export.
     """
     grouped = (
         df.groupby("service_type")
@@ -387,14 +434,18 @@ def aggregate_by_service_type(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Build a route-level summary for the supplied DataFrame.
+    """Produce a route-by-route performance table.
 
-    • Works on Weekday-only, Saturday-only, Sunday-only subsets, or on the
-      full dataset.
-    • Adds DAILY_AVG = MTH_BOARD ÷ DAYS (average boardings per calendar day).
-    • NO per-service-type subtotals and NO system-wide TOTAL row.
-    • Rows are sorted by ROUTE_NAME, then service_type.
+    The function aggregates across all months in *df* while preserving the
+    supplied service-period subset (Weekday-only, Saturday-only, etc.).
+
+    Args:
+        df: Input data containing the derived columns created by
+            :func:`calculate_derived_columns`.
+
+    Returns:
+        A DataFrame sorted by ``ROUTE_NAME`` and ``service_type`` with
+        per-route totals plus ``DAILY_AVG`` (boardings per calendar day).
     """
     # --------------------------------------------------
     # 1. Aggregate totals for each (service_type, ROUTE_NAME)
@@ -441,21 +492,23 @@ def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """
-    Returns a DataFrame where each row is (period, route),
-    and columns for the various metrics we might plot:
-      - total_ridership      => sum of MTH_BOARD (all service_periods)
-      - weekday_avg          => (weekday boardings) / (weekday DAYS) if any
-      - saturday_avg         => (sat boardings) / (sat DAYS) if any
-      - sunday_avg           => (sun boardings) / (sun DAYS) if any
-      - revenue_hours        => sum of MTH_REV_HOURS
-      - trips                => sum of TOTAL_TRIPS
-      - revenue_miles        => sum of MTH_REV_MILES
-      - pph (passengers/hour) => total_ridership / revenue_hours
-      - ppt (passengers/trip) => total_ridership / trips
-      - ppm (passengers/mile) => total_ridership / revenue_miles
+    """Convert the combined year-to-date table into a plotting-ready time series.
 
-    We'll produce these data for each route + month, plus a "SYSTEMWIDE" row.
+    Each record corresponds to (*period*, *route*) and includes systemwide
+    rows.  The routine aggregates raw totals, calculates daily averages for
+    each day type, and re-computes PPH/PPT/PPM ratios.
+
+    Args:
+        all_data: Concatenated output of every month after classification and
+            derived-metric processing.
+        config: Global :pydata:`CONFIG` used for the ordered period sequence.
+
+    Returns:
+        A wide DataFrame with these columns:
+
+        ``period`` | ``route`` | ``total_ridership`` | ``weekday_avg`` |
+        ``saturday_avg`` | ``sunday_avg`` | ``revenue_hours`` | ``trips`` |
+        ``revenue_miles`` | ``pph`` | ``ppt`` | ``ppm``.
     """
     # For convenience, let’s keep the original columns:
     # MTH_BOARD, DAYS, MTH_REV_HOURS, TOTAL_TRIPS, MTH_REV_MILES
@@ -593,9 +646,16 @@ def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFra
 
 
 def plot_metric_over_time(df_time: pd.DataFrame, metric: str, config: dict):
-    """
-    For each route, plot the given metric vs. period. Also plot a "SYSTEMWIDE"
-    route. Save each route’s plot in a subfolder "plots/<metric>".
+    """Create a line plot of *metric* by month for every route.
+
+    Files are saved as PNG under ``<output_dir>/plots/<metric>/``.
+
+    Args:
+        df_time: Time-series DataFrame returned by
+            :func:`build_monthly_timeseries`.
+        metric: Column name in *df_time* to plot.
+        config: Global :pydata:`CONFIG` providing ``output_dir`` and
+            ``ordered_periods``.
     """
     output_dir = config["output_dir"]
     plot_dir = os.path.join(output_dir, "plots", metric)
@@ -661,9 +721,14 @@ def plot_metric_over_time(df_time: pd.DataFrame, metric: str, config: dict):
 
 
 def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict):
-    """
-    Check each boolean in plot_config, and if True, generate plots
-    for the corresponding metric.
+    """Iterate over :pydata:`PLOT_CONFIG` flags and call
+    :func:`plot_metric_over_time` when enabled.
+
+    Args:
+        df_time: Time-series DataFrame from
+            :func:`build_monthly_timeseries`.
+        config: Global configuration dictionary.
+        plot_config: Boolean flags mapping plot names to metrics.
     """
     # Map the boolean keys to the actual column in df_time
     # You can rename them however you'd like.
@@ -692,20 +757,19 @@ def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict):
 
 
 def main():
-    """
-    Main entry point for the monthly NTD report generator.
+    """Execute the NTD performance workflow.
 
-    Workflow
-    --------
-    1. Read monthly Excel data.
-    2. Classify routes & corridors and compute derived metrics.
-    3. Export detailed and service-type summaries.
-    4. Export four separate Route-Level Summary workbooks:
-         • RouteLevelSummary_Weekday.xlsx
-         • RouteLevelSummary_Saturday.xlsx
-         • RouteLevelSummary_Sunday.xlsx
-         • RouteLevelSummary_Combined.xlsx
-    5. Optionally generate time-series plots.
+    Steps
+    -----
+    1. Read and clean each monthly workbook.
+    2. Classify routes/corridors; compute derived metrics.
+    3. Export detailed and service-type Excel workbooks.
+    4. Export four route-level workbooks (combined + per day type).
+    5. Generate optional time-series plots.
+
+    Raises:
+        FileNotFoundError: If any configured Excel file is missing.
+        PermissionError: If output workbooks cannot be written.
     """
     # ------------------------------------------------------------------
     # 1. READ ALL PERIODS
