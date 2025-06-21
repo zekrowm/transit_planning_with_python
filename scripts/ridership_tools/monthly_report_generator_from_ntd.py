@@ -27,8 +27,10 @@ PLOT_STYLE : dict[str, Any]
 """
 
 from __future__ import annotations
+
 import os
 import re
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -154,9 +156,10 @@ PLOT_STYLE = {
 # FUNCTIONS
 # -----------------------------------------------------------------------------
 
-def safe_div(numerator: float | int,
-             denominator: float | int,
-             precision: int = 1) -> float | None:
+
+def safe_div(
+    numerator: float | int, denominator: float | int, precision: int = 1
+) -> float | None:
     """Divide *numerator* by *denominator* with graceful zero handling.
 
     Args:
@@ -171,6 +174,7 @@ def safe_div(numerator: float | int,
         return round(numerator / denominator, precision)  # type: ignore[arg-type]
     except (ZeroDivisionError, TypeError):
         return None
+
 
 def read_excel_data(config: dict) -> dict:
     """Load, clean, and filter the monthly Excel worksheets.
@@ -189,6 +193,7 @@ def read_excel_data(config: dict) -> dict:
     Returns:
         A mapping of *period label* → cleaned :class:`pandas.DataFrame`.
     """
+
     # ------------------------------------------------------------------
     # 1. robust numeric converter
     # ------------------------------------------------------------------
@@ -693,7 +698,7 @@ def plot_metric_over_time(df_time: pd.DataFrame, metric: str, config: dict):
             marker=PLOT_STYLE["marker"],
             linestyle=PLOT_STYLE["linestyle"],
         )
-        plt.title(f"{metric.replace('_',' ').title()} Over Time - Route {route}")
+        plt.title(f"{metric.replace('_', ' ').title()} Over Time - Route {route}")
         plt.xlabel("Month")
         plt.ylabel(metric.replace("_", " ").title())
         plt.xticks(rotation=PLOT_STYLE["rotation"])
