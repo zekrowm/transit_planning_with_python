@@ -537,10 +537,10 @@ def compare_signups_detailed(
     inter_curr: dict[str, str],
 ) -> pd.DataFrame:
     """Build a DataFrame comparing each route between two signups with flags:
-      • created, eliminated,
-      • interlining change,
-      • span / trips / headway change,
-      • No change.
+    • created, eliminated,
+    • interlining change,
+    • span / trips / headway change,
+    • No change.
     """
     all_routes = sorted(
         set(metrics_prev["route_short_name"]).union(metrics_curr["route_short_name"])
