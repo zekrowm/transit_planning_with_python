@@ -276,6 +276,7 @@ def format_service_id_folder_name(service_id, calendar_df):
 # (Old load_gtfs_files function is removed)
 # -----------------------------------------------------------------------------
 
+
 def filter_trips(trips_df, routes_df, cal_ids):
     """Filter trips by route_short_name and service_id.
 
@@ -309,6 +310,7 @@ def filter_trips(trips_df, routes_df, cal_ids):
 # -----------------------------------------------------------------------------
 # BUILD PATTERNS
 # -----------------------------------------------------------------------------
+
 
 def generate_unique_patterns(trips_df, stop_times_df, stops_df):
     """Identify unique stop patterns grouped by route, direction, and service.
@@ -523,6 +525,7 @@ def assign_pattern_ids(patterns_dict):
 # EARLIEST START TIME
 # -----------------------------------------------------------------------------
 
+
 def compute_earliest_start_times(pattern_records, stop_times_df):
     """Add earliest start time (in minutes and HH:MM) to pattern records.
 
@@ -598,7 +601,9 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
 # -----------------------------------------------------------------------------
 
 
-def find_master_trip_stops(route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df):
+def find_master_trip_stops(
+    route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df
+):
     """Identify the trip with the most timepoints as the master for a direction.
 
     Args:
@@ -691,9 +696,15 @@ def create_workbook():
     return workbook
 
 
-def fill_worksheet_for_direction(workbook, sheet_title, route_short_name,
-                                  direction_id_val, service_id_val,
-                                  pattern_records_dir, master_stops):
+def fill_worksheet_for_direction(
+    workbook,
+    sheet_title,
+    route_short_name,
+    direction_id_val,
+    service_id_val,
+    pattern_records_dir,
+    master_stops,
+):
     """Add a sheet to the workbook with patterns for one route-direction.
 
     Args:
@@ -772,8 +783,10 @@ def fill_worksheet_for_direction(workbook, sheet_title, route_short_name,
                 max_len = max(max_len, len(str(cell_value)))
         worksheet.column_dimensions[col_letter].width = max(12, min(max_len + 2, 50))
 
-def export_patterns_to_excel(pattern_records, routes_df, trips_df,
-                             stop_times_df, stops_df, calendar_df=None):
+
+def export_patterns_to_excel(
+    pattern_records, routes_df, trips_df, stop_times_df, stops_df, calendar_df=None
+):
     """Export pattern data to Excel workbooks by route and service_id.
 
     Args:
@@ -832,11 +845,7 @@ def export_patterns_to_excel(pattern_records, routes_df, trips_df,
 
         for direction_val_str, recs_for_direction in dir_map.items():
             all_trip_ids_for_master = set()
-            for (
-                pattern_rec
-            ) in (
-                recs_for_direction
-            ):  # recs_for_direction contains patterns for specific route,service,direction
+            for pattern_rec in recs_for_direction:  # recs_for_direction contains patterns for specific route,service,direction
                 all_trip_ids_for_master.update(pattern_rec["trip_ids"])
 
             # Filter trips_df for current route, service, direction to find master stops
