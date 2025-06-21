@@ -109,10 +109,21 @@ def isochrone_polygon(
 def resolve_overlaps_by_proximity(
     polys: Dict[str, Polygon], centers: Dict[str, Point]
 ) -> Dict[str, Polygon]:
-    """
-    Make all polygons in *polys* mutually disjoint.
-    Where polygons overlap, assign the shared area to the facility whose centre point
-    is geographically closest to the overlap centroid (EPSG : 3857 Euclidean distance).
+    """Resolve overlaps by assigning shared areas to the nearest facility.
+
+    The function iteratively makes all polygons in *polys* mutually disjoint.
+    Whenever two isochrone polygons intersect, the overlapping area is kept by
+    the facility whose centre point is geographically closest to the overlap
+    centroid (Euclidean distance in EPSG:3857). The process repeats until no
+    intersections remain.
+
+    Args:
+        polys: Mapping of facility names to their isochrone polygons.
+        centers: Mapping of facility names to their centre points.
+
+    Returns:
+        A dictionary of the same structure as *polys*, but with all polygons
+        guaranteed to be mutually exclusive.
     """
     changed = True
     while changed:
@@ -136,6 +147,11 @@ def resolve_overlaps_by_proximity(
 
 
 def safe_filename(text: str) -> str:
+    """Return *text* converted to a filesystem-safe, lowercase filename.
+
+    All non-alphanumeric characters are replaced with underscores and any
+    leading or trailing underscores are removed.
+    """
     return "".join(c if c.isalnum() else "_" for c in text).strip("_").lower()
 
 
@@ -145,6 +161,15 @@ def safe_filename(text: str) -> str:
 
 
 def main() -> None:
+    """Generate drive-time isochrones for each park-and-ride facility.
+
+    The function:
+      1. Loads and re-projects road and facility layers.
+      2. Builds per-facility mini-graphs and runs a travel-time isochrone
+         search.
+      3. Optionally resolves polygon overlaps.
+      4. Writes individual and combined shapefiles to *OUTPUT_DIR*.
+    """
     out_dir = Path(OUTPUT_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
 
