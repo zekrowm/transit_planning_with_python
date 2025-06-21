@@ -2,7 +2,7 @@
 
 For every route in the input feed, the script identifies the most
 frequently occurring ordered list of stops (“pattern”) for `direction_id`
-0 and 1.  It then writes one CSV per route that lists every stop in either
+0 and 1. It then writes one CSV per route that lists every stop in either
 pattern together with its sequence number in each direction.
 
 Typical use cases include schedule validation, pattern visualisation, and
@@ -42,21 +42,21 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """Load selected GTFS text files as :class:`pandas.DataFrame` objects.
 
     Files are read with ``dtype=dtype`` to avoid unwanted type coercion
-    (e.g. IDs becoming integers).  Every successfully parsed file is logged.
+    (e.g. IDs becoming integers). Every successfully parsed file is logged.
 
     Args:
         gtfs_folder_path: Absolute or relative path to the directory that
             contains the GTFS ``*.txt`` files.
         files: Explicit list of file names to read.
-            *If ``None`` (default) the full GTFS specification set is
+            *If ``None`` (default), the full GTFS specification set is
             attempted.*
-        dtype: Value forwarded to :pyfunc:`pandas.read_csv`.  Pass a mapping
-            when column-specific dtypes are required.
+        dtype: Mapping forwarded to :pyfunc:`pandas.read_csv` when column-
+            specific dtypes are required.
 
     Returns:
         Mapping whose keys are file stems (e.g. ``"routes"``) and whose
-        values are data frames with all columns preserved as strings
-        unless overridden via *dtype*.
+        values are data frames with all columns preserved as strings unless
+        overridden via *dtype*.
 
     Raises:
         OSError: The directory does not exist **or** at least one requested
