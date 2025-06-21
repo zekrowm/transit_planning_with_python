@@ -1,23 +1,22 @@
-"""
-Generates transit service area shapefiles from GTFS data for manual spatial analysis.
+"""Generate walking transit-service-area Shapefiles from GTFS data.
 
-Builds walking-distance buffers around stops and optionally computes network-based
-isochrones using a provided street network. Outputs shapefiles by route and direction
-for buffers, stops, and route lines.
+This module buffers stops, optionally builds travel-network isochrones, and
+exports Shapefiles for buffers, stops, and route lines split by
+``route_short_name`` and ``direction_id``.
 
-Typical use:
-    - Visualize coverage areas for bus routes.
-    - Export GTFS-derived stop and route geometries.
-    - Generate 5-minute isochrones for access analysis (optional).
+Typical uses
+------------
+- Visualize walk-access coverage for bus routes.
+- Export GTFS-derived stop and route geometries (WGS-84).
+- Create 5-minute isochrones for access analysis (optional).
 
-Inputs:
-    - GTFS files (stops.txt, routes.txt, trips.txt, stop_times.txt, shapes.txt).
-    - Optional street network shapefile for isochrones.
-    - Script-defined configuration: filters, CRS, buffer settings.
+Outputs
+-------
+Shapefiles in *OUTPUT_DIR*:
+    buffer_*, stops_*, routes_* (always)  
+    *_iso<minutes>min (if *NETWORK_SHP_PATH* is provided)
 
-Outputs:
-    - Shapefiles: buffers, stops, and routes per (route_short_name, direction_id).
-    - Optional: isochrone shapefiles per route/direction if network is supplied.
+All geometries are delivered in ``EXPORT_CRS`` (default: EPSG:4326).
 """
 
 from __future__ import annotations
@@ -83,38 +82,26 @@ ISO_SMOOTH_BUFFER_M: float | None = 30.0  # metres; 0/None = no smoothing
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load one or more GTFS text files into memory.
 
-    Parameters:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+    Args:
+        gtfs_folder_path: Absolute or relative path to the directory
+            containing the GTFS feed.
+        files: Explicit list of filenames to read (e.g.
+            ``["stops.txt", "routes.txt"]``).  If *None*, every standard
+            GTFS file in the spec is attempted.
+        dtype: Value to pass straight through to :pyfunc:`pandas.read_csv`
+            (commonly ``str`` or a ``dict`` of per-column dtypes).
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        Mapping whose keys are the filename stem (e.g. ``"stops"``) and whose
+        values are DataFrames of the parsed file contents.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: The folder does not exist *or* one of the requested files is
+            missing.
+        ValueError: The file is empty or cannot be parsed by pandas.
+        RuntimeError: Any other OS-level error during file I/O.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -190,8 +177,21 @@ def apply_filters(
     in_route: list[str],
     out_route: list[str],
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Return *filtered* copies of stops, routes, trips and stop_times.
+    """Return filtered copies of *stops*, *routes*, *trips* and *stop_times*.
+
+    “In” lists are **whitelists** (keep only those); “out” lists are
+    **blacklists** (drop those).
+
+    Args:
+        data: Dictionary produced by :func:`load_gtfs_data`.
+        in_stop: ``stop_code`` values to keep.
+        out_stop: ``stop_code`` values to drop.
+        in_route: ``route_short_name`` values to keep.
+        out_route: ``route_short_name`` values to drop.
+
+    Returns:
+        Tuple ``(stops, routes, trips, stop_times)`` in that exact order,
+        each already pared down to the requested subset.
     """
     stops = data["stops"].copy()
     routes = data["routes"].copy()
@@ -229,9 +229,17 @@ def _snap_to_nearest_nodes(
     graph: nx.Graph,
     coords: list[tuple[float, float]],
 ) -> list[tuple[float, float]]:
-    """
-    For every (x, y) tuple in `coords` return the exact graph node that is
-    spatially closest.  If the point is already a node, it comes back unchanged.
+    """Snap arbitrary XY coordinates to the nearest graph node.
+
+    Args:
+        graph: Undirected or directed NetworkX graph whose nodes are XY
+            coordinate tuples in the same CRS as *coords*.
+        coords: List of user-supplied ``(x, y)`` tuples.
+
+    Returns:
+        A list with the same length/ordering as *coords*.  Each element is
+        either the identical coordinate (if it is already a node) or the
+        coordinate of the single nearest node.
     """
     nodes_array = np.array(graph.nodes())
     kd = cKDTree(nodes_array)
@@ -251,6 +259,15 @@ def export_buffers(  # very small wrapper around the old exporter
     output_dir: str,
     export_crs: str,
 ) -> None:
+    """Write one buffer polygon per (route, direction) to individual Shapefiles.
+
+    Files are named ``<route_short_name>_dir<direction_id>_buffer.shp``.
+
+    Args:
+        gdf_buffers: Walk-access polygons in *WORK_CRS*.
+        output_dir: Destination folder; created if it does not yet exist.
+        export_crs: CRS in which files should be saved (typically EPSG:4326).
+    """
     if gdf_buffers.empty:
         print("No buffers to export.")
         return
@@ -270,9 +287,11 @@ def build_stop_route_direction_gdf(
     trips: pd.DataFrame,
     stop_times: pd.DataFrame,
 ) -> gpd.GeoDataFrame:
-    """
-    Join stops, routes, trips and stop_times so each *stop occurrence* knows
-    its `route_short_name` and `direction_id`.
+    """Attach ``route_short_name`` and ``direction_id`` to every stop occurrence.
+
+    Returns:
+        GeoDataFrame in EPSG:4326 with a *unique* row for each combination of
+        ``stop_id`` × ``route_short_name`` × ``direction_id``.
     """
     gdf_stops = gpd.GeoDataFrame(
         stops,
@@ -295,11 +314,15 @@ def build_stop_route_direction_gdf(
 def build_route_lines_gdf(
     shapes: pd.DataFrame, routes: pd.DataFrame, trips: pd.DataFrame
 ) -> gpd.GeoDataFrame:
-    """
-    Build a dissolved line for every surviving (route_short_name, direction_id).
+    """Construct dissolved polylines for each (route, direction).
 
-    * Properly sorts by numeric `shape_pt_sequence` (or `shape_dist_traveled`).
-    * Casts coordinates to float to avoid “string-to-string” vertex artefacts.
+    The function respects either ``shape_pt_sequence`` or
+    ``shape_dist_traveled`` for ordering vertices and dissolves the resulting
+    geometries by ``route_short_name`` and ``direction_id``.
+
+    Returns:
+        GeoDataFrame in EPSG:4326 or an empty GeoDataFrame if *shapes* is
+        missing the required columns.
     """
     needed = {"shape_id", "shape_pt_lat", "shape_pt_lon"}
     if shapes.empty or not needed.issubset(shapes.columns):
@@ -354,6 +377,13 @@ def build_route_lines_gdf(
 def export_stops_by_direction(
     gdf_stops: gpd.GeoDataFrame, output_dir: str, export_crs: str
 ) -> None:
+    """Export stops to one Shapefile per ``direction_id``.
+
+    Args:
+        gdf_stops: Points already carrying ``direction_id``.
+        output_dir: Folder in which to place the Shapefiles.
+        export_crs: Target CRS for the written files.
+    """
     if gdf_stops.empty:
         print("No stops to export.")
         return
@@ -367,6 +397,7 @@ def export_stops_by_direction(
 def export_routes_by_direction(
     gdf_routes: gpd.GeoDataFrame, output_dir: str, export_crs: str
 ) -> None:
+    """Export route polylines to one Shapefile per ``direction_id``."""
     if gdf_routes.empty:
         print("No routes to export.")
         return
@@ -380,14 +411,14 @@ def export_routes_by_direction(
 
 
 def _mph_to_mps(mph: float) -> float:
-    """Miles-per-hour ➝ metres-per-second."""
+    """Convert miles per hour to metres per second."""
     return mph * 0.44704
 
 
 def _yield_segments(
     geom: LineString | "MultiLineString",
 ) -> list[tuple[tuple[float, float], tuple[float, float]]]:
-    """Yield consecutive coordinate pairs from (Multi)LineStrings."""
+    """Return every consecutive vertex pair from a (Multi)LineString."""
     if geom.geom_type == "LineString":
         coords = list(geom.coords)
         return list(zip(coords[:-1], coords[1:]))
@@ -403,9 +434,7 @@ def filter_network_to_buffers(
     gdf_net: gpd.GeoDataFrame,
     gdf_buffers: gpd.GeoDataFrame,
 ) -> gpd.GeoDataFrame:
-    """
-    Keep only network features that intersect at least one buffer polygon.
-    """
+    """Sub-select network edges that intersect at least one buffer polygon."""
     if gdf_buffers.empty or gdf_net.empty:
         return gpd.GeoDataFrame(columns=gdf_net.columns, crs=gdf_net.crs)
 
@@ -420,6 +449,21 @@ def build_network_graph_from_gdf(  # same logic as before, but no file I/O
     oneway_field: str | None = None,
     default_speed_mph: float = 3.0,
 ) -> nx.DiGraph:
+    """Convert a GeoDataFrame of street centerlines into a weighted digraph.
+
+    Edge weights represent travel time in **seconds**.
+
+    Args:
+        gdf_net: Polyline features in *WORK_CRS*.
+        speed_field: Column containing speed in mph; defaults to
+            *default_speed_mph* when ``None`` or missing/invalid.
+        oneway_field: Column whose value starts with ``"Y"`` if travel is
+            one-way in the digitized direction.
+        default_speed_mph: Fallback walking speed when *speed_field* is blank.
+
+    Returns:
+        Directed graph ready for shortest-path computations (e.g. Dijkstra).
+    """
     graph = nx.DiGraph()
 
     for _, row in gdf_net.iterrows():
@@ -462,8 +506,15 @@ def generate_isochrone(
     work_crs: str = WORK_CRS,
     export_crs: str = EXPORT_CRS,
 ) -> gpd.GeoSeries:
-    """
-    Build a street-exact isochrone and post-process it at reasonable detail level.
+    """Build a single polygon representing the walkable area within *cutoff_minutes*.
+
+    The routine performs a multi-source Dijkstra search, buffers traversed
+    edges, polygonizes the result, trims small artefacts, and optionally
+    simplifies geometry.
+
+    Returns:
+        GeoSeries containing **one** polygon (possibly multipart) in
+        *export_crs*.  An empty GeoSeries is returned if no nodes are reachable.
     """
     # 0️⃣  quick exit
     if not origin_pts_xy:
@@ -519,25 +570,7 @@ def export_isochrones_by_direction(
     cutoff_min: int,
     smooth_buffer_m: float | None = None,
 ) -> None:
-    """
-    For each (route_short_name, direction_id) build an isochrone from all
-    stops in that group, union them, optionally smooth the hull with a small
-    buffer, and export one Shapefile.
-
-    Parameters
-    ----------
-    gdf_stops : GeoDataFrame
-        Per-stop occurrences with route_short_name & direction_id attached.
-    graph : nx.DiGraph
-        Pre-built, time-weighted street network graph.
-    output_dir : str
-        Destination folder for Shapefiles (will be created if absent).
-    cutoff_min : int
-        Travel-time cut-off in **minutes**.
-    smooth_buffer_m : float | None, optional
-        Extra buffer (in metres, applied in WORK_CRS) to smooth jagged
-        isochrone edges.  Set 0 or None to disable.
-    """
+    """Generate and save isochrone polygons for every (route, direction) pair."""
     if gdf_stops.empty:
         print("No stops ➝ no isochrones produced.")
         return
@@ -593,16 +626,7 @@ def build_buffers_gdf(
     buffer_distance_ft: float,
     work_crs: str,
 ) -> gpd.GeoDataFrame:
-    """
-    Build one dissolved walking-distance buffer per
-    (route_short_name, direction_id).
-
-    Returns
-    -------
-    GeoDataFrame
-        • CRS == `work_crs`
-        • Columns: route_short_name, direction_id, geometry
-    """
+    """Create dissolved walk buffers per (route, direction)."""
     if gdf_stops.empty:
         return gpd.GeoDataFrame(
             columns=["route_short_name", "direction_id", "geometry"],
@@ -634,6 +658,7 @@ def build_buffers_gdf(
 
 
 def main() -> None:
+    """Top-level orchestration for command-line execution."""
     # ─────────────────────────────── LOGGING ──────────────────────────────
     # (If you placed this block at the top of the file instead, omit it here.)
     import logging
