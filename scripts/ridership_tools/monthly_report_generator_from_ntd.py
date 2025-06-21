@@ -193,8 +193,6 @@ def read_excel_data(config: dict) -> dict:
     # 1. robust numeric converter
     # ------------------------------------------------------------------
     def safe_float(val):
-
-    def safe_float(val):
         """Return None for blank cells, whitespace, or Excel NaNs.
 
         Otherwise return a float — preserving 0, 0.0, "0", "0.00", etc.
