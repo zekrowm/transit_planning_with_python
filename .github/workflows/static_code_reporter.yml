@@ -1,0 +1,105 @@
+name: static_code_reporter
+
+on:
+  schedule:
+    - cron: '0 0 * * SUN'          # 00:00 UTC every Sunday
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10']
+
+    steps:
+      # ---------------------------------------------------------------------
+      # 1) Checkout
+      # ---------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------------
+      # 2) Python setup
+      # ---------------------------------------------------------------------
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # ---------------------------------------------------------------------
+      # 3) Pip cache
+      # ---------------------------------------------------------------------
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # ---------------------------------------------------------------------
+      # 4) Install dependencies + static-analysis tools
+      # ---------------------------------------------------------------------
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt \
+                      pylint vulture mypy pydocstyle
+
+      # ---------------------------------------------------------------------
+      # 5) Detect Python files once and export as $FILES
+      # ---------------------------------------------------------------------
+      - name: Find Python files
+        id: find_files
+        run: |
+          echo "Detecting Python files for analysis..."
+          FILES=$(find . -type f -name '*.py' ! -path './arcpy_tools/*')
+          echo "$FILES"
+          FILES_SPACE_SEP=$(echo "$FILES" | tr '\n' ' ')
+          echo "FILES=$FILES_SPACE_SEP" >> $GITHUB_ENV
+          echo "file-count=$(echo "$FILES" | wc -l)" >> $GITHUB_OUTPUT
+
+      # ---------------------------------------------------------------------
+      # 6) Pylint
+      # ---------------------------------------------------------------------
+      - name: Run Pylint
+          run: |
+            echo "Running Pylint (errors-only)…"
+            for file in $FILES; do
+              echo "::group::Pylint → $file"
+              pylint "$file" \
+                     --errors-only \
+                     --ignored-modules=arcpy \
+                     --disable=duplicate-code
+              echo "::endgroup::"
+            done
+          continue-on-error: true
+
+      # ---------------------------------------------------------------------
+      # 7) Vulture (dead-code)
+      # ---------------------------------------------------------------------
+      - name: Run Vulture
+        run: |
+          echo "Running Vulture (min-confidence 60)…"
+          vulture $FILES --min-confidence 60
+        continue-on-error: true
+
+      # ---------------------------------------------------------------------
+      # 8) mypy (static typing)
+      # ---------------------------------------------------------------------
+      - name: Run mypy
+        run: |
+          echo "Running mypy (ignore missing imports)…"
+          mypy $FILES --ignore-missing-imports --show-error-codes --no-color-output
+        continue-on-error: true
+
+      # ---------------------------------------------------------------------
+      # 9) pydocstyle (docstring lint)
+      # ---------------------------------------------------------------------
+      - name: Run pydocstyle
+        run: |
+          echo "Running pydocstyle (Google convention)…"
+          pydocstyle $FILES --convention=google
+        continue-on-error: true
