@@ -41,6 +41,7 @@ DATE_FILTER_END = "2024-12-31"
 # FUNCTIONS
 # =============================================================================
 
+
 def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFrame:
     """Load the Excel file using the specified sheet and header rows.
 
@@ -67,7 +68,7 @@ def filter_data(
     end_date: str,
 ) -> pd.DataFrame:
     """Subset by columns and inclusive date span.
-    
+
     Args:
         input_dataframe (pd.DataFrame): The original DataFrame.
         date_col (tuple): MultiIndex tuple for the date column.
@@ -110,9 +111,11 @@ def export_data(dataframe_to_export: pd.DataFrame, output_file: str) -> None:
     dataframe_to_export.to_excel(output_file, index=False)
     print(f"Extracted data has been written to {output_file}")
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Orchestrate the ETL process."""
