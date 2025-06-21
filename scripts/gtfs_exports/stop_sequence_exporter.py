@@ -41,27 +41,27 @@ FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["999"]
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """Load selected GTFS text files as :class:`pandas.DataFrame` objects.
 
-    Files are read with ``dtype=dtype`` to avoid unwanted type coercion
+    Files are read with ``dtype`` to avoid unwanted type coercion
     (e.g. IDs becoming integers). Every successfully parsed file is logged.
 
     Args:
-        gtfs_folder_path: Absolute or relative path to the directory that
-            contains the GTFS ``*.txt`` files.
-        files: Explicit list of file names to read.
-            *If ``None`` (default), the full GTFS specification set is
-            attempted.*
-        dtype: Mapping forwarded to :pyfunc:`pandas.read_csv` when column-
-            specific dtypes are required.
+        gtfs_folder_path (str): Absolute or relative path to the directory
+            that contains the GTFS ``*.txt`` files.
+        files (list[str] | None, optional): Specific files to read.
+            If *None* (default), the full GTFS specification set is attempted.
+        dtype (dict[str, str] | type, optional): Value forwarded to
+            :pyfunc:`pandas.read_csv`.  Supply a column-specific mapping or a
+            single scalar type. Defaults to ``str``.
 
     Returns:
-        Mapping whose keys are file stems (e.g. ``"routes"``) and whose
-        values are data frames with all columns preserved as strings unless
-        overridden via *dtype*.
+        dict[str, pandas.DataFrame]: Keys are file stems (e.g. ``"routes"``);
+        values are data frames with columns kept as strings unless overridden
+        by *dtype*.
 
     Raises:
-        OSError: The directory does not exist **or** at least one requested
-            file is missing.
-        ValueError: A file is empty or Pandas raises a parsing error.
+        OSError: The directory does not exist *or* at least one requested file
+            is missing.
+        ValueError: A file is empty or Pandas raised a parsing error.
         RuntimeError: Any other :class:`OSError` triggered during reading.
     """
     if not os.path.exists(gtfs_folder_path):
