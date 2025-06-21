@@ -193,6 +193,7 @@ def read_excel_data(config: dict) -> dict:
     Returns:
         A mapping of *period label* → cleaned :class:`pandas.DataFrame`.
     """
+
     def safe_float(val):
         """Return None for blank cells, whitespace, or Excel NaNs.
 
