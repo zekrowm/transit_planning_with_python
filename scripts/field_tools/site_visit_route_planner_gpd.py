@@ -21,6 +21,7 @@ Example:
     >>> python visit_route.py --stops 1001 1002 1003 \
     ...     --start "38°51'54.5\"N 77°21'53.6\"W"
 """
+
 import math
 import os
 import re
