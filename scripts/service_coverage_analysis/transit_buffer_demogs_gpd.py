@@ -361,14 +361,11 @@ def clip_and_calculate_synthetic_fields(
     return clipped_gdf
 
 
-def export_summary_to_excel(
-    totals_dict: dict, output_path: str, label_prefix: str = ""
-) -> None:
+def export_summary_to_excel(totals_dict: dict, output_path: str) -> None:
     """Write a dictionary of aggregated synthetic fields to a single-row Excel file.
 
     :param totals_dict: A dictionary of {synthetic_field_name: numeric_total}.
     :param output_path: File path for the .xlsx output.
-    :param label_prefix: An optional prefix to apply in column naming or titles.
     """
     # Convert the dictionary to a single-row DataFrame
     summary_data = {k: [v] for k, v in totals_dict.items()}
