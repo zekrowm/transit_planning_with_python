@@ -13,7 +13,7 @@ Typical uses
 Outputs
 -------
 Shapefiles in *OUTPUT_DIR*:
-    buffer_*, stops_*, routes_* (always)  
+    buffer_*, stops_*, routes_* (always)
     *_iso<minutes>min (if *NETWORK_SHP_PATH* is provided)
 
 All geometries are delivered in ``EXPORT_CRS`` (default: EPSG:4326).
