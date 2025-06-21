@@ -89,6 +89,7 @@ LATE_COLUMN = "Sum # Late"
 # FUNCTIONS
 # =============================================================================
 
+
 def time_str_to_seconds(time_str: str) -> int | None:
     """Convert an H:MM(:SS) time string to seconds.
 
