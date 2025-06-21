@@ -63,6 +63,7 @@ FAKE_ROUTES: List[str] = ["9999A", "9999B", "9999C"]
 # One of {"meters", "feet", "miles"}
 DISTANCE_UNIT = "meters"
 
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -103,14 +104,17 @@ def load_gtfs_data(base_path: Path, files: List[str]) -> Dict[str, pd.DataFrame]
 
 
 def parse_time_blocks(
-    tb_config: Mapping[str, Tuple[str, str]]
+    tb_config: Mapping[str, Tuple[str, str]],
 ) -> Dict[str, Tuple[pd.Timedelta, pd.Timedelta]]:
     """Convert HH:MM strings in *tb_config* to timedelta bounds."""
     parsed: Dict[str, Tuple[pd.Timedelta, pd.Timedelta]] = {}
     for name, (start, end) in tb_config.items():
         h1, m1 = map(int, start.split(":"))
         h2, m2 = map(int, end.split(":"))
-        parsed[name] = (timedelta(hours=h1, minutes=m1), timedelta(hours=h2, minutes=m2))
+        parsed[name] = (
+            timedelta(hours=h1, minutes=m1),
+            timedelta(hours=h2, minutes=m2),
+        )
     return parsed
 
 
@@ -144,7 +148,9 @@ def save_df_to_excel(
         ws.append(row)
 
     for idx, col_cells in enumerate(ws.columns, start=1):
-        max_len = max(len(str(cell.value)) for cell in col_cells if cell.value is not None)
+        max_len = max(
+            len(str(cell.value)) for cell in col_cells if cell.value is not None
+        )
         letter = get_column_letter(idx)
         ws.column_dimensions[letter].width = max_len + 3
         for cell in col_cells:
@@ -165,9 +171,7 @@ def assign_time_block(
     return "other"
 
 
-def build_interlining_map(
-    trips: pd.DataFrame, routes: pd.DataFrame
-) -> Dict[str, set]:
+def build_interlining_map(trips: pd.DataFrame, routes: pd.DataFrame) -> Dict[str, set]:
     """Return route_short_name → set of interlined route_short_names."""
     merged = trips.merge(
         routes[["route_id", "route_short_name"]],
@@ -227,9 +231,11 @@ def calculate_trip_metrics(stop_times_sub: pd.DataFrame) -> pd.Series:
 
     return pd.Series({"trip_run_minutes": run_min, "trip_distance_miles": dist})
 
+
 # -----------------------------------------------------------------------------
 # PREPROCESSING & WORKBOOK BUILDERS
 # -----------------------------------------------------------------------------
+
 
 def preprocess(
     data: Dict[str, pd.DataFrame], dist_factor: float
@@ -269,10 +275,7 @@ def preprocess(
         "trip_run_minutes": "mean",
         "trip_distance_miles": ["mean", "median"],
     }
-    rdm = (
-        trip_metrics.groupby(["route_id", "direction_id"], as_index=False)
-        .agg(agg)
-    )
+    rdm = trip_metrics.groupby(["route_id", "direction_id"], as_index=False).agg(agg)
     rdm.columns = [
         "route_id",
         "direction_id",
@@ -280,9 +283,7 @@ def preprocess(
         "avg_distance_miles",
         "median_distance_miles",
     ]
-    rdm["avg_speed_mph"] = (
-        rdm["avg_distance_miles"] / (rdm["avg_run_minutes"] / 60.0)
-    )
+    rdm["avg_speed_mph"] = rdm["avg_distance_miles"] / (rdm["avg_run_minutes"] / 60.0)
     # ⚡ Round avg_run_minutes to 1 decimal
     rdm["avg_run_minutes"] = rdm["avg_run_minutes"].round(1)
 
@@ -346,9 +347,9 @@ def build_schedule_book(
 
     # Headways
     head = (
-        st_first.groupby(
-            ["route_id", "direction_id", "time_block"], group_keys=False
-        )["departure_time"]
+        st_first.groupby(["route_id", "direction_id", "time_block"], group_keys=False)[
+            "departure_time"
+        ]
         .apply(modal_headway)
         .unstack("time_block")
         .rename(columns=lambda c: f"{c.lower().replace(' ', '_')}_headway")
@@ -357,9 +358,9 @@ def build_schedule_book(
 
     # Trip counts
     counts = (
-        st_first.groupby(
-            ["route_id", "direction_id", "time_block"], group_keys=False
-        )["trip_id"]
+        st_first.groupby(["route_id", "direction_id", "time_block"], group_keys=False)[
+            "trip_id"
+        ]
         .nunique()
         .unstack("time_block", fill_value=0)
         .rename(columns=lambda c: f"{c.lower().replace(' ', '_')}_trips")
@@ -379,9 +380,7 @@ def build_schedule_book(
         )
 
     spans = (
-        st_first.groupby(
-            ["route_id", "direction_id"], group_keys=False
-        )
+        st_first.groupby(["route_id", "direction_id"], group_keys=False)
         .apply(first_last)
         .reset_index()
     )
@@ -461,9 +460,7 @@ def main() -> None:
         routes, rdm, interlines, time_blocks = preprocess(data, factor)
 
         for sched, days in SCHEDULE_TYPES.items():
-            build_schedule_book(
-                sched, days, data, routes, rdm, interlines, time_blocks
-            )
+            build_schedule_book(sched, days, data, routes, rdm, interlines, time_blocks)
 
         LOGGER.info("All schedule types processed successfully.")
     except Exception as exc:  # pylint: disable=broad-except
