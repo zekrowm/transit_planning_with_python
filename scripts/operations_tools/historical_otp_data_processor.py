@@ -24,7 +24,7 @@ Outputs
 import os
 import sys
 from datetime import datetime
-from typing import List
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
