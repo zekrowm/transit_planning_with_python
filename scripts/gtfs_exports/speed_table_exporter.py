@@ -397,7 +397,7 @@ def export_excel(
             names.
 
     Side Effects:
-        • Creates *OUTPUT_FOLDER* if it does not exist.  
+        • Creates *OUTPUT_FOLDER* if it does not exist.
         • Writes ``.xlsx`` files and logs progress via :pymod:`logging`.
     """
     OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
