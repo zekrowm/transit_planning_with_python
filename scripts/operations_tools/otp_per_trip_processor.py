@@ -1,20 +1,21 @@
-"""
-Aggregates and analyzes trip-level OTP (and running time) data for transit routes.
+"""Aggregate and analyze trip-level on-time-performance (OTP) data for transit routes.
 
-This script reads a CSV of detailed trip records, applies optional filtering by
-route/branch, converts durations to minutes, computes OTP percentages, and
-outputs both summary and (optionally) route-specific Excel files.
+The script ingests a CSV exported from CLEVER (or a similar AVL system),
+applies optional route filtering, converts duration columns to minutes,
+computes OTP percentages, and writes:
 
-Typical usage:
-    - Adjust configuration constants for file paths and aggregation behavior.
-    - Run the script in ArcPro or Jupyter to process and export results.
+- A system-wide Excel workbook of aggregate metrics.
+- (Optionally) one workbook per route or route–direction pair.
 
-Inputs:
-    - CSV file with schedule, actuals, deviation, and OTP counts.
+Typical workflow
+1. Adjust the constants in the *CONFIGURATION* section.
+2. Execute the script in ArcPro’s Python console or a Jupyter notebook.
+3. Review the exported workbooks in ``OUTPUT_DIR``.
 
-Outputs:
-    - Excel file summarizing OTP/running time metrics.
-    - Optional per-route Excel exports (if enabled).
+Note:
+    The heavy lifting happens in :func:`create_aggregations`; if you need
+    a different aggregation grain (e.g. by service period), modify the
+    ``group_cols`` list inside that function.
 """
 
 import os
@@ -75,10 +76,19 @@ SUM_ON_TIME_COLUMN = "Sum # On Time"
 
 
 def parse_time_string_to_minutes(time_str: str) -> float:
-    """
-    Convert a time string in the format HH:MM:SS to minutes (float) with one decimal place.
-    Returns NaN if the format is invalid.
-    Example: "0:31:00" -> 31.0
+    """Convert an ``HH:MM:SS`` time string to minutes.
+
+    The computation preserves one decimal place of precision. Values that
+    cannot be parsed (e.g. malformed strings, missing data) return
+    ``nan`` to allow downstream arithmetic without raising exceptions.
+
+    Args:
+        time_str: A time string such as ``"0:31:00"`` or ``"02:05:30"``.
+                  Surrounding whitespace is ignored.
+
+    Returns:
+        Total minutes represented by the input, e.g. ``31.0`` or
+        ``125.5``. Non-conformant inputs yield ``float('nan')``.
     """
     time_str = str(time_str).strip()
     if not time_str or ":" not in time_str:
@@ -97,10 +107,14 @@ def parse_time_string_to_minutes(time_str: str) -> float:
 
 
 def parse_seconds_to_minutes(value) -> float:
-    """
-    Convert a value in seconds (int or float) to minutes (float) with one decimal place.
-    Returns NaN if the value is invalid.
-    Example: -309 -> -5.2
+    """Convert a raw seconds value to minutes.
+
+    Args:
+        value: Seconds as ``int``, ``float``, or numeric **str**.
+
+    Returns:
+        The equivalent minutes (rounded to one decimal) or
+        ``float('nan')`` if ``value`` is not numeric.
     """
     try:
         seconds = float(value)
@@ -114,10 +128,23 @@ def filter_by_branch(
     include_branches: Optional[List[str]] = None,
     exclude_branches: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    """
-    Filters the DataFrame based on branch inclusion and exclusion lists.
-    - If exclude_branches is provided and non-empty, rows with Branch in that list are removed.
-    - If include_branches is provided and non-empty, only rows with Branch in that list are kept.
+    """Subset records by the ``Branch`` column.
+
+    Args:
+        df: The original trip-level DataFrame.
+        include_branches: If provided, retain *only* rows whose
+            ``Branch`` appears in this list.
+        exclude_branches: If provided, drop rows whose ``Branch`` appears
+            in this list **before** applying *include_branches*.
+
+    Returns:
+        A new DataFrame reflecting the requested filters. The original
+        ``df`` is left unmodified.
+
+    Notes:
+        Inclusion and exclusion are case-sensitive and depend on
+        *exact* string matches. Trim or standardise branch values
+        upstream if necessary.
     """
     df_filtered = df.copy()
     if exclude_branches:
@@ -130,22 +157,17 @@ def filter_by_branch(
 def create_aggregations(
     df: pd.DataFrame, group_by_direction: bool = True
 ) -> pd.DataFrame:
-    """
-    Aggregate running-time and OTP metrics by route (Branch) or route + Direction.
+    """Aggregate running-time and OTP metrics.
 
-    Returns a DataFrame with the following, when the columns exist in the input:
-        ─ avg_scheduled_minutes
-        ─ avg_actual_minutes
-        ─ avg_deviation_minutes
-        ─ avg_start_delta_minutes
-        ─ total_trips
-        ─ early_pct
-        ─ late_pct
-        ─ on_time_pct
-        ─ otp_below_standard  ▶︎ Boolean flag (True when on_time_pct < OTP_STANDARD_PCT)
+    Args:
+        df: Pre-processed (and, if desired, filtered) trip-level data.
+        group_by_direction: Whether to keep *Direction* separate.
 
-    The OTP percentage calculation method is controlled by the
-    AGGREGATE_OTP_USING_COUNTS constant; see the CONFIGURATION section.
+    Returns:
+        A tidy, one-row-per-group DataFrame ready for export.
+
+    Raises:
+        KeyError: If required columns (e.g. OTP counts) are missing.
     """
     # -----------------------------------------------------------------
     # Which columns define a “group”?
@@ -252,9 +274,17 @@ def create_aggregations(
 def export_individual_files(
     agg_df: pd.DataFrame, group_by_direction: bool, output_dir: str
 ) -> None:
-    """
-    Export individual Excel files for each unique route (or route/direction)
-    from the aggregated DataFrame, which includes OTP percentages.
+    """Write one Excel workbook per group.
+
+    Args:
+        agg_df: The DataFrame returned by :func:`create_aggregations`.
+        group_by_direction: Mirrors the argument of the same name in
+            :func:`create_aggregations`; ensures filenames align with
+            aggregation grain.
+        output_dir: Destination folder (must already exist).
+
+    Returns:
+        None. Files are written to disk as a side effect.
     """
     group_keys = ["Branch", "Direction"] if group_by_direction else ["Branch"]
 
@@ -275,11 +305,23 @@ def export_individual_files(
 
 
 def main():
-    """
-    Orchestrates the end-to-end processing of runtime and OTP data.
-    This function consolidates all necessary steps for data filtering,
-    processing, and output generation. Adjust the configuration section
-    at the top of the script to modify behavior.
+    """Run the full OTP analysis pipeline.
+
+    Workflow:
+
+    1. Read the raw CLEVER CSV (``INPUT_FILE``).
+    2. Convert duration fields to minutes.
+    3. Derive ``Calculated Total Trips`` from OTP counts.
+    4. Filter branches per *CONFIGURATION* lists.
+    5. Aggregate metrics with :func:`create_aggregations`.
+    6. Export the system-wide workbook plus (optionally) per-route files.
+
+    Returns:
+        None. The primary output is a set of Excel workbooks.
+
+    Raises:
+        FileNotFoundError: If ``INPUT_FILE`` cannot be read.
+        OSError
     """
     # 1. Read the CSV
     df = pd.read_csv(INPUT_FILE)
