@@ -41,7 +41,7 @@ ENABLE_PYDOCSTYLE: bool = True
 # mypy
 MYPY_ADDITIONAL_ARGS: List[str] = ["--ignore-missing-imports"]
 # vulture
-VULTURE_MIN_CONFIDENCE: int = 60  # default is 60
+VULTURE_MIN_CONFIDENCE: int = 70  # default is 60
 # pydocstyle
 PYDOCSTYLE_ADDITIONAL_ARGS: List[str] = ["--convention=google"]
 # pylint
