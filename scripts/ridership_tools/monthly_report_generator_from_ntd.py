@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import os
 import re
-
+from typing import Any
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -156,6 +156,31 @@ PLOT_STYLE = {
 # FUNCTIONS
 # -----------------------------------------------------------------------------
 
+def safe_float(value: Any) -> float | None:
+    """Return a float if *value* looks numeric, otherwise ``None``.
+
+    The function is resilient to:
+
+    * Empty strings or whitespace.
+    * Excel “NaN” placeholders.
+    * Thousands separators (commas).
+    * Zero-like inputs (``0``, ``"0"``, ``"0.00"``).
+
+    Args:
+        value: Arbitrary cell content from an Excel sheet.
+
+    Returns:
+        A ``float`` or ``None`` when conversion is impossible.
+    """
+    if pd.isna(value):
+        return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    try:
+        return float(s.replace(",", ""))
+    except ValueError:
+        return None
 
 def safe_div(
     numerator: float | int, denominator: float | int, precision: int = 1
@@ -175,41 +200,8 @@ def safe_div(
     except (ZeroDivisionError, TypeError):
         return None
 
-
-def read_excel_data(config: dict) -> dict:
-    """Load, clean, and filter the monthly Excel worksheets.
-
-    The helper performs the following steps for each period configured in
-    ``config``:
-
-    1. Read the sheet specified in *CONFIG['periods']* with robust converters.
-    2. Drop rows lacking critical ridership data.
-    3. Keep only *Weekday*, *Saturday*, and *Sunday* service periods.
-    4. Normalize ``ROUTE_NAME`` strings (strip, upper-case, remove spaces).
-
-    Args:
-        config: The global :pydata:`CONFIG` dictionary.
-
-    Returns:
-        A mapping of *period label* → cleaned :class:`pandas.DataFrame`.
-    """
-
-    def safe_float(val):
-        """Return None for blank cells, whitespace, or Excel NaNs.
-
-        Otherwise return a float — preserving 0, 0.0, "0", "0.00", etc.
-        """
-        if pd.isna(val):
-            return None
-        s = str(val).strip()
-        if s == "":
-            return None
-        try:
-            return float(s.replace(",", ""))
-        except ValueError:
-            return None
-
-    # apply the same converter to every numeric column we expect
+def read_excel_data(config: dict) -> dict[str, pd.DataFrame]:
+    """Load, clean, and filter the monthly Excel worksheets."""
     numeric_cols = [
         "MTH_BOARD",
         "MTH_REV_HOURS",
@@ -222,23 +214,20 @@ def read_excel_data(config: dict) -> dict:
     converters = {col: safe_float for col in numeric_cols}
 
     sp_filter = config["SERVICE_PERIODS"]
-    data_dict = {}
+    data_dict: dict[str, pd.DataFrame] = {}
 
     for period in config["ordered_periods"]:
         info = config["periods"][period]
-        file_path = info["file_path"]
-        sheet = info["sheet_name"]
+        df = pd.read_excel(
+            info["file_path"],
+            sheet_name=info["sheet_name"],
+            converters=converters,
+        )
 
-        df = pd.read_excel(file_path, sheet_name=sheet, converters=converters)
-
-        # Drop rows lacking crucial data
+        # --- identical logic below this line ---
         df.dropna(subset=["ROUTE_NAME", "MTH_BOARD"], inplace=True)
         df = df[df["MTH_BOARD"] != 0]
-
-        # Keep only Weekday / Saturday / Sunday rows
         df = df[df["SERVICE_PERIOD"].isin(sp_filter)].copy()
-
-        # Standardize the route name text
         df["ROUTE_NAME"] = (
             df["ROUTE_NAME"]
             .astype(str)
@@ -247,11 +236,9 @@ def read_excel_data(config: dict) -> dict:
             .str.replace(" ", "", regex=False)
             .apply(lambda x: re.sub(r"\.0$", "", x))
         )
-
         data_dict[period] = df
 
     return data_dict
-
 
 def classify_route(route_name: str, cfg: dict) -> str:
     """Map a route name to its first matching service type.
