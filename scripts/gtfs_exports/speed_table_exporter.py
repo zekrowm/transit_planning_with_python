@@ -47,7 +47,7 @@ INPUT_DISTANCE_UNIT: str = "meters"  # "meters" or "feet"
 MISSING_VAL: str = "–"
 
 # -----------------------------------------------------------------------------
-# LOGGING                                                                       
+# LOGGING
 # -----------------------------------------------------------------------------
 
 LOG_LEVEL: int = logging.INFO
@@ -58,14 +58,16 @@ logging.basicConfig(
 )
 
 # -----------------------------------------------------------------------------
-# CONSTANTS                                                                       
+# CONSTANTS
 # -----------------------------------------------------------------------------
 
-_TIME_RE: re.Pattern[str] = re.compile(r"^(?P<h>\d{1,2}):(?P<m>\d{2})(?::(?P<s>\d{2}))?$")
+_TIME_RE: re.Pattern[str] = re.compile(
+    r"^(?P<h>\d{1,2}):(?P<m>\d{2})(?::(?P<s>\d{2}))?$"
+)
 REQ_FILES: Tuple[str, ...] = ("trips.txt", "stop_times.txt", "routes.txt", "stops.txt")
 
 # -----------------------------------------------------------------------------
-# TYPE ALIASES                                                                       
+# TYPE ALIASES
 # -----------------------------------------------------------------------------
 
 Pattern = Tuple[str, ...]
@@ -75,6 +77,7 @@ SpeedRecord = Dict[str, Union[SegSpeeds, float]]
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def hhmmss_to_minutes(time_literal: Optional[str]) -> Optional[int]:
     """Convert an ``HH:MM[:SS]`` string to minutes past midnight.
@@ -189,7 +192,9 @@ def load_gtfs(folder: Path) -> Dict[str, pd.DataFrame]:
         raise FileNotFoundError(f"Missing GTFS file(s): {', '.join(missing)}")
 
     dfs: Dict[str, pd.DataFrame] = {
-        fname.removesuffix(".txt"): pd.read_csv(folder / fname, dtype=str, low_memory=False)
+        fname.removesuffix(".txt"): pd.read_csv(
+            folder / fname, dtype=str, low_memory=False
+        )
         for fname in REQ_FILES
     }
 
@@ -198,9 +203,12 @@ def load_gtfs(folder: Path) -> Dict[str, pd.DataFrame]:
     if "timepoint" in st.columns:
         st["timepoint"] = pd.to_numeric(st["timepoint"], errors="coerce")
     if "shape_dist_traveled" in st.columns:
-        st["shape_dist_traveled"] = pd.to_numeric(st["shape_dist_traveled"], errors="coerce")
+        st["shape_dist_traveled"] = pd.to_numeric(
+            st["shape_dist_traveled"], errors="coerce"
+        )
 
     return dfs
+
 
 def segment_metrics(grp: pd.DataFrame) -> Tuple[SegSpeeds, float, int]:
     """Derive per-segment speeds and trip totals for one trip.
@@ -220,7 +228,11 @@ def segment_metrics(grp: pd.DataFrame) -> Tuple[SegSpeeds, float, int]:
     dists: List[Optional[float]] = []
 
     for _, row in grp.iterrows():
-        times.append(hhmmss_to_minutes(cast(str, row.get("departure_time") or row.get("arrival_time"))))
+        times.append(
+            hhmmss_to_minutes(
+                cast(str, row.get("departure_time") or row.get("arrival_time"))
+            )
+        )
         dists.append(convert_to_miles(row.get("shape_dist_traveled")))
 
     run_min: List[Union[int, str]] = [MISSING_VAL]
@@ -329,7 +341,10 @@ def build_index(
 
         first_seg = seg_speeds[1] if len(seg_speeds) > 1 else MISSING_VAL
         start_min = hhmmss_to_minutes(
-            cast(str, grp.iloc[0].get("departure_time") or grp.iloc[0].get("arrival_time"))
+            cast(
+                str,
+                grp.iloc[0].get("departure_time") or grp.iloc[0].get("arrival_time"),
+            )
         )
 
         rows.append(
@@ -339,12 +354,15 @@ def build_index(
                 "direction_id": grp.iloc[0]["direction_id"],
                 "pattern_hash": pat_hash,
                 "speed_hash": spd_hash,
-                "first_seg_mph": None if first_seg == MISSING_VAL else cast(float, first_seg),
+                "first_seg_mph": None
+                if first_seg == MISSING_VAL
+                else cast(float, first_seg),
                 "start": start_min,
             }
         )
 
     return pd.DataFrame(rows), pat_lut, speed_lut, header_lut
+
 
 def band_rows(index_df: pd.DataFrame) -> pd.DataFrame:
     """Collapse individual trips into time-of-day bands.
@@ -374,6 +392,7 @@ def band_rows(index_df: pd.DataFrame) -> pd.DataFrame:
     out["FrTime"] = out["FrTime_min"].apply(minutes_to_hhmm)
     out["ToTime"] = out["ToTime_min"].apply(minutes_to_hhmm)
     return out.drop(columns=["FrTime_min", "ToTime_min"])
+
 
 def export_excel(
     bands: pd.DataFrame,
@@ -418,13 +437,18 @@ def export_excel(
             for col in range(1, len(header) + 1):
                 ws.column_dimensions[get_column_letter(col)].width = 14
 
-        out_path = OUTPUT_FOLDER / f"route_{route_short.get(rid, rid)}_cal{sid}_speed_table.xlsx"
+        out_path = (
+            OUTPUT_FOLDER
+            / f"route_{route_short.get(rid, rid)}_cal{sid}_speed_table.xlsx"
+        )
         wb.save(out_path)
         logging.info("Wrote %s", out_path)
-        
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """CLI entry-point – orchestrates GTFS load, processing, and Excel export."""
