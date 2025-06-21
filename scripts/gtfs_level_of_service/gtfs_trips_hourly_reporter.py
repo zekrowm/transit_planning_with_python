@@ -70,7 +70,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     Args:
         gtfs_folder_path: Absolute or relative path to the directory
             containing GTFS text files.
-        files: Explicit list of GTFS filenames to read.  
+        files: Explicit list of GTFS filenames to read.
             If ``None``, the canonical GTFS specification list is used.
         dtype: Value passed to :pyfunc:`pandas.read_csv` to control column
             dtypes. Accepts either a single dtype or a dict mapping columns
@@ -207,7 +207,7 @@ def process_and_export(
 
     Args:
         data: Output of :func:`load_gtfs_data`.
-        route_dirs: Iterable of route/direction filters, e.g.  
+        route_dirs: Iterable of route/direction filters, e.g.
             ``[{"route_short_name": "101", "direction_id": 0}, …]``.
         output_path: Folder in which the Excel files will be written. The
             directory is created if it does not exist.
