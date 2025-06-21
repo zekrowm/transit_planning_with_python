@@ -31,6 +31,7 @@ from __future__ import annotations
 import os
 import re
 from typing import Any
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -156,6 +157,7 @@ PLOT_STYLE = {
 # FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def safe_float(value: Any) -> float | None:
     """Return a float if *value* looks numeric, otherwise ``None``.
 
@@ -182,6 +184,7 @@ def safe_float(value: Any) -> float | None:
     except ValueError:
         return None
 
+
 def safe_div(
     numerator: float | int, denominator: float | int, precision: int = 1
 ) -> float | None:
@@ -199,6 +202,7 @@ def safe_div(
         return round(numerator / denominator, precision)  # type: ignore[arg-type]
     except (ZeroDivisionError, TypeError):
         return None
+
 
 def read_excel_data(config: dict) -> dict[str, pd.DataFrame]:
     """Load, clean, and filter the monthly Excel worksheets."""
@@ -239,6 +243,7 @@ def read_excel_data(config: dict) -> dict[str, pd.DataFrame]:
         data_dict[period] = df
 
     return data_dict
+
 
 def classify_route(route_name: str, cfg: dict) -> str:
     """Map a route name to its first matching service type.
