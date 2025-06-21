@@ -1,26 +1,26 @@
+"""Plan an optimal site-visit route through selected GTFS stops.
+
+The workflow:
+
+1. Reproject GTFS stops (EPSG:4326 ➜ EPSG:2283).
+2. Snap those stops—and a user-supplied start location—to the nearest nodes
+   in a directed road network.
+3. Build a complete graph whose edge weights are network travel times.
+4. Solve the Traveling Salesman Problem (TSP) with either an exact
+   MILP/ILP (PuLP, Miller–Tucker–Zemlin formulation) or a greedy
+   approximation.
+5. Export:
+   - ``gtfs_stops.shp`` – reprojected stops,
+   - ``tsp_route.shp``  – the optimal route geometry,
+   - ``directions.xlsx`` – turn-by-turn driving directions,
+   - a quick-look Matplotlib plot of the route.
+
+Typical usage is from a Jupyter notebook or the command line.
+
+Example:
+    >>> python visit_route.py --stops 1001 1002 1003 \
+    ...     --start "38°51'54.5\"N 77°21'53.6\"W"
 """
-Plans an optimal site visit route through selected GTFS stops using road network travel times.
-
-Reprojects GTFS stop locations, snaps them to a directed road network, and solves the Traveling
-Salesman Problem (TSP) using either an exact ILP solver or a greedy approximation. Outputs
-include reprojected stops, a shapefile of the computed route, turn-by-turn driving directions,
-and a route plot.
-
-Typical usage: Jupyter notebook or command line.
-
-Inputs:
-    - GTFS stops file ('stops.txt') in EPSG:4326.
-    - Road network shapefile in EPSG:2283.
-    - Selected GTFS stop IDs and a DMS-formatted start location.
-    - Script-level configuration for routing parameters and output paths.
-
-Outputs:
-    - Reprojected GTFS stops shapefile ('gtfs_stops.shp').
-    - TSP route shapefile ('tsp_route.shp').
-    - Driving directions Excel file ('directions.xlsx').
-    - Matplotlib route plot.
-"""
-
 import math
 import os
 import re
@@ -85,18 +85,31 @@ PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
 
 
 def reproject_point_4326_to_2283(x_lon, y_lat):
-    """
-    Reproject a single coordinate from lat/lon (EPSG:4326)
-    to EPSG:2283 (x,y in feet).
-    Returns (x_2283, y_2283).
+    """Reproject a WGS 84 point to EPSG:2283.
+
+    Args:
+        x_lon: Longitude (decimal degrees, WGS 84).
+        y_lat: Latitude  (decimal degrees, WGS 84).
+
+    Returns:
+        A ``(x, y)`` tuple in feet, EPSG:2283.
     """
     x_2283, y_2283 = PROJECT_4326_TO_2283.transform(x_lon, y_lat)
     return (x_2283, y_2283)
 
 
 def dms_to_decimal(dms_str):
-    """
-    Converts a coordinate in DMS format (e.g., "38°50'38.5\"N") to decimal degrees.
+    """Convert a DMS coordinate string to decimal degrees.
+
+    Args:
+        dms_str: Coordinate in the form ``"38°50'38.5\"N"`` (any
+            of N, S, E, W).
+
+    Returns:
+        The coordinate expressed in decimal degrees.
+
+    Raises:
+        ValueError: If *dms_str* is not in a valid DMS format.
     """
     dms_str = dms_str.strip()
     pattern = r"""(?P<degrees>\d+)[°\s]+
@@ -117,9 +130,19 @@ def dms_to_decimal(dms_str):
 
 
 def parse_google_maps_coords(coord_str):
-    """
-    Given a single string like "38°51'54.5\"N 77°21'53.6\"W",
-    split into lat part and lon part, then return decimal lat/lon.
+    """Parse a single Google-Maps DMS pair into decimal **lat**, **lon**.
+
+    Args:
+        coord_str: A string such as
+            ``"38°51'54.5\"N 77°21'53.6\"W"`` (lat first, lon second).
+
+    Returns:
+        ``(lat_dd, lon_dd)`` in decimal degrees.
+
+    Raises:
+        ValueError: If the string cannot be split into two DMS tokens
+            or either token is malformed.
+
     """
     parts = coord_str.strip().split(None, 1)
     if len(parts) < 2:
@@ -131,9 +154,15 @@ def parse_google_maps_coords(coord_str):
 
 
 def rotate_route(route, start_node):
-    """
-    Rotates the TSP route so that it starts (and ends) with the given start_node.
-    Assumes route is a cycle (i.e. the first and last node are the same).
+    """Rotate a cyclic TSP tour so that it begins/ends at *start_node*.
+
+    Args:
+        route: A list whose first and last elements are identical
+            (cyclic tour).
+        start_node: The node that should become the tour’s first element.
+
+    Returns:
+        A new list with the same cyclic order but anchored at *start_node*.
     """
     if start_node not in route:
         return route
@@ -147,9 +176,17 @@ def rotate_route(route, start_node):
 
 
 def compute_heading(p1, p2):
-    """
-    Computes the heading (in degrees) from point p1 to point p2.
-    p1 and p2 are (x, y) tuples in feet, but that's fine for the angle calculation.
+    """Return the compass heading from *p1* to *p2* (degrees, 0° = East).
+
+    Both points are assumed to be in the same planar CRS.
+
+    Args:
+        p1: ``(x, y)`` origin point.
+        p2: ``(x, y)`` destination point.
+
+    Returns:
+        Heading in degrees, measured counter-clockwise from the positive
+        x-axis (East).
     """
     dx = p2[0] - p1[0]
     dy = p2[1] - p1[1]
@@ -159,9 +196,16 @@ def compute_heading(p1, p2):
 
 
 def compute_turn_direction(heading1, heading2, threshold=15):
-    """
-    Computes a simple turn instruction (Left, Right, or Straight)
-    based on the difference between two headings.
+    """Categorize the turn between two headings.
+
+    Args:
+        heading1: Previous segment heading (degrees).
+        heading2: Next segment heading (degrees).
+        threshold: Maximum absolute difference (degrees) treated
+            as “straight”.
+
+    Returns:
+        One of ``"Left"``, ``"Right"``, or ``"Straight"``.
     """
     diff = heading2 - heading1
     # Normalize difference to (-180, 180)
@@ -183,10 +227,15 @@ def compute_turn_direction(heading1, heading2, threshold=15):
 
 
 def export_gtfs_stops(gtfs_path, output_dir, target_crs):
-    """
-    1) Reads the GTFS stops.txt file (in EPSG:4326).
-    2) Reprojects to target_crs (EPSG:2283, ftUS).
-    3) Exports as a shapefile in that CRS.
+    """Read *stops.txt*, reproject, and write a shapefile.
+
+    Args:
+        gtfs_path: Directory containing the GTFS feed.
+        output_dir: Destination folder for outputs.
+        target_crs: Target CRS (EPSG string or proj4).
+
+    Returns:
+        The reprojected GeoDataFrame (EPSG:2283).
     """
     stops_file = os.path.join(gtfs_path, "stops.txt")
     stops_df = pd.read_csv(stops_file)
@@ -208,9 +257,19 @@ def export_gtfs_stops(gtfs_path, output_dir, target_crs):
 
 
 def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
-    """
-    Filters the stops GeoDataFrame for the selected stop IDs using the specified column.
-    Returns a dict of {stop_id: (x, y)} in EPSG:2283 (feet).
+    """Filter *stops_gdf* to the user-selected IDs.
+
+    Args:
+        stops_gdf: GeoDataFrame of all GTFS stops.
+        selected_stop_ids: Whitelist of stop IDs to keep.
+        stop_id_col: Column in *stops_gdf* containing the IDs.
+
+    Returns:
+        A 2-tuple:
+
+        * **bus_stops** – dict mapping stop_id ➜ ``(x, y)``
+          (feet, EPSG:2283);
+        * **selected_stops_gdf** – GeoDataFrame of the same subset.
     """
     selected_stops_gdf = stops_gdf[stops_gdf[stop_id_col].isin(selected_stop_ids)]
     if selected_stops_gdf.empty:
@@ -237,9 +296,19 @@ def build_directed_road_network(
     target_crs=TARGET_ROAD_CRS,
     street_name_col=STREET_NAME_COL,
 ):
-    """
-    Builds a directed road network from the shapefile, assumed to be in EPSG:2283 (ft).
-    Each edge has travel time in seconds (weight), geometry in feet, street name, etc.
+    """Construct a directed NetworkX graph from a road shapefile.
+
+    Args:
+        road_shp_path: Path to the line-work shapefile.
+        oneway_col: 'Y' = one-way, anything else = bidirectional.
+        speed_col: Column holding speed limits (mph).
+        target_crs: Assumed CRS of *road_shp_path*.
+        street_name_col: Column holding the human-readable street name.
+
+    Returns:
+        ``(G, roads_gdf)`` where *G* is the directed graph with
+        edge attributes ``weight`` (seconds), ``length`` (feet),
+        ``street`` (name), and ``geometry`` (**LineString**).
     """
     roads_gdf = gpd.read_file(road_shp_path)
 
@@ -309,8 +378,15 @@ def build_directed_road_network(
 
 
 def snap_point_to_network(pt, road_graph):
-    """
-    Snaps a point (x, y) in EPSG:2283 (feet) to the nearest node in the road network.
+    """Snap an arbitrary point to its nearest graph node.
+
+    Args:
+        pt: Coordinate in EPSG:2283.
+        road_graph: Directed graph returned by
+            :pyfunc:`build_directed_road_network`.
+
+    Returns:
+        The coordinate of the nearest node (EPSG:2283).
     """
     min_dist = float("inf")
     nearest_node = None
@@ -324,9 +400,17 @@ def snap_point_to_network(pt, road_graph):
 
 
 def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops):
-    """
-    Builds a complete graph for TSP from the road network, where edge weights
-    are the shortest travel time (in seconds) between each pair of stops.
+    """Create the all-pairs travel-time graph used by the TSP.
+
+    Args:
+        road_graph: Directed road graph with ``weight`` attributes (seconds).
+        stops_snapped: Mapping stop_id ➜ snapped-node coordinate.
+        bus_stops: Mapping stop_id ➜ original (x, y) coordinate used for
+            plotting.
+
+    Returns:
+        A complete directed graph where edge weight = shortest travel time
+        (seconds) between the two stops via *road_graph*.
     """
     G = nx.DiGraph()
     # Add nodes with original positions (for plotting).
@@ -354,8 +438,16 @@ def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops)
 
 
 def compute_tsp_route_greedy(G):
-    """
-    Approximate TSP using NetworkX's greedy approach.
+    """Solve the TSP approximately using NetworkX’s greedy heuristic.
+
+    Args:
+        G: Complete graph produced by
+            :pyfunc:`build_complete_graph_from_road_network`.
+
+    Returns:
+        A 2-tuple ``(tsp_route, total_travel_time)`` where
+        *tsp_route* is a cyclic list of stop IDs and *total_travel_time*
+        is in seconds.
     """
     tsp_route = nx.approximation.traveling_salesman_problem(
         G, weight="weight", cycle=True
@@ -369,9 +461,17 @@ def compute_tsp_route_greedy(G):
 
 
 def compute_tsp_route_ilp(G):
-    """
-    Optimal TSP using a PuLP ILP (Miller-Tucker-Zemlin) approach.
-    Good for smaller stop counts (~15 or fewer).
+    """Solve the TSP exactly via a Miller–Tucker–Zemlin ILP.
+
+    Args:
+        G: Complete graph as above.
+
+    Returns:
+        ``(tsp_route, total_travel_time)`` if optimal; otherwise ``(None, None)``.
+
+    Notes:
+        Computationally feasible for ~15 stops or fewer; use the greedy
+        heuristic for larger instances.
     """
     nodes = list(G.nodes())
     if "start" in nodes:
@@ -459,10 +559,16 @@ def compute_tsp_route_ilp(G):
 
 
 def generate_directions(tsp_route, stops_snapped, road_graph):
-    """
-    Generates step-by-step driving directions for the entire TSP route,
-    referencing actual street names from the road network edges.
-    Distances are in feet, since EPSG:2283 is feet-based.
+    """Create human-readable turn-by-turn instructions.
+
+    Args:
+        tsp_route: Ordered list of stop IDs (first == last).
+        stops_snapped: Mapping stop_id ➜ snapped node coordinate.
+        road_graph: Underlying directed road graph.
+
+    Returns:
+        A list of dicts with keys ``"Step"`` and ``"Instruction"`` suitable
+        for conversion to CSV/Excel.
     """
     directions_steps = []
     step_num = 1
@@ -566,8 +672,11 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
 
 
 def export_directions_excel(directions_steps, output_dir):
-    """
-    Exports the driving directions as an Excel (.xlsx) file.
+    """Write the directions to ``directions.xlsx``.
+
+    Args:
+        directions_steps: Output from :pyfunc:`generate_directions`.
+        output_dir: Directory in which to place the file.
     """
     df = pd.DataFrame(directions_steps)
     output_file = os.path.join(output_dir, "directions.xlsx")
@@ -578,9 +687,14 @@ def export_directions_excel(directions_steps, output_dir):
 def export_tsp_route_shapefile(
     tsp_route, stops_snapped, road_graph, roads_crs, output_dir
 ):
-    """
-    Creates a shapefile of the entire TSP route by gathering
-    every road-segment geometry used by the route.
+    """Export the assembled route geometry to ``tsp_route.shp``.
+
+    Args:
+        tsp_route: Cyclic list of stop IDs.
+        stops_snapped: Mapping stop_id ➜ snapped node coordinate.
+        road_graph: Road graph with geometry on each edge.
+        roads_crs: CRS string (e.g. ``"EPSG:2283"``) to assign to the output.
+        output_dir: Destination folder.
     """
     route_features = []
 
@@ -637,8 +751,14 @@ def export_tsp_route_shapefile(
 
 
 def plot_tsp_route(G, tsp_route):
-    """
-    Plots the complete graph of stops (in Node space) and highlights the TSP route.
+    """Render a quick NetworkX plot of the stop-to-stop graph.
+
+    The figure is intended as a visual sanity check, not publication
+    graphics.
+
+    Args:
+        G: Complete graph whose nodes correspond to stops.
+        tsp_route: Cyclic list of stop IDs defining the TSP tour.
     """
     pos = nx.get_node_attributes(G, "pos")
     plt.figure(figsize=(8, 6))
@@ -664,23 +784,10 @@ def plot_tsp_route(G, tsp_route):
 
 
 def main():
-    """
-    Executes the entire workflow for exporting GTFS stops, building a directed road network,
-    snapping the stops to this network, solving the Traveling Salesman Problem (TSP) on
-    selected bus stops, and then exporting directions and the route as a shapefile.
+    """Run the full GTFS-to-TSP workflow.
 
-    Steps performed by this function:
-        1. Reads GTFS stops from a CSV file in EPSG:4326 and reprojects them to EPSG:2283.
-        2. Filters for the selected stop IDs from the GTFS data.
-        3. Converts a user-provided Google Maps DMS string into decimal degrees, then reprojects it.
-        4. Builds a directed road network from a shapefile (EPSG:2283).
-        5. Snaps each selected stop (and the start) to the nearest node in the road network.
-        6. Constructs a complete graph of travel times (in seconds) between each stop.
-        7. Solves the TSP via either an ILP or a greedy approximation.
-        8. Rotates the resulting TSP cycle so it starts/ends at the user-specified 'start' node.
-        9. Generates step-by-step directions and exports them to Excel.
-       10. Outputs the final route as a shapefile.
-       11. (Optional) Plots the TSP route using a simple NetworkX plot of the “bus stops” graph.
+    Coordinates execution of the helper functions defined in this module.
+    Creates all side-effect outputs (shapefiles, Excel, plot).
     """
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
