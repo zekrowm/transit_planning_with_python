@@ -1,13 +1,16 @@
-"""
-Analyzes and compares multiple GTFS datasets to identify changes in transit service,
-plus route-level interlining and service-metric deltas.
+"""Analyze and compare multiple GTFS datasets to detect service changes.
 
-Usage:
-    - Configure GTFS dataset paths in `MULTIPLE_GTFS_CONFIGS`.
-    - Run as a standalone script or from a notebook environment.
+The script loads successive GTFS snapshots, calculates route-level service
+metrics (span, trip count, median headway), detects stop additions/removals/
+relocations, and identifies interlining changes.  Results are written to three
+Excel workbooks:
 
-Outputs:
-    - Excel workbooks highlighting route and stop-level service changes.
+* ``stop_change_report.xlsx`` – stop additions, removals, relocations, and
+  route–stop service changes.
+* ``route_metrics_by_signup.xlsx`` – per-signup route metrics plus delta-only
+  sheets.
+* ``service_level_changes.xlsx`` – route-level span/trip/headway deltas,
+  created routes, and deleted routes.
 """
 
 from __future__ import annotations
@@ -93,7 +96,7 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def _parse_gtfs_time(t: str | float | int) -> pd.Timedelta:
-    """Parse GTFS HH:MM:SS (may exceed 24 h) into pandas.Timedelta."""
+    """Return *t* converted from GTFS HH:MM:SS to ``pd.Timedelta``."""
     try:
         hh, mm, ss = map(int, str(t).split(":"))
         return pd.Timedelta(seconds=hh * 3600 + mm * 60 + ss)
@@ -141,7 +144,26 @@ def _check_files(base: str, files: list[str]) -> None:
 
 
 def load_gtfs_basic(path: str):
-    """Load minimal stop-level data for the stop-diff workbook."""
+    """Load the minimal stop-level tables needed for stop comparison.
+
+    Args:
+        path: Absolute or relative filesystem path to a single GTFS bundle
+            containing at least ``stops.txt``, ``routes.txt``, ``trips.txt``,
+            and ``stop_times.txt``.
+
+    Returns:
+        A 2-tuple ``(stops, stop_to_routes)`` where:
+
+        * **stops** – ``pd.DataFrame`` with columns
+          ``stop_id``, ``stop_code``, ``stop_name``, ``stop_lat``,
+          ``stop_lon`` (one row per stop).
+        * **stop_to_routes** – mapping ``stop_id -> {route_short_name, …}``
+          representing all routes that call at each stop after applying
+          ``ROUTE_FILTER_OUT``.
+
+    Raises:
+        FileNotFoundError: If any required GTFS text file is absent.
+    """
     _check_files(path, FILES_NEEDED_STOP)
     stops = pd.read_csv(
         os.path.join(path, "stops.txt"),
@@ -183,10 +205,32 @@ def load_gtfs_basic(path: str):
 
 
 def load_route_metrics(path: str, schedule_type: str = "Weekday") -> pd.DataFrame:
-    """
-    Load GTFS files and compute per-route metrics for a given schedule_type:
-      • first_trip_time, last_trip_time, span_minutes,
-      • trips_count, median_headway_min
+    """Compute weekday / Saturday / Sunday service metrics for each route.
+
+    Metrics per ``route_short_name`` include first trip time, last trip time,
+    span (minutes), total trips, and median headway across user-defined
+    ``TIME_BLOCKS``.
+
+    Args:
+        path: Filesystem path to the GTFS dataset.
+        schedule_type: One key from ``SCHEDULE_TYPES`` – typically
+            ``"Weekday"``, ``"Saturday"``, or ``"Sunday"``.
+
+    Returns:
+        DataFrame sorted by ``route_short_name`` with columns::
+
+            [
+                "route_short_name",
+                "first_trip_time",     # fmt "HH:MM"
+                "last_trip_time",      # fmt "HH:MM"
+                "span_minutes",
+                "trips_count",
+                "median_headway_min",  # NaN if <2 trips in every block
+            ]
+
+    Raises:
+        FileNotFoundError: If any required GTFS text file is missing.
+        KeyError: If *schedule_type* is not present in ``SCHEDULE_TYPES``.
     """
     _check_files(path, FILES_NEEDED_METR)
 
@@ -273,7 +317,33 @@ def compare_signups(
     routes_new: dict[str, set[str]],
     tol: float = COORD_TOLERANCE_DEG,
 ) -> dict[str, pd.DataFrame]:
-    """Return sheets for added, removed, moved, and route-service changes."""
+    """Detect stop-level changes between two GTFS snapshots.
+
+    The comparison classifies each stop as added, removed, moved, or having
+    route-service changes, based on both geometry and route lists.
+
+    Args:
+        name_old: Human-readable label for the earlier signup (e.g. ``"Jan_2025"``).
+        name_new: Label for the later signup (e.g. ``"Jun_2025"``).
+        df_old: ``stops`` frame returned by :func:`load_gtfs_basic` for *name_old*.
+        df_new: Analogous ``stops`` frame for *name_new*.
+        routes_old: ``stop_id -> set(routes)`` map for *name_old*.
+        routes_new: Map for *name_new*.
+        tol: Coordinate tolerance in *degrees* for declaring a stop “moved”.
+
+    Returns:
+        Dictionary ``{sheet_name: DataFrame}`` suitable for immediate writing
+        with :class:`pandas.ExcelWriter`.  Keys follow the pattern::
+
+            Added_<old>→<new>
+            Removed_<old>→<new>
+            Moved_<old>→<new>
+            RouteSvcChange_<old>→<new>
+
+    Notes:
+        *Moved* detection uses absolute Δlat/Δlon thresholds rather than the
+        great-circle distance; tighten *tol* if your network is dense.
+    """
     idx_old, idx_new = df_old.set_index("stop_id"), df_new.set_index("stop_id")
     old_ids, new_ids = set(idx_old.index), set(idx_new.index)
 
@@ -376,7 +446,22 @@ def build_service_level_changes(
     prev_label: str,
     curr_label: str,
 ) -> dict[str, pd.DataFrame]:
-    """Sheets for service-level deltas + route add / delete lists."""
+    """Produce route-level delta tables between two signups.
+
+    Args:
+        prev_df: Metrics DataFrame from :func:`load_route_metrics`
+            for the earlier signup.
+        curr_df: Metrics DataFrame for the later signup.
+        prev_label: Label for *prev_df* (used in sheet names).
+        curr_label: Label for *curr_df*.
+
+    Returns:
+        Dictionary with three DataFrames:
+
+        * ``"ServiceChange_<prev>→<curr>"`` – span/trip/headway deltas.
+        * ``"Routes_Added_<prev>→<curr>"`` – routes present only in *curr_df*.
+        * ``"Routes_Deleted_<prev>→<curr>"`` – routes present only in *prev_df*.
+    """
     prev_i = prev_df.set_index("route_short_name")
     curr_i = curr_df.set_index("route_short_name")
 
@@ -502,6 +587,24 @@ def compare_signups_detailed(
 
 
 def main() -> None:
+    """Entry-point: run the full multi-signup GTFS comparison pipeline.
+
+    The function:
+
+    1. Loads each GTFS snapshot in ``MULTIPLE_GTFS_CONFIGS``.
+    2. Computes stop-level and route-level comparisons for every consecutive
+       pair of snapshots.
+    3. Writes three Excel workbooks plus a detailed interlining comparison.
+    4. Prints progress and completion messages to stdout.
+
+    Side Effects:
+        Creates/overwrites Excel files in ``OUTPUT_DIRECTORY`` and prints to
+        the console.
+
+    Notes:
+        The script relies on ``openpyxl`` for Excel output; install it if
+        it is not already available in your environment.
+    """
     os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
 
     # ─── LOAD GTFS & BUILD STOP-LEVEL DATA ─────────────────────────────────────────
