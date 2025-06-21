@@ -1,16 +1,13 @@
-"""
-Processes and summarizes NOAA daily weather data from a CSV file.
+"""Process and summarize NOAA daily weather data.
 
-Cleans column names, extracts date features, flags poor weather days, and
-generates daily and monthly summaries for analysis or modeling.
+The script
 
-Inputs:
-    - NOAA weather CSV file (FILE_PATH)
-
-Outputs:
-    - processed_weather_data.csv: Cleaned and feature-enhanced weather data
-    - daily_summary.csv: Aggregated daily metrics
-    - monthly_poor_weather_summary.csv: Monthly counts of poor weather days by day type
+1. loads a raw NOAA CSV file,
+2. cleans and renames columns,
+3. enriches the data with calendar features,
+4. flags “poor-weather” days given configurable thresholds,
+5. produces daily and monthly summary tables, and
+6. saves all outputs to disk.
 """
 
 import os
@@ -77,8 +74,7 @@ POOR_WEATHER_CRITERIA = {
 
 
 def load_weather_data(file_path: str) -> pd.DataFrame:
-    """
-    Load NOAA weather data from a CSV file.
+    """Load NOAA weather data from a CSV file.
 
     Args:
         file_path (str): The path to the CSV file.
@@ -102,8 +98,7 @@ def load_weather_data(file_path: str) -> pd.DataFrame:
 
 
 def rename_columns(weather_df: pd.DataFrame, column_mapping: dict) -> pd.DataFrame:
-    """
-    Rename columns to more descriptive and PEP-8 compliant names.
+    """Rename columns to more descriptive and PEP-8 compliant names.
 
     Args:
         weather_df (pd.DataFrame): The original weather DataFrame.
@@ -118,8 +113,7 @@ def rename_columns(weather_df: pd.DataFrame, column_mapping: dict) -> pd.DataFra
 
 
 def process_date_columns(weather_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Convert 'date' column to datetime and extract year, month, day, and day of week.
+    """Convert 'date' column to datetime and extract year, month, day, and day of week.
 
     Args:
         weather_df (pd.DataFrame): The weather DataFrame with a 'date' column.
@@ -150,8 +144,7 @@ def process_date_columns(weather_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def classify_poor_weather(weather_df: pd.DataFrame, criteria: dict) -> pd.DataFrame:
-    """
-    Classify each day as a poor weather day based on defined criteria.
+    """Classify each day as a poor weather day based on defined criteria.
 
     Args:
         weather_df (pd.DataFrame): The processed weather DataFrame.
@@ -172,8 +165,7 @@ def classify_poor_weather(weather_df: pd.DataFrame, criteria: dict) -> pd.DataFr
 
 
 def create_daily_summary(weather_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Create a daily summary of the weather data.
+    """Create a daily summary of the weather data.
 
     Args:
         weather_df (pd.DataFrame): The processed weather DataFrame.
@@ -211,8 +203,7 @@ def create_daily_summary(weather_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Create a monthly summary of poor weather days categorized by day type.
+    """Create a monthly summary of poor weather days categorized by day type.
 
     Args:
         weather_df (pd.DataFrame): DataFrame with 'poor_weather' and 'day_of_week' columns.
@@ -268,8 +259,7 @@ def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFram
 
 
 def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str):
-    """
-    Save a DataFrame to a CSV file in the specified output folder.
+    """Save a DataFrame to a CSV file in the specified output folder.
 
     Args:
         weather_df (pd.DataFrame): The DataFrame to save.
@@ -290,9 +280,7 @@ def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str):
 # MAIN
 # =============================================================================
 def main():
-    """
-    Main function to load, process, summarize, and save NOAA weather data.
-    """
+    """Main function to load, process, summarize, and save NOAA weather data."""
     # Load the data
     weather_data = load_weather_data(FILE_PATH)
 
