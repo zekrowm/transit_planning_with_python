@@ -193,10 +193,6 @@ def read_excel_data(config: dict) -> dict:
     Returns:
         A mapping of *period label* → cleaned :class:`pandas.DataFrame`.
     """
-
-    # ------------------------------------------------------------------
-    # 1. robust numeric converter
-    # ------------------------------------------------------------------
     def safe_float(val):
         """Return None for blank cells, whitespace, or Excel NaNs.
 
@@ -227,9 +223,6 @@ def read_excel_data(config: dict) -> dict:
     sp_filter = config["SERVICE_PERIODS"]
     data_dict = {}
 
-    # ------------------------------------------------------------------
-    # 2. loop through configured periods
-    # ------------------------------------------------------------------
     for period in config["ordered_periods"]:
         info = config["periods"][period]
         file_path = info["file_path"]
