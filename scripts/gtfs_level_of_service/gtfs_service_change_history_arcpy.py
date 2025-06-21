@@ -512,9 +512,7 @@ def build_service_level_changes(
 def _build_interlining_map(
     trips_df: pd.DataFrame, routes_df: pd.DataFrame
 ) -> dict[str, str]:
-    """
-    Returns dict: route_short_name -> comma-joined list of other routes sharing the same block_id.
-    """
+    """Returns dict: route_short_name -> comma-joined list of other routes sharing the same block_id."""
     merged = trips_df.merge(
         routes_df[["route_id", "route_short_name"]], on="route_id", how="left"
     )
@@ -538,8 +536,7 @@ def compare_signups_detailed(
     inter_prev: dict[str, str],
     inter_curr: dict[str, str],
 ) -> pd.DataFrame:
-    """
-    Build a DataFrame comparing each route between two signups with flags:
+    """Build a DataFrame comparing each route between two signups with flags:
       • created, eliminated,
       • interlining change,
       • span / trips / headway change,
