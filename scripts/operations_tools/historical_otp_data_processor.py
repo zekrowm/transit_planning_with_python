@@ -561,7 +561,7 @@ def calculate_variability(
 
 def sanitize_filename(text: str) -> str:
     """Return *text* made safe for use as a filename.
-    
+
     Replaces slashes and spaces with underscores.
 
     Args:
