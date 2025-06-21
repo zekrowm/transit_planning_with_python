@@ -5,7 +5,7 @@ time-points *and* identical segment run-times. For each unique
 (time-point pattern + segment runtimes) combination it produces a single
 row with:
 
-- **FrTime / ToTime** – earliest and latest first-stop departures  
+- **FrTime / ToTime** – earliest and latest first-stop departures
 - **Segment columns** – runtime (minutes) from the previous time-point
   (first cell is ``MISSING_TIME``)
 
