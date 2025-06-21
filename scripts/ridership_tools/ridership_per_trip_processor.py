@@ -401,7 +401,7 @@ def main() -> None:
                 )
             else:
                 log_file.write(
-                    "Trips with ultra-low ridership " f"(≤ {ULTRA_LOW_THRESHOLD}):\n\n"
+                    f"Trips with ultra-low ridership (≤ {ULTRA_LOW_THRESHOLD}):\n\n"
                 )
                 for _, row in low_df.iterrows():
                     trip_id = row.get("SERIAL_NUMBER", "")
