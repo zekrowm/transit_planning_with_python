@@ -173,16 +173,15 @@ def read_and_prepare_ntd_file(
 
 
 def compile_ntd_data() -> Optional[pd.DataFrame]:
-    """Iterates over a predefined list of files, applies cleansing rules,
-    writes outputs, and returns the concatenated DataFrame.
+    """Compile monthly NTD files into a single DataFrame.
 
-    Processes each file listed in `FILES_TO_PROCESS`, applies row exclusion
-    rules, concatenates the kept rows into a single DataFrame, and saves
-    the compiled data and any discarded rows to specified output paths.
+    The function iterates over the list defined in ``FILES_TO_PROCESS``,
+    applies row-exclusion rules, concatenates the retained rows, and writes
+    both the compiled dataset and any discarded rows to disk.
 
     Returns:
-        A pandas.DataFrame containing all the compiled NTD data if successful,
-        otherwise None.
+        Optional[pd.DataFrame]: The compiled NTD data if any rows were kept;
+        otherwise ``None``.
     """
     if not FILES_TO_PROCESS:
         print("ERROR: 'FILES_TO_PROCESS' list is empty.")
