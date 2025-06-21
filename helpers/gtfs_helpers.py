@@ -1,5 +1,4 @@
-"""
-Reusable utility functions for GTFS data processing scripts.
+"""Reusable utility functions for GTFS data processing scripts.
 
 Includes common GTFS data loaders, validators, and formatting helpers.
 """
@@ -15,38 +14,30 @@ import pandas as pd
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load a GTFS feed into pandas DataFrames.
 
-    Parameters:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+    Uses the ``logging`` module to report progress.
+
+    Args:
+        gtfs_folder_path: Absolute or relative path to the directory that
+            contains the GTFS text files.
+        files: Specific GTFS filenames to load (e.g. ``["stops.txt",
+            "trips.txt"]``). If *None*, every standard GTFS file listed in the
+            specification is attempted.
+        dtype: A pandas *dtype* or *dict* of column→dtype mappings passed
+            straight to :pyfunc:`pandas.read_csv`. Defaults to ``str`` for
+            fully-string-typed frames.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        A dictionary whose keys are the filenames **without** the ``.txt``
+        extension and whose values are the corresponding DataFrames.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: The feed folder does not exist or at least one required file
+            is missing.
+        ValueError: A file is empty or cannot be parsed by
+            :pyfunc:`pandas.read_csv`.
+        RuntimeError: Any other I/O error raised while reading a file.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
