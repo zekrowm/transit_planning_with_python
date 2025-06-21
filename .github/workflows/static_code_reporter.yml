@@ -65,17 +65,17 @@ jobs:
       # 6) Pylint
       # ---------------------------------------------------------------------
       - name: Run Pylint
-          run: |
-            echo "Running Pylint (errors-only)…"
-            for file in $FILES; do
-              echo "::group::Pylint → $file"
-              pylint "$file" \
-                     --errors-only \
-                     --ignored-modules=arcpy \
-                     --disable=duplicate-code
-              echo "::endgroup::"
-            done
-          continue-on-error: true
+        run: |
+          echo "Running Pylint (errors-only)…"
+          for file in $FILES; do
+            echo "::group::Pylint → $file"
+            pylint "$file" \
+                   --errors-only \
+                   --ignored-modules=arcpy \
+                   --disable=duplicate-code
+            echo "::endgroup::"
+          done
+        continue-on-error: true
 
       # ---------------------------------------------------------------------
       # 7) Vulture (dead-code)
