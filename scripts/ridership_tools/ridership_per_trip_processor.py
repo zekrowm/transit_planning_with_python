@@ -327,9 +327,6 @@ def create_route_workbook(
     Side Effects:
         * Writes ``{route_name}.xlsx`` to *output_folder*.
         * Prints a confirmation to ``stdout``.
-
-    Example:
-        >>> create_route_workbook("101", df101, r"C:\\out", "Weekday", True, False, 1.0)
     """
     wb = Workbook()
     default = wb.active
