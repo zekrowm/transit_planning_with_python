@@ -24,7 +24,7 @@ Outputs
 import os
 import sys
 from datetime import datetime
-
+from typing import List
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -40,8 +40,7 @@ OUTPUT_DIR = r"\\Path\To\Your\Processed\Data\Output"
 
 # Route Filter Configuration
 # Set to a list of routes to include (e.g., ['101', '202']) or an empty list [] for all routes.
-ROUTE_FILTER = []
-# ROUTE_FILTER = ['101', '202']  # Example usage
+ROUTE_FILTER: list[str] = []          # Example usage
 
 # Threshold for Deviation in Seconds (5 minutes)
 DEVIATION_THRESHOLD_SECONDS = 5 * 60  # 300 seconds
