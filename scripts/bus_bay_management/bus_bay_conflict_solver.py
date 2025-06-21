@@ -1,19 +1,12 @@
-"""
-Assigns scheduled bus trips to stops to minimize capacity conflicts.
+"""Assign scheduled bus trips to bays within a cluster to minimize capacity conflicts.
 
-Supports Greedy and Integer Programming (PuLP) methods to resolve bus stop
-assignment conflicts within predefined clusters.
+Two solver flavours are supported:
+- Greedy – fast heuristic; usually “good enough”.
+- Integer Programming (PuLP) – slower but can eliminate more conflicts.
 
-Typical Usage:
-    Python notebook or command line
-
-Inputs:
-    - Configuration constants (cluster definitions, solver flags, rules)
-    - Excel files: <INPUT_DIR>/<Cluster>_Conflicts.xlsx
-
-Outputs:
-    - Excel files: <OUTPUT_DIR>/<Cluster>_BeforeAfter.xlsx
-                   <OUTPUT_DIR>/<Cluster>_Summary.xlsx
+Typical usage:
+- ArcPro notebook
+- Jupyter notebook
 """
 
 import os
@@ -70,11 +63,14 @@ LAYOVER_STATUSES = {"LAYOVER", "DWELL", "LONG BREAK", "LOADING"}
 
 
 def build_stop_capacities(cluster_info):
-    """
-    Build a dictionary mapping stop IDs to their maximum capacity (number of bays).
+    """Map stop IDs to their integer bay capacities.
 
-    This function reads the lists of single-, double-, triple-bay stops, and overflow bays
-    from the given `cluster_info` dictionary, then assigns capacity values accordingly.
+    Args:
+        cluster_info: Dictionary with stop ID lists for keys 'single_bay_stops',
+            'double_bay_stops', 'triple_bay_stops', and 'overflow_bays'.
+
+    Returns:
+        A dictionary mapping string stop IDs to their integer capacity values.
     """
     stop_caps = {}
     for stop_id in cluster_info.get("single_bay_stops", []):
@@ -89,9 +85,14 @@ def build_stop_capacities(cluster_info):
 
 
 def recompute_conflict_types(df_in, cluster_info):
-    """
-    Labels each row's conflict as NONE / STOP / CLUSTER / BOTH
-    based on capacity usage in that minute.
+    """Classify each row with 'STOP', 'CLUSTER', 'BOTH', or 'NONE' based on capacity limits.
+
+    Args:
+        df_in: Input DataFrame with 'Timestamp', 'Block', 'AssignedStop', and 'Status'.
+        cluster_info: Dictionary of stop bay definitions for the cluster.
+
+    Returns:
+        A list of conflict classifications corresponding to each row in the input.
     """
     df = df_in.copy()
     stop_caps = build_stop_capacities(cluster_info)
@@ -143,8 +144,14 @@ def recompute_conflict_types(df_in, cluster_info):
 
 
 def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
-    """
-    Summarize each route+direction's total 'conflict minutes'.
+    """Count conflict-labeled minutes for each (Route, Direction) pair.
+
+    Args:
+        df: DataFrame containing a conflict label column.
+        conflict_col: Name of the column indicating conflict classification.
+
+    Returns:
+        A summary DataFrame with total conflict minutes by route and direction.
     """
     tmp = df.copy()
     tmp["HasConflict"] = tmp[conflict_col].isin(["STOP", "CLUSTER", "BOTH"])
@@ -159,13 +166,14 @@ def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
 
 
 def solve_bus_assignment_greedy(df, cluster_info):
-    """
-    Assign bus trips to stops using a simple greedy approach.
+    """Assign buses to stops using a greedy first-fit strategy.
 
-    This solver iterates through each bus trip in chronological order and picks the first
-    available stop that has not exceeded its capacity for that time. The approach quickly
-    yields a feasible solution but may not minimize total conflicts as well as an integer
-    programming solver.
+    Args:
+        df: Input DataFrame of stop-time presence events.
+        cluster_info: Dictionary of stop bay capacity definitions.
+
+    Returns:
+        A copy of the input DataFrame with the 'AssignedStop' column added.
     """
     stop_caps = build_stop_capacities(cluster_info)
     all_stops = list(stop_caps.keys())
@@ -233,16 +241,17 @@ def solve_bus_assignment_greedy(df, cluster_info):
 
 
 def solve_bus_assignment_pulp(df, cluster_info):
-    """
-    Assign bus trips to stops using an Integer Programming (IP) formulation with PuLP.
+    """Assign buses to stops using an integer programming formulation via PuLP.
 
-    This solver builds and solves a linear/integer model to minimize the total over-capacity
-    across all stops and timestamps. It enforces:
-        - Capacity constraints per stop per minute.
-        - Each bus must occupy exactly one stop if present.
-        - A bus can use at most 3 stops in total.
-        - Departure status must occur at the primary stop if present.
-    PuLP is required to use this solver.
+    Args:
+        df: Input DataFrame with timestamped bus presence records.
+        cluster_info: Dictionary defining stop bay capacities.
+
+    Returns:
+        A DataFrame with an 'AssignedStop' column based on the optimized assignment.
+
+    Raises:
+        ImportError: If PuLP is not available in the environment.
     """
     if not PULP_AVAILABLE:
         raise ImportError("PuLP is not available.")
@@ -359,14 +368,16 @@ def solve_bus_assignment_pulp(df, cluster_info):
 
 
 def main():
-    """
-    Main entry point for the bus assignment script.
+    """Execute the full assignment and output pipeline for each defined cluster.
 
-    - Reads input data for each defined cluster from an Excel file.
-    - Chooses the solver method based on configuration flags (`USE_PULP`, `USE_GREEDY`).
-    - Solves bus-stop assignments and computes conflicts both before and after assignment.
-    - Outputs two Excel files per cluster: one with row-level details (including bolded
-      conflict rows) and one with a summary of conflicts/assignments by route and direction.
+    This function:
+        - Loads cluster-level presence data from Excel.
+        - Applies either a greedy or IP-based assignment algorithm.
+        - Recomputes conflict classifications.
+        - Outputs annotated Excel files with assignments and summaries.
+
+    Raises:
+        FileNotFoundError: If required input files are missing.
     """
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
