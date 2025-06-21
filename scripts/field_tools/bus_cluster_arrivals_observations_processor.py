@@ -495,8 +495,7 @@ def main() -> None:
     # explode to LONG, drop placeholder events, compute diffs
     events_long = longify_events(wide_all)
     print(
-        "✔ Long-format events shape (after dropping placeholders): "
-        f"{events_long.shape}"
+        f"✔ Long-format events shape (after dropping placeholders): {events_long.shape}"
     )
 
     # split for diagnostics
