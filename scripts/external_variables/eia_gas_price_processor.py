@@ -1,15 +1,17 @@
-"""
-Extracts and filters U.S. EIA weekly gasoline prices from Excel.
+"""Extract and filter EIA weekly gasoline prices.
 
-Selects a specific gasoline price series and filters it by a date range.
-Intended for use with EIA’s published `.xls` data files.
+This module loads U.S. Energy Information Administration (EIA) weekly gasoline
+price data from an Excel workbook, selects a specific price series, filters it
+to a configurable date range, and writes the result to a new Excel file.
 
-Inputs:
-    - Excel file from EIA with MultiIndex columns (INPUT_FILE)
-    - Configurable sheet name, header rows, column keys, and date range
+Inputs
+- A published EIA workbook (`.xls` or `.xlsx`) whose columns are a
+  two-level MultiIndex.
+- Configurable sheet name, header rows, price-series keys, and
+  inclusive date range.
 
-Outputs:
-    - Excel file with filtered price data (OUTPUT_FILE)
+Outputs
+- An Excel workbook containing only the requested price series and dates.
 """
 
 import pandas as pd
@@ -39,10 +41,8 @@ DATE_FILTER_END = "2024-12-31"
 # FUNCTIONS
 # =============================================================================
 
-
 def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFrame:
-    """
-    Load the Excel file using the specified sheet and header rows.
+    """Load the Excel file using the specified sheet and header rows.
 
     Args:
         input_file (str): Path to the input Excel file.
@@ -66,10 +66,8 @@ def filter_data(
     start_date: str,
     end_date: str,
 ) -> pd.DataFrame:
-    """
-    Filter the DataFrame to include only the desired columns and rows within the
-    date range.
-
+    """Subset by columns and inclusive date span.
+    
     Args:
         input_dataframe (pd.DataFrame): The original DataFrame.
         date_col (tuple): MultiIndex tuple for the date column.
@@ -103,8 +101,7 @@ def filter_data(
 
 
 def export_data(dataframe_to_export: pd.DataFrame, output_file: str) -> None:
-    """
-    Export the DataFrame to an Excel file.
+    """Export the DataFrame to an Excel file.
 
     Args:
         dataframe_to_export (pd.DataFrame): The DataFrame to export.
@@ -113,14 +110,12 @@ def export_data(dataframe_to_export: pd.DataFrame, output_file: str) -> None:
     dataframe_to_export.to_excel(output_file, index=False)
     print(f"Extracted data has been written to {output_file}")
 
-
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main() -> None:
-    """
-    Main function to load, filter, and export the data.
-    """
+    """Orchestrate the ETL process."""
     # Load data from Excel.
     raw_dataframe = load_data(INPUT_FILE, SHEET_NAME, HEADER_ROWS)
 
