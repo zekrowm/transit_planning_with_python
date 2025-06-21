@@ -1,14 +1,18 @@
-"""
-Flags bus trips that exceed load factor thresholds based on route-specific limits.
+"""Flag bus trips that exceed route-specific load-factor thresholds.
 
-Reads raw trip-level ridership data, calculates load factors, applies optional
-route filters, classifies trips by service period, and flags load factor violations.
-Outputs include processed Excel/CSV files, per-route workbooks, and a violation log.
+This module reads raw trip-level ridership data, calculates load factors,
+applies optional route filters, classifies trips by service period, and flags
+load-factor violations.  It then exports:
 
-Typical use:
-    - Operational load monitoring
-    - Compliance tracking against load factor standards
-    - Route-level reporting and export automation
+- A combined CSV (machine-readable).
+- A combined single-sheet Excel file (quick inspection).
+- Per-route Excel workbooks (one sheet per direction).
+- A plain-text violation log (optional).
+
+Typical use cases
+- Operational load monitoring.
+- Compliance tracking against agency load-factor standards.
+- Automated route-level reporting.
 """
 
 import os
@@ -56,11 +60,27 @@ VIOLATION_LOG_FILE = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
 # FUNCTIONS
 # =============================================================================
 
-
 def load_data(input_file: str) -> pd.DataFrame:
-    """
-    Loads bus data from an Excel file and returns a DataFrame
-    containing selected columns.
+    """Load required columns from an Excel file.
+
+    Parameters
+    ----------
+    input_file :
+        Absolute or relative path to ``STATISTICS_BY_ROUTE_AND_TRIP.XLSX`` or
+        a similar ridership file.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame containing *only* the columns needed for downstream
+        processing.
+
+    Raises
+    ------
+    FileNotFoundError
+        If *input_file* does not exist.
+    ValueError
+        If the expected columns are missing.
     """
     data_frame = pd.read_excel(input_file)
     selected_columns = [
@@ -77,7 +97,33 @@ def load_data(input_file: str) -> pd.DataFrame:
 
 
 def assign_service_period(ts):
-    """ts is assumed to be a datetime or time object."""
+    """Map a trip’s start time to a service-period label.
+
+    The mapping is based on local clock hour:
+
+    ============  =========
+    Hour range    Label
+    ------------  ---------
+     04:00–05:59  AM Early
+     06:00–08:59  AM Peak
+     09:00–14:59  Midday
+     15:00–17:59  PM Peak
+     18:00–20:59  PM Late
+     21:00–23:59  PM Nite
+     Else         Other
+    ============  =========
+
+    Parameters
+    ----------
+    ts :
+        A pandas/NumPy time-like object (timestamp, datetime.time, or
+        ``NaT``/``None``).
+
+    Returns
+    -------
+    str
+        One of the seven period strings shown above.
+    """
     hour = ts.hour
     if 4 <= hour < 6:
         return "AM Early"
@@ -96,11 +142,18 @@ def assign_service_period(ts):
 
 
 def get_route_load_limit(route_name: str) -> float:
-    """
-    Get the appropriate load factor limit based on the route.
+    """Return the applicable load-factor limit for *route_name*.
 
-    If the route is in LOWER_LIMIT_ROUTES, returns the lower limit;
-    otherwise, returns the higher limit.
+    Parameters
+    ----------
+    route_name :
+        The short route designator as it appears in the source file.
+
+    Returns
+    -------
+    float
+        ``LOWER_LOAD_FACTOR_LIMIT`` if the route is in
+        :data:`LOWER_LIMIT_ROUTES`, else ``HIGHER_LOAD_FACTOR_LIMIT``.
     """
     if route_name in LOWER_LIMIT_ROUTES:
         return LOWER_LOAD_FACTOR_LIMIT
@@ -108,15 +161,35 @@ def get_route_load_limit(route_name: str) -> float:
 
 
 def check_load_factor_violation(row: pd.Series) -> str:
-    """Determine if the row exceeds the route's load factor limit."""
+    """Flag a single row as a load-factor violation.
+
+    Parameters
+    ----------
+    row :
+        A DataFrame row that already contains ``LOAD_FACTOR`` and
+        ``ROUTE_NAME``.
+
+    Returns
+    -------
+    str
+        ``"TRUE"`` if the row exceeds its route limit, otherwise ``"FALSE"``.
+    """
     limit = get_route_load_limit(row["ROUTE_NAME"])
     return "TRUE" if row["LOAD_FACTOR"] > limit else "FALSE"
 
 
 def determine_limit_type(route_name: str) -> str:
-    """
-    Return 'HIGH' if the route uses the higher limit,
-    or 'LOW' if the route uses the lower limit.
+    """Label the limit type used by *route_name*.
+
+    Parameters
+    ----------
+    route_name :
+        The short route designator.
+
+    Returns
+    -------
+    str
+        ``"LOW"`` if the route uses the lower limit, else ``"HIGH"``.
     """
     if route_name in LOWER_LIMIT_ROUTES:
         return "LOW"
@@ -130,10 +203,28 @@ def process_data(
     filter_out_routes: list,
     decimals: int,
 ) -> pd.DataFrame:
-    """
-    Processes bus data to filter routes, calculate load factors,
-    determine service periods, identify load factor violations,
-    and categorize route limit types. Returns the processed DataFrame.
+    """Transform raw ridership data into an analysis-ready DataFrame.
+
+    Steps performed
+    ---------------
+    1. Apply *filter_in_routes* and *filter_out_routes*.
+    2. Add ``SERVICE_PERIOD``.
+    3. Compute and round ``LOAD_FACTOR``.
+    4. Add ``LOAD_FACTOR_VIOLATION`` and ``ROUTE_LIMIT_TYPE``.
+    5. Sort rows by descending ``LOAD_FACTOR``.
+
+    Parameters
+    ----------
+    data_frame : Raw trip-level ridership DataFrame.
+    bus_capacity : Seated + crush load used as the divisor for load-factor calculation.
+    filter_in_routes : If truthy, keep *only* routes in this list.
+    filter_out_routes : If truthy, drop routes in this list.
+    decimals : Number of decimal places to retain for ``LOAD_FACTOR``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A fully processed and neatly sorted DataFrame.
     """
     # 1) Apply filters
     if filter_in_routes:
@@ -165,10 +256,14 @@ def process_data(
 
 
 def create_route_workbooks(data_frame: pd.DataFrame) -> None:
-    """
-    For each unique route in the processed data, create an Excel workbook
-    named '{route_name}.xlsx' in the same folder as OUTPUT_FILE. Each workbook
-    contains one sheet per direction, with trips sorted by TRIP_START_TIME.
+    """Generate one Excel workbook per route, with sheets per direction.
+
+    Workbooks are written to the directory containing :pydata:`OUTPUT_FILE`.
+
+    Parameters
+    ----------
+    data_frame :
+        The processed DataFrame returned by :func:`process_data`.
     """
     # Determine the directory in which to save per-route files
     output_dir = os.path.dirname(OUTPUT_FILE) or "."
@@ -230,15 +325,31 @@ def create_route_workbooks(data_frame: pd.DataFrame) -> None:
 
 
 def export_to_csv(data_frame: pd.DataFrame, csv_file_path: str) -> None:
-    """
-    Export the entire processed DataFrame to a CSV file.
+    """Write *data_frame* to disk as a CSV.
+
+    Parameters
+    ----------
+    data_frame :
+        The DataFrame to export.
+    csv_file_path :
+        Destination path for the CSV file.  Any existing file is overwritten.
     """
     data_frame.to_csv(csv_file_path, index=False)
     print(f"Processed file saved to CSV: {csv_file_path}")
 
 
 def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
-    """Export the DataFrame to an Excel file with adjusted column widths."""
+    """Export *data_frame* to a single-sheet Excel workbook.
+
+    Column widths are auto-sized for readability.
+
+    Parameters
+    ----------
+    data_frame :
+        The DataFrame to export.
+    output_file :
+        Destination ``.xlsx`` path.
+    """
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         data_frame.to_excel(writer, index=False, sheet_name="Sheet1")
         worksheet = writer.sheets["Sheet1"]
@@ -253,7 +364,13 @@ def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
 
 
 def print_high_load_trips(data_frame: pd.DataFrame) -> None:
-    """Print trips where 'MAX_LOAD' is over 30."""
+    """Print trips whose ``MAX_LOAD`` exceeds an absolute threshold.
+
+    Parameters
+    ----------
+    data_frame :
+        The processed ridership DataFrame.
+    """
     high_load_trips = data_frame[data_frame["MAX_LOAD"] > 30]
     if not high_load_trips.empty:
         print("Trips with MAX_LOAD over 30:")
@@ -261,10 +378,14 @@ def print_high_load_trips(data_frame: pd.DataFrame) -> None:
 
 
 def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
-    """
-    Write a plain‐text log of all rows for which LOAD_FACTOR_VIOLATION == "TRUE".
-    Each line includes: ROUTE_NAME, DIRECTION_NAME, TRIP_START_TIME, MAX_LOAD,
-    LOAD_FACTOR, SERVICE_PERIOD, and ROUTE_LIMIT_TYPE.
+    """Write a plain-text log of trips exceeding their load-factor limit.
+
+    Parameters
+    ----------
+    data_frame :
+        The processed ridership DataFrame.
+    log_file_path :
+        Full path to the ``.txt`` file to create or overwrite.
     """
     # Filter rows where load‐factor is violated
     violations_df = data_frame[data_frame["LOAD_FACTOR_VIOLATION"] == "TRUE"]
@@ -312,7 +433,7 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
 
 
 def main():
-    """Main routine to load, process, and export bus load data in three formats."""
+    """Run the full ETL pipeline and create all exports."""
     # Load data
     data_frame = load_data(INPUT_FILE)
 
