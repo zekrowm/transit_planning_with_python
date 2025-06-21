@@ -1,18 +1,19 @@
-"""
-Extracts and exports unique GTFS stop patterns to Excel.
+"""Extract unique GTFS stop patterns and export them to Excel workbooks.
 
-Processes GTFS data to identify unique stop sequences by route, direction,
-and service_id. Exports results as Excel files with one sheet per direction,
-organized in folders by calendar days (if available).
+This script reads GTFS files and identifies unique stop sequences for each
+(route_id, direction_id, service_id) combination. These "patterns" represent
+distinct sequences of stops with distance calculations between them.
 
-Designed for use in ArcGIS Pro or Jupyter environments. Configure input and
-output paths and filters in the CONFIGURATION section before execution.
+Each route/service pair is exported to a separate Excel file, with each
+direction as a separate sheet. A “master” trip is chosen to define the
+canonical stop order for each direction.
 
-Inputs:
-    - GTFS data (stops.txt, trips.txt, stop_times.txt, routes.txt)
+Typical usage:
+    Adjust paths and options in the CONFIGURATION section, then run in
+    ArcPro or standalone Python notebook.
 
 Outputs:
-    - Excel files per route and service_id, one sheet per direction
+    - Excel files written to OUTPUT_DIR with subfolders for each service_id.
 """
 
 import logging
@@ -62,38 +63,20 @@ logging.basicConfig(
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load GTFS text files from a folder into pandas DataFrames.
 
-    Parameters:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+    Args:
+        gtfs_folder_path: Path to the GTFS directory containing .txt files.
+        files: List of GTFS files to load. Defaults to all standard GTFS files.
+        dtype: Data type for parsing CSV columns. Defaults to string.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        Dictionary of DataFrames keyed by file name (no .txt extension).
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: If folder or any required files are missing.
+        ValueError: If a file is empty or unparseable.
+        RuntimeError: For OS-level read errors.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -157,9 +140,14 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 # -----------------------------------------------------------------------------
 
 
-def is_number(value):
-    """
-    Check if a value can be converted to a float.
+def is_number(value) -> bool:
+    """Check if the input value can be converted to a float.
+
+    Args:
+        value: Any Python object.
+
+    Returns:
+        True if value can be cast to float, else False.
     """
     try:
         float(value)
@@ -169,8 +157,17 @@ def is_number(value):
 
 
 def convert_dist_to_miles(distance, input_unit):
-    """
-    Convert 'distance' to miles if configured; otherwise return as-is.
+    """Convert a distance value to miles.
+
+    Args:
+        distance: Raw distance value as string or number.
+        input_unit: The unit of input ('feet' or 'meters').
+
+    Returns:
+        Distance in miles, or original value if conversion is not possible.
+
+    Warns:
+        Logs a warning if the unit is invalid or the value can't be converted.
     """
     if not CONVERT_TO_MILES or pd.isna(distance) or distance == "":
         return distance
@@ -193,9 +190,13 @@ def convert_dist_to_miles(distance, input_unit):
 
 
 def parse_time_to_minutes(time_str):
-    """
-    Parse HH:MM:SS (GTFS style) to float minutes. Return None if invalid.
-    Allows hours >= 24 for service passing midnight.
+    """Convert HH:MM:SS to minutes past midnight.
+
+    Args:
+        time_str: A time string in HH:MM:SS format. Hours can exceed 24.
+
+    Returns:
+        Float minutes since midnight, or None if parsing fails.
     """
     if not isinstance(time_str, str):
         return None
@@ -212,8 +213,13 @@ def parse_time_to_minutes(time_str):
 
 
 def minutes_to_hhmm(minutes_val):
-    """
-    Convert float minutes to 'HH:MM' (24-hour). Return empty string if invalid.
+    """Convert minutes past midnight to HH:MM 24-hour format.
+
+    Args:
+        minutes_val: Minutes since midnight.
+
+    Returns:
+        Time string in HH:MM format, or empty string if invalid.
     """
     if minutes_val is None or pd.isna(minutes_val):
         return ""
@@ -224,9 +230,14 @@ def minutes_to_hhmm(minutes_val):
 
 
 def format_service_id_folder_name(service_id, calendar_df):
-    """
-    Build a subfolder name like 'calendar_3_mon_tue_fri' or 'calendar_10_none' if no days.
-    If calendar_df is None or doesn't contain the service_id, fallback to 'calendar_<service_id>'.
+    """Generate a subfolder name from service_id and weekday info.
+
+    Args:
+        service_id: The GTFS service_id.
+        calendar_df: DataFrame from calendar.txt.
+
+    Returns:
+        Folder name like 'calendar_10_mon_tue' or 'calendar_5_none'.
     """
     if calendar_df is None or calendar_df.empty:
         return f"calendar_{service_id}"
@@ -265,14 +276,16 @@ def format_service_id_folder_name(service_id, calendar_df):
 # (Old load_gtfs_files function is removed)
 # -----------------------------------------------------------------------------
 
-
 def filter_trips(trips_df, routes_df, cal_ids):
-    """
-    Filter trips by desired route short names and calendar service IDs.
+    """Filter trips by route_short_name and service_id.
 
-    Includes trips whose route_short_name is in FILTER_IN_ROUTE_SHORT_NAMES,
-    excludes those in FILTER_OUT_ROUTE_SHORT_NAMES, and filters by any specified
-    service IDs in cal_ids.
+    Args:
+        trips_df: GTFS trips table.
+        routes_df: GTFS routes table.
+        cal_ids: List of service_ids to include.
+
+    Returns:
+        Filtered DataFrame of trips.
     """
     merged = pd.merge(
         trips_df, routes_df[["route_id", "route_short_name"]], on="route_id", how="left"
@@ -297,11 +310,16 @@ def filter_trips(trips_df, routes_df, cal_ids):
 # BUILD PATTERNS
 # -----------------------------------------------------------------------------
 
-
 def generate_unique_patterns(trips_df, stop_times_df, stops_df):
-    """
-    Creates unique patterns keyed by (route_id, direction_id, service_id, pattern_stops).
-    Each pattern is a tuple of stops: [ (stop_id, distance_from_previous), ... ]
+    """Identify unique stop patterns grouped by route, direction, and service.
+
+    Args:
+        trips_df: GTFS trips DataFrame.
+        stop_times_df: GTFS stop_times DataFrame.
+        stops_df: GTFS stops DataFrame.
+
+    Returns:
+        Dictionary mapping unique (route, direction, service, stops) to metadata.
     """
     tmp = pd.merge(
         stop_times_df,
@@ -465,8 +483,13 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
 
 
 def assign_pattern_ids(patterns_dict):
-    """
-    For each route/service/direction group, assign a pattern_id in ascending order.
+    """Assign numeric pattern IDs to each unique stop sequence.
+
+    Args:
+        patterns_dict: Dictionary of unique patterns.
+
+    Returns:
+        List of enriched pattern records with assigned pattern_id.
     """
     group_map = defaultdict(list)
     for pattern_val in patterns_dict.values():
@@ -500,11 +523,15 @@ def assign_pattern_ids(patterns_dict):
 # EARLIEST START TIME
 # -----------------------------------------------------------------------------
 
-
 def compute_earliest_start_times(pattern_records, stop_times_df):
-    """
-    For each pattern, find the earliest arrival/departure time for the first stop
-    of each trip in that pattern.
+    """Add earliest start time (in minutes and HH:MM) to pattern records.
+
+    Args:
+        pattern_records: List of pattern records with trip_ids.
+        stop_times_df: GTFS stop_times DataFrame.
+
+    Side Effects:
+        Updates pattern_records in-place with new time fields.
     """
     # arrival_time and departure_time are strings from load_gtfs_data(dtype=str)
     if (
@@ -571,12 +598,18 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
 # -----------------------------------------------------------------------------
 
 
-def find_master_trip_stops(
-    route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df
-):
-    """
-    Among 'relevant_trips' for route+direction, find the trip with the most stops/timepoints.
-    Return a list of (stop_id, stop_name).
+def find_master_trip_stops(route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df):
+    """Identify the trip with the most timepoints as the master for a direction.
+
+    Args:
+        route_id_val: Route ID of interest.
+        direction_id_val: Direction (0 or 1).
+        relevant_trips: Subset of trips for the route and direction.
+        stop_times_df: GTFS stop_times DataFrame.
+        stops_df: GTFS stops DataFrame.
+
+    Returns:
+        List of (stop_id, stop_name) tuples for the master trip.
     """
     if relevant_trips.empty:
         return []
@@ -609,8 +642,14 @@ def find_master_trip_stops(
 
 
 def forward_match_pattern_to_master(pattern_stops, master_stops):
-    """
-    Forward-only match: place pattern distances in the matching columns (by stop_id).
+    """Align pattern segment distances to the master stop order.
+
+    Args:
+        pattern_stops: List of (stop_id, dist_str) tuples from a pattern.
+        master_stops: List of (stop_id, stop_name) from master trip.
+
+    Returns:
+        List of distances aligned to master_stops.
     """
     result = [""] * len(master_stops)
     i = 0  # master_stops index
@@ -640,8 +679,10 @@ def forward_match_pattern_to_master(pattern_stops, master_stops):
 
 
 def create_workbook():
-    """
-    Create and return a new openpyxl Workbook instance with the default sheet removed.
+    """Create a new openpyxl Workbook with the default sheet removed.
+
+    Returns:
+        An openpyxl Workbook instance.
     """
     workbook = Workbook()
     if workbook.active:
@@ -650,17 +691,22 @@ def create_workbook():
     return workbook
 
 
-def fill_worksheet_for_direction(
-    workbook,
-    sheet_title,
-    route_short_name,
-    direction_id_val,  # string "0", "1"
-    service_id_val,  # string
-    pattern_records_dir,
-    master_stops,
-):
-    """
-    Create one Excel sheet for route/direction.
+def fill_worksheet_for_direction(workbook, sheet_title, route_short_name,
+                                  direction_id_val, service_id_val,
+                                  pattern_records_dir, master_stops):
+    """Add a sheet to the workbook with patterns for one route-direction.
+
+    Args:
+        workbook: The Excel workbook object.
+        sheet_title: Name for the worksheet.
+        route_short_name: Short name of the route.
+        direction_id_val: Direction ID (0 or 1).
+        service_id_val: GTFS service_id.
+        pattern_records_dir: List of patterns for this direction.
+        master_stops: List of (stop_id, stop_name) tuples for the master trip.
+
+    Side Effects:
+        Adds a worksheet to the workbook.
     """
     try:
         worksheet = workbook.create_sheet(title=sheet_title)
@@ -726,13 +772,20 @@ def fill_worksheet_for_direction(
                 max_len = max(max_len, len(str(cell_value)))
         worksheet.column_dimensions[col_letter].width = max(12, min(max_len + 2, 50))
 
+def export_patterns_to_excel(pattern_records, routes_df, trips_df,
+                             stop_times_df, stops_df, calendar_df=None):
+    """Export pattern data to Excel workbooks by route and service_id.
 
-def export_patterns_to_excel(
-    pattern_records, routes_df, trips_df, stop_times_df, stops_df, calendar_df=None
-):  # Added trips_df here
-    """
-    For each (route_id, service_id), group patterns by direction, create a subfolder
-    and save an Excel workbook with one sheet per direction.
+    Args:
+        pattern_records: List of enriched pattern records.
+        routes_df: GTFS routes DataFrame.
+        trips_df: GTFS trips DataFrame.
+        stop_times_df: GTFS stop_times DataFrame.
+        stops_df: GTFS stops DataFrame.
+        calendar_df: Optional calendar DataFrame.
+
+    Side Effects:
+        Writes Excel files to disk.
     """
     group_map = defaultdict(list)
     for pat_rec in pattern_records:
@@ -841,9 +894,7 @@ def export_patterns_to_excel(
 
 
 def main():
-    """
-    Main entry point for generating and exporting unique GTFS stop patterns.
-    """
+    """Main script function for generating GTFS pattern exports."""
     if not os.path.exists(OUTPUT_DIR):
         try:
             os.makedirs(OUTPUT_DIR)
