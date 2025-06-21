@@ -528,7 +528,7 @@ def compare_signups_detailed(
     inter_curr: dict[str, str],
 ) -> pd.DataFrame:
     """Build a DataFrame comparing each route between two signups with flags.
-    
+
     • created, eliminated,
     • interlining change,
     • span / trips / headway change,
