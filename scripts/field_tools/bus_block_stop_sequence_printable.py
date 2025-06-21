@@ -1,16 +1,20 @@
-"""
-Generates printable Excel schedules for each vehicle block from GTFS data.
+"""Generate printable Excel schedules for each vehicle block in a GTFS feed.
 
-Produces one Excel file per block, including stop times, placeholders for
-field notes, and basic formatting. Designed for use in ArcGIS Pro, notebooks,
-or CLI-based workflows.
+The script reads the five core GTFS tables—``trips``, ``stop_times``, ``stops``,
+``routes`` and ``calendar``—and optionally filters them by *service ID* and/or
+*route short name*.  For every vehicle ``block_id`` that survives filtering it
+produces a nicely-formatted ``.xlsx`` file ready for field auditing.
 
-Inputs:
-    - GTFS folder with: trips.txt, stop_times.txt, stops.txt, routes.txt, calendar.txt
-    - Optional filters: service_ids and route_short_names
+Typical usage
+-------------
+Run from the command line, an ArcGIS Pro Python toolbox, or a notebook.
 
-Outputs:
-    - One .xlsx per block written to BASE_OUTPUT_PATH
+Key Features
+------------
+- Loads GTFS text files into ``pandas`` DataFrames with robust error handling.
+- Converts ``HH:MM(:SS)`` time strings to seconds (and back) safely.
+- Applies ergonomic Excel formatting via ``openpyxl`` (column widths, wrapping).
+- Inserts placeholders for handwritten field notes (actual time, boardings, etc.).
 """
 
 from __future__ import annotations
@@ -59,38 +63,28 @@ MAX_COLUMN_WIDTH = 35
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load one or more GTFS text files into memory.
 
-    Parameters:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+    Args:
+        gtfs_folder_path: Absolute or relative path to the folder
+            containing the GTFS feed.
+        files: Explicit list of file names to load.  If *None*, the
+            standard 13 GTFS text files are attempted.
+        dtype: Value passed to ``pandas.read_csv(dtype=...)``.  Supply a
+            *dict* to set per-column dtypes.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        Mapping of *file stem* → corresponding DataFrame; e.g.,
+        ``data["trips"]`` holds the parsed **trips.txt** table.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: Folder missing or one of *files* not present.
+        ValueError: Empty file or CSV parser failure.
+        RuntimeError: Generic OS error while reading a file.
+
+    Notes:
+        All columns are loaded as strings by default to avoid
+        ``pandas`` type inference pitfalls (e.g., leading zeros in IDs).
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -155,9 +149,14 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
 
 def time_to_seconds(time_str):
-    """
-    Converts a 'HH:MM:SS' or 'HH:MM' string into total seconds.
-    Handles hours >= 24 by rolling over (e.g., 25:10:00 -> 1:10:00).
+    """Convert a ``HH:MM`` or ``HH:MM:SS`` string to total seconds.
+
+    Args:
+        time_str: Time string *or* ``NaN``; may exceed 24 h (e.g.,
+            ``'25:10:00'`` → 1:10 a.m. next day).
+
+    Returns:
+        Non-negative number of seconds, or :pydata:`math.nan` on failure.
     """
     if pd.isnull(time_str):
         return math.nan
@@ -177,9 +176,14 @@ def time_to_seconds(time_str):
 
 
 def format_hhmm(total_seconds):
-    """
-    Given a time in total seconds, returns a 'HH:MM' string (24-hour).
-    If invalid, returns an empty string.
+    """Render seconds since midnight as a ``HH:MM`` string.
+
+    Args:
+        total_seconds: Seconds since 00:00.  Negative or ``NaN`` returns
+            an empty string.
+
+    Returns:
+        Two-digit hour and minute representation (24-hour clock).
     """
     if pd.isnull(total_seconds) or total_seconds < 0:
         return ""
@@ -194,11 +198,21 @@ def format_hhmm(total_seconds):
 
 
 def export_to_excel(data_frame, output_file):
-    """
-    Exports a DataFrame to an Excel file and applies basic formatting:
-    - Left alignment
-    - Sets column widths
-    - Text wrapping for headers
+    """Write *data_frame* to an Excel file with basic styling.
+
+    The sheet is named **Schedule** and receives:
+
+    * Left-aligned cells.
+    * Word-wrapped headers.
+    * Column widths sized to longest cell (capped by ``MAX_COLUMN_WIDTH``).
+
+    Args:
+        data_frame: Tidy table to export; must be non-empty.
+        output_file: Full path of the ``.xlsx`` file to create.
+
+    Notes:
+        ``os.makedirs`` is called with *exist_ok=True* so nested output
+        folders are created automatically.
     """
     if data_frame.empty:
         print(f"No data to export to {output_file}")
@@ -238,11 +252,24 @@ def export_to_excel(data_frame, output_file):
 
 
 def filter_data(trips_df, stop_times_df, routes_df):
-    """
-    Merges and filters trips/routes, then filters stop_times accordingly.
-    Returns updated trips_df, stop_times_df.
-    """
+    """Apply route and service filters, propagating them to stop times.
 
+    Args:
+        trips_df: Parsed **trips.txt** table.
+        stop_times_df: Parsed **stop_times.txt** table.
+        routes_df: Parsed **routes.txt** table (for ``route_short_name``).
+
+    Returns:
+        ``(filtered_trips, filtered_stop_times)``.
+
+    Raises:
+        KeyError: If required columns are missing.
+
+    Warning:
+        If the global constants ``FILTER_ROUTE_SHORT_NAMES`` or
+        ``FILTER_SERVICE_IDS`` remove every trip, the function returns
+        two **empty** DataFrames.
+    """
     # Merge route_short_name into trips
     routes_subset = routes_df[["route_id", "route_short_name"]]
     trips_df = trips_df.merge(routes_subset, on="route_id", how="left")
@@ -273,9 +300,23 @@ def filter_data(trips_df, stop_times_df, routes_df):
 
 
 def prepare_stop_times(trips_df, stop_times_df, stops_df):
-    """
-    Adds and formats columns in stop_times_df with scheduling and stop info.
-    Returns the updated stop_times_df.
+    """Enrich and tidy ``stop_times`` for Excel export.
+
+    Steps
+    -----
+    1. Ensure a numeric ``timepoint`` column (create if absent).
+    2. Attach ``block_id``, ``route_short_name`` and ``direction_id``.
+    3. Convert arrival/departure times → seconds → ``HH:MM`` format.
+    4. Map ``stop_id`` → human-readable stop names.
+    5. Sort by ``block_id``, ``trip_id``, ``stop_sequence``.
+
+    Args:
+        trips_df: Output of :pyfunc:`filter_data`.
+        stop_times_df: Ditto.
+        stops_df: Parsed **stops.txt** table.
+
+    Returns:
+        Cleaned ``stop_times`` DataFrame ready for grouping by block.
     """
     # If 'timepoint' does not exist, create a new column with 0.
     if "timepoint" not in stop_times_df.columns:
@@ -323,8 +364,17 @@ def prepare_stop_times(trips_df, stop_times_df, stops_df):
 
 
 def export_blocks(stop_times_df):
-    """
-    Groups rows by block_id and exports each block to a separate Excel file.
+    """Generate one Excel schedule per vehicle block.
+
+    Args:
+        stop_times_df: Prepared stop times (see
+            :pyfunc:`prepare_stop_times`).  Must include the columns
+            produced earlier (``block_id``, ``scheduled_time_hhmm``,
+            etc.).
+
+    Side Effects:
+        Writes ``block_<id>_schedule_printable.xlsx`` to
+        ``BASE_OUTPUT_PATH``; creates the folder tree if needed.
     """
     all_blocks = stop_times_df["block_id"].unique()
     print(f"Found {len(all_blocks)} blocks to export.\n")
@@ -417,7 +467,19 @@ def export_blocks(stop_times_df):
 
 
 def main() -> None:
-    """Entry point – orchestrates GTFS load, filter, prep, export."""
+    """Command-line entry point.
+
+    Orchestrates:
+
+    * Logging configuration.
+    * Data ingestion via :pyfunc:`load_gtfs_data`.
+    * Optional filtering (:pyfunc:`filter_data`).
+    * Data preparation (:pyfunc:`prepare_stop_times`).
+    * Per-block Excel export (:pyfunc:`export_blocks`).
+
+    The function traps anticipated exceptions and logs them with useful
+    context before exiting with a non-zero status.
+    """
     # --------------------------------------------------------------
     # Configure logging *inside* main (repo style)
     # --------------------------------------------------------------
