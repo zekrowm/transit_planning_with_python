@@ -1,18 +1,15 @@
-"""
-Processes FRED unemployment CSV data for a specified date range.
+"""Process FRED unemployment-rate CSV data for a user-defined period.
 
-Filters raw FRED time-series data, exports the result to Excel, and
-generates both a continuous time-series plot and a yearly overlay chart.
+The script performs the following high-level tasks:
 
-Inputs:
-    - CSV file with 'observation_date' and one data series (CSV_FILE_PATH)
-    - Start and end date strings (START_DATE, END_DATE)
-    - Output folder path (OUTPUT_FOLDER)
-
-Outputs:
-    - Excel file with filtered data
-    - JPEG time-series plot
-    - JPEG year-over-year comparison plot
+1. Load a FRED CSV file that contains an ``observation_date`` column and
+   exactly one data-series column (e.g., ``UNRATE``).
+2. Filter the time-series to the requested start and end dates.
+3. Export the filtered data to Excel for downstream analysis.
+4. Visualize the results via two Matplotlib figures:
+   - A continuous line chart of the full period.
+   - An overlay chart plotting each calendar year on the same axes to enable
+     year-over-year comparison.
 """
 
 import os
@@ -35,9 +32,19 @@ OUTPUT_FOLDER = r"C:\Path\To\Your\Output_Folder"
 # FUNCTIONS
 # =============================================================================
 def load_data(csv_file_path: str) -> pd.DataFrame:
-    """
-    Loads the CSV data into a DataFrame and converts the observation_date column to datetime.
-    Automatically detects the data series column (the first column other than observation_date).
+    """Load the FRED CSV and detect the data-series column.
+
+    Args:
+        csv_file_path: Path to the FRED CSV file.
+
+    Returns:
+        Tuple containing:
+            - The loaded DataFrame with 'observation_date' parsed as datetime.
+            - The name of the detected data-series column.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If 'observation_date' is missing or no data column is found.
     """
     data_frame = pd.read_csv(csv_file_path)
     if "observation_date" not in data_frame.columns:
@@ -58,8 +65,19 @@ def load_data(csv_file_path: str) -> pd.DataFrame:
 def filter_data(
     data_frame: pd.DataFrame, start_date: str, end_date: str
 ) -> pd.DataFrame:
-    """
-    Filters the DataFrame to include only rows between start_date and end_date.
+    """Filter the DataFrame to include only rows within the given date range.
+
+    Args:
+        data_frame: DataFrame containing the full time-series.
+        start_date: Inclusive start date (YYYY-MM-DD).
+        end_date: Inclusive end date (YYYY-MM-DD).
+
+    Returns:
+        A filtered copy of the original DataFrame.
+
+    Raises:
+        KeyError: If 'observation_date' column is missing.
+        ValueError: If start_date is after end_date.
     """
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
@@ -70,8 +88,18 @@ def filter_data(
 
 
 def export_to_excel(data_frame: pd.DataFrame, output_folder: str, filename: str):
-    """
-    Exports the DataFrame to an Excel file.
+    """Export the filtered DataFrame to an Excel file.
+
+    Args:
+        data_frame: The DataFrame to export.
+        output_folder: Destination directory.
+        filename: Desired name of the Excel file (with .xlsx extension).
+
+    Returns:
+        None. Writes a file to disk.
+
+    Raises:
+        OSError: If the file cannot be written.
     """
     os.makedirs(output_folder, exist_ok=True)
     output_path = os.path.join(output_folder, filename)
@@ -82,10 +110,19 @@ def export_to_excel(data_frame: pd.DataFrame, output_folder: str, filename: str)
 def plot_continuous_line(
     data_frame: pd.DataFrame, series_column: str, output_folder: str, filename: str
 ):
-    """
-    Creates a continuous line chart of the data series over time and saves it as a JPEG.
-    - The y-axis label includes a "%" symbol.
-    - The x-axis labels show only the year.
+    """Plot a continuous time-series line chart and save it as a JPEG.
+
+    Args:
+        data_frame: DataFrame with 'observation_date' and the series column.
+        series_column: Name of the column to plot.
+        output_folder: Destination directory.
+        filename: JPEG filename to save.
+
+    Returns:
+        None. Saves a JPEG plot.
+
+    Raises:
+        KeyError: If required columns are missing.
     """
     os.makedirs(output_folder, exist_ok=True)
     output_path = os.path.join(output_folder, filename)
@@ -115,11 +152,19 @@ def plot_continuous_line(
 def plot_yearly_comparison(
     data_frame: pd.DataFrame, series_column: str, output_folder: str, filename: str
 ):
-    """
-    Creates a chart with each year's data plotted as a separate line (overlaid),
-    using months on the x-axis represented as 3-letter abbreviations.
-    The y-axis label includes a "%" symbol.
-    Saves the chart as a JPEG.
+    """Plot a year-over-year comparison chart and save it as a JPEG.
+
+    Args:
+        data_frame: DataFrame with 'observation_date' and the series column.
+        series_column: Name of the column to plot.
+        output_folder: Destination directory.
+        filename: JPEG filename to save.
+
+    Returns:
+        None. Saves a JPEG plot.
+
+    Raises:
+        KeyError: If required columns are missing.
     """
     data_frame["Year"] = data_frame["observation_date"].dt.year
     data_frame["Month"] = data_frame["observation_date"].dt.month
@@ -175,12 +220,9 @@ def plot_yearly_comparison(
 # MAIN
 # =============================================================================
 def main():
-    """
-    Main execution function.
+    """Main function to execute the full processing and plotting workflow.
 
-    Loads employment data from a CSV file, filters it by the specified start and end dates,
-    exports the filtered data to an Excel file, and generates both a continuous line chart
-    and a yearly comparison chart saved as JPEG images.
+    Loads data, filters by date, exports to Excel, and saves two JPEG charts.
     """
     # Load data from CSV and detect data series column
     data_frame, series_column = load_data(CSV_FILE_PATH)
