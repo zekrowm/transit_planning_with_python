@@ -26,9 +26,9 @@ PLOT_STYLE : dict[str, Any]
     Matplotlib keyword arguments that standardize the look of every plot.
 """
 
+from __future__ import annotations
 import os
 import re
-from __future__ import annotations
 import matplotlib.pyplot as plt
 import pandas as pd
 
