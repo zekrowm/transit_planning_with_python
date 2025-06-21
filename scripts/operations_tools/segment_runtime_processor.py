@@ -257,7 +257,7 @@ def sort_route_segments(segments):
 
     sorted_segs = []
     for i in range(len(chain_stops) - 1):
-        sorted_segs.append(f"{chain_stops[i]} - {chain_stops[i+1]}")
+        sorted_segs.append(f"{chain_stops[i]} - {chain_stops[i + 1]}")
     return sorted_segs
 
 
@@ -354,8 +354,7 @@ def create_and_save_pivots(
                 pd.DataFrame(
                     {
                         "Info": [
-                            f"No valid data for route {route}, "
-                            f"direction {direction}."
+                            f"No valid data for route {route}, direction {direction}."
                         ]
                     }
                 ).to_csv(no_data_path, index=False)
