@@ -1,20 +1,15 @@
-"""
-Processes observed bus arrival and departure data to assess schedule adherence.
+"""Assess schedule adherence from field-observed bus arrivals and departures.
 
-Parses field-collected data from CSV or Excel files, calculates early/on-time/late
-performance using configurable tolerances, and exports summary statistics along with
-diagnostic outputs for invalid records.
+The module extracts and cleans raw observations, converts them to a
+long “one event = one row” format, classifies punctuality using
+configurable early/late tolerances, and exports:
+
+- A nicely formatted Excel workbook with overall, by-route, and
+  by-route-direction punctuality summaries.
+- Parallel CSVs for each summary table.
+- Diagnostic CSVs listing every valid and invalid event record.
 
 Typical usage: ArcGIS Pro, Jupyter notebook, or command line.
-
-Inputs:
-    - Observed data directory (`OBSERVED_DATA_PATH`) with .xlsx or .csv files.
-    - Script-level config: early/late tolerances, output paths, placeholder pattern.
-
-Outputs:
-    - Excel summary report (`arrival_performance_summary.xlsx`).
-    - CSV summaries by overall, route, and route-direction.
-    - Diagnostic CSVs for valid and invalid event records.
 """
 
 from __future__ import annotations
@@ -56,7 +51,20 @@ CORE_EVENT_COLS: list[str] = [
 
 
 def list_observed_files(base_path: str) -> List[Path]:
-    """Return list of .xlsx/.csv files in *base_path* (raise if none)."""
+    """Return every ``.xlsx`` or ``.csv`` file in *base_path*.
+
+    Args:
+        base_path: Directory that *should* contain the field-observed
+            arrival/departure files.
+
+    Returns:
+        A list of :class:`pathlib.Path` objects, each pointing to an
+        ``.xlsx`` or ``.csv`` file.
+
+    Raises:
+        FileNotFoundError: If *base_path* does not exist **or** if it
+        contains no matching files.
+    """
     path = Path(base_path)
     if not path.exists():
         raise FileNotFoundError(f"Observed-data folder not found: {base_path}")
@@ -68,7 +76,15 @@ def list_observed_files(base_path: str) -> List[Path]:
 
 
 def is_placeholder(val: str | float | int | None) -> bool:
-    """True if *val* is NaN, empty, or matches the placeholder pattern."""
+    """Check whether *val* is blank, NaN, or a recognised placeholder.
+
+    Args:
+        val: Any scalar value that may have come from the raw spreadsheet.
+
+    Returns:
+        ``True`` if *val* is empty, contains no digits, **or** matches
+        :data:`PLACEHOLDER_PATTERN`; otherwise ``False``.
+    """
     if pd.isna(val):
         return True
     s = str(val).strip()
@@ -76,13 +92,17 @@ def is_placeholder(val: str | float | int | None) -> bool:
 
 
 def time_str_to_minutes(time_str: str | float | int | None) -> Optional[int]:
-    """
-    Convert a variety of messy time strings to minutes past midnight.
+    """Convert a messy HH:MM value to minutes past midnight.
 
-    Returns
-    -------
-    int | None
-        Minutes after 00:00, or *None* if no valid HH:MM pattern is found.
+    The helper tolerates common data-entry issues such as embedded spaces,
+    missing colons, or times entered as numbers (e.g. ``530`` → 5 : 30).
+
+    Args:
+        time_str: Raw string or numeric representation of a time.
+
+    Returns:
+        The number of minutes after 00 : 00, or ``None`` if no valid
+        time can be parsed.
     """
     if is_placeholder(time_str):  # still screens out blanks/“____”
         return None
@@ -98,7 +118,16 @@ def time_str_to_minutes(time_str: str | float | int | None) -> Optional[int]:
 
 
 def compute_diff(actual: pd.Series, scheduled: pd.Series) -> pd.Series:
-    """Scheduled–actual difference (minutes)."""
+    """Return *scheduled – actual* (minutes).
+
+    Args:
+        actual: Series of observed arrival or departure values.
+        scheduled: Series of scheduled values.
+
+    Returns:
+        :class:`pandas.Series` of numeric minute differences. Cells that
+        fail to parse become *NaN*.
+    """
     actual_min = actual.map(time_str_to_minutes)
     scheduled_min = scheduled.map(time_str_to_minutes)
     return pd.to_numeric(actual_min) - pd.to_numeric(scheduled_min)
@@ -108,7 +137,14 @@ def compute_diff(actual: pd.Series, scheduled: pd.Series) -> pd.Series:
 # PUNCTUALITY CLASSIFICATION & FLAGS
 # -----------------------------------------------------------------------------
 def classify_punctuality(diff: float | int | None) -> str | None:
-    """Return 'early', 'on_time', or 'late' based on *diff* (minutes)."""
+    """Label an event as ``'early'``, ``'on_time'`` or ``'late'``.
+
+    Args:
+        diff: Minute difference produced by :func:`compute_diff`.
+
+    Returns:
+        A string classification, or ``None`` when *diff* is *NaN*.
+    """
     if pd.isna(diff):
         return None
     if diff < EARLY_TOLERANCE_MIN:
@@ -119,7 +155,15 @@ def classify_punctuality(diff: float | int | None) -> str | None:
 
 
 def flag_on_time(diff_series: pd.Series) -> pd.Series:
-    """Return 'Y'/'N' on-time flag (kept for backward compatibility)."""
+    """Return a legacy ``'Y'``/``'N'`` on-time flag.
+
+    Args:
+        diff_series: Output from :func:`compute_diff`.
+
+    Returns:
+        A Series whose dtype is ``string[pyarrow]`` and whose values are
+        ``'Y'`` if the event is within tolerance, otherwise ``'N'``.
+    """
     return diff_series.apply(
         lambda d: (
             "Y"
@@ -130,7 +174,17 @@ def flag_on_time(diff_series: pd.Series) -> pd.Series:
 
 
 def load_single_file(path: Path) -> pd.DataFrame:
-    """Load a single .xlsx or .csv file as dataframe of str columns."""
+    """Load one ``.xlsx`` or ``.csv`` file as a string-typed DataFrame.
+
+    Args:
+        path: Absolute or relative path to the input file.
+
+    Returns:
+        Raw contents with an added ``source_file`` column.
+
+    Raises:
+        ValueError: If *path* has an unsupported extension.
+    """
     if path.suffix.lower() == ".xlsx":
         df = pd.read_excel(path, dtype=str)
     else:
@@ -140,7 +194,20 @@ def load_single_file(path: Path) -> pd.DataFrame:
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Trim whitespace, drop SAMPLE rows, keep original column names."""
+    """Strip noise and drop template rows.
+
+    Operations performed:
+
+    * Trim column names.
+    * Remove rows whose ``route_short_name`` is ``'SAMPLE'`` (case-insensitive).
+    * Trim whitespace in ``route_short_name`` and ``trip_headsign``.
+
+    Args:
+        df: Raw field-observed data.
+
+    Returns:
+        A cleaned copy of *df*.
+    """
     df = df.copy()
     df.columns = df.columns.str.strip()
 
@@ -159,9 +226,17 @@ def _get_invalid_reason(
     act_time: str | float | int | None,
     sched_time: str | float | int | None,
 ) -> str:
-    """
-    Return a concise text explaining why an event is invalid.
-    Empty string ⇒ the row is valid.
+    """Explain *why* an event row is invalid.
+
+    An empty string means the row is valid; otherwise a semicolon-separated
+    list enumerates all detected problems.
+
+    Args:
+        act_time: Observed arrival/departure value.
+        sched_time: Scheduled arrival/departure value.
+
+    Returns:
+        ``""`` (valid) **or** a descriptive string (invalid).
     """
     reasons: list[str] = []
 
@@ -190,14 +265,21 @@ EVENT_MAP: Dict[str, tuple[str, str]] = {
 
 
 def longify_events(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Explode arrivals & departures into one-event-per-row *long* format.
+    """Explode wide arrival/departure columns into long format.
 
-    • No rows are dropped.
-    • `invalid_reason` explains any problems; only rows with a blank
-      reason receive a numeric `diff_min`.
-    • NOW RETAINS `stop_id` and `stop_name` so users can see which
-      cluster each event belongs to.
+    The result contains every event in the original data: **nothing is
+    dropped**. Invalid events carry an ``invalid_reason`` description and
+    *NaN* for ``diff_min``. Valid events receive:
+
+    * ``diff_min`` – numeric difference (minutes).
+    * ``on_time``   – ``'Y'`` or ``'N'``.
+    * ``punctuality`` – ``'early'``, ``'on_time'``, or ``'late'``.
+
+    Args:
+        df: Wide-format DataFrame whose columns follow *EVENT_MAP*.
+
+    Returns:
+        Long-format DataFrame with one row per event.
     """
     parts: list[pd.DataFrame] = []
     for evt, (sched_col, act_col) in EVENT_MAP.items():
@@ -246,10 +328,15 @@ def summarise_punctuality(
     df: pd.DataFrame,
     group_cols: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    """
-    Return a summary with *early_pct*, *on_time_pct*, *late_pct* (0–100).
+    """Return early/on-time/late percentages rounded to one decimal.
 
-    Percentages are rounded to one decimal place and always sum to ~100.
+    Args:
+        df: Long-format events table, *already filtered to valid rows*.
+        group_cols: Column names to group by. ``None`` → overall summary.
+
+    Returns:
+        A tidy DataFrame with three columns: ``early_pct``, ``on_time_pct``,
+        and ``late_pct``.
     """
     if group_cols:
         grp_df = df
@@ -285,7 +372,16 @@ def summarise_punctuality(
 # Valid vs. invalid splitter (for diagnostics)
 # -----------------------------------------------------------------------------
 def split_valid_invalid(events_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Split into (valid, invalid) where validity = numeric diff."""
+    """Partition *events_df* into valid and invalid subsets.
+
+    Validity is defined strictly as “``diff_min`` is not NA”.
+
+    Args:
+        events_df: Output from :func:`longify_events`.
+
+    Returns:
+        Two DataFrames: ``(valid_events, invalid_events)``.
+    """
     valid_mask = events_df["diff_min"].notna()
     return events_df[valid_mask].copy(), events_df[~valid_mask].copy()
 
@@ -294,7 +390,11 @@ def split_valid_invalid(events_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataF
 # EXPORT HELPERS
 # -----------------------------------------------------------------------------
 def ensure_output_folder(path: str) -> None:
-    """Create *path* (plus parents) if it does not yet exist."""
+    """Create *path* and its parents if they do not already exist.
+
+    Args:
+        path: Directory path to create.
+    """
     Path(path).mkdir(parents=True, exist_ok=True)
 
 
@@ -303,7 +403,13 @@ def export_extra_dataframes(
     invalid_df: pd.DataFrame,
     out_folder: str,
 ) -> None:
-    """Write valid/invalid diagnostic CSVs to *out_folder*."""
+    """Write the diagnostic CSVs to *out_folder*.
+
+    Args:
+        valid_df: All events deemed valid.
+        invalid_df: All events deemed invalid.
+        out_folder: Destination directory.
+    """
     ensure_output_folder(out_folder)
     valid_df.to_csv(Path(out_folder) / "observed_data_valid_events.csv", index=False)
     invalid_df.to_csv(
@@ -317,7 +423,19 @@ def export_results(
     by_route_dir: pd.DataFrame,
     out_folder: str,
 ) -> None:
-    """Write Excel + CSV outputs to *out_folder*."""
+    """Export the punctuality summaries to Excel **and** CSV.
+
+    Args:
+        overall: Output from :func:`summarise_punctuality` with
+            *group_cols* = ``None``.
+        by_route: Summary grouped by ``route_short_name``.
+        by_route_dir: Summary grouped by
+            ``['route_short_name', 'trip_headsign']``.
+        out_folder: Destination directory.
+
+    Side Effects:
+        Writes one Excel workbook and three CSV files.
+    """
     ensure_output_folder(out_folder)
     excel_path = Path(out_folder) / OUTPUT_EXCEL_NAME
     wb = Workbook()
@@ -358,7 +476,7 @@ def export_results(
 # MAIN
 # =============================================================================
 def main() -> None:
-    """Orchestrate ETL → analysis → export."""
+    """Command-line entry point."""
     print("▸ Listing observed-data files …")
     observed_files = list_observed_files(OBSERVED_DATA_PATH)
     print(f"  {len(observed_files)} files found.")
