@@ -47,7 +47,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     Args:
         gtfs_folder_path: Absolute or relative path to the directory that
             contains the GTFS ``*.txt`` files.
-        files: Explicit list of file names to read.  
+        files: Explicit list of file names to read.
             *If ``None`` (default) the full GTFS specification set is
             attempted.*
         dtype: Value forwarded to :pyfunc:`pandas.read_csv`.  Pass a mapping
