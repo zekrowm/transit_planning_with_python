@@ -1,5 +1,4 @@
-"""
-Exports GTFS timepoint-to-timepoint speeds into time-band tables for Excel.
+"""Exports GTFS timepoint-to-timepoint speeds into time-band tables for Excel.
 
 Analyzes GTFS data to group trips by stop pattern and schedule. The script
 generates an Excel workbook for each route and service ID, with sheets showing
@@ -58,6 +57,20 @@ _TIME_RE = re.compile(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$")
 
 
 def hhmmss_to_minutes(t: Optional[str]) -> Optional[int]:
+    """Convert an ``HH:MM[:SS]`` string to minutes past midnight.
+
+    The function is tolerant of either ``HH:MM`` or ``HH:MM:SS``; seconds are
+    rounded to the nearest minute.  Invalid or *None* inputs propagate as
+    *None*.
+
+    Args:
+        t: A time literal such as ``"7:05"``, ``"07:05:30"``, or
+            ``"23:59:59"``.  Whitespace is stripped.
+
+    Returns:
+        The total minutes since 00 : 00 (local GTFS day), or ``None`` if
+        parsing fails.
+    """
     if not isinstance(t, str):
         return None
     m = _TIME_RE.match(t.strip())
@@ -68,6 +81,16 @@ def hhmmss_to_minutes(t: Optional[str]) -> Optional[int]:
 
 
 def minutes_to_hhmm(m: Optional[int]) -> str:
+    """Convert minutes past midnight to a ``HH:MM`` display string.
+
+    Args:
+        m: Minutes since 00 : 00.  May be fractional—values are rounded
+            to the nearest whole minute; *None* is allowed.
+
+    Returns:
+        A ``HH:MM`` string unless *m* is *None*, in which case the configured
+        ``MISSING_VAL`` sentinel is returned.
+    """
     if m is None:
         return MISSING_VAL
     h, mm = divmod(int(round(m)), 60)
@@ -75,6 +98,19 @@ def minutes_to_hhmm(m: Optional[int]) -> str:
 
 
 def convert_to_miles(dist: Union[str, float, int, None]) -> Optional[float]:
+    """Convert a GTFS ``shape_dist_traveled`` value to miles.
+
+    The input may be text, numeric, or missing.  The conversion factor is
+    determined by the module-level constant ``INPUT_DISTANCE_UNIT``.
+
+    Args:
+        dist: Distance value in meters/feet (per *INPUT_DISTANCE_UNIT*) or a
+            string representation thereof.
+
+    Returns:
+        The distance in statute miles, or ``None`` if the value is missing or
+        cannot be coerced to ``float``.
+    """
     if dist in ("", None) or pd.isna(dist):
         return None
     try:
@@ -89,12 +125,35 @@ def convert_to_miles(dist: Union[str, float, int, None]) -> Optional[float]:
 
 
 def mph(dist_miles: Optional[float], runtime_min: Optional[int]) -> Union[float, str]:
+    """Compute miles-per-hour, guarding against divide-by-zero.
+
+    Args:
+        dist_miles: Segment length in miles, or *None*.
+        runtime_min: Segment runtime in minutes; *None* or ``0`` yields the
+            sentinel.
+
+    Returns:
+        The speed rounded to one decimal place, or ``MISSING_VAL`` if the
+        inputs are not computable.
+    """
     if dist_miles is None or runtime_min in (None, 0):
         return MISSING_VAL
     return round(dist_miles / (runtime_min / 60.0), 1)
 
 
 def safe_sheet(name: str) -> str:
+    """Sanitise an arbitrary label into a valid Excel worksheet name.
+
+    Disallowed characters are replaced with underscores and the result is
+    truncated to the Excel hard limit (31 chars).  An empty string maps to
+    ``"Sheet"``.
+
+    Args:
+        name: Proposed worksheet name.
+
+    Returns:
+        A legal worksheet name suitable for ``openpyxl.Workbook.create_sheet``.
+    """
     return re.sub(r"[:\\/*?\[\]]", "_", name)[:31] or "Sheet"
 
 
@@ -103,6 +162,20 @@ REQ_FILES = ["trips.txt", "stop_times.txt", "routes.txt", "stops.txt"]
 
 
 def load_gtfs(folder: Path) -> Dict[str, pd.DataFrame]:
+    """Read the core GTFS text files into memory.
+
+    Required files are listed in ``REQ_FILES``.  Numeric columns are coerced
+    to typed ``pandas`` dtypes where relevant.
+
+    Args:
+        folder: Directory containing a *complete* set of GTFS text files.
+
+    Raises:
+        FileNotFoundError: If any required file is missing.
+
+    Returns:
+        Mapping of file stem (e.g. ``"trips"``) to its loaded ``DataFrame``.
+    """
     missing = [f for f in REQ_FILES if not (folder / f).exists()]
     if missing:
         raise FileNotFoundError(f"Missing GTFS file(s): {', '.join(missing)}")
@@ -129,10 +202,32 @@ SegSpeeds = Tuple[Union[float, str], ...]
 
 
 def _sum_numeric(seq):
+    """Return the sum of numeric items, ignoring non-numeric elements.
+
+    Args:
+        seq: Iterable potentially containing numbers and non-numbers.
+
+    Returns:
+        Arithmetic sum of all ``int`` and ``float`` members.
+    """
     return sum(x for x in seq if isinstance(x, (int, float)))
 
 
 def segment_metrics(grp: pd.DataFrame):
+    """Derive per-segment speeds plus trip totals for one trip instance.
+
+    Args:
+        grp: Consecutive rows from ``stop_times.txt`` for a single trip,
+            sorted by ``stop_sequence``.
+
+    Returns:
+        Tuple ``(seg_speeds, dist_tot, time_tot)`` where
+
+        * **seg_speeds** – tuple of segment-level mph values (string sentinel
+          for any missing segment),
+        * **dist_tot** – total distance in miles,
+        * **time_tot** – total runtime in minutes.
+    """
     times, dists = [], []
     for _, row in grp.iterrows():
         times.append(
@@ -154,6 +249,26 @@ def segment_metrics(grp: pd.DataFrame):
 
 
 def build_index(gtfs):
+    """Create lookup tables linking trips → patterns → speed signatures.
+
+    The heavy-lifting step that:
+
+    1. Applies all user-defined filters,
+    2. Identifies unique stop-patterns and speed arrays,
+    3. Generates a long index of trips with start times for later banding.
+
+    Args:
+        gtfs: GTFS tables as returned by :func:`load_gtfs`.
+
+    Returns:
+        A four-tuple ``(index_df, pattern_lut, speed_lut, header_lut)``:
+
+        * **index_df** – long table of trips (one row per trip),
+        * **pattern_lut** – map ``pattern_hash → stop_id tuple``,
+        * **speed_lut** – map ``speed_hash → {"seg_speeds", "mean_mph"}``,
+        * **header_lut** – map ``pattern_hash → list[str]`` of human-readable
+          column headers.
+    """
     trips = gtfs["trips"].merge(
         gtfs["routes"][["route_id", "route_short_name"]], on="route_id", how="left"
     )
@@ -231,6 +346,16 @@ def build_index(gtfs):
 
 # ───────────────────────  BAND-ROW COLLAPSE  ────────────────────── #
 def band_rows(idx: pd.DataFrame) -> pd.DataFrame:
+    """Collapse individual trips into time-of-day bands.
+
+    Args:
+        idx: Output from :func:`build_index`.
+
+    Returns:
+        A dataframe with one row per unique
+        (route, service_id, direction, pattern_hash, speed_hash) *  time-band
+        describing first/last departure and trip count.
+    """
     gb = idx.groupby(
         ["route_id", "service_id", "direction_id", "pattern_hash", "speed_hash"]
     )
@@ -251,7 +376,30 @@ def band_rows(idx: pd.DataFrame) -> pd.DataFrame:
 
 
 # ────────────────────────  EXCEL EXPORT  ────────────────────────── #
-def export_excel(bands, pat_lut, speed_lut, header_lut, routes):
+def export_excel(
+    bands: pd.DataFrame,
+    pat_lut: Dict[int, Pattern],
+    speed_lut: Dict[int, Dict[str, Union[SegSpeeds, float]]],
+    header_lut: Dict[int, List[str]],
+    routes: pd.DataFrame,
+) -> None:
+    """Write each (route × service_id) bundle to its own workbook.
+
+    Each workbook contains one worksheet per direction.  Column widths are set
+    to 14 characters for readability.
+
+    Args:
+        bands: Banded rows from :func:`band_rows`.
+        pat_lut: Pattern lookup produced by :func:`build_index`.
+        speed_lut: Speed lookup produced by :func:`build_index`.
+        header_lut: Header lookup produced by :func:`build_index`.
+        routes: ``routes.txt`` table; used to translate ``route_id`` to short
+            names.
+
+    Side Effects:
+        • Creates *OUTPUT_FOLDER* if it does not exist.  
+        • Writes ``.xlsx`` files and logs progress via :pymod:`logging`.
+    """
     OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
     route_short = routes.set_index("route_id")["route_short_name"].to_dict()
 
@@ -295,6 +443,7 @@ def export_excel(bands, pat_lut, speed_lut, header_lut, routes):
 
 
 def main() -> None:
+    """CLI entry-point – orchestrates GTFS load, processing, and export."""
     logging.basicConfig(
         level=LOG_LEVEL,
         format="%(asctime)s  %(levelname)s  %(message)s",
