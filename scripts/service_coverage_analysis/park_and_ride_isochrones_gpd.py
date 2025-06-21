@@ -1,6 +1,8 @@
-"""Generate drive-time isochrones for park-&-ride facilities.
+"""Generate drive-time isochrones for park-and-ride facilities.
 
-Overlap resolution (if enabled) is distance-based: the closer facility “wins.”
+If *REMOVE_OVERLAPS* is ``True``, overlapping polygons are split so the
+intersection area is assigned to the facility whose centroid is closest
+to the overlap centroid.
 """
 
 from __future__ import annotations
