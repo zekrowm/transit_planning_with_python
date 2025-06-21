@@ -1,21 +1,15 @@
-"""
-Processes CLEVER runtime data to summarize segment-level transit running times.
+"""Summarize CLEVER segment-level running times for multiple service periods.
 
-Supports weekday, Saturday, Sunday, and other datasets in CSV or Excel format.
-Filters by route, converts time metrics, checks route segment validity, and exports
-pivot tables by route, direction, and time field.
+The script ingests one CLEVER export per service period (Weekday, Saturday,
+Sunday, Other), filters the data set(s) by route, converts selected time
+metrics from seconds to minutes, validates linearity of segment chains, and
+emits one pivot-table CSV per *(route, direction, time metric)*.  Explicit
+“_NoData.csv” placeholders are written whenever a direction—or an entire
+route—produces no pivots so that downstream workflows can detect absence
+deterministically.
 
-Typical usage:
-    - Define file paths and configuration constants at the top of the script.
-    - Run from ArcPro or Jupyter to batch process and export runtime summaries.
-
-Inputs:
-    - CLEVER runtime files for each service period.
-    - Script-defined route filters and time metric mappings.
-
-Outputs:
-    - CSVs with pivot tables of segment runtimes by trip.
-    - One CSV per (route, direction, metric), organized by dataset type.
+Typical Usage
+Run the script from ArcGIS Pro’s Python window or a Jupyter notebook.
 """
 
 import os
@@ -49,8 +43,21 @@ TIME_COLUMNS = {
 
 
 def load_data(file_path: str) -> pd.DataFrame:
-    """
-    Read a CSV or Excel file, depending on extension.
+    """Return a DataFrame from a CSV or Excel file.
+
+    The reader is selected by file-name extension.  Duplicate columns in the
+    source (a frequent CLEVER quirk) are silently dropped.
+
+    Args:
+        file_path: Absolute or relative path to ``.csv``, ``.xls`` or
+            ``.xlsx`` file.
+
+    Returns:
+        A :class:`~pandas.DataFrame` containing the file contents.
+
+    Raises:
+        ValueError: If *file_path* has an unsupported extension.
+        FileNotFoundError: If *file_path* does not exist.
     """
     _, ext = os.path.splitext(file_path)
     ext = ext.lower()
@@ -68,6 +75,18 @@ def load_data(file_path: str) -> pd.DataFrame:
 def filter_routes(
     df: pd.DataFrame, routes_to_exclude=None, routes_to_include=None
 ) -> pd.DataFrame:
+    """Filter a CLEVER export by *Branch* (i.e. route) column.
+
+    Args:
+        df: The raw CLEVER DataFrame.
+        routes_to_exclude: Branch values to drop, or an empty list/None.
+        routes_to_include: Branch values to retain, or an empty list/None.
+            When supplied, *routes_to_exclude* is ignored for overlapping
+            entries (i.e. explicit inclusion wins).
+
+    Returns:
+        The filtered DataFrame (copy).
+    """
     routes_to_exclude = routes_to_exclude or []
     routes_to_include = routes_to_include or []
 
@@ -79,8 +98,16 @@ def filter_routes(
 
 
 def convert_time_columns(df: pd.DataFrame, time_columns=None) -> None:
-    """
-    Convert certain columns from seconds to minutes in-place.
+    """Convert selected time columns from seconds to minutes *in-place*.
+
+    Args:
+        df: DataFrame whose columns are to be converted.
+        time_columns: Either the same mapping used elsewhere in the script
+            (dict of *original column* → *suffix*) or a list/tuple of raw
+            column names.  Columns that are absent are ignored.
+
+    Notes:
+        The function mutates *df* and returns :pydata:`None`.
     """
     if isinstance(time_columns, dict):
         cols = list(time_columns.keys())
@@ -94,10 +121,16 @@ def convert_time_columns(df: pd.DataFrame, time_columns=None) -> None:
 
 
 def parse_trip_time(trip_str: str):
-    """
-    Extract the HH:MM portion from something like '04:56 1419958'
-    and convert to integer minutes after midnight.
-    Returns None if parsing fails (goes to bottom in sort).
+    """Parse the *HH:MM* portion of a CLEVER *Trip* string.
+
+    Example input ``"04:56 1419958"`` → ``296`` (minutes after midnight).
+
+    Args:
+        trip_str: The full *Trip* string.
+
+    Returns:
+        Integer minutes after midnight, or ``None`` when the substring cannot
+        be parsed (so rows sort last).
     """
     if not isinstance(trip_str, str):
         return None
@@ -114,8 +147,22 @@ def parse_trip_time(trip_str: str):
 
 
 def check_route_validity(segments, variation_values):
-    """
-    Checks for single Variation, valid 'START - END' strings, no branching, etc.
+    """Perform sanity checks on a collection of *START – END* segments.
+
+    The following issues are flagged (warnings only):
+
+    * Multiple *Variation* values in the same route/direction.
+    * Malformed segment strings lacking ``" - "`` delimiter.
+    * Branching or loops in the implied graph.
+    * Missing or non-unique starting stop.
+    * Dangling segments that cannot be chained into a single path.
+
+    Args:
+        segments: Unique *SegmentName* values for a route/direction.
+        variation_values: Unique *Variation* values for the same slice.
+
+    Returns:
+        ``True`` when the segment chain appears linear; ``False`` otherwise.
     """
     is_valid = True
     if len(set(variation_values)) > 1:
@@ -179,8 +226,14 @@ def check_route_validity(segments, variation_values):
 
 
 def sort_route_segments(segments):
-    """
-    Sorts the list of 'START - END' segments into a linear path if possible.
+    """Return *segments* reordered into a linear chain, if one is derivable.
+
+    Args:
+        segments: Unordered *START – END* strings.
+
+    Returns:
+        A new list of segments in travel order, or the original list when no
+        unique chain can be inferred.
     """
     edges = []
     for seg in segments:
@@ -214,21 +267,22 @@ def create_and_save_pivots(
     dataset_label: str,
     time_columns_map: dict,
 ) -> None:
-    """
-    Export one CSV per (route, direction, time_column) and write explicit “no-data”
-    placeholders when a direction, or an entire route, produces no pivot tables.
+    """Create pivot-table CSVs for each *(route, direction, time metric)*.
 
-    Steps
-    -----
-    1.  For each (route, direction), sort rows chronologically via a temporary
-        `time_sort` column parsed from *Trip*.
-    2.  Validate and, if possible, reorder SegmentName columns into true sequence.
-    3.  Pivot each requested time column and round to 1 decimal place.
-    4.  Write the pivot CSV(s).  If none were written for the current direction,
-        emit a “_NoData.csv” placeholder so downstream scripts see the absence
-        explicitly.
-    5.  After all directions, emit a “route-level” placeholder when *no* CSVs
-        at all were created for that route.
+    The routine writes outputs and “no data” placeholders directly to disk.
+
+    Args:
+        df: CLEVER data filtered to a single service period.
+        output_subdir: Directory in which all files for *dataset_label* will
+            be created (created if missing).
+        dataset_label: Short token used in output file names
+            (e.g. ``"wkdy"``, ``"sun"``).
+        time_columns_map: Mapping of *CLEVER column name* →
+            *file-name suffix*.
+
+    Side Effects:
+        Multiple ``.csv`` files are written to *output_subdir*; messages are
+        printed via :pyfunc:`print`.
     """
     if not os.path.exists(output_subdir):
         os.makedirs(output_subdir)
@@ -318,12 +372,15 @@ def create_and_save_pivots(
 
 
 def process_file(file_path: str, dataset_label: str):
-    """
-    Processes a single dataset by performing data loading, filtering, converting time columns,
-    and generating pivot CSV files for runtime analysis.
+    """Run the full workflow for one CLEVER export.
 
-    :param file_path: Path to the input CSV or Excel file.
-    :param dataset_label: Label identifying the dataset type (e.g., 'wkdy', 'sat', 'sun', 'other').
+    Args:
+        file_path: Path to the Weekday/Saturday/Sunday/Other CLEVER file.
+        dataset_label: Token used in output names (must match subdirectory).
+
+    Raises:
+        ValueError: Propagated from :func:`load_data` for unsupported file
+            extensions.
     """
     print(f"\nProcessing file: {file_path} (label='{dataset_label}')")
     df = load_data(file_path)
@@ -344,10 +401,9 @@ def process_file(file_path: str, dataset_label: str):
 
 
 def main():
-    """
-    Main function that orchestrates the processing of runtime datasets for different service periods (weekday, Saturday, Sunday, and other).
+    """Dispatch processing for each configured service period.
 
-    It checks for configured file paths and initiates processing for each available dataset, skipping any with empty paths.
+    File paths left blank in *CONFIGURATION* are skipped with a console notice.
     """
     if WKDY_FILE_PATH:
         process_file(WKDY_FILE_PATH, "wkdy")
