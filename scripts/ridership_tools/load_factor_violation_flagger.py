@@ -206,26 +206,30 @@ def process_data(
 ) -> pd.DataFrame:
     """Transform raw ridership data into an analysis-ready DataFrame.
 
-    Steps performed
-    ---------------
-    1. Apply *filter_in_routes* and *filter_out_routes*.
-    2. Add ``SERVICE_PERIOD``.
-    3. Compute and round ``LOAD_FACTOR``.
-    4. Add ``LOAD_FACTOR_VIOLATION`` and ``ROUTE_LIMIT_TYPE``.
-    5. Sort rows by descending ``LOAD_FACTOR``.
+    The transformation pipeline:
 
-    Parameters
-    ----------
-    data_frame : Raw trip-level ridership DataFrame.
-    bus_capacity : Seated + crush load used as the divisor for load-factor calculation.
-    filter_in_routes : If truthy, keep *only* routes in this list.
-    filter_out_routes : If truthy, drop routes in this list.
-    decimals : Number of decimal places to retain for ``LOAD_FACTOR``.
+        1. Apply `filter_in_routes` and `filter_out_routes`.
+        2. Add column ``SERVICE_PERIOD``.
+        3. Compute and round ``LOAD_FACTOR``.
+        4. Add ``LOAD_FACTOR_VIOLATION`` and ``ROUTE_LIMIT_TYPE``.
+        5. Sort rows by descending ``LOAD_FACTOR``.
 
-    Returns
-    -------
-    pandas.DataFrame
-        A fully processed and neatly sorted DataFrame.
+    Args:
+        data_frame (pd.DataFrame):  
+            Raw trip-level ridership data.
+        bus_capacity (int):  
+            Seated + crush load used as the divisor when calculating the
+            load factor.
+        filter_in_routes (list[str]):  
+            If truthy, **keep only** routes whose short name appears here.
+        filter_out_routes (list[str]):  
+            If truthy, **drop** routes whose short name appears here.
+        decimals (int):  
+            Number of decimal places to retain for ``LOAD_FACTOR``.
+
+    Returns:
+        pandas.DataFrame:  
+            A fully processed and neatly sorted DataFrame.
     """
     # 1) Apply filters
     if filter_in_routes:
