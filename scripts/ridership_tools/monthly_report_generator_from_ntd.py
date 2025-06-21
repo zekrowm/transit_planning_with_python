@@ -193,7 +193,6 @@ def read_excel_data(config: dict) -> dict:
     Returns:
         A mapping of *period label* → cleaned :class:`pandas.DataFrame`.
     """
-
     # ------------------------------------------------------------------
     # 1. robust numeric converter
     # ------------------------------------------------------------------
