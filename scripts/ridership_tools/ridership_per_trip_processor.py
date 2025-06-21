@@ -1,23 +1,13 @@
-"""
-Processes trip-level ridership and generates per-route Excel reports.
+"""Ridership-by-trip/direction/route report generator.
 
-This script reads an Excel file with trip-level ridership, filters data by route
-or other criteria, calculates each trip’s percent share of route ridership,
-and outputs one Excel file per route with direction-based sheets. Optionally,
-it generates charts and flags ultra-low-ridership trips.
+This script converts a single Excel workbook containing trip-level ridership
+statistics into *one* Excel workbook per route.  Each route workbook contains
+a worksheet for every operating direction, with:
 
-Typical use: Normalize and visualize adjusted ridership at the trip level.
-
-Inputs:
-    - Excel file with columns like 'SERIAL_NUMBER', 'TRIP_START_TIME',
-      'ROUTE_NAME', 'DIRECTION_NAME', and 'PASSENGERS_ON'
-    - Configurable filters, field selections, charting, and flagging options
-
-Outputs:
-    - One Excel workbook per route, with direction-based sheets showing trip
-      data, percent-of-route ridership, optional charts, and formatting
-    - Optional text log of ultra-low ridership trips
-    - Console output summarizing results
+- Cleaned and renamed columns
+- Per-trip ridership as a share of the route-total
+- Optional bar-charts of ridership by trip-start time
+- Optional highlighting of “ultra-low” trips
 """
 
 import datetime
@@ -92,12 +82,30 @@ FILTER_OUT_LIST = []
 
 
 def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
-    """
-    1. Read the entire Excel sheet into a DataFrame.
-    2. Normalize 'TRIP_START_TIME' to a Python datetime.time object whenever possible.
-       - If pandas already reads it as datetime64[ns], extract .dt.time.
-       - Otherwise, coerce strings like “05:20” or “05:20:00” into time.
-    3. Keep only the requested columns (in order).
+    """Load and normalise the ridership workbook.
+
+    The function reads the Excel workbook located at *input_file*, coerces
+    ``TRIP_START_TIME`` to :class:`datetime.time`, and returns a DataFrame that
+    contains only *columns_to_retain* (in the supplied order).
+
+    Args:
+        input_file: Fully-qualified path to the **source** Excel workbook.
+        columns_to_retain: Ordered list of column names whose data must be kept.
+            Any name absent from the workbook is silently ignored.
+
+    Returns:
+        A tidy :class:`pandas.DataFrame` with the requested columns.
+        If ``TRIP_START_TIME`` is present, its dtype is guaranteed to be
+        :class:`datetime.time` or *NaT*.
+
+    Raises:
+        FileNotFoundError: If *input_file* cannot be located.
+        ValueError: If none of *columns_to_retain* exist in the workbook.
+
+    Examples:
+        >>> df = load_data("stats.xlsx", ["SERIAL_NUMBER", "TRIP_START_TIME"])
+        >>> df.dtypes["TRIP_START_TIME"]
+        dtype('O')  # actually python ``datetime.time`` objects
     """
     # 1. Read the Excel file
     df = pd.read_excel(input_file)
@@ -127,8 +135,18 @@ def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
 
 
 def create_output_folder(folder_path: str) -> None:
-    """
-    Create the output folder (and any necessary parent folders) if it doesn't exist.
+    """Create *folder_path* (and any parents) if it does not yet exist.
+
+    Args:
+        folder_path: Destination directory for the per-route workbooks.
+
+    Returns:
+        None
+
+    Notes:
+        This is essentially a thin wrapper around
+        :pyfunc:`os.makedirs(..., exist_ok=True)` and thus never raises an
+        exception if the directory already exists.
     """
     os.makedirs(folder_path, exist_ok=True)
 
@@ -142,14 +160,42 @@ def write_direction_sheet(
     flag_ultra_low: bool,
     ultra_low_threshold: float,
 ) -> None:
-    """
-    For a single route‐&‐direction subset (direction_df):
-      - Sort by TRIP_START_TIME
-      - Compute Percent‐of‐Route‐Ridership
-      - Bold the row with maximum passengers
-      - Optionally flag ultra‐low trips in red
-      - Write everything to an Excel sheet
-      - Optionally add a bar chart of 'Passengers' vs. 'Start Time'
+    """Populate a single worksheet for *direction_name*.
+
+    Steps performed:
+
+    1. Sort *direction_df* chronologically by ``TRIP_START_TIME``.
+    2. Compute each trip’s “Percent of Route Ridership”.
+    3. Bold-face the trip with maximum passengers.
+    4. Optionally flag “ultra-low” trips (≤ *ultra_low_threshold*) in **red**.
+    5. Write data + headers to a new worksheet.
+    6. Optionally attach an in-sheet bar chart.
+
+    Args:
+        wb: An *open* :class:`openpyxl.workbook.Workbook` to which the sheet
+            will be added.
+        direction_df: Sub-DataFrame containing only rows for the current
+            route *and* direction.
+        direction_name: Human-readable direction label (e.g. ``'Eastbound'``).
+        date_type: Descriptor shown in the chart title (“Weekday”, “Saturday”,
+            etc.).
+        create_charts: If ``True``, embeds a ridership bar-chart.
+        flag_ultra_low: If ``True``, highlights ultra-low trips.
+        ultra_low_threshold: Numeric passenger cutoff that defines
+            “ultra-low”.
+
+    Returns:
+        None.  *wb* is modified in-place.
+
+    Raises:
+        ValueError: If *direction_df* lacks required columns.
+
+    Side Effects:
+        Adds a new worksheet named *direction_name* to *wb*; writes cell
+        formats, fonts, and (optionally) a chart.
+
+    Example:
+        >>> write_direction_sheet(wb, east_df, "East", "Weekday", True, False, 1.0)
     """
     # 1. Locally sort by TRIP_START_TIME (NaT last)
     direction_df = direction_df.sort_values(
@@ -263,11 +309,27 @@ def create_route_workbook(
     flag_ultra_low: bool,
     ultra_low_threshold: float,
 ) -> None:
-    """
-    For one route (all directions):
-    - Remove default sheet
-    - Call write_direction_sheet() for each direction
-    - Save as '{route_name}.xlsx' in OUTPUT_FOLDER
+    """Create and save the per-route workbook.
+
+    Args:
+        route_name: Label used both for the Excel filename and for logging.
+        route_df: DataFrame containing *all* trips for the route, regardless of
+            direction.
+        output_folder: Directory in which the workbook will be written.
+        date_type: Forwarded to :func:`write_direction_sheet`.
+        create_charts: Forwarded to :func:`write_direction_sheet`.
+        flag_ultra_low: Forwarded to :func:`write_direction_sheet`.
+        ultra_low_threshold: Forwarded to :func:`write_direction_sheet`.
+
+    Returns:
+        None
+
+    Side Effects:
+        * Writes ``{route_name}.xlsx`` to *output_folder*.
+        * Prints a confirmation to ``stdout``.
+
+    Example:
+        >>> create_route_workbook("101", df101, r"C:\\out", "Weekday", True, False, 1.0)
     """
     wb = Workbook()
     default = wb.active
@@ -290,13 +352,22 @@ def create_route_workbook(
 
 
 def main() -> None:
-    """
-    1. Load data from INPUT_FILE.
-    2. Optionally filter rows.
-    3. Sort globally by (ROUTE_NAME, DIRECTION_NAME, TRIP_START_TIME).
-    4. Ensure OUTPUT_FOLDER exists.
-    5. If FLAG_ULTRA_LOW is True, create a .txt log of all ultra-low trips.
-    6. Create one Excel workbook per route.
+    """Entry point when the module is executed as a script.
+
+    Workflow:
+
+    1. Load and optionally filter the ridership data set.
+    2. Sort rows to guarantee deterministic sheet order.
+    3. Ensure the output directory exists.
+    4. (Optional) Write a plain-text log of ultra-low trips.
+    5. Generate one workbook per route.
+
+    Returns:
+        None
+
+    Examples:
+        >>> if __name__ == "__main__":
+        ...     main()
     """
     # 1. Load
     df = load_data(INPUT_FILE, COLUMNS_TO_RETAIN)
