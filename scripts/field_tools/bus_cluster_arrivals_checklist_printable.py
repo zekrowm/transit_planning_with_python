@@ -1,15 +1,18 @@
-"""
-Generates printable Excel checklists of GTFS stop times by custom stop clusters and schedule types.
+"""Generates printable Excel checklists of GTFS stop times by custom stop clusters and schedule types.
 
-Designed for field auditing and service verification, the script groups GTFS stop_times
-by cluster, schedule, and optional time windows. Outputs are formatted Excel files with
-placeholders for arrival data, bus numbers, and comments.
+The script is intended for field auditing and service verification. It:
+    1. Validates the presence of required GTFS text files.
+    2. Loads the data into `pandas` DataFrames.
+    3. Optionally swaps `stop_id` for `stop_code` so downstream logic is agnostic.
+    4. Slices trips by calendar service days and user-defined clusters.
+    5. Writes one Excel workbook per *cluster × schedule × time-window* to
+       `BASE_OUTPUT_PATH`, pre-formatted with placeholders for actual arrival /
+       departure times, bus numbers, and comments.
 
-Typical usage: ArcGIS Pro, Jupyter notebook, or command line.
-
-Inputs:
-    - GTFS files (trips.txt, stop_times.txt, routes.txt, stops.txt, calendar.txt)
-    - Configuration constants: CLUSTERS, SCHEDULE_TYPES, TIME_WINDOWS, etc.
+Typical Usage
+- ArcGIS Pro Python window
+- Jupyter Notebook
+- Plain command line
 
 Outputs:
     - One Excel file per cluster × schedule × time window to BASE_OUTPUT_PATH
@@ -94,8 +97,17 @@ SPECIAL_ROUTES = [
 
 
 def validate_input_directory(base_input_path, gtfs_files):
-    """
-    Validate that the GTFS input directory and required files exist.
+    """Verify that *all* required GTFS files exist in the given directory.
+
+    Args:
+        base_input_path: Absolute or relative path that should contain the
+            GTFS text files.
+        gtfs_files: File names that **must** be found in
+            ``base_input_path`` (e.g. ``["trips.txt", ...]``).
+
+    Raises:
+        FileNotFoundError: If the directory itself or any file in
+            ``gtfs_files`` is missing.
     """
     if not os.path.exists(base_input_path):
         raise FileNotFoundError(
@@ -111,16 +123,33 @@ def validate_input_directory(base_input_path, gtfs_files):
 
 
 def create_output_directory(base_output_path):
-    """
-    Create the output directory if it doesn't already exist.
+    """Create ``base_output_path`` if it does not already exist.
+
+    Args:
+        base_output_path: Folder into which Excel files will be written.
+
+    Notes:
+        *The function is idempotent*: calling it repeatedly is safe.
     """
     if not os.path.exists(base_output_path):
         os.makedirs(base_output_path)
 
 
 def load_gtfs_data(base_input_path, dtype_dict):
-    """
-    Load all required GTFS files into Pandas DataFrames and return them.
+    """Read required GTFS tables into memory.
+
+    Args:
+        base_input_path: Directory containing the GTFS text files.
+        dtype_dict: Mapping of column names to dtypes passed to
+            :pymeth:`pandas.read_csv`.
+
+    Returns:
+        A 5-tuple of DataFrames in the order
+        ``(trips, stop_times, routes, stops, calendar)``.
+
+    Raises:
+        FileNotFoundError: If any of the required files are not present.
+        pandas.errors.ParserError: If a file cannot be parsed as CSV.
     """
     trips = pd.read_csv(os.path.join(base_input_path, "trips.txt"), dtype=dtype_dict)
     stop_times = pd.read_csv(
@@ -135,9 +164,19 @@ def load_gtfs_data(base_input_path, dtype_dict):
 
 
 def apply_stop_identifier_mode(stops_df, stop_identifier_field):
-    """
-    If user chooses 'stop_code' as STOP_IDENTIFIER_FIELD, rename the stops_df column
-    'stop_code' to 'stop_id' so that downstream code can remain unchanged.
+    """Align `stops_df` so downstream code can always key on ``stop_id``.
+
+    If the user elects to use ``stop_code`` as the primary identifier, this
+    function overwrites (or creates) the ``stop_id`` column with the contents
+    of ``stop_code``.
+
+    Args:
+        stops_df: The *stops.txt* table.
+        stop_identifier_field: Either ``"stop_id"`` or ``"stop_code"``.
+
+    Raises:
+        ValueError: If ``stop_identifier_field`` is not one of the two allowed
+            values **or** ``stop_code`` is missing when requested.
     """
     if stop_identifier_field not in ["stop_id", "stop_code"]:
         raise ValueError("STOP_IDENTIFIER_FIELD must be 'stop_id' or 'stop_code'.")
@@ -150,8 +189,19 @@ def apply_stop_identifier_mode(stops_df, stop_identifier_field):
 
 
 def fix_time_format(time_str):
-    """
-    Convert the given time to HH:MM format, ignoring seconds if present.
+    """Normalize GTFS HH:MM[:SS] strings to *24-hour* ``"HH:MM"``.
+
+    The GTFS spec permits hours ≥ 24 for post-midnight trips; values in that
+    range are wrapped back into 0–23.
+
+    Args:
+        time_str: A time string such as ``"27:15:00"`` or ``"05:07"``.
+
+    Returns:
+        The same instant expressed as ``"HH:MM"`` (two-digit padding).
+
+    Raises:
+        ValueError: If ``time_str`` is not parseable as ``H+:MM[:SS]``.
     """
     parts = time_str.split(":")
     hours = int(parts[0])
@@ -162,11 +212,21 @@ def fix_time_format(time_str):
 
 
 def export_to_excel(df, output_file):
-    """
-    Export DataFrame to Excel with:
-    - bold rows for SPECIAL_ROUTES
-    - left-aligned headers
-    - auto-fit column widths
+    """Write a DataFrame to a formatted Excel workbook.
+
+    Formatting rules
+    ----------------
+    * Header row left-aligned.
+    * Entire row **bold** where ``route_short_name`` is in
+      :pydata:`SPECIAL_ROUTES`.
+    * Column widths auto-sized based on max cell length.
+
+    Args:
+        df: Data to export.
+        output_file: Full path of the ``*.xlsx`` file to create.
+
+    Raises:
+        PermissionError: If the target file is open or write-protected.
     """
     bold_font = Font(bold=True)
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
@@ -220,6 +280,30 @@ def process_cluster_data(
     base_output_path,
     time_windows=None,
 ):
+    """Transform and export a *cluster × schedule* slice.
+
+    Workflow
+    --------
+    1. Normalize and sort times.
+    2. Inject placeholder columns needed for field audits.
+    3. Join readable stop names from *stops.txt*.
+    4. Drop internal GTFS columns not useful to inspectors.
+    5. Emit:
+        * A full-day workbook.
+        * Optional time-window workbooks (e.g. *morning*, *afternoon*).
+
+    Args:
+        cluster_data: Subset of stop-times already filtered to the cluster.
+        stops_df: The *stops.txt* table (for name lookup).
+        cluster_name: Friendly cluster label used in filenames.
+        schedule_name: Calendar schedule label used in filenames.
+        base_output_path: Folder for output files.
+        time_windows: Optional mapping
+            ``{"Weekday": {"morning": ("06:00","09:59"), ...}, ...}``.
+
+    Side Effects:
+        Writes one or more ``*.xlsx`` files and logs progress to ``stdout``.
+    """
     # ensure we have a copy to avoid SettingWithCopyWarning
     cluster_data = cluster_data.copy()
 
@@ -456,9 +540,15 @@ def process_cluster_data(
 
 
 def generate_gtfs_checklists():
-    """
-    Generates GTFS checklists in Excel format by schedule and cluster.
-    Allows for filtering by either stop_id or stop_code, based on STOP_IDENTIFIER_FIELD.
+    """Orchestrate the end-to-end checklist generation process.
+
+    High-level steps:
+        1. Validate inputs and create outputs folder.
+        2. Load GTFS data.
+        3. Loop over each *schedule* and *cluster*,
+           delegating to :pyfunc:`process_cluster_data`.
+
+    The function prints status messages but returns nothing.
     """
     # 1) Validate input directory
     validate_input_directory(BASE_INPUT_PATH, GTFS_FILES)
@@ -544,9 +634,7 @@ def generate_gtfs_checklists():
 
 
 def main():
-    """
-    Main entry point of the script.
-    """
+    """Script entry point: simply calls :pyfunc:`generate_gtfs_checklists`."""
     generate_gtfs_checklists()
 
 
