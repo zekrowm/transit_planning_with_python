@@ -95,7 +95,7 @@ def min_to_hhmm(mn: Optional[int]) -> str:
 def safe_sheet(name: str) -> str:
     """Return an Excel-compliant sheet name.
 
-    Excel forbids the characters []:*?/\\ and limits names to 31
+    Excel forbids certain characters and limits names to 31
     characters. Invalid characters are replaced with “_”.
 
     Args:
