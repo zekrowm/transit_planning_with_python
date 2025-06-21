@@ -1,12 +1,12 @@
-"""
-Extract the most common GTFS stop pattern by direction for each route and
-export a per-route CSV.
+"""Extract the dominant stop pattern in each direction for every GTFS route.
 
-Each output file lists every stop that appears in the most-common pattern for
-direction 0 and/or 1, together with its sequence position in each pattern.
+For every route in the input feed, the script identifies the most
+frequently occurring ordered list of stops (“pattern”) for `direction_id`
+0 and 1.  It then writes one CSV per route that lists every stop in either
+pattern together with its sequence number in each direction.
 
-The script is designed for analysts and data scientists, and it is suitable
-for use in environments like ArcGIS Pro or Jupyter Notebooks.
+Typical use cases include schedule validation, pattern visualisation, and
+network QA in **ArcGIS Pro**, **QGIS**, or Jupyter Notebooks.
 """
 
 from __future__ import annotations
@@ -39,38 +39,30 @@ FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["999"]
 
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load selected GTFS text files as :class:`pandas.DataFrame` objects.
 
-    Parameters:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+    Files are read with ``dtype=dtype`` to avoid unwanted type coercion
+    (e.g. IDs becoming integers).  Every successfully parsed file is logged.
+
+    Args:
+        gtfs_folder_path: Absolute or relative path to the directory that
+            contains the GTFS ``*.txt`` files.
+        files: Explicit list of file names to read.  
+            *If ``None`` (default) the full GTFS specification set is
+            attempted.*
+        dtype: Value forwarded to :pyfunc:`pandas.read_csv`.  Pass a mapping
+            when column-specific dtypes are required.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        Mapping whose keys are file stems (e.g. ``"routes"``) and whose
+        values are data frames with all columns preserved as strings
+        unless overridden via *dtype*.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: The directory does not exist **or** at least one requested
+            file is missing.
+        ValueError: A file is empty or Pandas raises a parsing error.
+        RuntimeError: Any other :class:`OSError` triggered during reading.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -183,7 +175,14 @@ def compute_most_common_pattern(
 
 
 def load_core_gtfs_tables(input_dir: str) -> tuple[pd.DataFrame, ...]:
-    """Load the four GTFS tables required for pattern extraction."""
+    """Convenience wrapper to load the four tables required for extraction.
+
+    Args:
+        input_dir: Directory containing the GTFS feed.
+
+    Returns:
+        Tuple in the order ``(routes, trips, stop_times, stops)``.
+    """
     gtfs = load_gtfs_data(input_dir, dtype=str)
     return gtfs["routes"], gtfs["trips"], gtfs["stop_times"], gtfs["stops"]
 
@@ -193,7 +192,17 @@ def filter_routes(
     include: list[str] | None = None,
     exclude: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Apply include/exclude filters to `route_short_name`."""
+    """Filter *routes_df* on its ``route_short_name`` column.
+
+    Args:
+        routes_df: GTFS *routes* table.
+        include: List of short names to **keep**.  When *None* the set is
+            unrestricted.
+        exclude: List of short names to **drop** after *include* is applied.
+
+    Returns:
+        A new, filtered data frame; never modifies *routes_df* in place.
+    """
     routes_df = routes_df.copy()
     routes_df["route_short_name"] = routes_df["route_short_name"].astype(str)
 
@@ -206,7 +215,15 @@ def filter_routes(
 
 
 def build_stop_lookup(stops_df: pd.DataFrame) -> pd.DataFrame:
-    """Return a 2-column (`stop_code`, `stop_name`) lookup indexed by `stop_id`."""
+    """Create a ``stop_id``-indexed lookup of codes and names.
+
+    Args:
+        stops_df: GTFS *stops* table.
+
+    Returns:
+        Data frame with index ``stop_id`` and columns
+        ``["stop_code", "stop_name"]``.
+    """
     stops_df = stops_df.astype({"stop_id": str, "stop_code": str, "stop_name": str})
     return stops_df.set_index("stop_id")[["stop_code", "stop_name"]]
 
@@ -217,7 +234,26 @@ def build_pattern_rows(
     stop_times_df: pd.DataFrame,
     stop_lookup: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Generate one row per stop in the most-common patterns of each route."""
+    """Generate one row per stop appearing in either dominant pattern.
+
+    For every *route_short_name* the function:
+
+    1. Identifies the most common pattern for each direction.
+    2. Computes sequence positions (`seq_dir_0`, `seq_dir_1`).
+    3. Builds a tidy table suitable for per-route CSV export.
+
+    Args:
+        routes_df: Filtered subset of the GTFS *routes* table.
+        trips_df: Full GTFS *trips* table.
+        stop_times_df: Full GTFS *stop_times* table.
+        stop_lookup: Output of :func:`build_stop_lookup`.
+
+    Returns:
+        Normalised data frame with the columns::
+
+            route_short_name  stop_id  stop_code  stop_name
+            seq_dir_0         seq_dir_1
+    """
     rows: list[dict[str, object]] = []
 
     for _, route in routes_df.iterrows():
@@ -262,15 +298,15 @@ def build_pattern_rows(
 
 
 def export_patterns_by_route(result_df: pd.DataFrame, out_dir: str) -> None:
-    """Write one CSV per route into *out_dir*.
+    """Write one CSV per *route_short_name*.
 
     Args:
-        result_df: DataFrame from `build_pattern_rows`.
-        out_dir: Destination folder. Created if it does not exist.
+        result_df: Table created by :func:`build_pattern_rows`.
+        out_dir: Output directory.  Created recursively when absent.
 
     Raises:
-        OSError: If *out_dir* cannot be created.
-        Exception: Propagated if any CSV fails to write.
+        OSError: When *out_dir* cannot be created.
+        RuntimeError: Propagates unexpected I/O errors from Pandas.
     """
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir, exist_ok=True)
@@ -291,7 +327,12 @@ def export_patterns_by_route(result_df: pd.DataFrame, out_dir: str) -> None:
 
 
 def main() -> None:
-    """Orchestrate extraction and per-route export."""
+    """Entrypoint for ad hoc execution.
+
+    Loads data, applies filters, derives patterns, and exports the CSVs.
+    All operational messages—including failures—are written via
+    :pydata:`logging`.
+    """
     try:
         routes, trips, stop_times, stops = load_core_gtfs_tables(INPUT_DIR)
     except (OSError, ValueError, RuntimeError) as exc:
