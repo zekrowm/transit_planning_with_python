@@ -317,32 +317,23 @@ def compare_signups(
     routes_new: dict[str, set[str]],
     tol: float = COORD_TOLERANCE_DEG,
 ) -> dict[str, pd.DataFrame]:
-    """Detect stop-level changes between two GTFS snapshots.
-
-    The comparison classifies each stop as added, removed, moved, or having
-    route-service changes, based on both geometry and route lists.
+    """Builds a DataFrame comparing each route between two signups with flags.
 
     Args:
-        name_old: Human-readable label for the earlier signup (e.g. ``"Jan_2025"``).
-        name_new: Label for the later signup (e.g. ``"Jun_2025"``).
-        df_old: ``stops`` frame returned by :func:`load_gtfs_basic` for *name_old*.
-        df_new: Analogous ``stops`` frame for *name_new*.
-        routes_old: ``stop_id -> set(routes)`` map for *name_old*.
-        routes_new: Map for *name_new*.
-        tol: Coordinate tolerance in *degrees* for declaring a stop “moved”.
+        prev_label: Label for the previous signup.
+        curr_label: Label for the current signup.
+        metrics_prev: DataFrame of metrics for the previous signup.
+        metrics_curr: DataFrame of metrics for the current signup.
+        inter_prev: Dictionary of interlining data for the previous signup.
+        inter_curr: Dictionary of interlining data for the current signup.
 
     Returns:
-        Dictionary ``{sheet_name: DataFrame}`` suitable for immediate writing
-        with :class:`pandas.ExcelWriter`.  Keys follow the pattern::
-
-            Added_<old>→<new>
-            Removed_<old>→<new>
-            Moved_<old>→<new>
-            RouteSvcChange_<old>→<new>
-
-    Notes:
-        *Moved* detection uses absolute Δlat/Δlon thresholds rather than the
-        great-circle distance; tighten *tol* if your network is dense.
+        A pandas DataFrame with routes and their change flags, including:
+        - "Route created"
+        - "Route eliminated"
+        - "Interlining change"
+        - "Span/Trips/Headway change"
+        - "No change"
     """
     idx_old, idx_new = df_old.set_index("stop_id"), df_new.set_index("stop_id")
     old_ids, new_ids = set(idx_old.index), set(idx_new.index)
