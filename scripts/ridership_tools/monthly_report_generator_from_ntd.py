@@ -23,7 +23,7 @@ Outputs:
 
 import os
 import re
-
+from __future__ import annotations
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -149,6 +149,15 @@ PLOT_STYLE = {
 # FUNCTIONS
 # -----------------------------------------------------------------------------
 
+def safe_div(numerator: float | int,
+             denominator: float | int,
+             precision: int = 1) -> float | None:
+    """Return *numerator / denominator* rounded to *precision*,
+    or ``None`` when *denominator* is zero / falsy."""
+    try:
+        return round(numerator / denominator, precision)  # type: ignore[arg-type]
+    except (ZeroDivisionError, TypeError):
+        return None
 
 def read_excel_data(config: dict) -> dict:
     """
@@ -486,10 +495,6 @@ def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFra
         sat_board, sat_days = get_daytype_sum(df_grp, "Saturday")
         sun_board, sun_days = get_daytype_sum(df_grp, "Sunday")
 
-        # If days = 0, result is None or 0; up to you. We'll do None if no days
-        def safe_div(a, b):
-            return round(a / b, 1) if b else None
-
         weekday_avg = safe_div(wd_board, wd_days)
         saturday_avg = safe_div(sat_board, sat_days)
         sunday_avg = safe_div(sun_board, sun_days)
@@ -555,9 +560,6 @@ def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFra
         ]
         sys_sun_board = df_su["MTH_BOARD"].sum()
         sys_sun_days = df_su["DAYS"].sum()
-
-        def safe_div(a, b, r=1):
-            return round(a / b, r) if b else None
 
         weekday_avg = safe_div(sys_wd_board, sys_wd_days, 1)
         saturday_avg = safe_div(sys_sat_board, sys_sat_days, 1)
