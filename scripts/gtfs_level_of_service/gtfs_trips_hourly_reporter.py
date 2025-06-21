@@ -1,18 +1,14 @@
-"""
-Processes GTFS trip data to generate Excel reports of trip counts per time interval
-(e.g., hourly) for specified routes and directions.
+"""Generate Excel reports of trip counts per time interval from a GTFS feed.
 
-Intended for use in ArcGIS Pro and Jupyter notebooks. Supports filtering by
-`service_id` or reporting separately for each available service.
+The module loads GTFS text files, filters and aggregates trips by route,
+direction, service, and user-defined time bins (e.g., hourly), then
+exports the results to one Excel workbook per
+*route × direction × service* combination.
 
-Typical outputs include one Excel file per route/direction/service combination.
+Typical usage is in ArcGIS Pro, Jupyter, or the CLI.
 
-Inputs:
-    - GTFS files in `BASE_INPUT_PATH` (trips.txt, stop_times.txt, etc.).
-    - Script-level configuration for routes, directions, time intervals, and service ID.
-
-Outputs:
-    - Excel files saved to `BASE_OUTPUT_PATH`, showing trips per time bin.
+The constants in the *CONFIGURATION* block control input paths, routes,
+directions, time-bin width, and service filtering.
 """
 
 import logging
@@ -69,38 +65,26 @@ SERVICE_ID = "3"  # Replace with your desired service_id value from calendar.txt
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """
-    Loads GTFS files into pandas DataFrames from the specified directory.
-    This function uses the logging module for output.
+    """Load requested GTFS tables into memory.
 
-    Parameters:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): GTFS filenames to load. Default is all
-            standard GTFS files:
-            [
-                "agency.txt",
-                "stops.txt",
-                "routes.txt",
-                "trips.txt",
-                "stop_times.txt",
-                "calendar.txt",
-                "calendar_dates.txt",
-                "fare_attributes.txt",
-                "fare_rules.txt",
-                "feed_info.txt",
-                "frequencies.txt",
-                "shapes.txt",
-                "transfers.txt"
-            ]
-        dtype (str or dict, optional): Pandas dtype to use. Default is str.
+    Args:
+        gtfs_folder_path: Absolute or relative path to the directory
+            containing GTFS text files.
+        files: Explicit list of GTFS filenames to read.  
+            If ``None``, the canonical GTFS specification list is used.
+        dtype: Value passed to :pyfunc:`pandas.read_csv` to control column
+            dtypes. Accepts either a single dtype or a dict mapping columns
+            to dtypes.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary keyed by file name without extension.
+        A mapping whose keys are file stems (e.g. ``"trips"``) and whose
+        values are the corresponding :class:`pandas.DataFrame` objects.
 
     Raises:
-        OSError: If gtfs_folder_path doesn't exist or if any required file is missing.
-        ValueError: If a file is empty or there's a parsing error.
-        RuntimeError: For OS errors during file reading.
+        OSError: If *gtfs_folder_path* is missing or any requested file does
+            not exist.
+        ValueError: If a file is empty or fails CSV parsing.
+        RuntimeError: For operating-system errors encountered while reading.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -163,10 +147,18 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 # OTHER FUNCTIONS
 # -----------------------------------------------------------------------------
 def fix_time_format(time_str):
-    """
-    Fix time formats by:
-    - Adding leading zeros to single-digit hours
-    - Converting hours greater than 23 by subtracting 24
+    """Normalize GTFS HH:MM:SS strings.
+
+    * Adds a leading zero when the hour has one digit.
+    * Converts post-24 h times (e.g. ``25:15:00``) to 24-hour rollover
+      by subtracting 24 from the hour component.
+
+    Args:
+        time_str: Raw time string from ``stop_times.txt`` or
+            :pydata:`pandas.NA`.
+
+    Returns:
+        The cleaned time string, or ``pd.NA`` if *time_str* is null-like.
     """
     if pd.isna(time_str):
         return time_str
@@ -184,15 +176,15 @@ def fix_time_format(time_str):
 
 
 def get_time_bin(t, interval):
-    """
-    Assigns a time object to a specific time bin based on the interval.
+    """Map a :class:`datetime.time` to a formatted time-bin label.
 
     Args:
-        t (datetime.time): The time to bin.
-        interval (int): The interval in minutes.
+        t: The time of day to classify.
+        interval: Width of each time bin in minutes
+            (must divide 1 440 evenly).
 
     Returns:
-        str: A string representing the time bin (e.g., "08:00-08:59").
+        A label such as ``"08:00-08:59"``.
     """
     total_minutes = t.hour * 60 + t.minute
     bin_start = (total_minutes // interval) * interval
@@ -211,22 +203,24 @@ def process_and_export(
     interval_minutes: int,
     service_id: str | None = None,
 ) -> None:
-    """
-    Create “trips-per-time-bin” Excel workbooks from a GTFS feed.
+    """Create “trips-per-time-bin” Excel workbooks from a GTFS feed.
 
-    Parameters
-    ----------
-    data
-        Dictionary returned by `load_gtfs_data()`.
-    route_dirs
-        List like [{"route_short_name": "101", "direction_id": 0}, …].
-    output_path
-        Directory where the Excel files will be written.
-    interval_minutes
-        Width of each time bin in minutes (e.g. 60 for hourly).
-    service_id
-        • str  → process only that service_id.
-        • None → iterate over every service_id in the feed.
+    Args:
+        data: Output of :func:`load_gtfs_data`.
+        route_dirs: Iterable of route/direction filters, e.g.  
+            ``[{"route_short_name": "101", "direction_id": 0}, …]``.
+        output_path: Folder in which the Excel files will be written. The
+            directory is created if it does not exist.
+        interval_minutes: Width of each time bin (e.g. ``60`` for hourly).
+        service_id: If supplied, restrict processing to that
+            ``service_id``; otherwise iterate over every ``service_id``
+            present in the feed.
+
+    Returns:
+        None. Side-effect: Excel files are written to *output_path*.
+
+    Raises:
+        ValueError: If *interval_minutes* does not evenly divide 1 440.
     """
     trips = data["trips"]
     stop_times = data["stop_times"]
@@ -329,8 +323,22 @@ def process_and_export(
 def _export_to_excel(
     df, output_path, interval_minutes, route_short, direction_id=None, service_id=None
 ):
-    """
-    Helper function to export a given DataFrame to an Excel file.
+    """Write a single *trips-per-bin* table to an Excel workbook.
+
+    Args:
+        df: Two-column DataFrame with ``time_bin`` and ``trip_count``.
+        output_path: Destination directory (created if necessary).
+        interval_minutes: Width of each time bin, replicated in the file name.
+        route_short: ``route_short_name`` used in the file/work-sheet title.
+        direction_id: ``direction_id`` (``0`` or ``1``) or ``None`` for all.
+        service_id: ``service_id`` or ``None`` if the feed was pre-filtered.
+
+    Returns:
+        None. The workbook is saved to *output_path*.
+
+    Notes:
+        This helper is intentionally private; callers should invoke
+        :func:`process_and_export` instead of calling this function directly.
     """
     wb = Workbook()
     ws = wb.active
@@ -395,7 +403,16 @@ def _export_to_excel(
 # MAIN
 # =============================================================================
 def main() -> None:
-    """Entry-point."""
+    """Run the end-to-end pipeline from CLI or “Run ▶” button.
+
+    1. Configure logging.
+    2. Validate the time-interval width.
+    3. Load GTFS tables via :func:`load_gtfs_data`.
+    4. Generate and export reports via :func:`process_and_export`.
+
+    Any uncaught exception is logged with full traceback before
+    the script exits with a non-zero status.
+    """
     # ─── Logging setup (moved here) ───────────────────────────────────────────
     logging.basicConfig(
         level=logging.INFO,
