@@ -193,9 +193,11 @@ def read_excel_data(config: dict) -> dict:
     # 1. robust numeric converter
     # ------------------------------------------------------------------
     def safe_float(val):
-        """
-        • Returns None for blank cells, whitespace, or Excel NaNs.
-        • Otherwise returns float(value) — preserving 0, 0.0, "0", "0.00", etc.
+
+    def safe_float(val):
+        """Return None for blank cells, whitespace, or Excel NaNs.
+
+        Otherwise return a float — preserving 0, 0.0, "0", "0.00", etc.
         """
         if pd.isna(val):
             return None
@@ -721,12 +723,10 @@ def plot_metric_over_time(df_time: pd.DataFrame, metric: str, config: dict):
 
 
 def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict):
-    """Iterate over :pydata:`PLOT_CONFIG` flags and call
-    :func:`plot_metric_over_time` when enabled.
+    """Iterate over PLOT_CONFIG flags and call plot_metric_over_time when enabled.
 
     Args:
-        df_time: Time-series DataFrame from
-            :func:`build_monthly_timeseries`.
+        df_time: Time-series DataFrame from build_monthly_timeseries.
         config: Global configuration dictionary.
         plot_config: Boolean flags mapping plot names to metrics.
     """
