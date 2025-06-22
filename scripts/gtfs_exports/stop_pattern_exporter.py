@@ -21,6 +21,7 @@ import os
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Literal
+
 import numpy as np
 import pandas as pd
 from openpyxl import Workbook
@@ -30,8 +31,8 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_DIR: Path = Path(r"\\Path\\To\\Your\\GTFS")       # Replace with your actual input path
-OUTPUT_DIR: Path = Path(r"\\Path\\To\\Output")           # Replace with your actual output path
+INPUT_DIR: Path = Path(r"\\Path\\To\\Your\\GTFS")  # Replace with your actual input path
+OUTPUT_DIR: Path = Path(r"\\Path\\To\\Output")  # Replace with your actual output path
 
 FILTER_IN_ROUTE_SHORT_NAMES: List[str] = []
 FILTER_OUT_ROUTE_SHORT_NAMES: List[str] = []
