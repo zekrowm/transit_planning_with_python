@@ -596,9 +596,7 @@ def _build_schedule_rows(
 
     for minute in timeline:
         # --------------------------------------------------- identify active trips
-        possible_trips = [
-            t for t in trips_summary if t["start"] <= minute <= t["end"]
-        ]
+        possible_trips = [t for t in trips_summary if t["start"] <= minute <= t["end"]]
 
         if possible_trips:
             chosen_trip, chosen_status = _status_for_active_trips(
