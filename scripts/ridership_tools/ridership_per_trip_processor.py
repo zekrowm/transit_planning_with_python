@@ -13,7 +13,7 @@ a worksheet for every operating direction, with:
 import datetime
 import os
 from __future__ import annotations
-from typing import Final, Sequence
+from typing import Final
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
