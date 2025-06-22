@@ -9,7 +9,7 @@ though direct execution via the command line is also supported.
 
 import logging
 import os
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import pandas as pd
 
@@ -508,23 +508,39 @@ def _status_for_active_trips(minute, active_trips, bus_stop_clusters):
     return valid_candidates[0]
 
 
-def _row_for_inactive(minute, block_id, all_trips):
-    """Return the dictionary row for an 'inactive' minute (or bridging)."""
-    # Identify trips just before and just after this minute
-    prev_trip_info = None
-    next_trip_info = None
+def _row_for_inactive(
+    minute: int,
+    block_id: str,
+    all_trips: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Return a dictionary row describing the vehicle status when **no trip is active**.
+
+    The function looks at the closest finished trip and the next upcoming trip to
+    decide whether the vehicle is *DWELL*, *LAYOVER*, *LONG BREAK*, *LOADING*, or truly
+    *INACTIVE* at the requested minute.
+
+    Args:
+        minute: Timeline minute being evaluated (0 = 00:00).
+        block_id: Identifier of the vehicle block.
+        all_trips: List of trip-summary dictionaries (output of
+            :func:`_create_trips_summary`).
+
+    Returns:
+        A row ready to be appended to the final minute-by-minute DataFrame.
+    """
+    prev_trip_info: Optional[dict[str, Any]] = None
+    next_trip_info: Optional[dict[str, Any]] = None
+
     for trip_obj in all_trips:
         if trip_obj["end"] < minute:
-            if (prev_trip_info is None) or (trip_obj["end"] > prev_trip_info["end"]):
+            if prev_trip_info is None or trip_obj["end"] > prev_trip_info["end"]:
                 prev_trip_info = trip_obj
         if trip_obj["start"] > minute:
-            if (next_trip_info is None) or (
-                trip_obj["start"] < next_trip_info["start"]
-            ):
+            if next_trip_info is None or trip_obj["start"] < next_trip_info["start"]:
                 next_trip_info = trip_obj
 
-    # Distinguish dwell, layover, or inactive
-    if prev_trip_info and next_trip_info:
+    # ------------------------------------------------------------------ status decision
+    if prev_trip_info is not None and next_trip_info is not None:
         gap = next_trip_info["start"] - prev_trip_info["end"]
         if gap <= DWELL_THRESHOLD:
             status = "DWELL"
@@ -535,11 +551,11 @@ def _row_for_inactive(minute, block_id, all_trips):
     else:
         status = "INACTIVE"
 
-    # If the very next minute is a start, label as LOADING
+    # If the very next minute is the first minute of a trip, mark this minute “LOADING”.
     if (
-        next_trip_info
-        and next_trip_info["start"] == (minute + 1)
-        and status in ["DWELL", "LAYOVER"]
+        next_trip_info is not None
+        and next_trip_info["start"] == minute + 1
+        and status in {"DWELL", "LAYOVER"}
     ):
         status = "LOADING"
 
@@ -559,17 +575,40 @@ def _row_for_inactive(minute, block_id, all_trips):
     }
 
 
-def _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters):
-    """Build the final minute-by-minute schedule rows for one block."""
-    rows = []
+def _build_schedule_rows(
+    trips_summary: list[dict[str, Any]],
+    timeline: range,
+    block_id: str,
+    bus_stop_clusters: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Create the minute-by-minute schedule rows for a single block.
+
+    Args:
+        trips_summary: Output of :func:`_create_trips_summary`.
+        timeline: Range object representing every minute to be evaluated.
+        block_id: Identifier of the vehicle block.
+        bus_stop_clusters: Cluster definitions used for dwell/layover logic.
+
+    Returns:
+        A list of dictionaries (one per minute) suitable for `pd.DataFrame`.
+    """
+    rows: list[dict[str, Any]] = []
+
     for minute in timeline:
-        # Which trips are active at this minute?
-        possible_trips = [t for t in trips_summary if t["start"] <= minute <= t["end"]]
+        # --------------------------------------------------- identify active trips
+        possible_trips = [
+            t for t in trips_summary if t["start"] <= minute <= t["end"]
+        ]
+
         if possible_trips:
             chosen_trip, chosen_status = _status_for_active_trips(
                 minute, possible_trips, bus_stop_clusters
             )
-            if chosen_trip:
+
+            if chosen_trip is not None:
+                # Narrow the type for static analysers / pylint.
+                chosen_trip = cast(dict[str, Any], chosen_trip)
+
                 (
                     status,
                     stop_id,
@@ -581,12 +620,12 @@ def _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters):
                     t_val,
                 ) = chosen_status
 
+                # Treat “EMPTY” as travelling between stops.
                 if status == "EMPTY":
-                    # If an active trip is "EMPTY", consider it traveling
                     status = "TRAVELING BETWEEN STOPS"
 
-                # Convert dwell/layover to LOADING if the next minute is DEPART
-                if status in ["DWELL", "LAYOVER"]:
+                # Convert DWELL/LAYOVER to LOADING if departure is in the next minute.
+                if status in {"DWELL", "LAYOVER"}:
                     next_minute = minute + TIME_INTERVAL_MINUTES
                     if next_minute <= chosen_trip["end"]:
                         next_status = get_status_for_minute(
@@ -602,18 +641,17 @@ def _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters):
                     "Block": block_id,
                     "Route": chosen_trip["route_id"],
                     "Direction": chosen_trip["direction_id"],
-                    "Trip ID": trip_id_for_status if trip_id_for_status else "",
-                    "Stop ID": stop_id if stop_id else "",
-                    "Stop Name": stop_name if stop_name else "",
-                    "Stop Sequence": stop_seq if stop_seq else "",
-                    "Arrival Time": arr_str if arr_str else "",
-                    "Departure Time": dep_str if dep_str else "",
+                    "Trip ID": trip_id_for_status or "",
+                    "Stop ID": stop_id or "",
+                    "Stop Name": stop_name or "",
+                    "Stop Sequence": stop_seq or "",
+                    "Arrival Time": arr_str or "",
+                    "Departure Time": dep_str or "",
                     "Status": status,
                     "Timepoint": t_val,
                 }
             else:
-                # Means possible_trips existed, but all statuses were "EMPTY"
-                # => treat as traveling
+                # All active trips returned “EMPTY”.
                 row = {
                     "Timestamp": minutes_to_hhmm(minute),
                     "Block": block_id,
@@ -629,9 +667,11 @@ def _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters):
                     "Timepoint": 0,
                 }
         else:
-            # Truly no active trips => bridging or inactive
+            # No active trips ⇒ bridging or fully inactive.
             row = _row_for_inactive(minute, block_id, trips_summary)
+
         rows.append(row)
+
     return rows
 
 
