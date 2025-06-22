@@ -13,9 +13,15 @@ explicit_package_bases = true
 namespace_packages     = true
 # (intentionally no global ignore_missing_imports)
 
-# Silence binary-only / stub-less modules (e.g. arcpy) **only**
+# Silence binary-only / stub-less modules **only**
 [[tool.mypy.overrides]]
-module                 = ["arcpy.*"]
+module                 = [
+  "arcpy.*",    # Esri’s proprietary bindings – no stubs
+  "geopandas.*",# community stub project abandoned
+  "shapely.*",  # partial hints in 2.x, still incomplete
+  "pulp.*",     # no stubs
+  "scipy.*"     # NumPy-style stubs stalled → tons of “Any”
+]
 ignore_missing_imports = true
 
 # ───────────── pylint (linter) ────────────────
