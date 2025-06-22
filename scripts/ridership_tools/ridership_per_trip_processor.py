@@ -10,10 +10,12 @@ a worksheet for every operating direction, with:
 - Optional highlighting of “ultra-low” trips
 """
 
+from __future__ import annotations
+
 import datetime
 import os
-from __future__ import annotations
 from typing import Final
+
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
@@ -27,7 +29,7 @@ from openpyxl.utils import get_column_letter
 INPUT_FILE: Final[str] = r"\\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
 OUTPUT_FOLDER: Final[str] = r"\\Path\To\Your\Output\Folder"
 
-DATE_TYPE: Final[str] = "Weekday"              # Label for the type of day
+DATE_TYPE: Final[str] = "Weekday"  # Label for the type of day
 
 # COLUMN CONFIGURATION --------------------------------------------------------
 
@@ -41,8 +43,8 @@ COLUMNS_CONFIG: Final[list[str]] = [
 ]
 
 # Process COLUMNS_CONFIG into two structures:
-COLUMNS_TO_RETAIN: list[str] = []              # populated programmatically
-COLUMN_RENAME_MAP: dict[str, str] = {}         # populated programmatically
+COLUMNS_TO_RETAIN: list[str] = []  # populated programmatically
+COLUMN_RENAME_MAP: dict[str, str] = {}  # populated programmatically
 for col_entry in COLUMNS_CONFIG:
     if ":" in col_entry:
         original, new_name = col_entry.split(":", 1)
