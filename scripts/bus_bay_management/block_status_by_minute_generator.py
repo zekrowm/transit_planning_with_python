@@ -9,7 +9,7 @@ though direct execution via the command line is also supported.
 
 import logging
 import os
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -507,7 +507,6 @@ def _status_for_active_trips(minute, active_trips, bus_stop_clusters):
     valid_candidates.sort(key=candidate_sort_key)
     return valid_candidates[0]
 
-
 def _row_for_inactive(
     minute: int,
     block_id: str,
@@ -518,30 +517,31 @@ def _row_for_inactive(
     The function looks at the closest finished trip and the next upcoming trip to
     decide whether the vehicle is *DWELL*, *LAYOVER*, *LONG BREAK*, *LOADING*, or truly
     *INACTIVE* at the requested minute.
-
-    Args:
-        minute: Timeline minute being evaluated (0 = 00:00).
-        block_id: Identifier of the vehicle block.
-        all_trips: List of trip-summary dictionaries (output of
-            :func:`_create_trips_summary`).
-
-    Returns:
-        A row ready to be appended to the final minute-by-minute DataFrame.
     """
     prev_trip_info: Optional[dict[str, Any]] = None
     next_trip_info: Optional[dict[str, Any]] = None
 
+    # ------------------------------------------------------------------ locate bounding trips
     for trip_obj in all_trips:
+        # The most recent trip that has already finished
         if trip_obj["end"] < minute:
-            if prev_trip_info is None or trip_obj["end"] > prev_trip_info["end"]:
+            if (
+                prev_trip_info is None
+                or trip_obj["end"] > prev_trip_info["end"]
+            ):
                 prev_trip_info = trip_obj
-        if trip_obj["start"] > minute:
-            if next_trip_info is None or trip_obj["start"] < next_trip_info["start"]:
+
+        # The very next trip that has not yet started
+        elif trip_obj["start"] > minute:
+            if (
+                next_trip_info is None
+                or trip_obj["start"] < next_trip_info["start"]
+            ):
                 next_trip_info = trip_obj
 
     # ------------------------------------------------------------------ status decision
     if prev_trip_info is not None and next_trip_info is not None:
-        gap = next_trip_info["start"] - prev_trip_info["end"]
+        gap: int = next_trip_info["start"] - prev_trip_info["end"]
         if gap <= DWELL_THRESHOLD:
             status = "DWELL"
         elif gap <= LAYOVER_THRESHOLD:
@@ -559,6 +559,7 @@ def _row_for_inactive(
     ):
         status = "LOADING"
 
+    # ------------------------------------------------------------------ final record
     return {
         "Timestamp": minutes_to_hhmm(minute),
         "Block": block_id,
