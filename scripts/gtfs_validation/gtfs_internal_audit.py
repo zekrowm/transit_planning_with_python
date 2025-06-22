@@ -13,12 +13,11 @@ Outputs:
 """
 
 from __future__ import annotations
-
 import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Any
 
 import networkx as nx
 import pandas as pd
@@ -372,7 +371,8 @@ def unrealistic_timings(
         stops[["stop_id", "stop_lat", "stop_lon"]], on="stop_id", how="left"
     )
 
-    offenders: list[dict[str, float | str]] = []
+    offenders: list[dict[str, Any]] = []
+
     for tid, grp in st.groupby("trip_id"):
         grp = grp.sort_values("stop_sequence")
         prev: StopSnapshot | None = None
