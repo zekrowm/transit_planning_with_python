@@ -37,3 +37,10 @@ pylint==3.1              # Code linting (development use only)
 # ArcPy is not included here because it is not pip-installable.
 # If using scripts that require ArcPy, run them within the ArcGIS Pro conda environment,
 # which includes arcpy and most geospatial libraries by default.
+
+# ───────────── Typing stubs (temporary) ─────────────
+pandas-stubs==2.2.*
+types-openpyxl>=3.1,<5
+types-networkx>=3.4,<4
+types-faker>=25,<26
+types-rapidfuzz>=3.11,<4
