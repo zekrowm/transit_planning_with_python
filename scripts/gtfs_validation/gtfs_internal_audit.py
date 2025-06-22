@@ -17,8 +17,8 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set, TypedDict
-
+from typing import Dict, List, Set
+from dataclasses import dataclass
 import networkx as nx
 import pandas as pd
 from shapely import geometry as sgeom
@@ -48,8 +48,6 @@ DEG_TO_FEET = DEG_TO_MILES * 5280
 # -----------------------------------------------------------------------------
 # TYPE DEFINITIONS
 # -----------------------------------------------------------------------------
-
-from dataclasses import dataclass
 
 @dataclass
 class StopSnapshot:
