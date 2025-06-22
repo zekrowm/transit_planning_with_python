@@ -45,23 +45,30 @@ LONG_GAP_MIN = 60  # minutes
 DEG_TO_MILES = 69.172  # rough miles per degree
 DEG_TO_FEET = DEG_TO_MILES * 5280
 
-
 # -----------------------------------------------------------------------------
 # TYPE DEFINITIONS
 # -----------------------------------------------------------------------------
-class StopSnapshot(TypedDict):
-    """Snapshot of the previous stop used for speed/gap checks."""
 
+from dataclasses import dataclass
+
+@dataclass
+class StopSnapshot:
+    """Snapshot of the previous stop used for speed/gap checks.
+
+    Attributes:
+        sid: Stop ID of the snapshot point.
+        t:   Departure/arrival time at the stop in seconds after midnight, or ``None``.
+        lat: Latitude of the stop.
+        lon: Longitude of the stop.
+    """
     sid: str
     t: int | None
     lat: float
     lon: float
 
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
 
 def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     """Read one or more GTFS text files from the given folder.
@@ -352,35 +359,34 @@ def unrealistic_timings(
     Returns:
         DataFrame with one row per offending segment and the columns:
             * trip_id   – ID of the trip containing the segment
-            * prev_stop – stop_id of the first stop in the segment
-            * next_stop – stop_id of the following stop
+            * prev_stop – ``stop_id`` of the first stop in the segment
+            * next_stop – ``stop_id`` of the following stop
             * gap_min   – dwell or travel time between the two stops (minutes)
             * speed_mph – average speed over the segment (mph)
     """
-    # Merge lat/lon onto each stop_time record
+    # Attach lat/lon to every stop_time record.
     st = stop_times.merge(
         stops[["stop_id", "stop_lat", "stop_lon"]], on="stop_id", how="left"
     )
 
-    offenders: List[Dict] = []
+    offenders: list[dict[str, float | str]] = []
     for tid, grp in st.groupby("trip_id"):
         grp = grp.sort_values("stop_sequence")
-        prev: Optional[StopSnapshot] = None
+        prev: StopSnapshot | None = None
 
-        # iterrows is retained for readability; switch to itertuples if performance matters
+        # Row-wise loop kept for clarity; switch to itertuples if speed matters.
         for _, row in grp.iterrows():
             tsec = parse_time(row.departure_time or row.arrival_time)
 
-            # --------------------------- speed / gap check ---------------------------
-            if prev is not None and tsec is not None and prev["t"] is not None:
-                dt = tsec - prev["t"]
-                if dt <= 0:
-                    # Non-positive dwell/travel times are ignored (often scheduling quirks)
+            # ────── speed & gap check ────────────────────────────────────────────
+            if prev is not None and prev.t is not None and tsec is not None:
+                dt = tsec - prev.t
+                if dt <= 0:  # ignore non-positive dwell/travel times
                     continue
 
                 dist_mi = haversine_miles(
-                    prev["lat"],
-                    prev["lon"],
+                    prev.lat,
+                    prev.lon,
                     float(row.stop_lat),
                     float(row.stop_lon),
                 )
@@ -390,14 +396,14 @@ def unrealistic_timings(
                     offenders.append(
                         {
                             "trip_id": tid,
-                            "prev_stop": prev["sid"],
+                            "prev_stop": prev.sid,
                             "next_stop": row.stop_id,
                             "gap_min": round(dt / 60.0, 1),
                             "speed_mph": round(speed, 1),
                         }
                     )
 
-            # --------------------------- snapshot current stop ---------------------------
+            # ────── snapshot current stop ───────────────────────────────────────
             prev = StopSnapshot(
                 sid=row.stop_id,
                 t=tsec,
