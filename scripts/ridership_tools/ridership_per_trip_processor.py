@@ -12,7 +12,8 @@ a worksheet for every operating direction, with:
 
 import datetime
 import os
-
+from __future__ import annotations
+from typing import Final, Sequence
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
@@ -23,16 +24,15 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE = r"\\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
-OUTPUT_FOLDER = r"\\Path\To\Your\Output\Folder"
+INPUT_FILE: Final[str] = r"\\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
+OUTPUT_FOLDER: Final[str] = r"\\Path\To\Your\Output\Folder"
 
-# Label for the type of day (appears in chart titles, e.g. “Weekday”).
-DATE_TYPE = "Weekday"
+DATE_TYPE: Final[str] = "Weekday"              # Label for the type of day
 
 # COLUMN CONFIGURATION --------------------------------------------------------
 
 # List of columns to retain; each entry may optionally include “: Custom Header”.
-COLUMNS_CONFIG = [
+COLUMNS_CONFIG: Final[list[str]] = [
     "SERIAL_NUMBER: Trip ID",
     "TRIP_START_TIME: Start Time",
     "ROUTE_NAME: Route",
@@ -41,10 +41,8 @@ COLUMNS_CONFIG = [
 ]
 
 # Process COLUMNS_CONFIG into two structures:
-#   1) COLUMNS_TO_RETAIN = ["SERIAL_NUMBER", "TRIP_START_TIME", …]
-#   2) COLUMN_RENAME_MAP = { "SERIAL_NUMBER": "Trip ID", "TRIP_START_TIME": "Start Time", … }
-COLUMNS_TO_RETAIN = []
-COLUMN_RENAME_MAP = {}
+COLUMNS_TO_RETAIN: list[str] = []              # populated programmatically
+COLUMN_RENAME_MAP: dict[str, str] = {}         # populated programmatically
 for col_entry in COLUMNS_CONFIG:
     if ":" in col_entry:
         original, new_name = col_entry.split(":", 1)
@@ -57,24 +55,15 @@ for col_entry in COLUMNS_CONFIG:
         COLUMNS_TO_RETAIN.append(col_name)
 
 # OTHER OPTIONS ---------------------------------------------------------------
-
-# Whether to create bar charts (True/False).
-CREATE_CHARTS = True
-
-# Whether to highlight ultra‐low trips (True/False).
-FLAG_ULTRA_LOW = False
-ULTRA_LOW_THRESHOLD = 1.0  # trips with ≤1 passenger are “ultra-low”
+CREATE_CHARTS: Final[bool] = True
+FLAG_ULTRA_LOW: Final[bool] = False
+ULTRA_LOW_THRESHOLD: Final[float] = 1.0
 
 # FILTERING OPTIONS -----------------------------------------------------------
 
-# If filtering is desired, specify the column (e.g. "ROUTE_NAME"); otherwise, set to None or "".
-FILTER_COLUMN_NAME = "ROUTE_NAME"
-
-# Only keep rows whose FILTER_COLUMN_NAME is in this list (if non-empty).
-FILTER_IN_LIST = ["101", "202"]
-
-# Exclude rows whose FILTER_COLUMN_NAME is in this list (if non-empty).
-FILTER_OUT_LIST = []
+FILTER_COLUMN_NAME: Final[str | None] = "ROUTE_NAME"
+FILTER_IN_LIST: Final[list[str]] = []
+FILTER_OUT_LIST: Final[list[str]] = []
 
 # =============================================================================
 # FUNCTIONS
