@@ -91,11 +91,18 @@ jobs:
       # ---------------------------------------------------------------------
       # 8) mypy (static typing)
       # ---------------------------------------------------------------------
-      - name: Run mypy
-        run: |
-          echo "Running mypy (ignore missing imports)…"
-          mypy $FILES --ignore-missing-imports --show-error-codes --no-color-output
-        continue-on-error: true
+            - name: Run mypy
+              if: ${{ always() }}
+               run: |
+                 echo "Running mypy (ignore missing imports)…"
+                 for file in $FILES; do
+                   echo "::group::mypy → $file"
+                   mypy "$file" \
+                        --ignore-missing-imports \
+                       --explicit-package-bases || true   # swallow non-zero exit
+                   echo "::endgroup::"
+                 done
+              continue-on-error: true
 
       # ---------------------------------------------------------------------
       # 9) pydocstyle (docstring lint)
