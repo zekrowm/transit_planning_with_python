@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import logging
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Set
-from dataclasses import dataclass
+
 import networkx as nx
 import pandas as pd
 from shapely import geometry as sgeom
@@ -49,6 +50,7 @@ DEG_TO_FEET = DEG_TO_MILES * 5280
 # TYPE DEFINITIONS
 # -----------------------------------------------------------------------------
 
+
 @dataclass
 class StopSnapshot:
     """Snapshot of the previous stop used for speed/gap checks.
@@ -59,14 +61,17 @@ class StopSnapshot:
         lat: Latitude of the stop.
         lon: Longitude of the stop.
     """
+
     sid: str
     t: int | None
     lat: float
     lon: float
 
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     """Read one or more GTFS text files from the given folder.
