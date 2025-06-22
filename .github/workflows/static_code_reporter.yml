@@ -58,13 +58,12 @@ jobs:
           FILES=$(find . -type f -name '*.py' ! -path './arcpy_tools/*')
           echo "$FILES"
           FILES_SPACE_SEP=$(echo "$FILES" | tr '\n' ' ')
-          echo "FILES=$FILES_SPACE_SEP" >> $GITHUB_ENV
-          echo "file-count=$(echo "$FILES" | wc -l)" >> $GITHUB_OUTPUT
+          echo "FILES=$FILES_SPACE_SEP" >> "$GITHUB_ENV"
+          echo "file-count=$(echo "$FILES" | wc -l)" >> "$GITHUB_OUTPUT"
 
       # ---------------------------------------------------------------------
       # 6) Pylint
       # ---------------------------------------------------------------------
-      # 6) Pylint
       - name: Run Pylint
         run: |
           echo "Running Pylint (errors-only)…"
@@ -74,7 +73,7 @@ jobs:
                    --errors-only \
                    --ignored-modules=arcpy \
                    --disable=duplicate-code \
-                   || true            # <── swallow non-zero exit code
+                   || true            # swallow non-zero exit
             echo "::endgroup::"
           done
         continue-on-error: true
@@ -91,18 +90,18 @@ jobs:
       # ---------------------------------------------------------------------
       # 8) mypy (static typing)
       # ---------------------------------------------------------------------
-            - name: Run mypy
-              if: ${{ always() }}
-               run: |
-                 echo "Running mypy (ignore missing imports)…"
-                 for file in $FILES; do
-                   echo "::group::mypy → $file"
-                   mypy "$file" \
-                        --ignore-missing-imports \
-                       --explicit-package-bases || true   # swallow non-zero exit
-                   echo "::endgroup::"
-                 done
-              continue-on-error: true
+      - name: Run mypy
+        if: ${{ always() }}
+        run: |
+          echo "Running mypy (ignore missing imports)…"
+          for file in $FILES; do
+            echo "::group::mypy → $file"
+            mypy "$file" \
+                 --ignore-missing-imports \
+                 --explicit-package-bases || true   # swallow non-zero exit
+            echo "::endgroup::"
+          done
+        continue-on-error: true
 
       # ---------------------------------------------------------------------
       # 9) pydocstyle (docstring lint)
