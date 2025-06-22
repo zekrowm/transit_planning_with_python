@@ -29,21 +29,19 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_DIR = r"\\Path\\To\\Your\\GTFS"  # Replace with your actual input path
-OUTPUT_DIR = r"\\Path\\To\\Output"  # Replace with your actual output path
-# Filename constants (TRIPS_FILE, STOPS_FILE, etc.) have been removed for consistency.
-# Standard GTFS filenames like "trips.txt", "stops.txt" will be used directly.
+INPUT_DIR: Path = Path(r"\\Path\\To\\Your\\GTFS")       # Replace with your actual input path
+OUTPUT_DIR: Path = Path(r"\\Path\\To\\Output")           # Replace with your actual output path
 
-FILTER_IN_ROUTE_SHORT_NAMES = []
-FILTER_OUT_ROUTE_SHORT_NAMES = []
-FILTER_IN_CALENDAR_IDS = []
+FILTER_IN_ROUTE_SHORT_NAMES: List[str] = []
+FILTER_OUT_ROUTE_SHORT_NAMES: List[str] = []
+FILTER_IN_CALENDAR_IDS: List[str] = []
 
 SIGNUP_NAME = "January2025Signup"
 
-INPUT_DISTANCE_UNIT = "meters"  # e.g., "meters", "feet"
-CONVERT_TO_MILES = True
-EXPORT_TIMEPOINTS_ONLY = True
-VALIDATE_TIMEPOINT_DISTANCE = True
+INPUT_DISTANCE_UNIT: Literal["meters", "feet"] = "meters"
+CONVERT_TO_MILES: bool = True
+EXPORT_TIMEPOINTS_ONLY: bool = True
+VALIDATE_TIMEPOINT_DISTANCE: bool = True
 
 # -----------------------------------------------------------------------------
 # LOGGING
