@@ -1,35 +1,29 @@
 # .github/workflows/static_code_reporter.yml
 # -----------------------------------------
-# Runs every Sunday at 00:00 UTC and on manual dispatch.
-# Prints – but never fails on – pylint, vulture, mypy and pydocstyle findings.
 
 name: static_code_reporter
 
 on:
   schedule:
-    - cron: '0 0 * * SUN'     # 00:00 UTC every Sunday
+    - cron: '0 0 * * SUN'
   workflow_dispatch:
 
 jobs:
   lint:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         python-version: ['3.10', '3.11']
 
     steps:
-    # 1) Checkout -----------------------------------------------------------
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 2) Python -------------------------------------------------------------
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
-    # 3) Pip cache ----------------------------------------------------------
     - name: Cache pip
       uses: actions/cache@v3
       with:
@@ -37,46 +31,40 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: "${{ runner.os }}-pip-"
 
-    # 4) Install dependencies + static tools --------------------------------
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt \
-                    pylint vulture mypy pydocstyle
+        pip install -r requirements.txt pylint vulture mypy pydocstyle
 
-    # 5) Pick all tracked Python files once ---------------------------------
+    # ---------- FIXED STEP -------------------------------------------------
     - name: Collect Python sources
       id: files
       run: |
-        FILES="$(git ls-files '*.py')"
+        echo "Collecting Python files..."
+        FILES=$(git ls-files '*.py' | tr '\n' ' ')
         echo "$FILES"
-        echo "FILES=$FILES"             >> "$GITHUB_ENV"
+        echo "FILES=$FILES" >> "$GITHUB_ENV"
         echo "file-count=$(echo "$FILES" | wc -w)" >> "$GITHUB_OUTPUT"
+    # ----------------------------------------------------------------------
 
-    # 6) Pylint (errors only) ----------------------------------------------
     - name: Run Pylint
       run: |
         echo "Running Pylint (errors-only)…"
-        pylint $FILES \
-               --errors-only \
-               || true
+        pylint $FILES --errors-only || true
       continue-on-error: true
 
-    # 7) Vulture (dead code) ------------------------------------------------
     - name: Run Vulture
       run: |
         echo "Running Vulture (min-confidence 70)…"
         vulture $FILES || true
       continue-on-error: true
 
-    # 8) mypy (static typing) ----------------------------------------------
     - name: Run mypy
       run: |
         echo "Running mypy (project-wide)…"
         mypy . || true
       continue-on-error: true
 
-    # 9) pydocstyle (docstring lint) ---------------------------------------
     - name: Run pydocstyle
       run: |
         echo "Running pydocstyle (Google convention)…"
