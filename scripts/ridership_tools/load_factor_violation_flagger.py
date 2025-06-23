@@ -15,19 +15,21 @@ Typical use cases
 - Automated route-level reporting.
 """
 
+from __future__ import annotations
+
 import os
+from typing import Final
+
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
-from __future__ import annotations
-from typing import Final 
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE: Final[str] = (r"\\File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX")
+INPUT_FILE: Final[str] = r"\\File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
 OUTPUT_FILE: Final[str] = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
 BUS_CAPACITY: Final[int] = 39
 
@@ -42,8 +44,8 @@ HIGHER_LOAD_FACTOR_LIMIT: Final[float] = 1.25
 
 # Provide these as lists of route strings.
 # Leave them empty if you do not want any filtering.
-FILTER_IN_ROUTES: list[str] = []     # e.g. ["101", "202"]
-FILTER_OUT_ROUTES: list[str] = []    # e.g. ["105", "106"]
+FILTER_IN_ROUTES: list[str] = []  # e.g. ["101", "202"]
+FILTER_OUT_ROUTES: list[str] = []  # e.g. ["105", "106"]
 
 # Specify how many decimals to round the LOAD_FACTOR to
 DECIMAL_PLACES: Final[int] = 4
@@ -58,6 +60,7 @@ VIOLATION_LOG_FILE: Final[str] = OUTPUT_FILE.replace(".xlsx", "_violations_log.t
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def load_data(input_file: str) -> pd.DataFrame:
     """Load required columns from an Excel file.
@@ -236,23 +239,17 @@ def process_data(
         data_frame = data_frame[~data_frame["ROUTE_NAME"].isin(filter_out_routes)]
 
     # 2) Assign service period and calculate load factor
-    data_frame["SERVICE_PERIOD"] = data_frame["TRIP_START_TIME"].apply(
-        assign_service_period
-    )
+    data_frame["SERVICE_PERIOD"] = data_frame["TRIP_START_TIME"].apply(assign_service_period)
     data_frame["LOAD_FACTOR"] = data_frame["MAX_LOAD"] / bus_capacity
 
     # 5) Round load factor to specified decimals
     data_frame["LOAD_FACTOR"] = data_frame["LOAD_FACTOR"].round(decimals)
 
     # 3) Mark whether load factor is violated
-    data_frame["LOAD_FACTOR_VIOLATION"] = data_frame.apply(
-        check_load_factor_violation, axis=1
-    )
+    data_frame["LOAD_FACTOR_VIOLATION"] = data_frame.apply(check_load_factor_violation, axis=1)
 
     # 4) Add column for route limit type
-    data_frame["ROUTE_LIMIT_TYPE"] = data_frame["ROUTE_NAME"].apply(
-        determine_limit_type
-    )
+    data_frame["ROUTE_LIMIT_TYPE"] = data_frame["ROUTE_NAME"].apply(determine_limit_type)
 
     # Sort by 'LOAD_FACTOR' in descending order
     return data_frame.sort_values(by="LOAD_FACTOR", ascending=False)
@@ -279,9 +276,7 @@ def create_route_workbooks(data_frame: pd.DataFrame) -> None:
         wb.remove(default_sheet)
 
         # Within each route, group by DIRECTION_NAME
-        for direction_name, direction_df in route_df.groupby(
-            "DIRECTION_NAME", sort=False
-        ):
+        for direction_name, direction_df in route_df.groupby("DIRECTION_NAME", sort=False):
             # Sort trips by TRIP_START_TIME
             direction_df_sorted = direction_df.sort_values(
                 by="TRIP_START_TIME", kind="mergesort"
