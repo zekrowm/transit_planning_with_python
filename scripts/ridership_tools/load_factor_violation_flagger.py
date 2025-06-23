@@ -62,19 +62,19 @@ VIOLATION_LOG_FILE: Final[str] = OUTPUT_FILE.replace(".xlsx", "_violations_log.t
 def load_data(input_file: str) -> pd.DataFrame:
     """Load required columns from an Excel file.
 
-    Parameters
+    Args:
     ----------
     input_file :
         Absolute or relative path to ``STATISTICS_BY_ROUTE_AND_TRIP.XLSX`` or
         a similar ridership file.
 
-    Returns
+    Returns:
     -------
     pandas.DataFrame
         A DataFrame containing *only* the columns needed for downstream
         processing.
 
-    Raises
+    Raises:
     ------
     FileNotFoundError
         If *input_file* does not exist.
@@ -112,13 +112,13 @@ def assign_service_period(ts):
      Else         Other
     ============  =========
 
-    Parameters
+    Args:
     ----------
     ts :
         A pandas/NumPy time-like object (timestamp, datetime.time, or
         ``NaT``/``None``).
 
-    Returns
+    Returns:
     -------
     str
         One of the seven period strings shown above.
@@ -143,12 +143,12 @@ def assign_service_period(ts):
 def get_route_load_limit(route_name: str) -> float:
     """Return the applicable load-factor limit for *route_name*.
 
-    Parameters
+    Args:
     ----------
     route_name :
         The short route designator as it appears in the source file.
 
-    Returns
+    Returns:
     -------
     float
         ``LOWER_LOAD_FACTOR_LIMIT`` if the route is in
@@ -162,13 +162,13 @@ def get_route_load_limit(route_name: str) -> float:
 def check_load_factor_violation(row: pd.Series) -> str:
     """Flag a single row as a load-factor violation.
 
-    Parameters
+    Args:
     ----------
     row :
         A DataFrame row that already contains ``LOAD_FACTOR`` and
         ``ROUTE_NAME``.
 
-    Returns
+    Returns:
     -------
     str
         ``"TRUE"`` if the row exceeds its route limit, otherwise ``"FALSE"``.
@@ -180,12 +180,12 @@ def check_load_factor_violation(row: pd.Series) -> str:
 def determine_limit_type(route_name: str) -> str:
     """Label the limit type used by *route_name*.
 
-    Parameters
+    Args:
     ----------
     route_name :
         The short route designator.
 
-    Returns
+    Returns:
     -------
     str
         ``"LOW"`` if the route uses the lower limit, else ``"HIGH"``.
@@ -263,7 +263,7 @@ def create_route_workbooks(data_frame: pd.DataFrame) -> None:
 
     Workbooks are written to the directory containing :pydata:`OUTPUT_FILE`.
 
-    Parameters
+    Parameters:
     ----------
     data_frame :
         The processed DataFrame returned by :func:`process_data`.
@@ -330,7 +330,7 @@ def create_route_workbooks(data_frame: pd.DataFrame) -> None:
 def export_to_csv(data_frame: pd.DataFrame, csv_file_path: str) -> None:
     """Write *data_frame* to disk as a CSV.
 
-    Parameters
+    Args:
     ----------
     data_frame :
         The DataFrame to export.
@@ -346,7 +346,7 @@ def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
 
     Column widths are auto-sized for readability.
 
-    Parameters
+    Args:
     ----------
     data_frame :
         The DataFrame to export.
@@ -369,7 +369,7 @@ def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
 def print_high_load_trips(data_frame: pd.DataFrame) -> None:
     """Print trips whose ``MAX_LOAD`` exceeds an absolute threshold.
 
-    Parameters
+    Args:
     ----------
     data_frame :
         The processed ridership DataFrame.
@@ -383,7 +383,7 @@ def print_high_load_trips(data_frame: pd.DataFrame) -> None:
 def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
     """Write a plain-text log of trips exceeding their load-factor limit.
 
-    Parameters
+    Args:
     ----------
     data_frame :
         The processed ridership DataFrame.
