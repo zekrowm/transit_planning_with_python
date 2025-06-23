@@ -44,3 +44,7 @@ types-openpyxl>=3.1,<5
 types-networkx>=3.4,<4
 #types-faker>=25,<26
 #types-rapidfuzz>=3.11,<4
+
+# ───────────── Static type checking ─────────────
+mypy==1.10.0                # Static type checker
+mypy-extensions==1.0.0       # A few extra typing helpers (used by mypy)
