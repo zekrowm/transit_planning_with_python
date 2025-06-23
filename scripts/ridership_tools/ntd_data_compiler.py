@@ -19,7 +19,8 @@ Outputs:
 from __future__ import annotations  # postpone evaluation of type-hints
 
 import os
-from typing import Any, List, Optional, Tuple, Callable, Mapping
+from typing import Any, Callable, List, Mapping, Optional, Tuple
+
 import pandas as pd
 
 # =============================================================================
@@ -57,6 +58,7 @@ SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def robust_numeric_converter(value: Any) -> float | None:
     """Convert strings such as "1,234" to 1234.0 (float).
