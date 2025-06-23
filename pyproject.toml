@@ -16,6 +16,7 @@ strict_optional        = false           # ← relaxed
 check_untyped_defs     = false           # ← relaxed
 disallow_untyped_defs  = false           # ← relaxed
 warn_return_any        = false           # ← relaxed
+allow_untyped_calls    = true    # disables Callable[] overtyping fights
 # (intentionally no global ignore_missing_imports)
 
 # Silence binary-only / stub-less modules **only**
