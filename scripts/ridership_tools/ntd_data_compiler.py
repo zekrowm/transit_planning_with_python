@@ -29,10 +29,7 @@ import pandas as pd
 
 FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
     (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Temporary_Query_N"),
-    (
-        r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX",
-        "Temporary_Query_N",
-    ),
+    (r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX", "Temporary_Query_N",),
     (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Sep.2024 Finals"),
 ]
 
@@ -57,10 +54,10 @@ SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
     "SYSTEM",  # “SYSTEM TOTAL”, “SYSTEM”, …
 )
 
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 def robust_numeric_converter(value):
     """Convert strings such as "1,234" to 1234.0 (float).
 
@@ -103,6 +100,7 @@ COMMON_CONVERTERS = {
 # -----------------------------------------------------------------------------
 # PIPELINE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 def read_and_prepare_ntd_file(
     file_path: str, sheet_name: Optional[str] = None
 ) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
@@ -294,6 +292,7 @@ def _is_summary_row(frame: pd.DataFrame) -> pd.Series:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main() -> None:
     """Entry point for CLI execution of the NTD Data Compilation Script.
 
