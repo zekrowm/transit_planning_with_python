@@ -13,11 +13,10 @@ Typical usage: ArcGIS Pro, Jupyter notebook, or command line.
 """
 
 from __future__ import annotations
-
+from typing import Dict, List, Optional, cast
+from openpyxl.worksheet.worksheet import Worksheet
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
-
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
@@ -88,8 +87,7 @@ def is_placeholder(val: str | float | int | None) -> bool:
     if pd.isna(val):
         return True
     s = str(val).strip()
-    return not bool(re.search(r"\d", s)) or re.fullmatch(PLACEHOLDER_PATTERN, s)
-
+    return (not bool(re.search(r"\d", s))) or bool(re.fullmatch(PLACEHOLDER_PATTERN, s))
 
 def time_str_to_minutes(time_str: str | float | int | None) -> Optional[int]:
     """Convert a messy HH:MM value to minutes past midnight.
@@ -439,7 +437,9 @@ def export_results(
     ensure_output_folder(out_folder)
     excel_path = Path(out_folder) / OUTPUT_EXCEL_NAME
     wb = Workbook()
-    wb.remove(wb.active)  # remove default sheet
+    default_ws = wb.active
+    if default_ws is not None:          # appease static checker
+      wb.remove(cast(Worksheet, default_ws))
 
     def add_sheet(df: pd.DataFrame, title: str) -> None:
         ws = wb.create_sheet(title=title)
