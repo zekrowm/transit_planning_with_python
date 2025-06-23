@@ -18,10 +18,12 @@ Key Features
 """
 
 from __future__ import annotations
+
 import logging
 import math
 import os
 from typing import Any, Sequence
+
 import pandas as pd
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
@@ -59,6 +61,7 @@ MAX_COLUMN_WIDTH = 35
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -114,9 +117,7 @@ def load_gtfs_data(
         if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
     data: dict[str, pd.DataFrame] = {}
     for file_name in files:
@@ -128,9 +129,7 @@ def load_gtfs_data(
             logging.info("Loaded %s (%d records).", file_name, len(df))
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
             raise ValueError(
@@ -246,9 +245,7 @@ def export_to_excel(data_frame, output_file):
                 val = worksheet[f"{col_letter}{row_i}"].value
                 if val is not None:
                     max_len = max(max_len, len(str(val)))
-            worksheet.column_dimensions[col_letter].width = min(
-                max_len + 2, MAX_COLUMN_WIDTH
-            )
+            worksheet.column_dimensions[col_letter].width = min(max_len + 2, MAX_COLUMN_WIDTH)
 
     print(f"Exported: {output_file}")
 
@@ -279,9 +276,7 @@ def filter_data(trips_df, stop_times_df, routes_df):
     # Apply Route Filtering
     if FILTER_ROUTE_SHORT_NAMES:
         blocks_for_selected_routes = (
-            trips_df[trips_df["route_short_name"].isin(FILTER_ROUTE_SHORT_NAMES)][
-                "block_id"
-            ]
+            trips_df[trips_df["route_short_name"].isin(FILTER_ROUTE_SHORT_NAMES)]["block_id"]
             .dropna()
             .unique()
         )
@@ -326,39 +321,25 @@ def prepare_stop_times(trips_df, stop_times_df, stops_df):
     else:
         # Convert to numeric, fill NaN with 0
         stop_times_df["timepoint"] = (
-            pd.to_numeric(stop_times_df["timepoint"], errors="coerce")
-            .fillna(0)
-            .astype(int)
+            pd.to_numeric(stop_times_df["timepoint"], errors="coerce").fillna(0).astype(int)
         )
 
     # Merge essential trip columns into stop_times
     needed_trip_cols = ["trip_id", "block_id", "route_short_name", "direction_id"]
-    stop_times_df = stop_times_df.merge(
-        trips_df[needed_trip_cols], on="trip_id", how="left"
-    )
+    stop_times_df = stop_times_df.merge(trips_df[needed_trip_cols], on="trip_id", how="left")
 
     # Convert arrival/departure times to seconds and format
-    stop_times_df["arrival_seconds"] = stop_times_df["arrival_time"].apply(
-        time_to_seconds
-    )
-    stop_times_df["departure_seconds"] = stop_times_df["departure_time"].apply(
-        time_to_seconds
-    )
-    stop_times_df["scheduled_time_hhmm"] = stop_times_df["departure_seconds"].apply(
-        format_hhmm
-    )
+    stop_times_df["arrival_seconds"] = stop_times_df["arrival_time"].apply(time_to_seconds)
+    stop_times_df["departure_seconds"] = stop_times_df["departure_time"].apply(time_to_seconds)
+    stop_times_df["scheduled_time_hhmm"] = stop_times_df["departure_seconds"].apply(format_hhmm)
 
     # Merge in stop names
     stop_name_map = stops_df.set_index("stop_id")["stop_name"].to_dict()
-    stop_times_df["stop_name"] = (
-        stop_times_df["stop_id"].map(stop_name_map).fillna("Unknown Stop")
-    )
+    stop_times_df["stop_name"] = stop_times_df["stop_id"].map(stop_name_map).fillna("Unknown Stop")
 
     # Sort by block, trip, and stop_sequence
     stop_times_df = stop_times_df.dropna(subset=["block_id"])
-    stop_times_df["stop_sequence"] = pd.to_numeric(
-        stop_times_df["stop_sequence"], errors="coerce"
-    )
+    stop_times_df["stop_sequence"] = pd.to_numeric(stop_times_df["stop_sequence"], errors="coerce")
     stop_times_df = stop_times_df.dropna(subset=["stop_sequence"])
     stop_times_df.sort_values(["block_id", "trip_id", "stop_sequence"], inplace=True)
 
@@ -392,9 +373,9 @@ def export_blocks(stop_times_df):
             .min()
             .reset_index(name="trip_start_seconds")
         )
-        first_departures["trip_start_hhmm"] = first_departures[
-            "trip_start_seconds"
-        ].apply(format_hhmm)
+        first_departures["trip_start_hhmm"] = first_departures["trip_start_seconds"].apply(
+            format_hhmm
+        )
         block_subset = block_subset.merge(first_departures, on="trip_id", how="left")
 
         block_subset["Trip Start Time"] = block_subset["trip_start_hhmm"]
@@ -454,9 +435,7 @@ def export_blocks(stop_times_df):
             ]
         ]
 
-        final_df.sort_values(
-            by=["Trip Start Time", "Trip ID", "Stop Sequence"], inplace=True
-        )
+        final_df.sort_values(by=["Trip Start Time", "Trip ID", "Stop Sequence"], inplace=True)
 
         filename = f"block_{block_id}_schedule_printable.xlsx"
         output_path = os.path.join(BASE_OUTPUT_PATH, filename)
