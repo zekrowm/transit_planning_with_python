@@ -13,13 +13,15 @@ Typical usage: ArcGIS Pro, Jupyter notebook, or command line.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Optional, cast
-from openpyxl.worksheet.worksheet import Worksheet
+
 import re
 from pathlib import Path
+from typing import Dict, List, Optional, cast
+
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.worksheet.worksheet import Worksheet
 
 # =============================================================================
 # CONFIGURATION
@@ -88,6 +90,7 @@ def is_placeholder(val: str | float | int | None) -> bool:
         return True
     s = str(val).strip()
     return (not bool(re.search(r"\d", s))) or bool(re.fullmatch(PLACEHOLDER_PATTERN, s))
+
 
 def time_str_to_minutes(time_str: str | float | int | None) -> Optional[int]:
     """Convert a messy HH:MM value to minutes past midnight.
@@ -163,11 +166,7 @@ def flag_on_time(diff_series: pd.Series) -> pd.Series:
         ``'Y'`` if the event is within tolerance, otherwise ``'N'``.
     """
     return diff_series.apply(
-        lambda d: (
-            "Y"
-            if pd.notna(d) and EARLY_TOLERANCE_MIN <= d <= LATE_TOLERANCE_MIN
-            else "N"
-        )
+        lambda d: ("Y" if pd.notna(d) and EARLY_TOLERANCE_MIN <= d <= LATE_TOLERANCE_MIN else "N")
     )
 
 
@@ -410,9 +409,7 @@ def export_extra_dataframes(
     """
     ensure_output_folder(out_folder)
     valid_df.to_csv(Path(out_folder) / "observed_data_valid_events.csv", index=False)
-    invalid_df.to_csv(
-        Path(out_folder) / "observed_data_invalid_events.csv", index=False
-    )
+    invalid_df.to_csv(Path(out_folder) / "observed_data_invalid_events.csv", index=False)
 
 
 def export_results(
@@ -438,8 +435,8 @@ def export_results(
     excel_path = Path(out_folder) / OUTPUT_EXCEL_NAME
     wb = Workbook()
     default_ws = wb.active
-    if default_ws is not None:          # appease static checker
-      wb.remove(cast(Worksheet, default_ws))
+    if default_ws is not None:  # appease static checker
+        wb.remove(cast(Worksheet, default_ws))
 
     def add_sheet(df: pd.DataFrame, title: str) -> None:
         ws = wb.create_sheet(title=title)
@@ -448,13 +445,7 @@ def export_results(
 
         # Autosize columns
         for col in ws.columns:
-            max_len = (
-                max(
-                    len(str(cell.value)) if cell.value is not None else 0
-                    for cell in col
-                )
-                + 2
-            )
+            max_len = max(len(str(cell.value)) if cell.value is not None else 0 for cell in col) + 2
             ws.column_dimensions[col[0].column_letter].width = max_len
 
     add_sheet(overall, "Overall")
@@ -494,9 +485,7 @@ def main() -> None:
 
     # explode to LONG, drop placeholder events, compute diffs
     events_long = longify_events(wide_all)
-    print(
-        f"✔ Long-format events shape (after dropping placeholders): {events_long.shape}"
-    )
+    print(f"✔ Long-format events shape (after dropping placeholders): {events_long.shape}")
 
     # split for diagnostics
     valid_events, invalid_events = split_valid_invalid(events_long)
