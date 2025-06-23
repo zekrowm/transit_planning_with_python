@@ -58,12 +58,13 @@ jobs:
           # Run the Black-compatible formatter
           ruff format ${{ steps.changed.outputs.files }}
 
-      # 2️⃣  Run Pyflakes-equivalent linting (F rules) and fail on any remaining issues
-      - name: Ruff – Pyflakes lint (fail on issues)
+      # 2️⃣  Run static analysis (F = Pyflakes, D = Google-style docstrings)
+      - name: Ruff – lint (Pyflakes + Google-pydocstyle)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
-          # Ruff’s “F” rules mirror Pyflakes
-          ruff check ${{ steps.changed.outputs.files }} --select F
+          # Fail the build on any issue that Ruff cannot autofix
+          ruff check ${{ steps.changed.outputs.files }} --select F,D
+
 
       # 3️⃣  Commit back any changes introduced by Ruff
       - name: Commit & push (if needed)
