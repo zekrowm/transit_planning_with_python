@@ -13,7 +13,7 @@ The script performs the following high-level tasks:
 """
 
 import os
-
+from typing import Final, Tuple
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
