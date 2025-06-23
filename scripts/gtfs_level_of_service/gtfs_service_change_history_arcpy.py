@@ -73,6 +73,7 @@ SCHEDULE_TYPES = {
 # FUNCTIONS
 # ==================================================================================================
 
+
 def _keep_changed(df: pd.DataFrame) -> pd.DataFrame:
     """Return only those routes where at least one metric actually changed."""
     mask = (
@@ -89,10 +90,7 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlamb = math.radians(lon2 - lon1)
-    a = (
-        math.sin(dphi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlamb / 2) ** 2
-    )
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlamb / 2) ** 2
     return 2 * R * math.asin(math.sqrt(a))
 
 
@@ -136,6 +134,7 @@ def _assign_block(td: pd.Timedelta | None) -> str | None:
 
 FILES_NEEDED_STOP = ["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]
 FILES_NEEDED_METR = FILES_NEEDED_STOP + ["calendar.txt"]
+
 
 def _check_files(base: str, files: list[str]) -> None:
     for f in files:
@@ -286,6 +285,7 @@ def load_route_metrics(path: str, schedule_type: str = "Weekday") -> pd.DataFram
 # STOP-LEVEL COMPARISON
 # --------------------------------------------------------------------------------------------------
 
+
 def compare_signups(
     name_old: str,
     name_new: str,
@@ -393,6 +393,7 @@ def compare_signups(
 # SERVICE-LEVEL METRIC COMPARISONS
 # --------------------------------------------------------------------------------------------------
 
+
 def build_service_level_changes(
     prev_df: pd.DataFrame,
     curr_df: pd.DataFrame,
@@ -446,16 +447,11 @@ def build_service_level_changes(
 # INTERLINING & DETAILED CLASSIFICATION (NO GEOMETRY)
 # --------------------------------------------------------------------------------------------------
 
-def _build_interlining_map(
-    trips_df: pd.DataFrame, routes_df: pd.DataFrame
-) -> dict[str, str]:
+
+def _build_interlining_map(trips_df: pd.DataFrame, routes_df: pd.DataFrame) -> dict[str, str]:
     """Returns dict: route_short_name -> comma-joined list of other routes sharing the same block_id."""
-    merged = trips_df.merge(
-        routes_df[["route_id", "route_short_name"]], on="route_id", how="left"
-    )
-    blk = merged.groupby("block_id")["route_short_name"].apply(
-        lambda s: set(s.dropna())
-    )
+    merged = trips_df.merge(routes_df[["route_id", "route_short_name"]], on="route_id", how="left")
+    blk = merged.groupby("block_id")["route_short_name"].apply(lambda s: set(s.dropna()))
     inter: dict[str, set[str]] = {}
     for route_set in blk:
         for r in route_set:
@@ -481,9 +477,9 @@ def compare_signups_detailed(
 
     # prepare delta table once for speed
     delta_key = f"ServiceChange_{prev_label}→{curr_label}"
-    delta_df = build_service_level_changes(
-        metrics_prev, metrics_curr, prev_label, curr_label
-    )[delta_key]
+    delta_df = build_service_level_changes(metrics_prev, metrics_curr, prev_label, curr_label)[
+        delta_key
+    ]
     delta_changed = set(_keep_changed(delta_df)["route_short_name"])
 
     for rt in all_routes:
@@ -513,6 +509,7 @@ def compare_signups_detailed(
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:
     """Entry-point: run the full multi-signup GTFS comparison pipeline."""
