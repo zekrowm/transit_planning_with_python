@@ -22,16 +22,16 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-START_DATE = "2020-01-01"  # Replace with your desired start date
-END_DATE = "2024-12-01"  # Replace with your desired end date
-CSV_FILE_PATH = r"C:\Path\To\Your\Downloaded\Unemployment_Data.csv"
-OUTPUT_FOLDER = r"C:\Path\To\Your\Output_Folder"
-
+START_DATE: Final[str] = "2020-01-01" # Replace with your desired start date
+END_DATE:   Final[str] = "2024-12-01" # Replace with your desired end date
+CSV_FILE_PATH: Final[str] | os.PathLike[str] = r"C:\Path\To\Your\Downloaded\Unemployment_Data.csv"
+OUTPUT_FOLDER: Final[str] | os.PathLike[str] = r"C:\Path\To\Your\Output_Folder"
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-def load_data(csv_file_path: str) -> pd.DataFrame:
+
+def load_data(csv_file_path: str | os.PathLike[str]) -> Tuple[pd.DataFrame, str]:
     """Load the FRED CSV and detect the data-series column.
 
     Args:
@@ -63,7 +63,9 @@ def load_data(csv_file_path: str) -> pd.DataFrame:
 
 
 def filter_data(
-    data_frame: pd.DataFrame, start_date: str, end_date: str
+    data_frame: pd.DataFrame,
+    start_date: str,
+    end_date: str,
 ) -> pd.DataFrame:
     """Filter the DataFrame to include only rows within the given date range.
 
@@ -87,7 +89,11 @@ def filter_data(
     return data_frame.loc[mask].copy()
 
 
-def export_to_excel(data_frame: pd.DataFrame, output_folder: str, filename: str):
+def export_to_excel(
+    data_frame: pd.DataFrame,
+    output_folder: str | os.PathLike[str],
+    filename: str,
+) -> None:
     """Export the filtered DataFrame to an Excel file.
 
     Args:
@@ -108,8 +114,11 @@ def export_to_excel(data_frame: pd.DataFrame, output_folder: str, filename: str)
 
 
 def plot_continuous_line(
-    data_frame: pd.DataFrame, series_column: str, output_folder: str, filename: str
-):
+    data_frame: pd.DataFrame,
+    series_column: str,
+    output_folder: str | os.PathLike[str],
+    filename: str,
+) -> None:
     """Plot a continuous time-series line chart and save it as a JPEG.
 
     Args:
@@ -150,8 +159,11 @@ def plot_continuous_line(
 
 
 def plot_yearly_comparison(
-    data_frame: pd.DataFrame, series_column: str, output_folder: str, filename: str
-):
+    data_frame: pd.DataFrame,
+    series_column: str,
+    output_folder: str | os.PathLike[str],
+    filename: str,
+) -> None:
     """Plot a year-over-year comparison chart and save it as a JPEG.
 
     Args:
@@ -219,7 +231,8 @@ def plot_yearly_comparison(
 # =============================================================================
 # MAIN
 # =============================================================================
-def main():
+
+def main() -> None:
     """Main function to execute the full processing and plotting workflow.
 
     Loads data, filters by date, exports to Excel, and saves two JPEG charts.
