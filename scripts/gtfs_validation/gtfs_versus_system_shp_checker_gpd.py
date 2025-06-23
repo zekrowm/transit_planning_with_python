@@ -36,9 +36,7 @@ from shapely.geometry import Point, base
 # =============================================================================
 
 GTFS_DIR: Path = Path(r"\\your_project_folder\system_gtfs")
-SHAPEFILE_PATH: Path = Path(
-    r"\\your_project_folder\your_transit_system\your_transit_system.shp"
-)
+SHAPEFILE_PATH: Path = Path(r"\\your_project_folder\your_transit_system\your_transit_system.shp")
 OUTPUT_DIR: Path = Path(r"\\your_project_folder\output")
 
 ROUTE_NUMBER_COLUMN = "ROUTE_NUMB"
@@ -340,9 +338,7 @@ def identify_problem_stops(
 
     # --- matched routes / trips / stops
     matched_trips = trips[trips["route_id"].isin(matched_routes["route_id"])]
-    matched_stop_times = stop_times[
-        stop_times["trip_id"].isin(matched_trips["trip_id"])
-    ]
+    matched_stop_times = stop_times[stop_times["trip_id"].isin(matched_trips["trip_id"])]
     matched_stops = stops[stops["stop_id"].isin(matched_stop_times["stop_id"])]
 
     matched_stops_gdf = convert_stops_to_gdf(matched_stops, input_crs)
@@ -368,9 +364,7 @@ def identify_problem_stops(
     # --- distance tests
     stop_route_pairs["distance_m"] = stop_route_pairs.apply(_distance_row, axis=1)
     stop_route_pairs["distance_ft"] = stop_route_pairs["distance_m"] * 3.28084
-    stop_route_pairs["within_allowance"] = (
-        stop_route_pairs["distance_ft"] <= distance_ft
-    )
+    stop_route_pairs["within_allowance"] = stop_route_pairs["distance_ft"] <= distance_ft
 
     flagged = stop_route_pairs.loc[~stop_route_pairs["within_allowance"]].copy()
     flagged["reason"] = f"Not within {distance_ft} ft"
@@ -380,14 +374,10 @@ def identify_problem_stops(
     # --- unmatched stops (no matching route at all)
     unmatched_route_ids = set(routes["route_id"]).difference(matched_routes["route_id"])
     unmatched_trips = trips[trips["route_id"].isin(unmatched_route_ids)]
-    unmatched_stop_times = stop_times[
-        stop_times["trip_id"].isin(unmatched_trips["trip_id"])
-    ]
+    unmatched_stop_times = stop_times[stop_times["trip_id"].isin(unmatched_trips["trip_id"])]
     unmatched_stops = stops[stops["stop_id"].isin(unmatched_stop_times["stop_id"])]
 
-    unmatched_gdf = convert_stops_to_gdf(unmatched_stops, input_crs).to_crs(
-        projected_crs
-    )
+    unmatched_gdf = convert_stops_to_gdf(unmatched_stops, input_crs).to_crs(projected_crs)
     unmatched_gdf["reason"] = "No matching route"
     unmatched_gdf["distance_ft"] = pd.NA
     unmatched_gdf["route_id"] = pd.NA
@@ -489,9 +479,7 @@ def main() -> None:
 
     # add buffer-flag column to comparison table
     if "route_id" in comparison.columns:
-        comparison["has_stops_outside_buffer"] = comparison["route_id"].isin(
-            flagged_routes
-        )
+        comparison["has_stops_outside_buffer"] = comparison["route_id"].isin(flagged_routes)
         flags_path = OUTPUT_DIR / "gtfs_shp_comparison_with_flags.csv"
         comparison.to_csv(flags_path, index=False)
         LOGGER.info("Comparison (with flags) written to %s", flags_path)
