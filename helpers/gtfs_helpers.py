@@ -65,9 +65,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
         if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
     data = {}
     for file_name in files:
@@ -79,9 +77,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             logging.info(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
             raise ValueError(
