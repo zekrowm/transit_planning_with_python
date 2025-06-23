@@ -16,50 +16,48 @@ Typical use cases
 """
 
 import os
-
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
+from __future__ import annotations
+from typing import Final 
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE = r"\\File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
-OUTPUT_FILE = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
-BUS_CAPACITY = 39
+INPUT_FILE: Final[str] = (r"\\File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX")
+OUTPUT_FILE: Final[str] = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
+BUS_CAPACITY: Final[int] = 39
 
-# Routes in this list use a load factor limit of 1.25.
-# Any route not in LOWER_LIMIT_ROUTES will default to 1.25.
-HIGHER_LIMIT_ROUTES = ["101", "102", "103", "104"]
+# Routes that get the *higher* (1.25) load factor limit
+HIGHER_LIMIT_ROUTES: Final[list[str]] = ["101", "102", "103", "104"]
 
-# Routes in this list use a load factor limit of 1.0.
-# Many agencies have a lower load factor for express routes.
-LOWER_LIMIT_ROUTES = ["105", "106"]
+# Routes that get the *lower* (1.0) limit
+LOWER_LIMIT_ROUTES: Final[list[str]] = ["105", "106"]
 
-LOWER_LOAD_FACTOR_LIMIT = 1.0
-HIGHER_LOAD_FACTOR_LIMIT = 1.25
+LOWER_LOAD_FACTOR_LIMIT: Final[float] = 1.0
+HIGHER_LOAD_FACTOR_LIMIT: Final[float] = 1.25
 
 # Provide these as lists of route strings.
 # Leave them empty if you do not want any filtering.
-FILTER_IN_ROUTES = []  # e.g. ['101', '202']
-FILTER_OUT_ROUTES = []  # e.g. ['105', '106']
+FILTER_IN_ROUTES: list[str] = []     # e.g. ["101", "202"]
+FILTER_OUT_ROUTES: list[str] = []    # e.g. ["105", "106"]
 
 # Specify how many decimals to round the LOAD_FACTOR to
-DECIMAL_PLACES = 4  # default is 4 decimals
+DECIMAL_PLACES: Final[int] = 4
 
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # LOGGING
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
-WRITE_VIOLATION_LOG = True
-VIOLATION_LOG_FILE = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
+WRITE_VIOLATION_LOG: Final[bool] = True
+VIOLATION_LOG_FILE: Final[str] = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
 
 def load_data(input_file: str) -> pd.DataFrame:
     """Load required columns from an Excel file.
