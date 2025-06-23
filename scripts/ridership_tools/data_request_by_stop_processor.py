@@ -38,7 +38,7 @@ ROUTES: List[str] = []  # keep these (empty → keep all)
 ROUTES_EXCLUDE: List[str] = []  # drop these (empty → drop none)
 
 # Optional STOP_IDS filter list
-STOP_IDS: List[int] = [1001, 2002, 3003]  # keep these (empty → keep all)
+STOP_IDS: List[int] = []  # keep these (empty → keep all)
 
 # Optional TIME_PERIOD aggregation list
 TIME_PERIODS: List[str] = [
