@@ -20,8 +20,7 @@ import logging
 import os
 from collections import defaultdict
 from pathlib import Path
-from typing import List, Literal
-
+from typing import List, Literal, Optional
 import numpy as np
 import pandas as pd
 from openpyxl import Workbook
@@ -61,8 +60,11 @@ logging.basicConfig(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
+def load_gtfs_data(
+    gtfs_folder_path: str,
+    files: Optional[list[str]] = None,      # mark as optional
+    dtype: str = str,                       # keep default, annotate for completeness
+) -> dict[str, pd.DataFrame]:              # add precise return type
     """Load GTFS text files from a folder into pandas DataFrames.
 
     Args:
