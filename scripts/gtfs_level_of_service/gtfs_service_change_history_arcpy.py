@@ -17,9 +17,11 @@ from __future__ import annotations
 
 import math
 import os
+from typing import Any, cast  # ← NEW import
 
 import numpy as np
 import pandas as pd
+from pandas._libs.tslibs.nattype import NaTType  # ← NEW import
 
 # ==================================================================================================
 # CONFIGURATION
@@ -71,7 +73,6 @@ SCHEDULE_TYPES = {
 # FUNCTIONS
 # ==================================================================================================
 
-
 def _keep_changed(df: pd.DataFrame) -> pd.DataFrame:
     """Return only those routes where at least one metric actually changed."""
     mask = (
@@ -95,18 +96,18 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * R * math.asin(math.sqrt(a))
 
 
-def _parse_gtfs_time(t: str | float | int) -> pd.Timedelta:
+def _parse_gtfs_time(t: str | float | int) -> pd.Timedelta | NaTType:  # ← widened
     """Return *t* converted from GTFS HH:MM:SS to ``pd.Timedelta``."""
     try:
         hh, mm, ss = map(int, str(t).split(":"))
         return pd.Timedelta(seconds=hh * 3600 + mm * 60 + ss)
     except Exception:
-        return pd.NaT
+        return pd.NaT  # type: ignore[return-value]
 
 
-def _format_td(td: pd.Timedelta | float | int | None) -> str | None:
+def _format_td(td: pd.Timedelta | NaTType | None) -> str | None:  # ← narrowed
     """Format Timedelta as HH:MM or None."""
-    if pd.isna(td):
+    if td is None or isinstance(td, NaTType) or pd.isna(td):
         return None
     mins = int(td.total_seconds() // 60)
     hh, mm = divmod(mins, 60)
@@ -135,7 +136,6 @@ def _assign_block(td: pd.Timedelta | None) -> str | None:
 
 FILES_NEEDED_STOP = ["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]
 FILES_NEEDED_METR = FILES_NEEDED_STOP + ["calendar.txt"]
-
 
 def _check_files(base: str, files: list[str]) -> None:
     for f in files:
@@ -210,27 +210,6 @@ def load_route_metrics(path: str, schedule_type: str = "Weekday") -> pd.DataFram
     Metrics per ``route_short_name`` include first trip time, last trip time,
     span (minutes), total trips, and median headway across user-defined
     ``TIME_BLOCKS``.
-
-    Args:
-        path: Filesystem path to the GTFS dataset.
-        schedule_type: One key from ``SCHEDULE_TYPES`` – typically
-            ``"Weekday"``, ``"Saturday"``, or ``"Sunday"``.
-
-    Returns:
-        DataFrame sorted by ``route_short_name`` with columns::
-
-            [
-                "route_short_name",
-                "first_trip_time",     # fmt "HH:MM"
-                "last_trip_time",      # fmt "HH:MM"
-                "span_minutes",
-                "trips_count",
-                "median_headway_min",  # NaN if <2 trips in every block
-            ]
-
-    Raises:
-        FileNotFoundError: If any required GTFS text file is missing.
-        KeyError: If *schedule_type* is not present in ``SCHEDULE_TYPES``.
     """
     _check_files(path, FILES_NEEDED_METR)
 
@@ -307,7 +286,6 @@ def load_route_metrics(path: str, schedule_type: str = "Weekday") -> pd.DataFram
 # STOP-LEVEL COMPARISON
 # --------------------------------------------------------------------------------------------------
 
-
 def compare_signups(
     name_old: str,
     name_new: str,
@@ -317,24 +295,7 @@ def compare_signups(
     routes_new: dict[str, set[str]],
     tol: float = COORD_TOLERANCE_DEG,
 ) -> dict[str, pd.DataFrame]:
-    """Builds a DataFrame comparing each route between two signups with flags.
-
-    Args:
-        prev_label: Label for the previous signup.
-        curr_label: Label for the current signup.
-        metrics_prev: DataFrame of metrics for the previous signup.
-        metrics_curr: DataFrame of metrics for the current signup.
-        inter_prev: Dictionary of interlining data for the previous signup.
-        inter_curr: Dictionary of interlining data for the current signup.
-
-    Returns:
-        A pandas DataFrame with routes and their change flags, including:
-        - "Route created"
-        - "Route eliminated"
-        - "Interlining change"
-        - "Span/Trips/Headway change"
-        - "No change"
-    """
+    """Builds a DataFrame comparing each route between two signups with flags."""
     idx_old, idx_new = df_old.set_index("stop_id"), df_new.set_index("stop_id")
     old_ids, new_ids = set(idx_old.index), set(idx_new.index)
 
@@ -350,14 +311,16 @@ def compare_signups(
     common = old_ids & new_ids
     moved_rows: list[dict[str, float | str | None]] = []
     for sid in common:
-        lon_old, lat_old = idx_old.loc[sid, ["stop_lon", "stop_lat"]]
-        lon_new, lat_new = idx_new.loc[sid, ["stop_lon", "stop_lat"]]
+        lon_old = cast(float, idx_old.at[sid, "stop_lon"])  # ← cast + .at
+        lat_old = cast(float, idx_old.at[sid, "stop_lat"])
+        lon_new = cast(float, idx_new.at[sid, "stop_lon"])
+        lat_new = cast(float, idx_new.at[sid, "stop_lat"])
         if abs(lon_old - lon_new) > tol or abs(lat_old - lat_new) > tol:
             moved_rows.append(
                 {
                     "stop_id": sid,
-                    "stop_code": idx_new.loc[sid, "stop_code"],
-                    "stop_name": idx_new.loc[sid, "stop_name"],
+                    "stop_code": idx_new.at[sid, "stop_code"],
+                    "stop_name": idx_new.at[sid, "stop_name"],
                     "lat_old": lat_old,
                     "lon_old": lon_old,
                     "lat_new": lat_new,
@@ -378,18 +341,18 @@ def compare_signups(
             svc_rows.append(
                 {
                     "stop_id": sid,
-                    "stop_code": base.loc[sid, "stop_code"],
-                    "stop_name": base.loc[sid, "stop_name"],
-                    "lat_old": idx_old.loc[sid, "stop_lat"]
+                    "stop_code": base.at[sid, "stop_code"],
+                    "stop_name": base.at[sid, "stop_name"],
+                    "lat_old": cast(float | None, idx_old.at[sid, "stop_lat"])
                     if sid in idx_old.index
                     else None,
-                    "lon_old": idx_old.loc[sid, "stop_lon"]
+                    "lon_old": cast(float | None, idx_old.at[sid, "stop_lon"])
                     if sid in idx_old.index
                     else None,
-                    "lat_new": idx_new.loc[sid, "stop_lat"]
+                    "lat_new": cast(float | None, idx_new.at[sid, "stop_lat"])
                     if sid in idx_new.index
                     else None,
-                    "lon_new": idx_new.loc[sid, "stop_lon"]
+                    "lon_new": cast(float | None, idx_new.at[sid, "stop_lon"])
                     if sid in idx_new.index
                     else None,
                     "routes_started": ", ".join(sorted(started)),
@@ -430,29 +393,13 @@ def compare_signups(
 # SERVICE-LEVEL METRIC COMPARISONS
 # --------------------------------------------------------------------------------------------------
 
-
 def build_service_level_changes(
     prev_df: pd.DataFrame,
     curr_df: pd.DataFrame,
     prev_label: str,
     curr_label: str,
 ) -> dict[str, pd.DataFrame]:
-    """Produce route-level delta tables between two signups.
-
-    Args:
-        prev_df: Metrics DataFrame from :func:`load_route_metrics`
-            for the earlier signup.
-        curr_df: Metrics DataFrame for the later signup.
-        prev_label: Label for *prev_df* (used in sheet names).
-        curr_label: Label for *curr_df*.
-
-    Returns:
-        Dictionary with three DataFrames:
-
-        * ``"ServiceChange_<prev>→<curr>"`` – span/trip/headway deltas.
-        * ``"Routes_Added_<prev>→<curr>"`` – routes present only in *curr_df*.
-        * ``"Routes_Deleted_<prev>→<curr>"`` – routes present only in *prev_df*.
-    """
+    """Produce route-level delta tables between two signups."""
     prev_i = prev_df.set_index("route_short_name")
     curr_i = curr_df.set_index("route_short_name")
 
@@ -460,7 +407,7 @@ def build_service_level_changes(
     deleted = sorted(set(prev_i.index) - set(curr_i.index))
     common = sorted(set(prev_i.index) & set(curr_i.index))
 
-    deltas: list[dict[str, float | str | None]] = []
+    deltas: list[dict[str, Any]] = []  # ← relaxed value typing
     for rt in common:
         p, c = prev_i.loc[rt], curr_i.loc[rt]
 
@@ -499,7 +446,6 @@ def build_service_level_changes(
 # INTERLINING & DETAILED CLASSIFICATION (NO GEOMETRY)
 # --------------------------------------------------------------------------------------------------
 
-
 def _build_interlining_map(
     trips_df: pd.DataFrame, routes_df: pd.DataFrame
 ) -> dict[str, str]:
@@ -527,13 +473,7 @@ def compare_signups_detailed(
     inter_prev: dict[str, str],
     inter_curr: dict[str, str],
 ) -> pd.DataFrame:
-    """Build a DataFrame comparing each route between two signups with flags.
-
-    • created, eliminated,
-    • interlining change,
-    • span / trips / headway change,
-    • No change.
-    """
+    """Build a DataFrame comparing each route between two signups with flags."""
     all_routes = sorted(
         set(metrics_prev["route_short_name"]).union(metrics_curr["route_short_name"])
     )
@@ -574,29 +514,11 @@ def compare_signups_detailed(
 # MAIN
 # ==================================================================================================
 
-
 def main() -> None:
-    """Entry-point: run the full multi-signup GTFS comparison pipeline.
-
-    The function:
-
-    1. Loads each GTFS snapshot in ``MULTIPLE_GTFS_CONFIGS``.
-    2. Computes stop-level and route-level comparisons for every consecutive
-       pair of snapshots.
-    3. Writes three Excel workbooks plus a detailed interlining comparison.
-    4. Prints progress and completion messages to stdout.
-
-    Side Effects:
-        Creates/overwrites Excel files in ``OUTPUT_DIRECTORY`` and prints to
-        the console.
-
-    Notes:
-        The script relies on ``openpyxl`` for Excel output; install it if
-        it is not already available in your environment.
-    """
+    """Entry-point: run the full multi-signup GTFS comparison pipeline."""
     os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
 
-    # ─── LOAD GTFS & BUILD STOP-LEVEL DATA ─────────────────────────────────────────
+    # ─── LOAD GTFS & BUILD STOP-LEVEL DATA ────────────────────────────────────
     signups_stops: dict[str, pd.DataFrame] = {}
     signups_routes_map: dict[str, dict[str, set[str]]] = {}
     signups_metrics: dict[str, pd.DataFrame] = {}
@@ -612,7 +534,7 @@ def main() -> None:
         signups_metrics[name] = load_route_metrics(path, schedule_type="Weekday")
     print("All GTFS loads complete.\n")
 
-    # ─── STOP-LEVEL CHANGE WORKBOOK ────────────────────────────────────────────
+    # ─── STOP-LEVEL CHANGE WORKBOOK ───────────────────────────────────────────
     all_sheets_stop: dict[str, pd.DataFrame] = {}
     for i in range(1, len(MULTIPLE_GTFS_CONFIGS)):
         prev = MULTIPLE_GTFS_CONFIGS[i - 1]["name"]
@@ -634,7 +556,7 @@ def main() -> None:
             df.to_excel(xls, sheet_name=sheet_name[:31], index=False)
     print("✓ stop-level change workbook written.")
 
-    # ─── ROUTE METRICS + DELTA-ONLY SHEETS ─────────────────────────────────────
+    # ─── ROUTE METRICS + DELTA-ONLY SHEETS ───────────────────────────────────
     metrics_path = os.path.join(OUTPUT_DIRECTORY, OUTPUT_EXCEL_NAME_METRIC)
     with pd.ExcelWriter(metrics_path, engine="openpyxl") as xls:
         # 1) one sheet per signup
@@ -656,7 +578,7 @@ def main() -> None:
                 changed.to_excel(xls, sheet_name=sheet_nm, index=False)
     print("✓ route metrics workbook written.")
 
-    # ─── SERVICE-LEVEL CHANGE WORKBOOK ─────────────────────────────────────────
+    # ─── SERVICE-LEVEL CHANGE WORKBOOK ───────────────────────────────────────
     delta_sheets: dict[str, pd.DataFrame] = {}
     for i in range(1, len(MULTIPLE_GTFS_CONFIGS)):
         prev = MULTIPLE_GTFS_CONFIGS[i - 1]["name"]
@@ -673,7 +595,7 @@ def main() -> None:
             df.to_excel(xls, sheet_name=sheet_name[:31], index=False)
     print("✓ service-level change workbook written.")
 
-    # ─── INTERLINING & DETAILED COMPARISON (NO GEOMETRY) ──────────────────────
+    # ─── INTERLINING & DETAILED COMPARISON (NO GEOMETRY) ─────────────────────
     interlining_map: dict[str, dict[str, str]] = {}
     for cfg in MULTIPLE_GTFS_CONFIGS:
         name, path = cfg["name"], cfg["path"]
