@@ -16,7 +16,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
-
+from openpyxl.utils import get_column_letter
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font
@@ -311,20 +311,20 @@ def adjust_excel_formatting(output_file: Path) -> None:
         workbook = load_workbook(output_file)
         for sheet_name in workbook.sheetnames:
             sheet = workbook[sheet_name]
-
+    
             # Bold the header row
             for cell in sheet[1]:
                 cell.font = Font(bold=True)
-
+    
             # Auto-size column widths
-            for column_cells in sheet.columns:
+            for col_idx, column_cells in enumerate(sheet.columns, start=1):   # CHANGED
                 max_length: int = 0
-                col_letter: str = column_cells[0].column_letter
+                col_letter: str = get_column_letter(col_idx)                  # CHANGED
                 for cell in column_cells:
-                    cell_val: str = str(cell.value) if cell.value is not None else ""
+                    cell_val = str(cell.value) if cell.value is not None else ""
                     max_length = max(max_length, len(cell_val))
                 sheet.column_dimensions[col_letter].width = max_length + 2
-
+    
         workbook.save(output_file)
     except (OSError, PermissionError) as exc:
         print(f"Error adjusting Excel formatting: {exc}")
