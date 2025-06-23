@@ -1,6 +1,6 @@
 """Reusable utility functions for GTFS data processing scripts.
 
-Includes common GTFS data loaders, validators, and formatting helpers.
+Includes common GTFS data loader.
 """
 
 import logging
