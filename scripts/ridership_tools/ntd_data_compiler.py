@@ -19,7 +19,7 @@ Outputs:
 from __future__ import annotations  # postpone evaluation of type-hints
 
 import os
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Callable, Mapping
 
 import pandas as pd
 
@@ -59,8 +59,7 @@ SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
 # FUNCTIONS
 # =============================================================================
 
-
-def robust_numeric_converter(value):
+def robust_numeric_converter(value: object) -> float | None:
     """Convert strings such as "1,234" to 1234.0 (float).
 
     Returns None on blanks / NA or on conversion failure (with a warning).
@@ -85,10 +84,10 @@ def robust_numeric_converter(value):
 
 
 # -----------------------------------------------------------------------------
-# Mapping of column names → converters that will be passed to pandas.read_excel
+# Mapping of column names → converters passed to pandas.read_excel
 # -----------------------------------------------------------------------------
 
-COMMON_CONVERTERS = {
+COMMON_CONVERTERS: Mapping[str, Callable[[object], object]] = {
     "MTH_BOARD": robust_numeric_converter,
     "MTH_REV_HOURS": robust_numeric_converter,
     "MTH_PASS_MILES": robust_numeric_converter,
@@ -97,7 +96,6 @@ COMMON_CONVERTERS = {
     "DAYS": robust_numeric_converter,
     "REV_MILES": robust_numeric_converter,
 }
-
 
 # -----------------------------------------------------------------------------
 # PIPELINE FUNCTIONS
