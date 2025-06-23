@@ -1,5 +1,4 @@
 # .github/workflows/static_code_reporter.yml
-# -----------------------------------------
 
 name: static_code_reporter
 
