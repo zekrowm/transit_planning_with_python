@@ -20,35 +20,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 1️⃣ Set up Python (match project runtime) and enable built-in pip cache
+      # 1️⃣ Compute deterministic cache key fragments  ← NEW
+      - name: Compute cache key
+        id: key
+        run: |
+          req_hash="${{ hashFiles('**/requirements*.txt') }}"
+          py_hash="${{ hashFiles('**/*.py') }}"
+          # Optional: shorten the (32-char) hashes to 12 chars
+          echo "key=mypy-${{ runner.os }}-${req_hash:0:12}-${py_hash:0:12}" >>"$GITHUB_OUTPUT"
+
+      # 2️⃣ Set up Python (match project runtime) and enable built-in pip cache
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: "pip"
 
-      # 2️⃣ Restore mypy’s incremental cache
+      # 3️⃣ Restore mypy’s incremental cache (now keyed on code + deps)  ← CHANGED
       - name: Restore mypy cache
         uses: actions/cache@v4
         with:
           path: .mypy_cache
-          key: |
-            mypy-${{ runner.os }}-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ steps.key.outputs.key }}
+          # allow fallback to *any* older cache for the same OS
           restore-keys: mypy-${{ runner.os }}-
-
-      # 3️⃣ Install runtime requirements and type-checker toolchain
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # Runtime libraries
-          pip install -r requirements.txt
-          # Type-checking tools and stub packages
-          pip install "mypy>=1.8,<2.0" \
-                      types-requests \
-                      types-PyYAML \
-                      pandas-stubs \
-                      types-geopandas \
-                      types-shapely \
-
 
       # 4️⃣ Determine which .py files changed in this push
       - name: Determine changed Python files
