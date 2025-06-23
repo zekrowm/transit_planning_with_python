@@ -1,6 +1,5 @@
 # tests/test_fred_processor_e2e.py
-"""
-End-to-end smoke-test for the FRED unemployment-rate processor.
+"""End-to-end smoke-test for the FRED unemployment-rate processor.
 
 What the test does
 ------------------
@@ -63,7 +62,8 @@ def _build_dummy_csv(csv_path: Path) -> None:
 def test_unemployment_processor_e2e(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """
+    """Run simple end-to-end test.
+    
     GIVEN a minimal FRED-style CSV
     WHEN  the processor’s ``main()`` runs
     THEN  the expected Excel + JPEG files appear and contain the right data.
