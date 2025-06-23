@@ -19,13 +19,13 @@ from __future__ import annotations
 
 import datetime as _dt
 from pathlib import Path
-from typing import Literal, Sequence, Union, TypeAlias
+from typing import Literal, Sequence, TypeAlias, Union
 
 import pandas as pd
-from pandas import DataFrame, Series
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
+from pandas import DataFrame, Series
 
 # ============================================================================
 # CONFIGURATION
@@ -51,8 +51,8 @@ LOWER_LIMIT_ROUTES: set[str] = {"105", "106"}
 LOWER_LOAD_FACTOR_LIMIT: float = 1.0
 HIGHER_LOAD_FACTOR_LIMIT: float = 1.25
 
-FILTER_IN_ROUTES: set[str] = set()     # e.g. {"101", "202"}
-FILTER_OUT_ROUTES: set[str] = set()    # e.g. {"105", "106"}
+FILTER_IN_ROUTES: set[str] = set()  # e.g. {"101", "202"}
+FILTER_OUT_ROUTES: set[str] = set()  # e.g. {"105", "106"}
 
 DECIMAL_PLACES: int = 4
 WRITE_VIOLATION_LOG: bool = True
@@ -78,6 +78,7 @@ Row: TypeAlias = Series
 # ============================================================================
 # FUNCTIONS
 # ============================================================================
+
 
 def load_data(input_file: Path) -> DataFrame:
     """Load and return only the columns required for processing."""
@@ -120,11 +121,7 @@ def assign_service_period(ts: TimeLike) -> ServicePeriod:
 
 def get_route_load_limit(route_name: str) -> float:
     """Return the limit applicable to *route_name*."""
-    return (
-        LOWER_LOAD_FACTOR_LIMIT
-        if route_name in LOWER_LIMIT_ROUTES
-        else HIGHER_LOAD_FACTOR_LIMIT
-    )
+    return LOWER_LOAD_FACTOR_LIMIT if route_name in LOWER_LIMIT_ROUTES else HIGHER_LOAD_FACTOR_LIMIT
 
 
 def check_load_factor_violation(row: Row) -> LoadFlag:
@@ -167,13 +164,9 @@ def create_route_workbooks(data_frame: DataFrame) -> None:
         wb = Workbook()
         wb.remove(wb.active)
 
-        for direction_name, direction_df in route_df.groupby(
-            "DIRECTION_NAME", sort=False
-        ):
-            sheet_df = (
-                direction_df.sort_values(
-                    by="TRIP_START_TIME", kind="mergesort"
-                ).reset_index(drop=True)
+        for direction_name, direction_df in route_df.groupby("DIRECTION_NAME", sort=False):
+            sheet_df = direction_df.sort_values(by="TRIP_START_TIME", kind="mergesort").reset_index(
+                drop=True
             )
             ws = wb.create_sheet(title=str(direction_name))
 
