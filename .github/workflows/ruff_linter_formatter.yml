@@ -1,4 +1,4 @@
-name: auto_format_ruff
+name: ruff_linter_formatter
 
 on:
   push:               # re-format only what changed on pushes to main
