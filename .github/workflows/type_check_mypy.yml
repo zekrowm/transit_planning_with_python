@@ -1,4 +1,5 @@
 # .github/workflows/type_check_mypy.yml
+
 name: type_check_mypy
 
 on:
