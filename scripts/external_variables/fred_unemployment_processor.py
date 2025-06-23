@@ -14,6 +14,7 @@ The script performs the following high-level tasks:
 
 import os
 from typing import Final, Tuple
+
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -22,14 +23,15 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-START_DATE: Final[str] = "2020-01-01" # Replace with your desired start date
-END_DATE:   Final[str] = "2024-12-01" # Replace with your desired end date
+START_DATE: Final[str] = "2020-01-01"  # Replace with your desired start date
+END_DATE: Final[str] = "2024-12-01"  # Replace with your desired end date
 CSV_FILE_PATH: Final[str] | os.PathLike[str] = r"C:\Path\To\Your\Downloaded\Unemployment_Data.csv"
 OUTPUT_FOLDER: Final[str] | os.PathLike[str] = r"C:\Path\To\Your\Output_Folder"
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def load_data(csv_file_path: str | os.PathLike[str]) -> Tuple[pd.DataFrame, str]:
     """Load the FRED CSV and detect the data-series column.
@@ -83,9 +85,7 @@ def filter_data(
     """
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
-    mask = (data_frame["observation_date"] >= start) & (
-        data_frame["observation_date"] <= end
-    )
+    mask = (data_frame["observation_date"] >= start) & (data_frame["observation_date"] <= end)
     return data_frame.loc[mask].copy()
 
 
@@ -232,6 +232,7 @@ def plot_yearly_comparison(
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Main function to execute the full processing and plotting workflow.
 
@@ -262,9 +263,7 @@ def main() -> None:
     )
 
     # Generate yearly comparison chart (with 3-letter month abbreviations)
-    plot_yearly_comparison(
-        filtered_data_frame, series_column, OUTPUT_FOLDER, yearly_chart_filename
-    )
+    plot_yearly_comparison(filtered_data_frame, series_column, OUTPUT_FOLDER, yearly_chart_filename)
 
 
 if __name__ == "__main__":
