@@ -71,6 +71,7 @@ FILTER_OUT_LIST: Final[list[str]] = []
 # FUNCTIONS
 # =============================================================================
 
+
 def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     """Load and normalise the ridership workbook.
 
@@ -106,27 +107,21 @@ def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
 
         if pd.api.types.is_datetime64_any_dtype(series):
             # pandas already gave us datetime64[ns]; convert safely for mypy
-            df["TRIP_START_TIME"] = series.apply(
-                lambda ts: ts.time() if not pd.isna(ts) else None
-            )
+            df["TRIP_START_TIME"] = series.apply(lambda ts: ts.time() if not pd.isna(ts) else None)
         else:
             # Parse strings / other representations into datetime
             parsed = pd.to_datetime(
                 series.astype(str).str.strip(),
-                errors="coerce",           # invalid rows → NaT
+                errors="coerce",  # invalid rows → NaT
                 infer_datetime_format=True,
             )
             # Extract the .time() without touching the .dt accessor (mypy-safe)
-            df["TRIP_START_TIME"] = parsed.apply(
-                lambda ts: ts.time() if not pd.isna(ts) else None
-            )
+            df["TRIP_START_TIME"] = parsed.apply(lambda ts: ts.time() if not pd.isna(ts) else None)
 
     # 3. Retain only columns that actually exist
     existing_cols = [c for c in columns_to_retain if c in df.columns]
     if not existing_cols:
-        raise ValueError(
-            "None of the requested columns exist in the provided workbook."
-        )
+        raise ValueError("None of the requested columns exist in the provided workbook.")
 
     return df[existing_cols]
 
@@ -195,9 +190,9 @@ def write_direction_sheet(
         >>> write_direction_sheet(wb, east_df, "East", "Weekday", True, False, 1.0)
     """
     # 1. Locally sort by TRIP_START_TIME (NaT last)
-    direction_df = direction_df.sort_values(
-        "TRIP_START_TIME", na_position="last"
-    ).reset_index(drop=True)
+    direction_df = direction_df.sort_values("TRIP_START_TIME", na_position="last").reset_index(
+        drop=True
+    )
 
     # 2. Create a new worksheet named after this direction
     ws = wb.create_sheet(title=direction_name)
@@ -390,13 +385,10 @@ def main() -> None:
         with open(log_path, "w", encoding="utf-8") as log_file:
             if low_df.empty:
                 log_file.write(
-                    "No trips found with ultra-low ridership (≤ "
-                    f"{ULTRA_LOW_THRESHOLD}).\n"
+                    f"No trips found with ultra-low ridership (≤ {ULTRA_LOW_THRESHOLD}).\n"
                 )
             else:
-                log_file.write(
-                    f"Trips with ultra-low ridership (≤ {ULTRA_LOW_THRESHOLD}):\n\n"
-                )
+                log_file.write(f"Trips with ultra-low ridership (≤ {ULTRA_LOW_THRESHOLD}):\n\n")
                 for _, row in low_df.iterrows():
                     trip_id = row.get("SERIAL_NUMBER", "")
                     route = row.get("ROUTE_NAME", "")
