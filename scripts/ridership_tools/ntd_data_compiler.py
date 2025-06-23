@@ -29,13 +29,14 @@ import pandas as pd
 
 FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
     (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Temporary_Query_N"),
-    (r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX", "Temporary_Query_N",),
+    (
+        r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP REPORT BY ROUTE.XLSX",
+        "Temporary_Query_N",
+    ),
     (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.XLSX", "Sep.2024 Finals"),
 ]
 
-OUTPUT_FILE_PATH: str = (
-    r"\\Path\to\Your\Output_Folder\Compiled_NTD_Data.csv"  # or .xlsx
-)
+OUTPUT_FILE_PATH: str = r"\\Path\to\Your\Output_Folder\Compiled_NTD_Data.csv"  # or .xlsx
 
 # -----------------------------------------------------------------------------
 
@@ -57,6 +58,7 @@ SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def robust_numeric_converter(value):
     """Convert strings such as "1,234" to 1234.0 (float).
@@ -101,6 +103,7 @@ COMMON_CONVERTERS = {
 # PIPELINE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def read_and_prepare_ntd_file(
     file_path: str, sheet_name: Optional[str] = None
 ) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
@@ -127,14 +130,11 @@ def read_and_prepare_ntd_file(
         return None, None
 
     print(
-        f"Processing file: {os.path.basename(file_path)}, "
-        f"Sheet: {sheet_name or 'first available'}"
+        f"Processing file: {os.path.basename(file_path)}, Sheet: {sheet_name or 'first available'}"
     )
 
     try:
-        df = pd.read_excel(
-            file_path, sheet_name=sheet_name, converters=COMMON_CONVERTERS
-        )
+        df = pd.read_excel(file_path, sheet_name=sheet_name, converters=COMMON_CONVERTERS)
 
         # ------------------ filtering logic ------------------
         keep_mask = pd.Series(True, index=df.index)
@@ -153,13 +153,8 @@ def read_and_prepare_ntd_file(
         dropped_df = df[~keep_mask].copy()
 
         # diagnostics
-        if (
-            EXISTING_PERIOD_COLUMN_NAME
-            and EXISTING_PERIOD_COLUMN_NAME not in df.columns
-        ):
-            print(
-                f"  Warning: period column '{EXISTING_PERIOD_COLUMN_NAME}' not found."
-            )
+        if EXISTING_PERIOD_COLUMN_NAME and EXISTING_PERIOD_COLUMN_NAME not in df.columns:
+            print(f"  Warning: period column '{EXISTING_PERIOD_COLUMN_NAME}' not found.")
 
         print(f"  Rows kept: {len(kept_df):>6} | Rows discarded: {len(dropped_df):>6}")
 
@@ -293,6 +288,7 @@ def _is_summary_row(frame: pd.DataFrame) -> pd.Series:
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Entry point for CLI execution of the NTD Data Compilation Script.
 
@@ -310,17 +306,13 @@ def main() -> None:
         print("CRITICAL ERROR: 'OUTPUT_FILE_PATH' not set.")
         critical_ok = False
     if not EXISTING_PERIOD_COLUMN_NAME:
-        print(
-            "WARNING: 'EXISTING_PERIOD_COLUMN_NAME' not set; "
-            "period validation will be skipped."
-        )
+        print("WARNING: 'EXISTING_PERIOD_COLUMN_NAME' not set; period validation will be skipped.")
 
     if critical_ok:
         result_df = compile_ntd_data()
         if result_df is not None:
             print(
-                f"\nCompilation summary: {result_df.shape[0]} rows × "
-                f"{result_df.shape[1]} columns."
+                f"\nCompilation summary: {result_df.shape[0]} rows × {result_df.shape[1]} columns."
             )
         else:
             print("\nCompilation failed or returned no data.")
