@@ -1,27 +1,49 @@
 # Contributing to This Repository
 
-We value clarity, consistency, and ease-of-use in our scripts. Please adhere to the following principles when contributing:
+We value clarity, consistency, and usability in our scripts. Please adhere to the following principles when contributing:
 
-## Repository Principles
 
-1. **Usability and interpretability for new users are paramount.**
-2. **Adhere strictly to PEP-8 standards**
-3. **Scripts must be modular, using a clearly defined `main()` function.**
-4. **Use clear, minimal, and meaningful comments.**
-5. **Follow Google docstring formatting style.**
-6. **Implement graceful, actionable error handling.**
-7. **Prefer logging over `print()` statements.**
-8. **Include intuitive configuration sections at the beginning of scripts.**
-   - Prefer inline configuration over command-line arguments (`argparse`).
-9. **Clearly log or print 'script has run successfully' messages at completion.**
-10. **Ensure sanitized and standardized placeholder filenames.**
-11. **Commit messages must follow Conventional Commits style.**
-12. **Use pre-commit linting with Ruff to maintain minimum standards.**
-13. **Perform manual testing before committing (no automated tests required).**
-14. **Periodically run static checks to identify complex issues and address as needed.**
-15. **Use standardized utility functions from `gtfs_helpers.py`.**
-16. **Use Washington DC default CRS unless otherwise noted.**
-17. **Default units: Imperial (feet/miles); metric options should be clearly available.**
+## 🧱 Code Structure
+
+- Scripts **must be modular**, with a clearly defined `main()` function.
+- Include a clear **configuration section at the top** of each script.
+  - Prefer inline variable configuration over `argparse`.
+- Use intuitive success messages at the end of script execution.
+  - e.g., `print("Script completed successfully.")` or equivalent `logging` call.
+- **Do not import shared helper functions** from external modules like `gtfs_helpers.py`.
+  - Instead, **reproduce the minimal helper function directly in the script** where it's used.
+  - This makes each script self-contained and easier for beginners to read, copy, and modify without needing to navigate the whole repo.
+
+## ⚙️ Runtime Behavior
+
+- Prefer the `logging` module over `print()` for diagnostics or warnings.
+- Implement **graceful, actionable error handling** — no cryptic tracebacks.
+- Use placeholder filenames that are clean, minimal, and safe to run (e.g., no real paths or usernames).
+- Default to:
+  - **Washington, DC CRS** unless otherwise noted.
+  - **Imperial units** (feet/miles), with metric options clearly noted when used.
+
+## 🧪 Testing & Review
+
+- **Manual testing is required** before committing. There are no automated tests (yet).
+- All commits must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+
+## 🧼 Code Style
+
+Most formatting and style issues are enforced automatically via **Ruff** and checked in CI. This includes:
+
+- PEP 8 compliance
+- Import order
+- Blank lines, indentation, etc.
+- Google-style docstrings (via `pydocstyle`)
+- Avoiding use of `print()` (warned via `T201`)
+
+You do **not** need to manually run linters before committing, but you should review CI feedback if it fails.
+
+## 📁 File Organization
+
+- Add new scripts to the appropriate subfolder within `scripts/`, based on function (e.g., `ridership_tools/`, `gtfs_exports/`).
+- Any reusable helper functions should be added to `helpers/gtfs_helpers.py`, not copied into individual scripts.
 
 ---
 
