@@ -54,16 +54,15 @@ def _build_dummy_csv(csv_path: Path) -> None:
     )
     df.to_csv(csv_path, index=False)
 
+
 # ==============================================================================
 # The test
 # ==============================================================================
 
 
-def test_unemployment_processor_e2e(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unemployment_processor_e2e(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Run simple end-to-end test.
-    
+
     GIVEN a minimal FRED-style CSV
     WHEN  the processor’s ``main()`` runs
     THEN  the expected Excel + JPEG files appear and contain the right data.
