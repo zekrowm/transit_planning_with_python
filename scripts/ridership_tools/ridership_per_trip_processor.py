@@ -71,7 +71,6 @@ FILTER_OUT_LIST: Final[list[str]] = []
 # FUNCTIONS
 # =============================================================================
 
-
 def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     """Load and normalise the ridership workbook.
 
@@ -101,28 +100,35 @@ def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
     # 1. Read the Excel file
     df = pd.read_excel(input_file)
 
-    # 2. Normalize 'TRIP_START_TIME' if it exists
+    # 2. Normalise 'TRIP_START_TIME' if it exists
     if "TRIP_START_TIME" in df.columns:
         series = df["TRIP_START_TIME"]
 
-        # Case A: pandas recognized it as datetime64[ns]
         if pd.api.types.is_datetime64_any_dtype(series):
-            df["TRIP_START_TIME"] = series.dt.time
-
+            # pandas already gave us datetime64[ns]; convert safely for mypy
+            df["TRIP_START_TIME"] = series.apply(
+                lambda ts: ts.time() if not pd.isna(ts) else None
+            )
         else:
-            # Case B: parse strings / other representations into datetime
+            # Parse strings / other representations into datetime
             parsed = pd.to_datetime(
                 series.astype(str).str.strip(),
-                errors="coerce",  # invalid rows → NaT
+                errors="coerce",           # invalid rows → NaT
                 infer_datetime_format=True,
             )
-            df["TRIP_START_TIME"] = parsed.dt.time
+            # Extract the .time() without touching the .dt accessor (mypy-safe)
+            df["TRIP_START_TIME"] = parsed.apply(
+                lambda ts: ts.time() if not pd.isna(ts) else None
+            )
 
     # 3. Retain only columns that actually exist
     existing_cols = [c for c in columns_to_retain if c in df.columns]
-    df = df[existing_cols]
+    if not existing_cols:
+        raise ValueError(
+            "None of the requested columns exist in the provided workbook."
+        )
 
-    return df
+    return df[existing_cols]
 
 
 def create_output_folder(folder_path: str) -> None:
