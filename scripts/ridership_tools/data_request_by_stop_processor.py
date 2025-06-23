@@ -25,9 +25,7 @@ from openpyxl.styles import Font
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE_PATH: Path = Path(
-    r"\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX"
-)
+INPUT_FILE_PATH: Path = Path(r"\\Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX")
 OUTPUT_FILE_SUFFIX: str = "_processed"
 OUTPUT_FILE_EXTENSION: str = ".xlsx"
 # If OUTPUT_DIR is None ⇒ use same directory as INPUT_FILE_PATH
@@ -209,9 +207,7 @@ def read_excel_file(input_file: Path) -> pd.DataFrame:
         sys.exit(1)
 
 
-def verify_required_columns(
-    data_frame: pd.DataFrame, required_columns: Sequence[str]
-) -> None:
+def verify_required_columns(data_frame: pd.DataFrame, required_columns: Sequence[str]) -> None:
     """Ensure *data_frame* contains all columns listed in *required_columns*.
 
     Args:
@@ -221,9 +217,7 @@ def verify_required_columns(
     Raises:
         SystemExit: If any required column is missing.
     """
-    missing_columns: List[str] = [
-        col for col in required_columns if col not in data_frame.columns
-    ]
+    missing_columns: List[str] = [col for col in required_columns if col not in data_frame.columns]
     if missing_columns:
         print(f"Error: Missing columns: {missing_columns}")
         sys.exit(1)
@@ -293,9 +287,7 @@ def write_to_excel(
     try:
         with pd.ExcelWriter(output_file) as writer:
             filtered_data.to_excel(writer, sheet_name="Original", index=False)
-            all_time_aggregated.to_excel(
-                writer, sheet_name="All Time Periods", index=False
-            )
+            all_time_aggregated.to_excel(writer, sheet_name="All Time Periods", index=False)
             for period, df_agg in aggregated_peaks.items():
                 df_agg.to_excel(writer, sheet_name=period, index=False)
 
@@ -388,9 +380,7 @@ def process_aggregations(
     # ──────────────────────────────────────────────────────────────────
     # 4. Format aggregated columns (bins OR decimal rounding)
     # ──────────────────────────────────────────────────────────────────
-    all_aggregations: List[pd.DataFrame] = [all_time_aggregated] + list(
-        aggregated_peaks.values()
-    )
+    all_aggregations: List[pd.DataFrame] = [all_time_aggregated] + list(aggregated_peaks.values())
     for df_agg in all_aggregations:
         if AGGREGATE_BIN_RANGES:
             for col in ("BOARD_ALL_TOTAL", "ALIGHT_ALL_TOTAL"):
@@ -437,14 +427,10 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
     log_missing_stop_ids(STOP_IDS, filtered_data["STOP_ID"])
 
     # Standardise TIME_PERIOD values
-    filtered_data["TIME_PERIOD"] = (
-        filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
-    )
+    filtered_data["TIME_PERIOD"] = filtered_data["TIME_PERIOD"].astype(str).str.strip().str.upper()
 
     # Aggregate + format
-    final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(
-        filtered_data
-    )
+    final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(filtered_data)
 
     # Write to disk
     write_to_excel(
