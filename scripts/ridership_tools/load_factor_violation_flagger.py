@@ -15,76 +15,73 @@ Typical use cases
 - Automated route-level reporting.
 """
 
-import os
+from __future__ import annotations
+
+import datetime as _dt
+from pathlib import Path
+from typing import Literal, Sequence, Union, TypeAlias
 
 import pandas as pd
+from pandas import DataFrame, Series
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
-# =============================================================================
+# ============================================================================
 # CONFIGURATION
-# =============================================================================
+# ============================================================================
 
-INPUT_FILE = r"\\File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
-OUTPUT_FILE = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
-BUS_CAPACITY = 39
+INPUT_FILE: Path = Path(r"\\File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX")
 
-# Routes in this list use a load factor limit of 1.25.
-# Any route not in LOWER_LIMIT_ROUTES will default to 1.25.
-HIGHER_LIMIT_ROUTES = ["101", "102", "103", "104"]
+OUTPUT_DIR: Path = Path(r"\\File\Path\To\Your")  # ← mirrors INPUT_FILE style
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Routes in this list use a load factor limit of 1.0.
-# Many agencies have a lower load factor for express routes.
-LOWER_LIMIT_ROUTES = ["105", "106"]
+# Derived output filenames
+OUTPUT_FILE: Path = OUTPUT_DIR / f"{INPUT_FILE.stem}_processed.xlsx"
+VIOLATION_LOG_FILE: Path = OUTPUT_DIR / f"{INPUT_FILE.stem}_violations_log.txt"
 
-LOWER_LOAD_FACTOR_LIMIT = 1.0
-HIGHER_LOAD_FACTOR_LIMIT = 1.25
+# ---------------------------------------------------------------------------
+# Other parameters
+# ---------------------------------------------------------------------------
+BUS_CAPACITY: int = 39
 
-# Provide these as lists of route strings.
-# Leave them empty if you do not want any filtering.
-FILTER_IN_ROUTES = []  # e.g. ['101', '202']
-FILTER_OUT_ROUTES = []  # e.g. ['105', '106']
+HIGHER_LIMIT_ROUTES: set[str] = {"101", "102", "103", "104"}
+LOWER_LIMIT_ROUTES: set[str] = {"105", "106"}
 
-# Specify how many decimals to round the LOAD_FACTOR to
-DECIMAL_PLACES = 4  # default is 4 decimals
+LOWER_LOAD_FACTOR_LIMIT: float = 1.0
+HIGHER_LOAD_FACTOR_LIMIT: float = 1.25
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
+FILTER_IN_ROUTES: set[str] = set()     # e.g. {"101", "202"}
+FILTER_OUT_ROUTES: set[str] = set()    # e.g. {"105", "106"}
 
-WRITE_VIOLATION_LOG = True
-VIOLATION_LOG_FILE = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
+DECIMAL_PLACES: int = 4
+WRITE_VIOLATION_LOG: bool = True
 
-# =============================================================================
+# ----------------------------------------------------------------------------
+# TYPE ALIASES
+# ----------------------------------------------------------------------------
+
+LoadFlag: TypeAlias = Literal["TRUE", "FALSE"]
+LimitType: TypeAlias = Literal["LOW", "HIGH"]
+ServicePeriod: TypeAlias = Literal[
+    "AM Early",
+    "AM Peak",
+    "Midday",
+    "PM Peak",
+    "PM Late",
+    "PM Nite",
+    "Other",
+]
+TimeLike: TypeAlias = Union[pd.Timestamp, _dt.time, None]
+Row: TypeAlias = Series
+
+# ============================================================================
 # FUNCTIONS
-# =============================================================================
+# ============================================================================
 
-
-def load_data(input_file: str) -> pd.DataFrame:
-    """Load required columns from an Excel file.
-
-    Parameters
-    ----------
-    input_file :
-        Absolute or relative path to ``STATISTICS_BY_ROUTE_AND_TRIP.XLSX`` or
-        a similar ridership file.
-
-    Returns
-    -------
-    pandas.DataFrame
-        A DataFrame containing *only* the columns needed for downstream
-        processing.
-
-    Raises
-    ------
-    FileNotFoundError
-        If *input_file* does not exist.
-    ValueError
-        If the expected columns are missing.
-    """
-    data_frame = pd.read_excel(input_file)
-    selected_columns = [
+def load_data(input_file: Path) -> DataFrame:
+    """Load and return only the columns required for processing."""
+    required_cols: list[str] = [
         "SERIAL_NUMBER",
         "ROUTE_NAME",
         "DIRECTION_NAME",
@@ -94,390 +91,197 @@ def load_data(input_file: str) -> pd.DataFrame:
         "MAX_LOAD_P",
         "ALL_RECORDS_MAX_LOAD",
     ]
-    return data_frame[selected_columns]
+    df: DataFrame = pd.read_excel(input_file)
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Source file missing columns: {missing}")
+    return df[required_cols]
 
 
-def assign_service_period(ts):
-    """Map a trip’s start time to a service-period label.
-
-    The mapping is based on local clock hour:
-
-    ============  =========
-    Hour range    Label
-    ------------  ---------
-     04:00–05:59  AM Early
-     06:00–08:59  AM Peak
-     09:00–14:59  Midday
-     15:00–17:59  PM Peak
-     18:00–20:59  PM Late
-     21:00–23:59  PM Nite
-     Else         Other
-    ============  =========
-
-    Parameters
-    ----------
-    ts :
-        A pandas/NumPy time-like object (timestamp, datetime.time, or
-        ``NaT``/``None``).
-
-    Returns
-    -------
-    str
-        One of the seven period strings shown above.
-    """
-    hour = ts.hour
+def assign_service_period(ts: TimeLike) -> ServicePeriod:
+    """Map a trip’s start time to a 7-bucket service-period label."""
+    if ts is None or pd.isna(ts):
+        return "Other"
+    hour: int = ts.hour  # type: ignore[attr-defined]
     if 4 <= hour < 6:
         return "AM Early"
-    elif 6 <= hour < 9:
+    if 6 <= hour < 9:
         return "AM Peak"
-    elif 9 <= hour < 15:
+    if 9 <= hour < 15:
         return "Midday"
-    elif 15 <= hour < 18:
+    if 15 <= hour < 18:
         return "PM Peak"
-    elif 18 <= hour < 21:
+    if 18 <= hour < 21:
         return "PM Late"
-    elif 21 <= hour < 24:
+    if 21 <= hour < 24:
         return "PM Nite"
-    else:
-        return "Other"
+    return "Other"
 
 
 def get_route_load_limit(route_name: str) -> float:
-    """Return the applicable load-factor limit for *route_name*.
-
-    Parameters
-    ----------
-    route_name :
-        The short route designator as it appears in the source file.
-
-    Returns
-    -------
-    float
-        ``LOWER_LOAD_FACTOR_LIMIT`` if the route is in
-        :data:`LOWER_LIMIT_ROUTES`, else ``HIGHER_LOAD_FACTOR_LIMIT``.
-    """
-    if route_name in LOWER_LIMIT_ROUTES:
-        return LOWER_LOAD_FACTOR_LIMIT
-    return HIGHER_LOAD_FACTOR_LIMIT
+    """Return the limit applicable to *route_name*."""
+    return (
+        LOWER_LOAD_FACTOR_LIMIT
+        if route_name in LOWER_LIMIT_ROUTES
+        else HIGHER_LOAD_FACTOR_LIMIT
+    )
 
 
-def check_load_factor_violation(row: pd.Series) -> str:
-    """Flag a single row as a load-factor violation.
-
-    Parameters
-    ----------
-    row :
-        A DataFrame row that already contains ``LOAD_FACTOR`` and
-        ``ROUTE_NAME``.
-
-    Returns
-    -------
-    str
-        ``"TRUE"`` if the row exceeds its route limit, otherwise ``"FALSE"``.
-    """
-    limit = get_route_load_limit(row["ROUTE_NAME"])
-    return "TRUE" if row["LOAD_FACTOR"] > limit else "FALSE"
+def check_load_factor_violation(row: Row) -> LoadFlag:
+    """Flag a row as violating its route’s load-factor limit."""
+    limit = get_route_load_limit(str(row["ROUTE_NAME"]))
+    return "TRUE" if float(row["LOAD_FACTOR"]) > limit else "FALSE"
 
 
-def determine_limit_type(route_name: str) -> str:
-    """Label the limit type used by *route_name*.
-
-    Parameters
-    ----------
-    route_name :
-        The short route designator.
-
-    Returns
-    -------
-    str
-        ``"LOW"`` if the route uses the lower limit, else ``"HIGH"``.
-    """
-    if route_name in LOWER_LIMIT_ROUTES:
-        return "LOW"
-    return "HIGH"
+def determine_limit_type(route_name: str) -> LimitType:
+    """Return 'LOW' or 'HIGH' limit type for *route_name*."""
+    return "LOW" if route_name in LOWER_LIMIT_ROUTES else "HIGH"
 
 
 def process_data(
-    data_frame: pd.DataFrame,
+    data_frame: DataFrame,
     bus_capacity: int,
-    filter_in_routes: list,
-    filter_out_routes: list,
+    filter_in_routes: Sequence[str],
+    filter_out_routes: Sequence[str],
     decimals: int,
-) -> pd.DataFrame:
-    """Transform raw ridership data into an analysis-ready DataFrame.
+) -> DataFrame:
+    """Transform raw ridership data into an analysis-ready DataFrame."""
+    df: DataFrame = data_frame.copy()
 
-    The transformation pipeline:
-
-        1. Apply `filter_in_routes` and `filter_out_routes`.
-        2. Add column ``SERVICE_PERIOD``.
-        3. Compute and round ``LOAD_FACTOR``.
-        4. Add ``LOAD_FACTOR_VIOLATION`` and ``ROUTE_LIMIT_TYPE``.
-        5. Sort rows by descending ``LOAD_FACTOR``.
-
-    Args:
-        data_frame (pd.DataFrame):
-            Raw trip-level ridership data.
-        bus_capacity (int):
-            Seated + crush load used as the divisor when calculating the
-            load factor.
-        filter_in_routes (list[str]):
-            If truthy, **keep only** routes whose short name appears here.
-        filter_out_routes (list[str]):
-            If truthy, **drop** routes whose short name appears here.
-        decimals (int):
-            Number of decimal places to retain for ``LOAD_FACTOR``.
-
-    Returns:
-        pandas.DataFrame:
-            A fully processed and neatly sorted DataFrame.
-    """
-    # 1) Apply filters
     if filter_in_routes:
-        data_frame = data_frame[data_frame["ROUTE_NAME"].isin(filter_in_routes)]
+        df = df[df["ROUTE_NAME"].isin(filter_in_routes)]
     if filter_out_routes:
-        data_frame = data_frame[~data_frame["ROUTE_NAME"].isin(filter_out_routes)]
+        df = df[~df["ROUTE_NAME"].isin(filter_out_routes)]
 
-    # 2) Assign service period and calculate load factor
-    data_frame["SERVICE_PERIOD"] = data_frame["TRIP_START_TIME"].apply(
-        assign_service_period
-    )
-    data_frame["LOAD_FACTOR"] = data_frame["MAX_LOAD"] / bus_capacity
+    df["SERVICE_PERIOD"] = df["TRIP_START_TIME"].apply(assign_service_period)
+    df["LOAD_FACTOR"] = (df["MAX_LOAD"] / bus_capacity).round(decimals)
+    df["LOAD_FACTOR_VIOLATION"] = df.apply(check_load_factor_violation, axis=1)
+    df["ROUTE_LIMIT_TYPE"] = df["ROUTE_NAME"].apply(determine_limit_type)
 
-    # 5) Round load factor to specified decimals
-    data_frame["LOAD_FACTOR"] = data_frame["LOAD_FACTOR"].round(decimals)
-
-    # 3) Mark whether load factor is violated
-    data_frame["LOAD_FACTOR_VIOLATION"] = data_frame.apply(
-        check_load_factor_violation, axis=1
-    )
-
-    # 4) Add column for route limit type
-    data_frame["ROUTE_LIMIT_TYPE"] = data_frame["ROUTE_NAME"].apply(
-        determine_limit_type
-    )
-
-    # Sort by 'LOAD_FACTOR' in descending order
-    return data_frame.sort_values(by="LOAD_FACTOR", ascending=False)
+    return df.sort_values(by="LOAD_FACTOR", ascending=False).reset_index(drop=True)
 
 
-def create_route_workbooks(data_frame: pd.DataFrame) -> None:
-    """Generate one Excel workbook per route, with sheets per direction.
-
-    Workbooks are written to the directory containing :pydata:`OUTPUT_FILE`.
-
-    Parameters
-    ----------
-    data_frame :
-        The processed DataFrame returned by :func:`process_data`.
-    """
-    # Determine the directory in which to save per-route files
-    output_dir = os.path.dirname(OUTPUT_FILE) or "."
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Group by each ROUTE_NAME
+def create_route_workbooks(data_frame: DataFrame) -> None:
+    """Generate one Excel workbook per route, with sheets split by direction."""
     for route_name, route_df in data_frame.groupby("ROUTE_NAME", sort=False):
         wb = Workbook()
-        default_sheet = wb.active
-        wb.remove(default_sheet)
+        wb.remove(wb.active)
 
-        # Within each route, group by DIRECTION_NAME
         for direction_name, direction_df in route_df.groupby(
             "DIRECTION_NAME", sort=False
         ):
-            # Sort trips by TRIP_START_TIME
-            direction_df_sorted = direction_df.sort_values(
-                by="TRIP_START_TIME", kind="mergesort"
-            ).reset_index(drop=True)
-
+            sheet_df = (
+                direction_df.sort_values(
+                    by="TRIP_START_TIME", kind="mergesort"
+                ).reset_index(drop=True)
+            )
             ws = wb.create_sheet(title=str(direction_name))
 
-            # Write header row (bolded)
-            headers = list(direction_df_sorted.columns)
-            for col_idx, header in enumerate(headers, start=1):
+            headers = list(sheet_df.columns)
+            for col_idx, header in enumerate(headers, 1):
                 cell = ws.cell(row=1, column=col_idx, value=header)
                 cell.font = Font(bold=True)
 
-            # Write each trip row
-            for row_idx, (_, row) in enumerate(direction_df_sorted.iterrows(), start=2):
-                for col_idx, header in enumerate(headers, start=1):
+            for row_idx, (_, row) in enumerate(sheet_df.iterrows(), start=2):
+                for col_idx, header in enumerate(headers, 1):
                     val = row[header]
-                    if header == "TRIP_START_TIME":
-                        # Preserve time formatting if possible
-                        if hasattr(val, "strftime"):
-                            cell_val = val
-                        elif pd.isna(val):
-                            cell_val = ""
-                        else:
-                            cell_val = val
-                        cell = ws.cell(row=row_idx, column=col_idx, value=cell_val)
-                        cell.number_format = "hh:mm"
+                    if header == "TRIP_START_TIME" and hasattr(val, "strftime"):
+                        cell_obj = ws.cell(row=row_idx, column=col_idx, value=val)
+                        cell_obj.number_format = "hh:mm"
                     else:
                         ws.cell(row=row_idx, column=col_idx, value=val)
 
-            # Adjust column widths based on content
-            for idx, col in enumerate(headers, start=1):
-                content_series = direction_df_sorted[col].astype(str)
-                max_length = max(content_series.map(len).max(), len(str(col)))
-                adjusted_width = max_length + 2
-                column_letter = get_column_letter(idx)
-                ws.column_dimensions[column_letter].width = adjusted_width
+            for idx, col in enumerate(headers, 1):
+                max_len = max(sheet_df[col].astype(str).map(len).max(), len(col))
+                ws.column_dimensions[get_column_letter(idx)].width = max_len + 2
 
-        # Save the workbook named after the route
-        filename = f"{route_name}.xlsx"
-        file_path = os.path.join(output_dir, filename)
-        wb.save(file_path)
-        print(f"Saved workbook: {file_path}")
+        filepath: Path = OUTPUT_DIR / f"{route_name}.xlsx"
+        wb.save(filepath)
+        print(f"Saved workbook: {filepath}")
 
 
-def export_to_csv(data_frame: pd.DataFrame, csv_file_path: str) -> None:
-    """Write *data_frame* to disk as a CSV.
-
-    Parameters
-    ----------
-    data_frame :
-        The DataFrame to export.
-    csv_file_path :
-        Destination path for the CSV file.  Any existing file is overwritten.
-    """
-    data_frame.to_csv(csv_file_path, index=False)
-    print(f"Processed file saved to CSV: {csv_file_path}")
+def export_to_csv(data_frame: DataFrame, csv_path: Path) -> None:
+    """Export *data_frame* to a CSV file."""
+    data_frame.to_csv(csv_path, index=False)
+    print(f"Processed file saved to CSV: {csv_path}")
 
 
-def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
-    """Export *data_frame* to a single-sheet Excel workbook.
-
-    Column widths are auto-sized for readability.
-
-    Parameters
-    ----------
-    data_frame :
-        The DataFrame to export.
-    output_file :
-        Destination ``.xlsx`` path.
-    """
-    with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
+def export_to_excel(data_frame: DataFrame, output_file: Path) -> None:
+    """Export *data_frame* to a single-sheet Excel workbook."""
+    with pd.ExcelWriter(output_file, engine="openpyxl") as writer:  # type: ignore[attr-defined]  # noqa: E501
         data_frame.to_excel(writer, index=False, sheet_name="Sheet1")
-        worksheet = writer.sheets["Sheet1"]
-
-        # Adjust column widths based on the maximum length of the content in each column
+        sheet = writer.sheets["Sheet1"]
         for idx, col in enumerate(data_frame.columns, 1):
-            series = data_frame[col].astype(str)
-            max_length = max(series.map(len).max(), len(str(col)))
-            adjusted_width = max_length + 2  # Add extra space for clarity
-            column_letter = get_column_letter(idx)
-            worksheet.column_dimensions[column_letter].width = adjusted_width
+            max_len = max(data_frame[col].astype(str).map(len).max(), len(col))
+            sheet.column_dimensions[get_column_letter(idx)].width = max_len + 2
 
 
-def print_high_load_trips(data_frame: pd.DataFrame) -> None:
-    """Print trips whose ``MAX_LOAD`` exceeds an absolute threshold.
-
-    Parameters
-    ----------
-    data_frame :
-        The processed ridership DataFrame.
-    """
-    high_load_trips = data_frame[data_frame["MAX_LOAD"] > 30]
-    if not high_load_trips.empty:
+def print_high_load_trips(data_frame: DataFrame) -> None:
+    """Emit trips whose MAX_LOAD exceeds an absolute threshold (30)."""
+    high = data_frame[data_frame["MAX_LOAD"] > 30]
+    if not high.empty:
         print("Trips with MAX_LOAD over 30:")
-        print(high_load_trips)
+        print(high)
 
 
-def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
-    """Write a plain-text log of trips exceeding their load-factor limit.
+def write_violation_log(data_frame: DataFrame, log_path: Path) -> None:
+    """Write a line-delimited log of load-factor violations."""
+    violations = data_frame[data_frame["LOAD_FACTOR_VIOLATION"] == "TRUE"]
 
-    Parameters
-    ----------
-    data_frame :
-        The processed ridership DataFrame.
-    log_file_path :
-        Full path to the ``.txt`` file to create or overwrite.
-    """
-    # Filter rows where load‐factor is violated
-    violations_df = data_frame[data_frame["LOAD_FACTOR_VIOLATION"] == "TRUE"]
+    with log_path.open("w", encoding="utf-8") as fh:
+        if violations.empty:
+            fh.write("No load-factor violations found (all trips within limits).\n")
+            return
 
-    # Open (or create) the log file and overwrite any existing content
-    with open(log_file_path, "w", encoding="utf-8") as log_file:
-        if violations_df.empty:
-            log_file.write(
-                "No load‐factor violations found (all trips within permissible limits).\n"
+        fh.write(
+            "Trips with load-factor violations (greater than route-specific limit):\n\n"
+            "ROUTE\tDIRECTION\tSTART_TIME\tMAX_LOAD\tLOAD_FACTOR\tSERVICE_PERIOD\tROUTE_LIMIT_TYPE\n"  # noqa: E501
+        )
+
+        for _, row in violations.iterrows():
+            ts = row["TRIP_START_TIME"]
+            start = (
+                ts.strftime("%H:%M")
+                if hasattr(ts, "strftime")
+                else ("" if pd.isna(ts) else str(ts))
             )
-        else:
-            # Write a header
-            header = (
-                "Trips with load‐factor violations (greater than route‐specific limit):\n\n"
-                "ROUTE\tDIRECTION\tSTART_TIME\tMAX_LOAD\tLOAD_FACTOR\t"
-                "SERVICE_PERIOD\tROUTE_LIMIT_TYPE\n"
+            fh.write(
+                f"{row['ROUTE_NAME']}\t{row['DIRECTION_NAME']}\t{start}\t"
+                f"{row['MAX_LOAD']}\t{row['LOAD_FACTOR']}\t"
+                f"{row['SERVICE_PERIOD']}\t{row['ROUTE_LIMIT_TYPE']}\n"
             )
-            log_file.write(header)
-
-            # Write one line per violating trip
-            for _, row in violations_df.iterrows():
-                # Format TRIP_START_TIME (if it’s a time object)
-                start_val = row.get("TRIP_START_TIME", None)
-                if hasattr(start_val, "strftime"):  # datetime.time or pandas Timestamp
-                    start_str = start_val.strftime("%H:%M")
-                else:
-                    start_str = "" if pd.isna(start_val) else str(start_val)
-
-                line = (
-                    f"{row.get('ROUTE_NAME', '')}\t"
-                    f"{row.get('DIRECTION_NAME', '')}\t"
-                    f"{start_str}\t"
-                    f"{row.get('MAX_LOAD', '')}\t"
-                    f"{row.get('LOAD_FACTOR', '')}\t"
-                    f"{row.get('SERVICE_PERIOD', '')}\t"
-                    f"{row.get('ROUTE_LIMIT_TYPE', '')}\n"
-                )
-                log_file.write(line)
-    print(f"Exported load‐factor violation log: {log_file_path}")
+    print(f"Exported load-factor violation log: {log_path}")
 
 
-# =============================================================================
+# ============================================================================
 # MAIN
-# =============================================================================
+# ============================================================================
 
 
-def main():
+def main() -> None:
     """Run the full ETL pipeline and create all exports."""
-    # Load data
-    data_frame = load_data(INPUT_FILE)
+    df_raw = load_data(INPUT_FILE)
 
-    # Process data with filtering and limit checks
-    processed_data = process_data(
-        data_frame,
+    df_proc = process_data(
+        df_raw,
         BUS_CAPACITY,
         FILTER_IN_ROUTES,
         FILTER_OUT_ROUTES,
         DECIMAL_PLACES,
     )
 
-    # -------------------------------------------------------------------------
-    # 1) EXPORT COMBINED CSV (good for programmatic consumption)
-    # -------------------------------------------------------------------------
-    combined_csv_path = INPUT_FILE.replace(".XLSX", "_processed.csv")
-    export_to_csv(processed_data, combined_csv_path)
+    csv_path: Path = OUTPUT_DIR / f"{INPUT_FILE.stem}_processed.csv"
+    export_to_csv(df_proc, csv_path)
 
-    # -------------------------------------------------------------------------
-    # 2) EXPORT COMBINED EXCEL (good for a quick, single-sheet view)
-    # -------------------------------------------------------------------------
-    export_to_excel(processed_data, OUTPUT_FILE)
+    export_to_excel(df_proc, OUTPUT_FILE)
     print(f"Processed file saved to Excel: {OUTPUT_FILE}")
 
-    # -------------------------------------------------------------------------
-    # 3) EXPORT PER-ROUTE EXCEL WORKBOOKS (one .xlsx per route, sheets per direction)
-    # -------------------------------------------------------------------------
-    create_route_workbooks(processed_data)
+    create_route_workbooks(df_proc)
 
-    # -------------------------------------------------------------------------
-    # PRINT HIGH-LOAD TRIPS TO CONSOLE
-    # -------------------------------------------------------------------------
-    print_high_load_trips(processed_data)
+    print_high_load_trips(df_proc)
 
-    # -------------------------------------------------------------------------
-    # WRITE TEXT LOG OF VIOLATIONS (good for a human-readable, line-by-line summary)
-    # -------------------------------------------------------------------------
     if WRITE_VIOLATION_LOG:
-        write_violation_log(processed_data, VIOLATION_LOG_FILE)
+        write_violation_log(df_proc, VIOLATION_LOG_FILE)
 
 
 if __name__ == "__main__":
