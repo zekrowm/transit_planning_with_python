@@ -46,9 +46,9 @@ ROUTE_NAME_COLUMN = "ROUTE_NAME"
 
 DISTANCE_ALLOWANCE_FT = 100  # feet
 
-INPUT_CRS = "EPSG:4326"      # WGS 84
+INPUT_CRS = "EPSG:4326"  # WGS 84
 PROJECTED_CRS = "EPSG:26918"  # NAD83 / UTM 18 N  (adjust if needed)
-OUTPUT_CRS = "EPSG:4326"     # WGS 84
+OUTPUT_CRS = "EPSG:4326"  # WGS 84
 
 LOG_LEVEL = logging.INFO
 
@@ -92,9 +92,7 @@ def load_gtfs_data(gtfs_dir: Path) -> Tuple[DataFrame, DataFrame, DataFrame, Dat
 
     missing = [str(p) for p in paths.values() if not p.is_file()]
     if missing:
-        raise FileNotFoundError(
-            f"Required GTFS files not found: {', '.join(missing)}"
-        )
+        raise FileNotFoundError(f"Required GTFS files not found: {', '.join(missing)}")
 
     LOGGER.info("Loading GTFS files …")
     return (
@@ -166,9 +164,7 @@ def preprocess_data(
     routes = routes.copy()
     shp = shp.copy()
 
-    routes["route_short_name_str"] = (
-        routes["route_short_name"].astype(str).str.strip()
-    )
+    routes["route_short_name_str"] = routes["route_short_name"].astype(str).str.strip()
     shp[f"{route_number_col}_str"] = (
         shp[route_number_col].astype(str).str.replace(" ", "").str.strip()
     )
@@ -237,9 +233,7 @@ def convert_stops_to_gdf(stops: DataFrame, crs: str) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(stops, geometry=geometry, crs=crs)
 
 
-def _ensure_projected(
-    gdf: gpd.GeoDataFrame, projected_crs: str
-) -> gpd.GeoDataFrame:
+def _ensure_projected(gdf: gpd.GeoDataFrame, projected_crs: str) -> gpd.GeoDataFrame:
     """Return *gdf* in *projected_crs* (helper)."""
     return gdf.to_crs(projected_crs)
 
@@ -283,13 +277,13 @@ def identify_problem_stops(
 
     # --- matched routes / trips / stops
     matched_trips = trips[trips["route_id"].isin(matched_routes["route_id"])]
-    matched_stop_times = stop_times[stop_times["trip_id"].isin(matched_trips["trip_id"])]
+    matched_stop_times = stop_times[
+        stop_times["trip_id"].isin(matched_trips["trip_id"])
+    ]
     matched_stops = stops[stops["stop_id"].isin(matched_stop_times["stop_id"])]
 
     matched_stops_gdf = convert_stops_to_gdf(matched_stops, input_crs)
-    matched_stops_gdf, shp = prepare_geometries(
-        matched_stops_gdf, shp, projected_crs
-    )
+    matched_stops_gdf, shp = prepare_geometries(matched_stops_gdf, shp, projected_crs)
 
     geometry_lookup = matched_routes.merge(
         shp[[f"{route_number_col}_str", "route_geometry"]],
@@ -321,9 +315,7 @@ def identify_problem_stops(
     routes_with_flagged = flagged["route_id"].dropna().unique().tolist()
 
     # --- unmatched stops (no matching route at all)
-    unmatched_route_ids = set(routes["route_id"]).difference(
-        matched_routes["route_id"]
-    )
+    unmatched_route_ids = set(routes["route_id"]).difference(matched_routes["route_id"])
     unmatched_trips = trips[trips["route_id"].isin(unmatched_route_ids)]
     unmatched_stop_times = stop_times[
         stop_times["trip_id"].isin(unmatched_trips["trip_id"])
@@ -436,12 +428,9 @@ def main() -> None:
         LOGGER.info("Comparison (with flags) written to %s", flags_path)
 
     # Excel export
-    problems_xlsx = (
-        problems_gdf.merge(geometry_lookup[["route_id", "route_short_name"]],
-                           on="route_id", how="left")
-        .loc[:, ["stop_id", "stop_name", "route_short_name",
-                 "distance_ft", "reason"]]
-    )
+    problems_xlsx = problems_gdf.merge(
+        geometry_lookup[["route_id", "route_short_name"]], on="route_id", how="left"
+    ).loc[:, ["stop_id", "stop_name", "route_short_name", "distance_ft", "reason"]]
     xlsx_path = OUTPUT_DIR / "problem_stops.xlsx"
     problems_xlsx.to_excel(xlsx_path, index=False)
     LOGGER.info("Problem stops (Excel) written to %s", xlsx_path)
