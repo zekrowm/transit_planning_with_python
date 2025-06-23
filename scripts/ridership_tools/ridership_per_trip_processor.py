@@ -113,7 +113,6 @@ def load_data(input_file: str, columns_to_retain: list[str]) -> pd.DataFrame:
             parsed = pd.to_datetime(
                 series.astype(str).str.strip(),
                 errors="coerce",  # invalid rows → NaT
-                infer_datetime_format=True,
             )
             # Extract the .time() without touching the .dt accessor (mypy-safe)
             df["TRIP_START_TIME"] = parsed.apply(lambda ts: ts.time() if not pd.isna(ts) else None)
