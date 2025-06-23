@@ -65,5 +65,4 @@ select = ["I", "F", "D"]
 # ignore = ["D100", "D401"]
 
 [tool.ruff.pydocstyle]
-convention = "google"           # <-- this flips Ruff to Google rules
-add-ignore = []                 # fail on every violation
+convention = "google"
