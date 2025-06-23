@@ -18,11 +18,10 @@ Key Features
 """
 
 from __future__ import annotations
-
 import logging
 import math
 import os
-
+from typing import Any, Sequence
 import pandas as pd
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
@@ -61,21 +60,24 @@ MAX_COLUMN_WIDTH = 35
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
+def load_gtfs_data(
+    gtfs_folder_path: str,
+    files: Sequence[str] | None = None,  # Optional by construction
+    dtype: Any = str,
+) -> dict[str, pd.DataFrame]:
     """Load one or more GTFS text files into memory.
 
     Args:
         gtfs_folder_path: Absolute or relative path to the folder
             containing the GTFS feed.
-        files: Explicit list of file names to load.  If *None*, the
-            standard 13 GTFS text files are attempted.
-        dtype: Value passed to ``pandas.read_csv(dtype=...)``.  Supply a
-            *dict* to set per-column dtypes.
+        files: Explicit list or tuple of file names to load. If None,
+            the standard 13 GTFS text files are attempted.
+        dtype: Value passed to pandas.read_csv(dtype=...). Supply a dict
+            to set per-column dtypes.
 
     Returns:
-        Mapping of *file stem* → corresponding DataFrame; e.g.,
-        ``data["trips"]`` holds the parsed **trips.txt** table.
+        Mapping of file stem → corresponding DataFrame; for example,
+        data["trips"] holds the parsed trips.txt table.
 
     Raises:
         OSError: Folder missing or one of *files* not present.
@@ -83,14 +85,14 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
         RuntimeError: Generic OS error while reading a file.
 
     Notes:
-        All columns are loaded as strings by default to avoid
-        ``pandas`` type inference pitfalls (e.g., leading zeros in IDs).
+        All columns are loaded as strings by default to avoid pandas
+        type-inference pitfalls (e.g. leading zeros in IDs).
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
     if files is None:
-        files = [
+        files = (
             "agency.txt",
             "stops.txt",
             "routes.txt",
@@ -104,7 +106,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             "frequencies.txt",
             "shapes.txt",
             "transfers.txt",
-        ]
+        )
 
     missing = [
         file_name
@@ -116,14 +118,14 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
         )
 
-    data = {}
+    data: dict[str, pd.DataFrame] = {}
     for file_name in files:
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
             df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
             data[key] = df
-            logging.info(f"Loaded {file_name} ({len(df)} records).")
+            logging.info("Loaded %s (%d records).", file_name, len(df))
 
         except pd.errors.EmptyDataError as exc:
             raise ValueError(
