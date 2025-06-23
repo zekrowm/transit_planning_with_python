@@ -21,6 +21,7 @@ import os
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Literal, Optional
+
 import numpy as np
 import pandas as pd
 from openpyxl import Workbook
@@ -48,9 +49,7 @@ VALIDATE_TIMEPOINT_DISTANCE: bool = True
 # LOGGING
 # -----------------------------------------------------------------------------
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # =============================================================================
 # FUNCTIONS
@@ -60,11 +59,12 @@ logging.basicConfig(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
-    files: Optional[list[str]] = None,      # mark as optional
-    dtype: str = str,                       # keep default, annotate for completeness
-) -> dict[str, pd.DataFrame]:              # add precise return type
+    files: Optional[list[str]] = None,  # mark as optional
+    dtype: str = str,  # keep default, annotate for completeness
+) -> dict[str, pd.DataFrame]:  # add precise return type
     """Load GTFS text files from a folder into pandas DataFrames.
 
     Args:
@@ -106,9 +106,7 @@ def load_gtfs_data(
         if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
     data = {}
     for file_name in files:
@@ -120,9 +118,7 @@ def load_gtfs_data(
             logging.info(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
             raise ValueError(
@@ -176,9 +172,7 @@ def convert_dist_to_miles(distance, input_unit):
     try:
         num_distance = float(distance)
     except ValueError:
-        logging.warning(
-            f"Could not convert distance '{distance}' to float. Returning as-is."
-        )
+        logging.warning(f"Could not convert distance '{distance}' to float. Returning as-is.")
         return distance
 
     if input_unit.lower() == "feet":
@@ -364,9 +358,8 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
         for trip_id_val, group_sub in tmp.groupby("trip_id"):
             # shape_dist_traveled was converted to numeric earlier if it exists
             # Ensure 'shape_dist_traveled' is numeric for comparison if not already
-            if (
-                "shape_dist_traveled" in group_sub.columns
-                and not pd.api.types.is_numeric_dtype(group_sub["shape_dist_traveled"])
+            if "shape_dist_traveled" in group_sub.columns and not pd.api.types.is_numeric_dtype(
+                group_sub["shape_dist_traveled"]
             ):
                 group_sub["shape_dist_traveled"] = pd.to_numeric(
                     group_sub["shape_dist_traveled"], errors="coerce"
@@ -380,18 +373,14 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
                     group_sub_dist_valid.iloc[-1]["shape_dist_traveled"]
                     - group_sub_dist_valid.iloc[0]["shape_dist_traveled"]
                 )
-                trip_distances[trip_id_val] = convert_dist_to_miles(
-                    dist_val, INPUT_DISTANCE_UNIT
-                )
+                trip_distances[trip_id_val] = convert_dist_to_miles(dist_val, INPUT_DISTANCE_UNIT)
 
     # Build patterns
     patterns_list = []
     for trip_id_val, group_sub in tmp.groupby("trip_id"):
         group_sub = group_sub.sort_values("stop_sequence")
         stops_for_trip = []
-        prev_dist_val = (
-            None  # This will be a numeric type after first valid shape_dist_traveled
-        )
+        prev_dist_val = None  # This will be a numeric type after first valid shape_dist_traveled
 
         for _, row in group_sub.iterrows():
             stop_id_val = row["stop_id"]
@@ -403,9 +392,7 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
                 if pd.notnull(shape_val) and pd.notnull(prev_dist_val):
                     # Both are numeric, direct subtraction
                     diff_numeric = shape_val - prev_dist_val
-                    diff_miles = convert_dist_to_miles(
-                        diff_numeric, INPUT_DISTANCE_UNIT
-                    )
+                    diff_miles = convert_dist_to_miles(diff_numeric, INPUT_DISTANCE_UNIT)
                     if pd.notnull(diff_miles) and isinstance(diff_miles, (int, float)):
                         dist_str = (
                             f"{diff_miles:.2f}" if diff_miles != 0 else "0.00"
@@ -441,9 +428,7 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
                 )
 
         if group_sub.empty:
-            logging.warning(
-                f"Empty group for trip_id {trip_id_val} in pattern generation."
-            )
+            logging.warning(f"Empty group for trip_id {trip_id_val} in pattern generation.")
             continue
 
         first_row = group_sub.iloc[0]
@@ -603,9 +588,7 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
 # -----------------------------------------------------------------------------
 
 
-def find_master_trip_stops(
-    route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df
-):
+def find_master_trip_stops(route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df):
     """Identify the trip with the most timepoints as the master for a direction.
 
     Args:
@@ -636,9 +619,7 @@ def find_master_trip_stops(
 
     # stop_sequence is numeric
     best_group = st_sub[st_sub["trip_id"] == best_trip_id].sort_values("stop_sequence")
-    best_group = pd.merge(
-        best_group, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left"
-    )
+    best_group = pd.merge(best_group, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
 
     out_list = []
     for _, row in best_group.iterrows():
@@ -728,9 +709,7 @@ def fill_worksheet_for_direction(
 
     if not master_stops:
         worksheet.append(
-            [
-                f"No master stops found for Route {route_short_name} Dir {direction_id_val}."
-            ]
+            [f"No master stops found for Route {route_short_name} Dir {direction_id_val}."]
         )
         return
 
@@ -760,9 +739,7 @@ def fill_worksheet_for_direction(
         trip_count = rec["trip_count"]
         earliest_str = rec.get("earliest_time_str", "")
         pattern_stops_tuple = rec["pattern_stops"]
-        row_distances = forward_match_pattern_to_master(
-            pattern_stops_tuple, master_stops
-        )
+        row_distances = forward_match_pattern_to_master(pattern_stops_tuple, master_stops)
 
         row_data = [
             route_short_name,
@@ -821,10 +798,7 @@ def export_patterns_to_excel(
             logging.warning(f"No route_short_name found for route_id {rid_val}.")
 
         sane_short_name = (
-            "".join(
-                c if c.isalnum() or c in (" ", "_", "-") else "_"
-                for c in str(short_name)
-            )
+            "".join(c if c.isalnum() or c in (" ", "_", "-") else "_" for c in str(short_name))
             .strip()
             .replace(" ", "_")
         )
@@ -847,7 +821,9 @@ def export_patterns_to_excel(
 
         for direction_val_str, recs_for_direction in dir_map.items():
             all_trip_ids_for_master = set()
-            for pattern_rec in recs_for_direction:  # recs_for_direction contains patterns for specific route,service,direction
+            for pattern_rec in (
+                recs_for_direction
+            ):  # recs_for_direction contains patterns for specific route,service,direction
                 all_trip_ids_for_master.update(pattern_rec["trip_ids"])
 
             # Filter trips_df for current route, service, direction to find master stops
@@ -887,9 +863,7 @@ def export_patterns_to_excel(
             continue
 
         filename = f"{sane_short_name}_{sid_val}_{SIGNUP_NAME}.xlsx"
-        filename = "".join(
-            c if c.isalnum() or c in (".", "_", "-") else "_" for c in filename
-        )
+        filename = "".join(c if c.isalnum() or c in (".", "_", "-") else "_" for c in filename)
 
         full_filepath = os.path.join(folder_path, filename)
         try:
@@ -925,13 +899,9 @@ def main():
                     f"Loaded calendar.txt but it appears to have headers only or is malformed ({len(calendar_df)} records)."
                 )
             elif not calendar_df.empty:
-                logging.info(
-                    f"Loaded calendar.txt successfully ({len(calendar_df)} records)."
-                )
+                logging.info(f"Loaded calendar.txt successfully ({len(calendar_df)} records).")
             else:
-                logging.info(
-                    f"calendar.txt ({calendar_file_path}) exists but is empty."
-                )
+                logging.info(f"calendar.txt ({calendar_file_path}) exists but is empty.")
                 calendar_df = None
         except pd.errors.EmptyDataError:
             logging.warning(
@@ -939,9 +909,7 @@ def main():
             )
             calendar_df = None
         except Exception as exc:
-            logging.warning(
-                f"Could not load calendar.txt from {calendar_file_path}: {exc}"
-            )
+            logging.warning(f"Could not load calendar.txt from {calendar_file_path}: {exc}")
             calendar_df = None
     else:
         logging.info(
@@ -957,9 +925,7 @@ def main():
     ]  # Using string literals
     try:
         gtfs_data = load_gtfs_data(INPUT_DIR, files=essential_files, dtype=str)
-        logging.info(
-            "Loaded essential GTFS files successfully using new load_gtfs_data function."
-        )
+        logging.info("Loaded essential GTFS files successfully using new load_gtfs_data function.")
 
     except (OSError, ValueError, RuntimeError) as exc:
         logging.error(f"Failed to load essential GTFS files: {exc}")
@@ -1002,9 +968,7 @@ def main():
         return
 
     if "timepoint" in stop_times_df.columns:
-        stop_times_df["timepoint"] = pd.to_numeric(
-            stop_times_df["timepoint"], errors="coerce"
-        )
+        stop_times_df["timepoint"] = pd.to_numeric(stop_times_df["timepoint"], errors="coerce")
 
     if "shape_dist_traveled" in stop_times_df.columns:
         stop_times_df["shape_dist_traveled"] = pd.to_numeric(
