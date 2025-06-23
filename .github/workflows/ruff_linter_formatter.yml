@@ -3,23 +3,27 @@
 name: ruff_linter_formatter
 
 on:
-  push:               # re-format only what changed on pushes to main
-    branches: [ "main" ]
+  push:
+    branches: ["main"]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write   # retained for future PR suggestions
+  pull-requests: write
 
 jobs:
   format-lint:
+    concurrency:
+      group: format-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0          # full history so git diff works
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,20 +33,17 @@ jobs:
       - name: Install Ruff
         run: |
           python -m pip install --upgrade pip
-          # Ruff ≥0.4 provides the Black-style formatter
           pip install "ruff>=0.4.0"
 
       - name: Determine changed Python files
         id: changed
         shell: bash
         run: |
-          # For a normal push event GitHub gives us the commit *before* the push.
-          # On first push of a new branch or workflow_dispatch that value may be blank/zeros.
           BASE_SHA="${{ github.event.before }}"
           if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
             BASE_SHA="$(git rev-parse HEAD~1)"
           fi
-
+          BASE_SHA="$(git merge-base "$BASE_SHA" "$GITHUB_SHA")"
           CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- '*.py' | sort -u | tr '\n' ' ')
           echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
 
@@ -50,32 +51,24 @@ jobs:
         if: ${{ steps.changed.outputs.files == '' }}
         run: echo "No Python files changed – skipping formatting and linting."
 
-      # 1️⃣  Fix import order (isort rules) and apply the Black-style formatter
       - name: Ruff – import ordering & formatting
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
-          # --select I  → enable isort-compatible rules
-          # --fix       → apply the changes in-place
           ruff check ${{ steps.changed.outputs.files }} --select I --fix
-          # Run the Black-compatible formatter
           ruff format ${{ steps.changed.outputs.files }}
 
-      # 2️⃣  Run static analysis (F = Pyflakes, D = Google-style docstrings)
       - name: Ruff – lint (Pyflakes + Google-pydocstyle)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
-          # Fail the build on any issue that Ruff cannot autofix
           ruff check ${{ steps.changed.outputs.files }} --select F,D
 
-
-      # 3️⃣  Commit back any changes introduced by Ruff
       - name: Commit & push (if needed)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
           if [[ $(git status --porcelain) ]]; then
             git config user.name  "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -am "style: auto-format changed files with Ruff 🐍 [skip ci]"
+            git commit -am "style: auto-format changed files with ruff [skip ci]"
             git push
           else
             echo "Nothing to commit – changed files already tidy."
