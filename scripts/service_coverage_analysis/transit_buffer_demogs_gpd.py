@@ -442,20 +442,22 @@ def do_network_analysis(
         final_stops_df, geometry="geometry", crs="EPSG:4326"
     ).to_crs(epsg=CRS_EPSG_CODE)
 
-    # 7) Compute variable buffer distances
-    stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
+    # 7) Compute variable buffer distances — vectorised, pylint-friendly
+    buffer_m = stops_gdf["stop_id"].map(
         lambda sid: pick_buffer_distance(
             sid,
             normal_buffer=buffer_distance_mi,
             large_buffer=large_buffer_distance_mi,
             large_buffer_ids=stop_ids_large_buffer,
         )
-        * 1609.34
-    )
-    stops_gdf["geometry"] = stops_gdf.apply(
-        lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
-    )
+    ) * 1609.34
 
+    stops_gdf = (
+        stops_gdf
+        .assign(buffer_distance_meters=buffer_m)
+        .set_geometry(stops_gdf.geometry.buffer(buffer_m))
+    )
+    
     # 8) Dissolve all buffers to create a single “network” buffer
     network_buffer_gdf = stops_gdf.dissolve().reset_index(drop=True)
 
