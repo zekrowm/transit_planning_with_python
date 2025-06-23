@@ -13,8 +13,10 @@ The script performs the following high-level tasks:
 """
 
 from __future__ import annotations
+
 import os
 from typing import Final, PathLike, Tuple
+
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -23,11 +25,11 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-START_DATE: Final[str] = "2020-01-01" # Replace with your desired start date
-END_DATE:   Final[str] = "2024-12-01" # Replace with your desired end date
+START_DATE: Final[str] = "2020-01-01"  # Replace with your desired start date
+END_DATE: Final[str] = "2024-12-01"  # Replace with your desired end date
 
-CSV_FILE_PATH: Final[str | PathLike[str]] = (r"C:\Path\To\Your\Downloaded\Unemployment_Data.csv")
-OUTPUT_FOLDER: Final[str | PathLike[str]] = (r"C:\Path\To\Your\Output_Folder")
+CSV_FILE_PATH: Final[str | PathLike[str]] = r"C:\Path\To\Your\Downloaded\Unemployment_Data.csv"
+OUTPUT_FOLDER: Final[str | PathLike[str]] = r"C:\Path\To\Your\Output_Folder"
 
 # =============================================================================
 # FUNCTIONS
