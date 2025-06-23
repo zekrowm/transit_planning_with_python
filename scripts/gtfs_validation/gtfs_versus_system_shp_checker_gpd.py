@@ -71,21 +71,16 @@ LOGGER = logging.getLogger(__name__)
 def load_gtfs_data(gtfs_dir: Path) -> Tuple[DataFrame, DataFrame, DataFrame, DataFrame]:
     """Load the four mandatory GTFS text files.
 
-    Parameters
-    ----------
-    gtfs_dir
-        Directory containing *routes.txt*, *stops.txt*, *trips.txt* and
-        *stop_times.txt*.
+    Args:
+        gtfs_dir: Directory containing *routes.txt*, *stops.txt*,
+            *trips.txt* and *stop_times.txt*.
 
-    Returns
-    -------
-    tuple[pandas.DataFrame, pandas.DataFrame, pandas.DataFrame, pandas.DataFrame]
-        DataFrames in the order (routes, stops, trips, stop_times).
+    Returns:
+        A 4-tuple ``(routes, stops, trips, stop_times)`` of pandas
+        ``DataFrame`` objects, in that exact order.
 
-    Raises
-    ------
-    FileNotFoundError
-        If any required GTFS file is missing.
+    Raises:
+        FileNotFoundError: If any of the required GTFS files are absent.
     """
     required = ["routes.txt", "stops.txt", "trips.txt", "stop_times.txt"]
     paths = {name: gtfs_dir / name for name in required}
@@ -104,24 +99,18 @@ def load_gtfs_data(gtfs_dir: Path) -> Tuple[DataFrame, DataFrame, DataFrame, Dat
 
 
 def load_shapefile(shp_path: Path, crs: str) -> gpd.GeoDataFrame:
-    """Read the route shapefile and ensure it is in *crs*.
+    """Read the route shapefile and coerce it to the desired CRS.
 
-    Parameters
-    ----------
-    shp_path
-        Path to the shapefile.
-    crs
-        CRS to assign/convert to (EPSG code string).
+    Args:
+        shp_path: Absolute or relative path to the shapefile on disk.
+        crs: EPSG code (e.g. ``"EPSG:4326"``) that the output GeoDataFrame
+            should use.
 
-    Returns
-    -------
-    geopandas.GeoDataFrame
-        Shapefile in the requested CRS.
+    Returns:
+        The route shapefile as a ``geopandas.GeoDataFrame`` in *crs*.
 
-    Raises
-    ------
-    FileNotFoundError
-        If *shp_path* does not exist.
+    Raises:
+        FileNotFoundError: If *shp_path* does not exist.
     """
     if not shp_path.is_file():
         raise FileNotFoundError(f"Shapefile not found: {shp_path}")
@@ -141,25 +130,21 @@ def load_shapefile(shp_path: Path, crs: str) -> gpd.GeoDataFrame:
 def preprocess_data(
     routes: DataFrame, shp: gpd.GeoDataFrame, route_number_col: str
 ) -> Tuple[DataFrame, gpd.GeoDataFrame]:
-    """Prepare route identifiers for merging.
+    """Clean and align route identifiers prior to merging.
 
-    * Strips whitespace.
-    * Converts to string.
-    * Removes embedded spaces from shapefile numbers.
+    * Whitespace is stripped.
+    * Identifiers are coerced to *str*.
+    * Embedded spaces are removed from shapefile route numbers.
 
-    Parameters
-    ----------
-    routes
-        GTFS *routes.txt* DataFrame.
-    shp
-        Route shapefile GeoDataFrame.
-    route_number_col
-        Column in the shapefile containing the route short name/number.
+    Args:
+        routes: ``routes.txt`` DataFrame.
+        shp:   Route shapefile GeoDataFrame.
+        route_number_col: Name of the column in *shp* that stores the
+            route short name or number.
 
-    Returns
-    -------
-    tuple[DataFrame, GeoDataFrame]
-        Clean copies ready for merging.
+    Returns:
+        A tuple ``(routes_clean, shp_clean)`` whose copies are ready for
+        merging.
     """
     routes = routes.copy()
     shp = shp.copy()
@@ -178,7 +163,20 @@ def merge_and_score(
     route_number_col: str,
     route_name_col: str,
 ) -> DataFrame:
-    """Merge GTFS and shapefile routes and compute similarity scores."""
+    """Merge GTFS and shapefile routes and compute fuzzy-match scores.
+
+    Args:
+        routes: Cleaned ``routes.txt`` table (see :func:`preprocess_data`).
+        shp: Cleaned shapefile GeoDataFrame (see :func:`preprocess_data`).
+        route_number_col: Column in *shp* that stores the route short name.
+        route_name_col:   Column in *shp* that stores the route long name.
+
+    Returns:
+        A merged ``DataFrame`` with added columns:
+
+        * ``short_name_score`` / ``long_name_score`` – RapidFuzz ratios.
+        * ``short_name_exact_match`` / ``long_name_exact_match`` – booleans.
+    """
     LOGGER.info("Merging GTFS and shapefile routes …")
     merged = pd.merge(
         routes,
@@ -209,7 +207,15 @@ def merge_and_score(
 
 
 def export_comparison(merged: DataFrame, out_dir: Path) -> DataFrame:
-    """Write *merged* to CSV and log match percentages."""
+    """Write the comparison table to disk and log match statistics.
+
+    Args:
+        merged: Output of :func:`merge_and_score`.
+        out_dir: Directory where *gtfs_shp_comparison.csv* should be saved.
+
+    Returns:
+        The same ``DataFrame`` that was passed in (handy for chaining).
+    """
     LOGGER.info("Exporting route comparison CSV …")
     out_path = out_dir / "gtfs_shp_comparison.csv"
     merged.to_csv(out_path, index=False)
@@ -223,7 +229,15 @@ def export_comparison(merged: DataFrame, out_dir: Path) -> DataFrame:
 
 
 def convert_stops_to_gdf(stops: DataFrame, crs: str) -> gpd.GeoDataFrame:
-    """Convert *stops* to a GeoDataFrame with *crs*."""
+    """Convert a ``stops.txt`` table to a GeoDataFrame.
+
+    Args:
+        stops: GTFS *stops.txt* DataFrame.
+        crs:   Desired geographic CRS (e.g. ``"EPSG:4326"``).
+
+    Returns:
+        A point-geometry ``GeoDataFrame`` using latitude/longitude columns.
+    """
     stops = stops.copy()
     stops["stop_lat"] = pd.to_numeric(stops["stop_lat"], errors="coerce")
     stops["stop_lon"] = pd.to_numeric(stops["stop_lon"], errors="coerce")
@@ -234,7 +248,17 @@ def convert_stops_to_gdf(stops: DataFrame, crs: str) -> gpd.GeoDataFrame:
 
 
 def _ensure_projected(gdf: gpd.GeoDataFrame, projected_crs: str) -> gpd.GeoDataFrame:
-    """Return *gdf* in *projected_crs* (helper)."""
+    """Return *gdf* in *projected_crs*.
+
+    Helper for distance calculations that require a projected CRS.
+
+    Args:
+        gdf: Input GeoDataFrame.
+        projected_crs: Target projected CRS (EPSG code).
+
+    Returns:
+        The GeoDataFrame re-projected to *projected_crs*.
+    """
     return gdf.to_crs(projected_crs)
 
 
@@ -243,7 +267,16 @@ def prepare_geometries(
     shp: gpd.GeoDataFrame,
     projected_crs: str,
 ) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    """Re-project *stops* and *shp* and rename geometry if absent."""
+    """Project inputs and ensure consistent geometry column names.
+
+    Args:
+        stops: Point GeoDataFrame of GTFS stops.
+        shp:   Line or polyline GeoDataFrame of transit routes.
+        projected_crs: CRS in which distance buffering will occur.
+
+    Returns:
+        A tuple ``(stops_projected, shp_projected)``.
+    """
     stops = _ensure_projected(stops, projected_crs)
     shp = _ensure_projected(shp, projected_crs)
 
@@ -253,7 +286,15 @@ def prepare_geometries(
 
 
 def _distance_row(row: pd.Series) -> float | None:
-    """Distance (m) between a stop geometry and its route geometry."""
+    """Compute the planar distance between a stop and its route geometry.
+
+    Args:
+        row: A pandas ``Series`` that must contain ``"geometry"`` (point)
+            and ``"route_geometry"`` (line).
+
+    Returns:
+        The distance in **metres**, or ``None`` if either geometry is null.
+    """
     geom: base.BaseGeometry | None = row["geometry"]
     route_geom: base.BaseGeometry | None = row["route_geometry"]
     return geom.distance(route_geom) if geom and route_geom else None
@@ -272,7 +313,29 @@ def identify_problem_stops(
     distance_ft: int,
     route_number_col: str,
 ) -> Tuple[gpd.GeoDataFrame, List[str], DataFrame]:
-    """Return problem stops, offending route_ids, and a geometry lookup table."""
+    """Locate stops that do not meet spatial QA criteria.
+
+    Args:
+        routes: ``routes.txt`` table.
+        stops:  ``stops.txt`` table.
+        trips:  ``trips.txt`` table.
+        stop_times: ``stop_times.txt`` table.
+        matched_routes: Subset of *routes* that exactly match the shapefile.
+        shp: Route shapefile GeoDataFrame.
+        input_crs: CRS of the raw GTFS coordinates.
+        projected_crs: CRS used for distance measurement.
+        output_crs: CRS for final outputs.
+        distance_ft: Buffer allowance in feet.
+        route_number_col: Column in *shp* that stores the route number.
+
+    Returns:
+        Tuple ``(problem_stops_gdf, offending_route_ids, geometry_lookup)`` where
+
+        * **problem_stops_gdf** – GeoDataFrame of all flagged stops,
+        * **offending_route_ids** – list of GTFS ``route_id`` values that failed,
+        * **geometry_lookup** – helper table mapping each ``route_id`` to its
+          shapefile geometry.
+    """
     LOGGER.info("Identifying problem stops …")
 
     # --- matched routes / trips / stops
@@ -384,7 +447,13 @@ def identify_problem_stops(
 
 
 def main() -> None:
-    """Orchestrate the end-to-end QA process."""
+    """Run the end-to-end GTFS vs. shapefile QA workflow.
+
+    Orchestrates data loading, merging, spatial checks, exports and optional
+    per-route visualisations.  Results are written to *OUTPUT_DIR* as CSV,
+    Excel, shapefile and JPEG files.  See the module-level docstring for the
+    exact output list.
+    """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # --- data ingestion --------------------------------------------------
