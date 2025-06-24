@@ -3,6 +3,23 @@
 # One shared, tool-specific place for static-analysis settings.
 # Covers: mypy, pylint, vulture, pydocstyle
 
+# ───────────── ruff (formatter, linter, pydocstyle) ─────────────
+[tool.ruff]
+target-version = "py310"        # already implied by your mypy config
+line-length    = 100            # or whatever you prefer
+
+[tool.ruff.lint]
+# I  → isort-compatible import ordering
+# F  → Pyflakes-equivalent static analysis
+# D  → pydocstyle (Google-style enforced below)
+select = ["I", "F", "D"]
+
+# Example: if you want to silence specific docstring rules later
+# ignore = ["D100", "D401"]
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
 # ───────────── mypy (type-checker) ─────────────
 [tool.mypy]
 python_version         = "3.10"
@@ -18,6 +35,10 @@ disallow_untyped_defs  = false           # ← relaxed
 warn_return_any        = false           # ← relaxed
 allow_untyped_calls    = true    # disables Callable[] overtyping fights
 # (intentionally no global ignore_missing_imports)
+
+# ─────── Skip test suite and repo-helper scripts ───────
+# anything under tests/ will be ignored
+exclude = '^(tests/)'
 
 # Silence binary-only / stub-less modules **only**
 [[tool.mypy.overrides]]
@@ -54,21 +75,3 @@ exclude        = ["arcpy_tools/*"]
 [tool.pydocstyle]
 convention = "google"
 add-ignore = []                      # fail on every violation
-
-
-# ───────────── ruff (formatter, linter, pydocstyle) ─────────────
-[tool.ruff]
-target-version = "py310"        # already implied by your mypy config
-line-length    = 100            # or whatever you prefer
-
-[tool.ruff.lint]
-# I  → isort-compatible import ordering
-# F  → Pyflakes-equivalent static analysis
-# D  → pydocstyle (Google-style enforced below)
-select = ["I", "F", "D"]
-
-# Example: if you want to silence specific docstring rules later
-# ignore = ["D100", "D401"]
-
-[tool.ruff.pydocstyle]
-convention = "google"
