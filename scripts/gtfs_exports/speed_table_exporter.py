@@ -29,12 +29,9 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER: Path = Path(
-    r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_06_06"  # ←–– change me
-)
-OUTPUT_FOLDER: Path = Path(
-    r"\\S40SHAREPGC01\DOTWorking\zkrohm\data_requests\stop_pattern_exporter_test\output"  # ←–– change me
-)
+GTFS_FOLDER: Path = Path(r"Path\To\Your\GTFS_Folder")  # ←–– change me
+
+OUTPUT_FOLDER: Path = Path(r"Path\To\Your\Output_Folder")  # ←–– change me
 
 # Optional filters – leave empty to process everything
 FILTER_IN_ROUTE_SHORT_NAMES: List[str] = ["101", "660"]
