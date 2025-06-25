@@ -4,7 +4,6 @@ Users can configure to filter by stop_id or stop_code, and optional inclusion
 of direction IDs in the route listing.
 """
 
-
 from __future__ import annotations
 
 import logging
@@ -18,7 +17,9 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER_PATH = r"C:\Path\To\GTFS"  # folder containing stops.txt, stop_times.txt, trips.txt, routes.txt
+GTFS_FOLDER_PATH = (
+    r"C:\Path\To\GTFS"  # folder containing stops.txt, stop_times.txt, trips.txt, routes.txt
+)
 OUTPUT_CSV_PATH = r"C:\Path\To\Output\selected_stops_routes.csv"
 
 # If True, filter by stop_id (default); if False, filter by stop_code
@@ -32,9 +33,7 @@ SELECTED_STOP_CODES: list[str] = ["A100", "B200", "C300"]
 INCLUDE_DIRECTION: bool = True
 
 
-def load_gtfs_files(
-    folder: str, dtype: str | Mapping[str, Any] = str
-) -> dict[str, pd.DataFrame]:
+def load_gtfs_files(folder: str, dtype: str | Mapping[str, Any] = str) -> dict[str, pd.DataFrame]:
     """Load core GTFS text files into DataFrames.
 
     Args:
@@ -128,11 +127,7 @@ def map_stops_to_routes(
         merged["route_label"] = merged["route_short_name"]
 
     # 5) Aggregate unique labels per stop_id
-    agg = (
-        merged.groupby("stop_id")["route_label"]
-        .agg(lambda seq: sorted(set(seq)))
-        .reset_index()
-    )
+    agg = merged.groupby("stop_id")["route_label"].agg(lambda seq: sorted(set(seq))).reset_index()
     agg["routes"] = agg["route_label"].apply(lambda lst: ", ".join(lst))
     agg.drop(columns=["route_label"], inplace=True)
 
