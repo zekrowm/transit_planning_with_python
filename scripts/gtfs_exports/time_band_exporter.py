@@ -223,9 +223,7 @@ def build_index(
     rows = []
 
     stops_lookup = (
-        gtfs["stops"][["stop_id", "stop_name", "stop_code"]]
-        .set_index("stop_id")
-        .to_dict("index")
+        gtfs["stops"][["stop_id", "stop_name", "stop_code"]].set_index("stop_id").to_dict("index")
     )
 
     for trip_id, grp in st.groupby("trip_id"):
@@ -245,9 +243,7 @@ def build_index(
                 for sid in pattern
             ]
 
-        start = hhmmss_to_min(
-            grp.iloc[0].get("departure_time") or grp.iloc[0].get("arrival_time")
-        )
+        start = hhmmss_to_min(grp.iloc[0].get("departure_time") or grp.iloc[0].get("arrival_time"))
         if start is None:
             continue
 
@@ -277,9 +273,7 @@ def make_bands(idx: pd.DataFrame) -> pd.DataFrame:
         (route_id, service_id, direction_id, pattern_hash, seg_hash)
         with FrTime, ToTime and Total (trip count).
     """
-    gb = idx.groupby(
-        ["route_id", "service_id", "direction_id", "pattern_hash", "seg_hash"]
-    )
+    gb = idx.groupby(["route_id", "service_id", "direction_id", "pattern_hash", "seg_hash"])
     out = (
         gb["start"]
         .agg(["min", "max", "count"])
@@ -341,9 +335,7 @@ def export_excel(
             for col in range(1, len(hdr) + 1):
                 ws.column_dimensions[get_column_letter(col)].width = 18
 
-        fname = OUTPUT_FOLDER / (
-            f"route_{route_short.get(rid, rid)}_cal{sid}_timeband_table.xlsx"
-        )
+        fname = OUTPUT_FOLDER / (f"route_{route_short.get(rid, rid)}_cal{sid}_timeband_table.xlsx")
         wb.save(fname)
         logging.info("Wrote %s", fname)
 
