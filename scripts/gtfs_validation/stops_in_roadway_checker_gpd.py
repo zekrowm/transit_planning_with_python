@@ -26,7 +26,7 @@ from shapely.geometry import Point
 # =============================================================================
 
 # Paths to input files
-ROADWAYS_PATH = (r"path\to\your\roadways.shp")  # Replace with your roadways shapefile path
+ROADWAYS_PATH = r"path\to\your\roadways.shp"  # Replace with your roadways shapefile path
 
 GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
 STOPS_PATH = os.path.join(GTFS_FOLDER, "stops.txt")
@@ -83,9 +83,7 @@ def find_intersecting_stops(stops_gdf, roadways_gdf):
 
     Returns only columns from stops_gdf.
     """
-    intersecting = gpd.sjoin(
-        stops_gdf, roadways_gdf, how="inner", predicate="intersects"
-    )
+    intersecting = gpd.sjoin(stops_gdf, roadways_gdf, how="inner", predicate="intersects")
     return intersecting[stops_gdf.columns]
 
 
@@ -114,9 +112,7 @@ def determine_conflict_depth(stops_gdf, roadways_gdf, buffer_distances):
     for buffer_distance in buffer_distances:
         # Buffer the roadways by the negative distance
         roadways_buffered = roadways_gdf.copy()
-        roadways_buffered["geometry"] = roadways_buffered.geometry.buffer(
-            buffer_distance
-        )
+        roadways_buffered["geometry"] = roadways_buffered.geometry.buffer(buffer_distance)
 
         # Remove invalid or empty geometries
         roadways_buffered = roadways_buffered[~roadways_buffered.is_empty]
@@ -140,9 +136,7 @@ def determine_conflict_depth(stops_gdf, roadways_gdf, buffer_distances):
 def sort_stops_by_conflict_depth(stops_gdf, buffer_distances):
     """Sorts the stops by conflict depth columns in descending order."""
     conflict_columns = [f"conflict_{-bd}ft" for bd in buffer_distances]
-    return stops_gdf.sort_values(
-        by=conflict_columns, ascending=[False] * len(conflict_columns)
-    )
+    return stops_gdf.sort_values(by=conflict_columns, ascending=[False] * len(conflict_columns))
 
 
 def save_shapefile(gdf, output_dir, shp_name):
@@ -193,9 +187,7 @@ def main():
     )
 
     # Sort by conflict depth
-    intersecting_stops = sort_stops_by_conflict_depth(
-        intersecting_stops, BUFFER_DISTANCES
-    )
+    intersecting_stops = sort_stops_by_conflict_depth(intersecting_stops, BUFFER_DISTANCES)
 
     # Save outputs
     save_shapefile(intersecting_stops, OUTPUT_DIR, OUTPUT_SHP_NAME)
