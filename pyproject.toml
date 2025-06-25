@@ -1,9 +1,10 @@
 # pyproject.toml
-# --------------
-# One shared, tool-specific place for static-analysis settings.
-# Covers: mypy, pylint, vulture, pydocstyle
 
-# ───────────── ruff (formatter, linter, pydocstyle) ─────────────
+# ================================================================
+
+# ----------------------------------------------------------------
+# ruff (formatter, linter, pydocstyle)
+# ----------------------------------------------------------------
 [tool.ruff]
 target-version = "py310"        # already implied by your mypy config
 line-length    = 100            # or whatever you prefer
@@ -17,10 +18,15 @@ select = ["I", "F", "D"]
 # Example: if you want to silence specific docstring rules later
 # ignore = ["D100", "D401"]
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
 
-# ───────────── mypy (type-checker) ─────────────
+[tool.ruff.lint.fix]
+select = ["I", "F401", "D"]
+
+# ----------------------------------------------------------------
+# mypy (type-checker)
+# ----------------------------------------------------------------
 [tool.mypy]
 python_version         = "3.10"
 
@@ -36,7 +42,8 @@ warn_return_any        = false           # ← relaxed
 allow_untyped_calls    = true    # disables Callable[] overtyping fights
 # (intentionally no global ignore_missing_imports)
 
-# ─────── Skip test suite and repo-helper scripts ───────
+# ================================================================
+# Skip test suite and repo-helper scripts
 # anything under tests/ will be ignored
 exclude = '^(tests/)'
 
@@ -51,7 +58,9 @@ module                 = [
 ]
 ignore_missing_imports = true
 
-# ───────────── pylint (linter) ────────────────
+# ----------------------------------------------------------------
+# pylint (linter)
+# ----------------------------------------------------------------
 [tool.pylint]                       # root table for pylint ≥ 3
 jobs = 0                            # use all available CPUs
 
@@ -64,14 +73,16 @@ disable = ["duplicate-code"]
 [tool.pylint.REPORTS]
 reports = "no"
 
-
-# ───────────── vulture (dead-code) ────────────
+# ----------------------------------------------------------------
+# vulture (dead-code)
+# ----------------------------------------------------------------
 [tool.vulture]
 min_confidence = 70
 exclude        = ["arcpy_tools/*"]
 
-
-# ───────────── pydocstyle (docstrings) ────────
+# ----------------------------------------------------------------
+# pydocstyle (docstrings)
+# ----------------------------------------------------------------
 [tool.pydocstyle]
 convention = "google"
 add-ignore = []                      # fail on every violation
