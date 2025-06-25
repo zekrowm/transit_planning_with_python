@@ -22,8 +22,8 @@ SHAPEFILE_PATH = r""
 SHAPEFILE_FILTER_FIELD = "ROUTE_NUMB"
 SHAPEFILE_FILTER_VALUES = []
 
-DEMOGRAPHICS_FC_PATH = (r"Path\To\Your\Census_Demographics.shp")
-OUTPUT_DIRECTORY = (r"Path\To\Your\Output_Folder")
+DEMOGRAPHICS_FC_PATH = r"Path\To\Your\Census_Demographics.shp"
+OUTPUT_DIRECTORY = r"Path\To\Your\Output_Folder"
 
 ROUTES_TO_INCLUDE = ["101", "202", "303"]
 ROUTES_TO_EXCLUDE = ["9999A", "9999B", "9999C"]
