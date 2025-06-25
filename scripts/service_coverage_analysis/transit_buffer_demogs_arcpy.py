@@ -1,9 +1,9 @@
-"""Script to automate the calculation of service population demographics for EIA documents.
-"""
+"""Script to automate the calculation of service population demographics for EIA documents."""
 
 import os
-import pandas as pd
+
 import arcpy
+import pandas as pd
 
 # Allow overwriting outputs in the ArcPy environment.
 arcpy.env.overwriteOutput = True
@@ -38,8 +38,8 @@ ROUTES_TO_EXCLUDE = ["9999A", "9999B", "9999C"]
 STOP_IDS_TO_INCLUDE = []
 STOP_IDS_TO_EXCLUDE = []
 
-BUFFER_DISTANCE = 0.25              # miles
-LARGE_BUFFER_DISTANCE = 2.0         # miles
+BUFFER_DISTANCE = 0.25  # miles
+LARGE_BUFFER_DISTANCE = 2.0  # miles
 STOP_IDS_LARGE_BUFFER = []
 
 # Filter for specific State/County
@@ -47,15 +47,11 @@ STATEFP_FILTER = ["51"]
 COUNTYFP_FILTER = ["059"]
 
 # Fields in your demographic data to be partially weighted
-SYNTHETIC_FIELDS = [
-    "Tot_Pop", "Total_Whit", "Minority", "TotHH", "Non_Low_in", "Lowincome_"
-]
+SYNTHETIC_FIELDS = ["Tot_Pop", "Total_Whit", "Minority", "TotHH", "Non_Low_in", "Lowincome_"]
 
 CRS_EPSG_CODE = 3395
 
-REQUIRED_GTFS_FILES = [
-    "trips.txt", "stop_times.txt", "routes.txt", "stops.txt", "calendar.txt"
-]
+REQUIRED_GTFS_FILES = ["trips.txt", "stop_times.txt", "routes.txt", "stops.txt", "calendar.txt"]
 
 # Name for the file geodatabase we'll create (or use if it already exists).
 GDB_NAME = "analysis.gdb"
@@ -64,6 +60,7 @@ GDB_NAME = "analysis.gdb"
 # -----------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def ensure_gdb_exists(output_dir, gdb_name):
     """Create a file geodatabase if it does not already exist.
@@ -205,7 +202,7 @@ def create_feature_class_from_stops(stops_df, out_fc, spatial_ref):
         out_path=os.path.dirname(out_fc),
         out_name=os.path.basename(out_fc),
         geometry_type="POINT",
-        spatial_reference=spatial_ref
+        spatial_reference=spatial_ref,
     )
     arcpy.management.AddField(out_fc, "stop_id", "TEXT")
     arcpy.management.AddField(out_fc, "dist_m", "DOUBLE")
@@ -215,12 +212,15 @@ def create_feature_class_from_stops(stops_df, out_fc, spatial_ref):
             stop_id = row["stop_id"]
             lat = float(row["stop_lat"])
             lon = float(row["stop_lon"])
-            dist_meters = pick_buffer_distance(
-                stop_id,
-                normal_buffer=BUFFER_DISTANCE,
-                large_buffer=LARGE_BUFFER_DISTANCE,
-                large_buffer_ids=STOP_IDS_LARGE_BUFFER
-            ) * 1609.34
+            dist_meters = (
+                pick_buffer_distance(
+                    stop_id,
+                    normal_buffer=BUFFER_DISTANCE,
+                    large_buffer=LARGE_BUFFER_DISTANCE,
+                    large_buffer_ids=STOP_IDS_LARGE_BUFFER,
+                )
+                * 1609.34
+            )
 
             pt = arcpy.Point(lon, lat)
             pt_geom = arcpy.PointGeometry(pt, arcpy.SpatialReference(4326))
@@ -241,7 +241,7 @@ def buffer_feature_class_with_variable_distance(in_fc, out_fc, dist_field="dist_
         buffer_distance_or_field=dist_field,
         line_side="FULL",
         line_end_type="ROUND",
-        dissolve_option="ALL"
+        dissolve_option="ALL",
     )
     return out_fc
 
@@ -263,9 +263,7 @@ def intersect_and_partial_weight(demog_fc, buffer_fc, synthetic_fields, out_fc):
     if "area_ac_og" not in existing_fields:
         arcpy.management.AddField(temp_demog, "area_ac_og", "DOUBLE")
         arcpy.management.CalculateGeometryAttributes(
-            temp_demog,
-            [["area_ac_og", "AREA_GEODESIC"]],
-            area_unit="ACRES"
+            temp_demog, [["area_ac_og", "AREA_GEODESIC"]], area_unit="ACRES"
         )
 
     arcpy.analysis.Intersect(
@@ -275,9 +273,7 @@ def intersect_and_partial_weight(demog_fc, buffer_fc, synthetic_fields, out_fc):
 
     arcpy.management.AddField(out_fc, "area_ac_cl", "DOUBLE")
     arcpy.management.CalculateGeometryAttributes(
-        out_fc,
-        [["area_ac_cl", "AREA_GEODESIC"]],
-        area_unit="ACRES"
+        out_fc, [["area_ac_cl", "AREA_GEODESIC"]], area_unit="ACRES"
     )
 
     arcpy.management.AddField(out_fc, "area_perc", "DOUBLE")
@@ -300,8 +296,7 @@ def intersect_and_partial_weight(demog_fc, buffer_fc, synthetic_fields, out_fc):
     arcpy.analysis.Statistics(out_fc, stats_table, stats_fields)
 
     with arcpy.da.SearchCursor(
-        stats_table,
-        [f"SUM_synthetic_{f}" for f in synthetic_fields]
+        stats_table, [f"SUM_synthetic_{f}" for f in synthetic_fields]
     ) as cur:
         for row in cur:
             for i, fld in enumerate(synthetic_fields):
@@ -368,7 +363,10 @@ def export_summary_to_excel(data_dict, output_path):
 # ANALYSIS FUNCTIONS (GTFS)
 # -----------------------------------------------------------------------------
 
-def do_network_analysis(trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path):
+
+def do_network_analysis(
+    trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path
+):
     """Perform network-wide analysis of service buffers.
 
     Create a single dissolved buffer from all included stops, intersect with
@@ -380,19 +378,11 @@ def do_network_analysis(trips, stop_times, routes_df, stops_df, demog_fc, all_de
         print("No routes remain after route filters. Aborting network analysis.")
         return
 
-    trips_merged = pd.merge(
-        trips,
-        final_routes_df[["route_id", "route_short_name"]],
-        on="route_id"
-    )
+    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
-    final_stops_df = get_included_stops(
-        merged_data,
-        STOP_IDS_TO_INCLUDE,
-        STOP_IDS_TO_EXCLUDE
-    )
+    final_stops_df = get_included_stops(merged_data, STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE)
     if final_stops_df.empty:
         print("No stops remain after stop filters. Aborting network analysis.")
         return
@@ -416,7 +406,7 @@ def do_network_analysis(trips, stop_times, routes_df, stops_df, demog_fc, all_de
         demog_fc=demog_fc,
         buffer_fc=network_buffer_fc,
         synthetic_fields=SYNTHETIC_FIELDS,
-        out_fc=clipped_fc
+        out_fc=clipped_fc,
     )
 
     final_dict = build_output_dict(sums, all_demog_totals, SYNTHETIC_FIELDS)
@@ -429,7 +419,9 @@ def do_network_analysis(trips, stop_times, routes_df, stops_df, demog_fc, all_de
     export_summary_to_excel(final_dict, xlsx_path)
 
 
-def do_route_by_route_analysis(trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path):
+def do_route_by_route_analysis(
+    trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path
+):
     """Perform route-by-route analysis of service buffers.
 
     Create dissolved buffers by route_short_name, intersect with demographics,
@@ -441,19 +433,11 @@ def do_route_by_route_analysis(trips, stop_times, routes_df, stops_df, demog_fc,
         print("No routes remain after route filters. Aborting route-by-route analysis.")
         return
 
-    trips_merged = pd.merge(
-        trips,
-        final_routes_df[["route_id", "route_short_name"]],
-        on="route_id"
-    )
+    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
-    final_stops_df = get_included_stops(
-        merged_data,
-        STOP_IDS_TO_INCLUDE,
-        STOP_IDS_TO_EXCLUDE
-    )
+    final_stops_df = get_included_stops(merged_data, STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE)
     if final_stops_df.empty:
         print("No stops remain after stop filters. Aborting route-by-route analysis.")
         return
@@ -467,24 +451,26 @@ def do_route_by_route_analysis(trips, stop_times, routes_df, stops_df, demog_fc,
         out_path=os.path.dirname(inmem_stops_fc),
         out_name=os.path.basename(inmem_stops_fc),
         geometry_type="POINT",
-        spatial_reference=sr_proj
+        spatial_reference=sr_proj,
     )
     arcpy.management.AddField(inmem_stops_fc, "stop_id", "TEXT")
     arcpy.management.AddField(inmem_stops_fc, "route_short_name", "TEXT")
     arcpy.management.AddField(inmem_stops_fc, "dist_m", "DOUBLE")
 
-    with arcpy.da.InsertCursor(inmem_stops_fc, ["stop_id", "route_short_name", "dist_m", "SHAPE@"]) as cur:
+    with arcpy.da.InsertCursor(
+        inmem_stops_fc, ["stop_id", "route_short_name", "dist_m", "SHAPE@"]
+    ) as cur:
         for _, row in final_stops_df.iterrows():
             stop_id = row["stop_id"]
             route_name = row["route_short_name"]
             lat = float(row["stop_lat"])
             lon = float(row["stop_lon"])
-            dist_meters = pick_buffer_distance(
-                stop_id,
-                BUFFER_DISTANCE,
-                LARGE_BUFFER_DISTANCE,
-                STOP_IDS_LARGE_BUFFER
-            ) * 1609.34
+            dist_meters = (
+                pick_buffer_distance(
+                    stop_id, BUFFER_DISTANCE, LARGE_BUFFER_DISTANCE, STOP_IDS_LARGE_BUFFER
+                )
+                * 1609.34
+            )
 
             pt = arcpy.Point(lon, lat)
             pt_geom = arcpy.PointGeometry(pt, arcpy.SpatialReference(4326))
@@ -502,7 +488,7 @@ def do_route_by_route_analysis(trips, stop_times, routes_df, stops_df, demog_fc,
         line_side="FULL",
         line_end_type="ROUND",
         dissolve_option="LIST",
-        dissolve_field=["route_short_name"]
+        dissolve_field=["route_short_name"],
     )
 
     route_field = "route_short_name"
@@ -540,7 +526,9 @@ def do_route_by_route_analysis(trips, stop_times, routes_df, stops_df, demog_fc,
         export_summary_to_excel(final_dict, xlsx_path)
 
 
-def do_stop_by_stop_analysis(trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path):
+def do_stop_by_stop_analysis(
+    trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path
+):
     """Perform stop-by-stop analysis of service buffers.
 
     For each included stop, create an individual buffer, intersect with demographics,
@@ -552,19 +540,11 @@ def do_stop_by_stop_analysis(trips, stop_times, routes_df, stops_df, demog_fc, a
         print("No routes remain after route filters. Aborting stop-by-stop analysis.")
         return
 
-    trips_merged = pd.merge(
-        trips,
-        final_routes_df[["route_id", "route_short_name"]],
-        on="route_id"
-    )
+    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
-    final_stops_df = get_included_stops(
-        merged_data,
-        STOP_IDS_TO_INCLUDE,
-        STOP_IDS_TO_EXCLUDE
-    )
+    final_stops_df = get_included_stops(merged_data, STOP_IDS_TO_INCLUDE, STOP_IDS_TO_EXCLUDE)
     if final_stops_df.empty:
         print("No stops remain after stop filters. Aborting stop-by-stop analysis.")
         return
@@ -586,7 +566,7 @@ def do_stop_by_stop_analysis(trips, stop_times, routes_df, stops_df, demog_fc, a
             out_path=os.path.dirname(single_fc),
             out_name=os.path.basename(single_fc),
             geometry_type="POINT",
-            spatial_reference=sr_proj
+            spatial_reference=sr_proj,
         )
         arcpy.management.AddField(single_fc, "stop_id", "TEXT")
         arcpy.management.AddField(single_fc, "dist_m", "DOUBLE")
@@ -595,12 +575,12 @@ def do_stop_by_stop_analysis(trips, stop_times, routes_df, stops_df, demog_fc, a
             for _, row in single_stop_df.iterrows():
                 lat = float(row["stop_lat"])
                 lon = float(row["stop_lon"])
-                dist_meters = pick_buffer_distance(
-                    sid,
-                    BUFFER_DISTANCE,
-                    LARGE_BUFFER_DISTANCE,
-                    STOP_IDS_LARGE_BUFFER
-                ) * 1609.34
+                dist_meters = (
+                    pick_buffer_distance(
+                        sid, BUFFER_DISTANCE, LARGE_BUFFER_DISTANCE, STOP_IDS_LARGE_BUFFER
+                    )
+                    * 1609.34
+                )
 
                 pt = arcpy.Point(lon, lat)
                 pt_geom = arcpy.PointGeometry(pt, arcpy.SpatialReference(4326))
@@ -616,7 +596,7 @@ def do_stop_by_stop_analysis(trips, stop_times, routes_df, stops_df, demog_fc, a
             buffer_distance_or_field="dist_m",
             line_side="FULL",
             line_end_type="ROUND",
-            dissolve_option="ALL"
+            dissolve_option="ALL",
         )
 
         out_fc_name = f"stop_{stop_id_str}_service_buffer_data".replace(" ", "_").replace("-", "_")
@@ -635,7 +615,9 @@ def do_stop_by_stop_analysis(trips, stop_times, routes_df, stops_df, demog_fc, a
         export_summary_to_excel(final_dict, xlsx_path)
 
 
-def do_shapefile_analysis(shp_path, shp_filter_field, filter_values, demog_fc, all_demog_totals, gdb_path):
+def do_shapefile_analysis(
+    shp_path, shp_filter_field, filter_values, demog_fc, all_demog_totals, gdb_path
+):
     """Perform shapefile-based analysis of service buffers.
 
     Make a buffer around features in shp_path (filtered by shp_filter_field and
@@ -656,7 +638,9 @@ def do_shapefile_analysis(shp_path, shp_filter_field, filter_values, demog_fc, a
         where_clause = f"{shp_filter_field} IN ({vals_quoted})"
         arcpy.management.SelectLayerByAttribute(shp_lyr, "NEW_SELECTION", where_clause)
         after_count = int(arcpy.management.GetCount(shp_lyr).getOutput(0))
-        print(f"Filtered shapefile from {before_count} to {after_count} records based on field '{shp_filter_field}'.")
+        print(
+            f"Filtered shapefile from {before_count} to {after_count} records based on field '{shp_filter_field}'."
+        )
 
         if after_count == 0:
             print("No matching features found in shapefile. Aborting shapefile analysis.")
@@ -674,7 +658,7 @@ def do_shapefile_analysis(shp_path, shp_filter_field, filter_values, demog_fc, a
         buffer_distance_or_field=f"{BUFFER_DISTANCE} Miles",
         line_side="FULL",
         line_end_type="ROUND",
-        dissolve_option="ALL"
+        dissolve_option="ALL",
     )
 
     out_fc = os.path.join(gdb_path, "shapefile_service_buffer_data")
@@ -685,7 +669,7 @@ def do_shapefile_analysis(shp_path, shp_filter_field, filter_values, demog_fc, a
         demog_fc=demog_fc,
         buffer_fc=shapefile_buffer_fc,
         synthetic_fields=SYNTHETIC_FIELDS,
-        out_fc=out_fc
+        out_fc=out_fc,
     )
 
     final_dict = build_output_dict(sums, all_demog_totals, SYNTHETIC_FIELDS)
@@ -710,14 +694,9 @@ if __name__ == "__main__":
         gdb_path = ensure_gdb_exists(OUTPUT_DIRECTORY, GDB_NAME)
 
         demog_fc_filtered = apply_county_state_filter(
-            DEMOGRAPHICS_FC_PATH,
-            STATEFP_FILTER,
-            COUNTYFP_FILTER
+            DEMOGRAPHICS_FC_PATH, STATEFP_FILTER, COUNTYFP_FILTER
         )
-        all_demog_totals = compute_demographics_totals(
-            demog_fc_filtered,
-            SYNTHETIC_FIELDS
-        )
+        all_demog_totals = compute_demographics_totals(demog_fc_filtered, SYNTHETIC_FIELDS)
 
         if use_shapefile and not use_gtfs:
             do_shapefile_analysis(
@@ -726,7 +705,7 @@ if __name__ == "__main__":
                 filter_values=SHAPEFILE_FILTER_VALUES,
                 demog_fc=demog_fc_filtered,
                 all_demog_totals=all_demog_totals,
-                gdb_path=gdb_path
+                gdb_path=gdb_path,
             )
 
         elif use_gtfs and not use_shapefile:
@@ -735,21 +714,38 @@ if __name__ == "__main__":
 
             if ANALYSIS_MODE.lower() == "network":
                 do_network_analysis(
-                    trips, stop_times, routes_df, stops_df,
-                    demog_fc_filtered, all_demog_totals, gdb_path
+                    trips,
+                    stop_times,
+                    routes_df,
+                    stops_df,
+                    demog_fc_filtered,
+                    all_demog_totals,
+                    gdb_path,
                 )
             elif ANALYSIS_MODE.lower() == "route":
                 do_route_by_route_analysis(
-                    trips, stop_times, routes_df, stops_df,
-                    demog_fc_filtered, all_demog_totals, gdb_path
+                    trips,
+                    stop_times,
+                    routes_df,
+                    stops_df,
+                    demog_fc_filtered,
+                    all_demog_totals,
+                    gdb_path,
                 )
             elif ANALYSIS_MODE.lower() == "stop":
                 do_stop_by_stop_analysis(
-                    trips, stop_times, routes_df, stops_df,
-                    demog_fc_filtered, all_demog_totals, gdb_path
+                    trips,
+                    stop_times,
+                    routes_df,
+                    stops_df,
+                    demog_fc_filtered,
+                    all_demog_totals,
+                    gdb_path,
                 )
             else:
-                print(f"Unknown ANALYSIS_MODE: {ANALYSIS_MODE}. Please set it to 'network', 'route', or 'stop'.")
+                print(
+                    f"Unknown ANALYSIS_MODE: {ANALYSIS_MODE}. Please set it to 'network', 'route', or 'stop'."
+                )
 
         elif use_shapefile and use_gtfs:
             print("Both shapefile and GTFS are provided; proceeding with GTFS analysis.")
@@ -758,21 +754,38 @@ if __name__ == "__main__":
 
             if ANALYSIS_MODE.lower() == "network":
                 do_network_analysis(
-                    trips, stop_times, routes_df, stops_df,
-                    demog_fc_filtered, all_demog_totals, gdb_path
+                    trips,
+                    stop_times,
+                    routes_df,
+                    stops_df,
+                    demog_fc_filtered,
+                    all_demog_totals,
+                    gdb_path,
                 )
             elif ANALYSIS_MODE.lower() == "route":
                 do_route_by_route_analysis(
-                    trips, stop_times, routes_df, stops_df,
-                    demog_fc_filtered, all_demog_totals, gdb_path
+                    trips,
+                    stop_times,
+                    routes_df,
+                    stops_df,
+                    demog_fc_filtered,
+                    all_demog_totals,
+                    gdb_path,
                 )
             elif ANALYSIS_MODE.lower() == "stop":
                 do_stop_by_stop_analysis(
-                    trips, stop_times, routes_df, stops_df,
-                    demog_fc_filtered, all_demog_totals, gdb_path
+                    trips,
+                    stop_times,
+                    routes_df,
+                    stops_df,
+                    demog_fc_filtered,
+                    all_demog_totals,
+                    gdb_path,
                 )
             else:
-                print(f"Unknown ANALYSIS_MODE: {ANALYSIS_MODE}. Please set it to 'network', 'route', or 'stop'.")
+                print(
+                    f"Unknown ANALYSIS_MODE: {ANALYSIS_MODE}. Please set it to 'network', 'route', or 'stop'."
+                )
 
         else:
             print("No valid input paths provided (neither shapefile nor GTFS). Aborting.")
