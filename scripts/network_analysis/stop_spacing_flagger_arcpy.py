@@ -1,11 +1,23 @@
-"""Creates three shapefiles from a GTFS feed *and* flag short inter‐stop spacings.
+"""Generates GIS data layers and flags short inter-stop spacings from a GTFS feed.
 
-1. stops.shp    – projected point layer of GTFS stops
-2. routes.shp   – projected polyline layer of shapes (or dissolved per route)
-3. segments.shp – inter‐stop segments with LENGTH_FT field
-4. short_spacing_segments.txt – tab‐delimited log of any segment < threshold
+This module processes a GTFS (General Transit Feed Specification) dataset to
+produce several geospatial outputs and a report on transit segment lengths.
 
-Requires only an ArcPro Standard license (Linear Referencing is in Standard).
+Outputs:
+    1.  `stops.shp`: A projected point feature class representing GTFS stops.
+    2.  `routes.shp`: A projected polyline feature class representing GTFS
+        shapes (one feature per `shape_id`) or dissolved routes (one feature
+        per `route_id`), configurable via the `ROUTE_LEVEL` parameter.
+    3.  `segments.shp`: A projected polyline feature class representing
+        inter-stop segments, derived from linear referencing of stops along
+        routes. This feature class includes a `LENGTH_FT` field indicating
+        the segment's length.
+    4.  `short_spacing_segments.txt`: A tab-delimited log file (text) that
+        identifies and lists any inter-stop segments found to be shorter
+        than the `MIN_SPACING_FT` threshold defined in the configuration.
+
+Requirements:
+    -   An ArcGIS Pro Standard license is required.
 """
 
 from __future__ import annotations
