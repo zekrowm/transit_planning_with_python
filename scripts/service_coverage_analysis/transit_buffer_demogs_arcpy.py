@@ -15,24 +15,17 @@ arcpy.env.overwriteOutput = True
 ANALYSIS_MODE = "network"  # Options: "network", "route", or "stop"
 
 # Paths
-GTFS_DATA_PATH = r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_06_06"
+GTFS_DATA_PATH = r"Path\To\Your\GTFS_Folder"
 SHAPEFILE_PATH = r""
 
 # Shapefile filtering
 SHAPEFILE_FILTER_FIELD = "ROUTE_NUMB"
 SHAPEFILE_FILTER_VALUES = []
 
-DEMOGRAPHICS_FC_PATH = (
-    r"G:\projects\dot\zkrohmal\demog_calc_script_test_2025_03_06"
-    r"\data\ACS2021_minority_lowincome_prj"
-    r"\ACS2021_minority_lowincome_prj.shp"
-)
-OUTPUT_DIRECTORY = (
-    r"\\S40SHAREPGC01\DOTWorking\zkrohm\data_requests"
-    r"\jan_feb_2026_service_change_demogs_for_hejun\output2"
-)
+DEMOGRAPHICS_FC_PATH = (r"Path\To\Your\Census_Demographics.shp")
+OUTPUT_DIRECTORY = (r"Path\To\Your\Output_Folder")
 
-ROUTES_TO_INCLUDE = ["151", "152", "335", "553", "651", "952", "401", "402", "950", "983"]
+ROUTES_TO_INCLUDE = ["101", "202", "303"]
 ROUTES_TO_EXCLUDE = ["9999A", "9999B", "9999C"]
 
 STOP_IDS_TO_INCLUDE = []
