@@ -9,8 +9,9 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from pandas._typing import DtypeArg
+
 import pandas as pd
+from pandas._typing import DtypeArg
 
 # =============================================================================
 # CONFIGURATION
@@ -35,9 +36,8 @@ INCLUDE_DIRECTION: bool = True
 # FUNCTIONS
 # =============================================================================
 
-def load_gtfs_files(
-    folder: str, dtype: DtypeArg = str
-) -> dict[str, pd.DataFrame]:
+
+def load_gtfs_files(folder: str, dtype: DtypeArg = str) -> dict[str, pd.DataFrame]:
     """Load core GTFS text files into DataFrames.
 
     Args:
@@ -142,9 +142,11 @@ def map_stops_to_routes(
     # 7) Return only the filter key, stop_name, and routes
     return sel[[filter_col, "stop_name", "routes"]]
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the stop→routes CSV exporter."""
