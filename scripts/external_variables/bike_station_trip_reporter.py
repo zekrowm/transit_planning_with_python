@@ -27,7 +27,6 @@ from typing import List
 
 import pandas as pd
 
-
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -47,12 +46,13 @@ PERIOD_SUMMARY_CSV: str = r"/path/to/your/output/period_summary.csv"
 # Optional time period filter (inclusive) in 'YYYY-MM' format.
 # Leave blank ("") to disable filtering.
 FILTER_START: str = ""  # e.g. "2024-01"
-FILTER_END: str = ""    # e.g. "2024-03"
+FILTER_END: str = ""  # e.g. "2024-03"
 
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def find_csv_files(folder: str) -> List[str]:
     """Find all CSV files in the specified folder.
@@ -85,6 +85,7 @@ def load_and_concatenate_csv(files: List[str]) -> pd.DataFrame:
 # CONCATENATION SECTION
 # =============================================================================
 
+
 def concatenate_csvs(csv_folder: str) -> pd.DataFrame:
     """Locate CSVs in a folder and merge them into one DataFrame.
 
@@ -100,16 +101,14 @@ def concatenate_csvs(csv_folder: str) -> pd.DataFrame:
         raise FileNotFoundError(f"No CSV files found in '{csv_folder}'")
     print(f"Found {len(csv_files)} file(s); loading and concatenating now...")
     combined_df = load_and_concatenate_csv(csv_files)
-    print(
-        f"Concatenation complete: "
-        f"{combined_df.shape[0]} rows, {combined_df.shape[1]} columns"
-    )
+    print(f"Concatenation complete: {combined_df.shape[0]} rows, {combined_df.shape[1]} columns")
     return combined_df
 
 
 # =============================================================================
 # SUMMARY CALCULATIONS
 # =============================================================================
+
 
 def aggregate_monthly_trips(df: pd.DataFrame) -> pd.DataFrame:
     """Compute monthly trip totals per station (start + end).
@@ -183,6 +182,7 @@ def aggregate_period_summary(df: pd.DataFrame) -> pd.DataFrame:
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Run concatenation, apply optional filtering, and export all reports."""
     # 1) Concatenate all CSVs
@@ -195,9 +195,7 @@ def main() -> None:
 
     # 3) Prepare data for summaries
     df_for_summary = combined_df.copy()
-    df_for_summary["started_at"] = pd.to_datetime(
-        df_for_summary["started_at"], errors="coerce"
-    )
+    df_for_summary["started_at"] = pd.to_datetime(df_for_summary["started_at"], errors="coerce")
 
     # Apply time‐period filtering if configured
     if FILTER_START:
