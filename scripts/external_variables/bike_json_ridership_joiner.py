@@ -47,6 +47,7 @@ UNMATCHED_CSV = TRIP_CSV.parent / "unmatched_trips.csv"
 # FUNCTIONS
 # ===============================================================================
 
+
 def load_station_json(
     json_path: Path,
     use_id: bool,
@@ -110,9 +111,9 @@ def enrich_trip_csv(
         sample_meta = next(iter(station_map.values()), {})
         # drop any fields whose value is a list or dict
         extra_fields = [
-            fld for fld, val in sample_meta.items()
-            if fld not in ("station_id", "name")
-               and not isinstance(val, (list, dict))
+            fld
+            for fld, val in sample_meta.items()
+            if fld not in ("station_id", "name") and not isinstance(val, (list, dict))
         ]
 
         enriched_fields = base_fields + extra_fields
@@ -144,6 +145,7 @@ def enrich_trip_csv(
 # ===============================================================================
 # MAIN
 # ===============================================================================
+
 
 def main() -> None:
     """Main execution flow."""
