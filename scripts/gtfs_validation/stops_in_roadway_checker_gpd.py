@@ -26,9 +26,8 @@ from shapely.geometry import Point
 # =============================================================================
 
 # Paths to input files
-ROADWAYS_PATH = (
-    r"path\to\your\roadways.shp"  # Replace with your roadways shapefile path
-)
+ROADWAYS_PATH = (r"path\to\your\roadways.shp)  # Replace with your roadways shapefile path
+
 GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
 STOPS_PATH = os.path.join(GTFS_FOLDER, "stops.txt")
 OUTPUT_DIR = r"path\to\output\directory"  # Replace with your desired output directory
