@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Any, Mapping
 from pandas._typing import DtypeArg
 import pandas as pd
 
