@@ -58,9 +58,7 @@ logging.basicConfig(
 # CONSTANTS
 # -----------------------------------------------------------------------------
 
-_TIME_RE: re.Pattern[str] = re.compile(
-    r"^(?P<h>\d{1,2}):(?P<m>\d{2})(?::(?P<s>\d{2}))?$"
-)
+_TIME_RE: re.Pattern[str] = re.compile(r"^(?P<h>\d{1,2}):(?P<m>\d{2})(?::(?P<s>\d{2}))?$")
 REQ_FILES: Tuple[str, ...] = ("trips.txt", "stop_times.txt", "routes.txt", "stops.txt")
 
 # -----------------------------------------------------------------------------
@@ -189,9 +187,7 @@ def load_gtfs(folder: Path) -> Dict[str, pd.DataFrame]:
         raise FileNotFoundError(f"Missing GTFS file(s): {', '.join(missing)}")
 
     dfs: Dict[str, pd.DataFrame] = {
-        fname.removesuffix(".txt"): pd.read_csv(
-            folder / fname, dtype=str, low_memory=False
-        )
+        fname.removesuffix(".txt"): pd.read_csv(folder / fname, dtype=str, low_memory=False)
         for fname in REQ_FILES
     }
 
@@ -200,9 +196,7 @@ def load_gtfs(folder: Path) -> Dict[str, pd.DataFrame]:
     if "timepoint" in st.columns:
         st["timepoint"] = pd.to_numeric(st["timepoint"], errors="coerce")
     if "shape_dist_traveled" in st.columns:
-        st["shape_dist_traveled"] = pd.to_numeric(
-            st["shape_dist_traveled"], errors="coerce"
-        )
+        st["shape_dist_traveled"] = pd.to_numeric(st["shape_dist_traveled"], errors="coerce")
 
     return dfs
 
@@ -226,9 +220,7 @@ def segment_metrics(grp: pd.DataFrame) -> Tuple[SegSpeeds, float, int]:
 
     for _, row in grp.iterrows():
         times.append(
-            hhmmss_to_minutes(
-                cast(str, row.get("departure_time") or row.get("arrival_time"))
-            )
+            hhmmss_to_minutes(cast(str, row.get("departure_time") or row.get("arrival_time")))
         )
         dists.append(convert_to_miles(row.get("shape_dist_traveled")))
 
@@ -304,9 +296,7 @@ def build_index(
         st = st[st["timepoint"] == 1]
 
     stop_meta = (
-        gtfs["stops"][["stop_id", "stop_name", "stop_code"]]
-        .set_index("stop_id")
-        .to_dict("index")
+        gtfs["stops"][["stop_id", "stop_name", "stop_code"]].set_index("stop_id").to_dict("index")
     )
 
     pat_lut: Dict[int, Pattern] = {}
@@ -351,9 +341,7 @@ def build_index(
                 "direction_id": grp.iloc[0]["direction_id"],
                 "pattern_hash": pat_hash,
                 "speed_hash": spd_hash,
-                "first_seg_mph": None
-                if first_seg == MISSING_VAL
-                else cast(float, first_seg),
+                "first_seg_mph": None if first_seg == MISSING_VAL else cast(float, first_seg),
                 "start": start_min,
             }
         )
@@ -434,10 +422,7 @@ def export_excel(
             for col in range(1, len(header) + 1):
                 ws.column_dimensions[get_column_letter(col)].width = 14
 
-        out_path = (
-            OUTPUT_FOLDER
-            / f"route_{route_short.get(rid, rid)}_cal{sid}_speed_table.xlsx"
-        )
+        out_path = OUTPUT_FOLDER / f"route_{route_short.get(rid, rid)}_cal{sid}_speed_table.xlsx"
         wb.save(out_path)
         logging.info("Wrote %s", out_path)
 
