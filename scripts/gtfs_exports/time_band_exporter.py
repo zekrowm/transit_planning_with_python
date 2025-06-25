@@ -30,10 +30,8 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # ==================================================================================================
 
-GTFS_FOLDER = Path(r"G:\projects\dot\zkrohmal\_data\gtfs\connector_gtfs_2025_06_06")
-OUTPUT_FOLDER = Path(
-    r"\\S40SHAREPGC01\DOTWorking\zkrohm\data_requests\stop_pattern_exporter_test\output"
-)
+GTFS_FOLDER = Path(r"Path\To\Your\GTFS_Folder")
+OUTPUT_FOLDER = Path(r"Path\To\Your\Output_Folder")
 
 # Optional filters – leave empty to take everything
 FILTER_IN_ROUTE_SHORT_NAMES: List[str] = []
