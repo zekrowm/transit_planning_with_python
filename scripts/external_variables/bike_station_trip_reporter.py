@@ -109,6 +109,7 @@ def concatenate_csvs(csv_folder: str) -> pd.DataFrame:
 # SUMMARY CALCULATIONS
 # =============================================================================
 
+
 def aggregate_monthly_trips(df: pd.DataFrame) -> pd.DataFrame:
     """Compute monthly trip totals per station (start + end), retaining station_id."""
     # ensure datetime
@@ -121,10 +122,7 @@ def aggregate_monthly_trips(df: pd.DataFrame) -> pd.DataFrame:
     # count by origin station_id + name
     start_counts = (
         df[df["start_station_id"].notna()]
-        .groupby(
-            ["start_station_id", "start_station_name", "month"],
-            observed=True
-        )
+        .groupby(["start_station_id", "start_station_name", "month"], observed=True)
         .size()
         .unstack(fill_value=0)
     )
@@ -132,18 +130,12 @@ def aggregate_monthly_trips(df: pd.DataFrame) -> pd.DataFrame:
     # count by destination station_id + name
     end_counts = (
         df[df["end_station_id"].notna()]
-        .groupby(
-            ["end_station_id", "end_station_name", "month"],
-            observed=True
-        )
+        .groupby(["end_station_id", "end_station_name", "month"], observed=True)
         .size()
         .unstack(fill_value=0)
     )
     # align index names so we can add
-    end_counts.index.rename(
-        ["start_station_id", "start_station_name"],
-        inplace=True
-    )
+    end_counts.index.rename(["start_station_id", "start_station_name"], inplace=True)
 
     # sum origin + destination
     total_counts = start_counts.add(end_counts, fill_value=0)
@@ -158,33 +150,22 @@ def aggregate_monthly_trips(df: pd.DataFrame) -> pd.DataFrame:
     )
     return total_counts
 
+
 def aggregate_period_summary(df: pd.DataFrame) -> pd.DataFrame:
     """Compute total trip activity per station over the period, retaining station_id."""
     # count all start events
-    start_counts = (
-        df["start_station_id"]
-        .value_counts()
-        .rename("start_trips")
-    )
+    start_counts = df["start_station_id"].value_counts().rename("start_trips")
     # count all end events
-    end_counts = (
-        df["end_station_id"]
-        .value_counts()
-        .rename("end_trips")
-    )
+    end_counts = df["end_station_id"].value_counts().rename("end_trips")
     # combine & sum
-    total = (
-        start_counts
-        .add(end_counts, fill_value=0)
-        .rename("total_activity")
-    )
+    total = start_counts.add(end_counts, fill_value=0).rename("total_activity")
 
     # assemble into one DataFrame
     period_df = (
         pd.concat([start_counts, end_counts, total], axis=1)
-          .fillna(0)
-          .reset_index()
-          .rename(columns={"index": "station_id"})
+        .fillna(0)
+        .reset_index()
+        .rename(columns={"index": "station_id"})
     )
 
     # grab a station_name lookup from the first occurrence
@@ -197,11 +178,9 @@ def aggregate_period_summary(df: pd.DataFrame) -> pd.DataFrame:
     period_df["station_name"] = period_df["station_id"].map(name_map)
 
     # reorder columns if you like
-    cols = [
-        "station_id", "station_name",
-        "start_trips", "end_trips", "total_activity"
-    ]
+    cols = ["station_id", "station_name", "start_trips", "end_trips", "total_activity"]
     return period_df[cols]
+
 
 # =============================================================================
 # MAIN
