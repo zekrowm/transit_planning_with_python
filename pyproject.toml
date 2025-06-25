@@ -9,6 +9,8 @@
 target-version = "py310"        # already implied by your mypy config
 line-length    = 100            # or whatever you prefer
 
+fixable = ["F401", "D"]
+
 [tool.ruff.lint]
 # I  → isort-compatible import ordering
 # F  → Pyflakes-equivalent static analysis
@@ -20,9 +22,6 @@ select = ["I", "F", "D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[tool.ruff.lint.fix]
-select = ["I", "F401", "D"]
 
 # ----------------------------------------------------------------
 # mypy (type-checker)
