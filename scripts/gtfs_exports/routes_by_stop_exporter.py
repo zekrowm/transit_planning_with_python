@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 from typing import Any, Mapping
-
+from pandas._typing import DtypeArg
 import pandas as pd
 
 # =============================================================================
@@ -32,8 +32,13 @@ SELECTED_STOP_CODES: list[str] = ["A100", "B200", "C300"]
 # If True (default), append direction_id in parentheses after each route_short_name
 INCLUDE_DIRECTION: bool = True
 
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
-def load_gtfs_files(folder: str, dtype: str | Mapping[str, Any] = str) -> dict[str, pd.DataFrame]:
+def load_gtfs_files(
+    folder: str, dtype: DtypeArg = str
+) -> dict[str, pd.DataFrame]:
     """Load core GTFS text files into DataFrames.
 
     Args:
@@ -138,6 +143,9 @@ def map_stops_to_routes(
     # 7) Return only the filter key, stop_name, and routes
     return sel[[filter_col, "stop_name", "routes"]]
 
+# =============================================================================
+# MAIN
+# =============================================================================
 
 def main() -> None:
     """Run the stop→routes CSV exporter."""
