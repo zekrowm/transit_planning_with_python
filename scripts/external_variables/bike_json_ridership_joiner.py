@@ -47,7 +47,6 @@ UNMATCHED_CSV = TRIP_CSV.parent / "unmatched_trips.csv"
 # FUNCTIONS
 # ===============================================================================
 
-
 def load_station_json(
     json_path: Path,
     use_id: bool,
@@ -55,28 +54,24 @@ def load_station_json(
 ) -> Dict[str, Dict[str, Any]]:
     """Load GBFS station feed JSON and index by station key.
 
-    Optionally filters to only those stations whose 'region_id' is in `region_ids`.
+    Optionally filters to only those stations whose `region_id` is in `region_ids`.
 
-    Args:
-        json_path:   Path to station_information.json.
-        use_id:      If True, key on 'station_id'; else on 'name'.
-        region_ids:  If provided, only include stations where record['region_id'] is in this list.
-
-    Returns:
-        Mapping of station_key → station_metadata dict.
+    When use_id=True we key on the numeric `short_name` (station code),
+    otherwise on the human‐readable `name`.
     """
     with json_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     stations = data.get("data", {}).get("stations", [])
-    key_field = "station_id" if use_id else "name"
+    key_field = "short_name" if use_id else "name"
     station_map: Dict[str, Dict[str, Any]] = {}
 
     for record in stations:
         key = record.get(key_field)
         if not key:
             continue
-        # apply region filter
+
+        # apply region filter if requested
         rid = record.get("region_id")
         if region_ids and str(rid) not in region_ids:
             continue
@@ -93,30 +88,29 @@ def enrich_trip_csv(
     enriched_csv: Path,
     unmatched_csv: Path,
 ) -> None:
-    """Join station metadata into each trip row and export results.
+    """Join station metadata into each trip‐summary row and export results.
 
-    Args:
-        trip_csv:      Input tripdata CSV.
-        station_map:   station_key → metadata dict.
-        use_id:        If True, match on 'start_station_id'; else 'start_station_name'.
-        enriched_csv:  Path to write enriched CSV.
-        unmatched_csv: Path to write trips with no matching station.
+    The summary CSV must include a 'station_id' column (the numeric code)
+    and/or 'station_name'. We strip any trailing '.0' from station_id so it
+    matches the JSON short_name keys.
     """
-    id_field = "start_station_id" if use_id else "start_station_name"
+    id_field = "station_id" if use_id else "station_name"
 
     with trip_csv.open("r", newline="", encoding="utf-8") as infile:
         reader = csv.DictReader(infile)
         base_fields: List[str] = list(reader.fieldnames or [])
 
+        # Determine which metadata fields to pull in (skip lists/dicts)
         sample_meta = next(iter(station_map.values()), {})
-        # drop any fields whose value is a list or dict
         extra_fields = [
             fld
             for fld, val in sample_meta.items()
-            if fld not in ("station_id", "name") and not isinstance(val, (list, dict))
+            if fld not in ("station_id", "short_name", "name")
+            and not isinstance(val, (list, dict))
         ]
 
         enriched_fields = base_fields + extra_fields
+
         with (
             enriched_csv.open("w", newline="", encoding="utf-8") as enf,
             unmatched_csv.open("w", newline="", encoding="utf-8") as umf,
@@ -128,7 +122,12 @@ def enrich_trip_csv(
             unmatched_writer.writeheader()
 
             for row in reader:
-                key = (row.get(id_field) or "").strip()
+                raw = (row.get(id_field) or "").strip()
+                # strip ".0" if present (common when station_id is read as float)
+                if raw.endswith(".0"):
+                    raw = raw[:-2]
+                key = raw
+
                 meta = station_map.get(key)
                 if meta:
                     out_row = row.copy()
@@ -140,7 +139,6 @@ def enrich_trip_csv(
 
     print(f"✅ Enriched trips saved to: {enriched_csv}")
     print(f"⚠️  Unmatched trips saved to: {unmatched_csv}")
-
 
 # ===============================================================================
 # MAIN
