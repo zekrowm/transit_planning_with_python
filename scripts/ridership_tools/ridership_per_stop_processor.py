@@ -35,6 +35,7 @@ USE_ALIGHTINGS = True
 # FUNCTIONS
 # =============================================================================
 
+
 def load_data(excel_path):
     """Load stop-level ridership data from an Excel workbook.
 
@@ -137,9 +138,7 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
     if boardings_flag and alightings_flag:
         grouped["XTOTAL"] = grouped["XBOARDINGS"] + grouped["XALIGHTINGS"]
         total_combined = grouped["XTOTAL"].sum()
-        grouped["PCT_TOTAL"] = (
-            grouped["XTOTAL"] / total_combined if total_combined != 0 else 0.0
-        )
+        grouped["PCT_TOTAL"] = grouped["XTOTAL"] / total_combined if total_combined != 0 else 0.0
 
     # ==========================
     # Rounding step (to 1 decimal place)
@@ -203,16 +202,12 @@ def main():
 
     # 3. Process each route
     for route_name in route_names:
-        route_data = aggregate_route_data(
-            data_frame, route_name, USE_BOARDINGS, USE_ALIGHTINGS
-        )
+        route_data = aggregate_route_data(data_frame, route_name, USE_BOARDINGS, USE_ALIGHTINGS)
         if route_data is not None and not route_data.empty:
             save_route_data(route_data, route_name, OUTPUT_DIR)
             print(f"Saved data for route '{route_name}' to {OUTPUT_DIR}")
         else:
-            print(
-                f"No boardings/alightings selected or no data for route '{route_name}'"
-            )
+            print(f"No boardings/alightings selected or no data for route '{route_name}'")
 
 
 if __name__ == "__main__":
