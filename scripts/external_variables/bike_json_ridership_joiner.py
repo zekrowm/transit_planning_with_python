@@ -16,6 +16,7 @@ Intended Use:
   station-level data for GIS visualization, QA workflows, and planning studies.
 """
 
+from typing import Any, Dict, List
 import csv
 import json
 import sys
@@ -69,7 +70,6 @@ def load_station_json(json_path: Path, use_id: bool) -> Dict[str, Dict[str, Any]
 
     return station_map
 
-
 def enrich_trip_csv(
     trip_csv: Path,
     station_map: Dict[str, Dict[str, Any]],
@@ -90,11 +90,17 @@ def enrich_trip_csv(
 
     with trip_csv.open("r", newline="", encoding="utf-8") as infile:
         reader = csv.DictReader(infile)
-        base_fields: List[str] = reader.fieldnames or []
+        # Convert to a concrete list so its type is List[str], not just Sequence[str]
+        base_fields: List[str] = (
+            list(reader.fieldnames) if reader.fieldnames is not None else []
+        )
 
         # Determine which station metadata fields to append
         sample_meta = next(iter(station_map.values()), {})
-        extra_fields = [fld for fld in sample_meta.keys() if fld not in ("station_id", "name")]
+        extra_fields = [
+            fld for fld in sample_meta.keys()
+            if fld not in ("station_id", "name")
+        ]
 
         # Prepare writers
         enriched_fields = base_fields + extra_fields
@@ -123,7 +129,6 @@ def enrich_trip_csv(
 
     print(f"✅ Enriched trips saved to: {enriched_csv}")
     print(f"⚠️  Unmatched trips saved to: {unmatched_csv}")
-
 
 # ===============================================================================
 # MAIN
