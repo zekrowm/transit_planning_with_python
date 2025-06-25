@@ -47,8 +47,7 @@ def load_station_json(
     json_path: Path,
     use_id: bool
 ) -> Dict[str, Dict[str, Any]]:
-    """
-    Load GBFS station feed JSON and index by station key.
+    """Load GBFS station feed JSON and index by station key.
 
     Args:
         json_path: Path to station_information.json.
@@ -80,8 +79,7 @@ def enrich_trip_csv(
     enriched_csv: Path,
     unmatched_csv: Path
 ) -> None:
-    """
-    Join station metadata into each trip row and export results.
+    """Join station metadata into each trip row and export results.
 
     Args:
         trip_csv:      Input tripdata CSV.
