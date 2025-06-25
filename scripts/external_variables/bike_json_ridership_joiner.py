@@ -20,7 +20,7 @@ import csv
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # ===============================================================================
 # CONFIGURATION
@@ -35,6 +35,10 @@ TRIP_CSV = Path(r"Path\To\Your\Concatenated_Bikeshare.csv")
 # If True, join on 'start_station_id'; if False, on 'start_station_name'
 JOIN_BY_ID: bool = True
 
+# Optional list of region_id strings to include. If None or empty, include all regions.
+# Example: REGION_IDS = ["42", "104"]
+REGION_IDS: Optional[List[str]] = None
+
 # Output files
 ENRICHED_CSV = TRIP_CSV.parent / "tripdata_enriched.csv"
 UNMATCHED_CSV = TRIP_CSV.parent / "unmatched_trips.csv"
@@ -43,13 +47,19 @@ UNMATCHED_CSV = TRIP_CSV.parent / "unmatched_trips.csv"
 # FUNCTIONS
 # ===============================================================================
 
-
-def load_station_json(json_path: Path, use_id: bool) -> Dict[str, Dict[str, Any]]:
+def load_station_json(
+    json_path: Path,
+    use_id: bool,
+    region_ids: Optional[List[str]] = None,
+) -> Dict[str, Dict[str, Any]]:
     """Load GBFS station feed JSON and index by station key.
 
+    Optionally filters to only those stations whose 'region_id' is in `region_ids`.
+
     Args:
-        json_path: Path to station_information.json.
-        use_id:    If True, key on 'station_id'; else on 'name'.
+        json_path:   Path to station_information.json.
+        use_id:      If True, key on 'station_id'; else on 'name'.
+        region_ids:  If provided, only include stations where record['region_id'] is in this list.
 
     Returns:
         Mapping of station_key → station_metadata dict.
@@ -65,6 +75,11 @@ def load_station_json(json_path: Path, use_id: bool) -> Dict[str, Dict[str, Any]
         key = record.get(key_field)
         if not key:
             continue
+        # apply region filter
+        rid = record.get("region_id")
+        if region_ids and str(rid) not in region_ids:
+            continue
+
         station_map[str(key).strip()] = record
 
     return station_map
@@ -90,14 +105,16 @@ def enrich_trip_csv(
 
     with trip_csv.open("r", newline="", encoding="utf-8") as infile:
         reader = csv.DictReader(infile)
-        # Convert to a concrete list so its type is List[str], not just Sequence[str]
-        base_fields: List[str] = list(reader.fieldnames) if reader.fieldnames is not None else []
+        base_fields: List[str] = list(reader.fieldnames or [])
 
-        # Determine which station metadata fields to append
         sample_meta = next(iter(station_map.values()), {})
-        extra_fields = [fld for fld in sample_meta.keys() if fld not in ("station_id", "name")]
+        # drop any fields whose value is a list or dict
+        extra_fields = [
+            fld for fld, val in sample_meta.items()
+            if fld not in ("station_id", "name")
+               and not isinstance(val, (list, dict))
+        ]
 
-        # Prepare writers
         enriched_fields = base_fields + extra_fields
         with (
             enriched_csv.open("w", newline="", encoding="utf-8") as enf,
@@ -113,13 +130,11 @@ def enrich_trip_csv(
                 key = (row.get(id_field) or "").strip()
                 meta = station_map.get(key)
                 if meta:
-                    # build enriched row
                     out_row = row.copy()
                     for fld in extra_fields:
                         out_row[fld] = meta.get(fld, "")
                     enriched_writer.writerow(out_row)
                 else:
-                    # no match → dockless / typo / error
                     unmatched_writer.writerow(row)
 
     print(f"✅ Enriched trips saved to: {enriched_csv}")
@@ -129,7 +144,6 @@ def enrich_trip_csv(
 # ===============================================================================
 # MAIN
 # ===============================================================================
-
 
 def main() -> None:
     """Main execution flow."""
