@@ -16,8 +16,8 @@ Intended Use:
   station-level data for GIS visualization, QA workflows, and planning studies.
 """
 
-import json
 import csv
+import json
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
@@ -43,10 +43,8 @@ UNMATCHED_CSV = TRIP_CSV.parent / "unmatched_trips.csv"
 # FUNCTIONS
 # ===============================================================================
 
-def load_station_json(
-    json_path: Path,
-    use_id: bool
-) -> Dict[str, Dict[str, Any]]:
+
+def load_station_json(json_path: Path, use_id: bool) -> Dict[str, Dict[str, Any]]:
     """Load GBFS station feed JSON and index by station key.
 
     Args:
@@ -77,7 +75,7 @@ def enrich_trip_csv(
     station_map: Dict[str, Dict[str, Any]],
     use_id: bool,
     enriched_csv: Path,
-    unmatched_csv: Path
+    unmatched_csv: Path,
 ) -> None:
     """Join station metadata into each trip row and export results.
 
@@ -96,16 +94,14 @@ def enrich_trip_csv(
 
         # Determine which station metadata fields to append
         sample_meta = next(iter(station_map.values()), {})
-        extra_fields = [
-            fld for fld in sample_meta.keys()
-            if fld not in ("station_id", "name")
-        ]
+        extra_fields = [fld for fld in sample_meta.keys() if fld not in ("station_id", "name")]
 
         # Prepare writers
         enriched_fields = base_fields + extra_fields
-        with enriched_csv.open("w", newline="", encoding="utf-8") as enf, \
-             unmatched_csv.open("w", newline="", encoding="utf-8") as umf:
-
+        with (
+            enriched_csv.open("w", newline="", encoding="utf-8") as enf,
+            unmatched_csv.open("w", newline="", encoding="utf-8") as umf,
+        ):
             enriched_writer = csv.DictWriter(enf, fieldnames=enriched_fields)
             unmatched_writer = csv.DictWriter(umf, fieldnames=base_fields)
 
@@ -128,21 +124,17 @@ def enrich_trip_csv(
     print(f"✅ Enriched trips saved to: {enriched_csv}")
     print(f"⚠️  Unmatched trips saved to: {unmatched_csv}")
 
+
 # ===============================================================================
 # MAIN
 # ===============================================================================
+
 
 def main() -> None:
     """Main execution flow."""
     try:
         station_map = load_station_json(STATION_JSON, JOIN_BY_ID)
-        enrich_trip_csv(
-            TRIP_CSV,
-            station_map,
-            JOIN_BY_ID,
-            ENRICHED_CSV,
-            UNMATCHED_CSV
-        )
+        enrich_trip_csv(TRIP_CSV, station_map, JOIN_BY_ID, ENRICHED_CSV, UNMATCHED_CSV)
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         sys.exit(1)
