@@ -1,6 +1,9 @@
-"""Generate a CSV of selected stops and the GTFS routes serving each,
-with configurable filtering by stop_id or stop_code, and optional inclusion
-of direction IDs in the route listing."""
+"""Generate a CSV of selected stops and the routes serving each.
+
+Users can configure to filter by stop_id or stop_code, and optional inclusion
+of direction IDs in the route listing.
+"""
+
 
 from __future__ import annotations
 
