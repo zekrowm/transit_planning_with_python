@@ -47,6 +47,7 @@ UNMATCHED_CSV = TRIP_CSV.parent / "unmatched_trips.csv"
 # FUNCTIONS
 # ===============================================================================
 
+
 def load_station_json(
     json_path: Path,
     use_id: bool,
@@ -105,8 +106,7 @@ def enrich_trip_csv(
         extra_fields = [
             fld
             for fld, val in sample_meta.items()
-            if fld not in ("station_id", "short_name", "name")
-            and not isinstance(val, (list, dict))
+            if fld not in ("station_id", "short_name", "name") and not isinstance(val, (list, dict))
         ]
 
         enriched_fields = base_fields + extra_fields
@@ -139,6 +139,7 @@ def enrich_trip_csv(
 
     print(f"✅ Enriched trips saved to: {enriched_csv}")
     print(f"⚠️  Unmatched trips saved to: {unmatched_csv}")
+
 
 # ===============================================================================
 # MAIN
