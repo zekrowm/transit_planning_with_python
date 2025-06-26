@@ -31,14 +31,10 @@ ExportKind = Literal["stops", "lines", "both"]
 # ===========================================================================
 
 # REQUIRED: Default path to the directory containing GTFS .txt files
-DEFAULT_GTFS_DIR: Optional[Path] = Path(
-    r"/path/to/your/default_gtfs_folder"
-)  # <-- EDIT ME
+DEFAULT_GTFS_DIR: Optional[Path] = Path(r"/path/to/your/default_gtfs_folder")  # <-- EDIT ME
 
 # REQUIRED: Default path to the directory where Shapefiles will be saved
-DEFAULT_OUTPUT_DIR: Optional[Path] = Path(
-    r"/path/to/your/default_output_folder"
-)  # <-- EDIT ME
+DEFAULT_OUTPUT_DIR: Optional[Path] = Path(r"/path/to/your/default_output_folder")  # <-- EDIT ME
 # Set to None if you always want to provide paths as arguments
 # DEFAULT_GTFS_DIR = None
 # DEFAULT_OUTPUT_DIR = None
@@ -79,9 +75,7 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
     # Validate and clean coordinate columns
     for col in ["stop_lat", "stop_lon"]:
         if not pd.api.types.is_numeric_dtype(df[col]):
-            print(
-                f"Warning: Non-numeric values found in '{col}'. Attempting conversion."
-            )
+            print(f"Warning: Non-numeric values found in '{col}'. Attempting conversion.")
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df.dropna(subset=[col], inplace=True)
@@ -93,9 +87,7 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
     if df.empty:
         print("Warning: No valid stop data found after cleaning.")
-        return gpd.GeoDataFrame(
-            columns=list(required) + ["geometry"], geometry=[], crs=GTFS_CRS
-        )
+        return gpd.GeoDataFrame(columns=list(required) + ["geometry"], geometry=[], crs=GTFS_CRS)
 
     try:
         geometry = [Point(xy) for xy in zip(df["stop_lon"], df["stop_lat"])]
@@ -132,9 +124,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     # print(f"Reading shapes from: {file_path}") # Optional: uncomment for verbose output
     if not file_path.exists():
         print("Info: Optional file 'shapes.txt' not found. Skipping shapes.")
-        return gpd.GeoDataFrame(
-            columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS
-        )
+        return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
 
     try:
         df = pd.read_csv(file_path, dtype={"shape_id": str})
@@ -144,17 +134,13 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     required = {"shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"}
     if not required.issubset(df.columns):
         missing = sorted(list(required.difference(df.columns)))
-        raise ValueError(
-            f"Missing required columns in shapes.txt: {', '.join(missing)}"
-        )
+        raise ValueError(f"Missing required columns in shapes.txt: {', '.join(missing)}")
 
     # Validate and clean coordinate and sequence columns
     coord_cols = ["shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"]
     for col in coord_cols:
         if not pd.api.types.is_numeric_dtype(df[col]):
-            print(
-                f"Warning: Non-numeric values found in '{col}'. Attempting conversion."
-            )
+            print(f"Warning: Non-numeric values found in '{col}'. Attempting conversion.")
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df.dropna(subset=[col], inplace=True)
@@ -166,9 +152,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
     if df.empty:
         print("Warning: No valid shape point data found after cleaning.")
-        return gpd.GeoDataFrame(
-            columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS
-        )
+        return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
 
     # Ensure sequence is integer and sort points correctly
     df["shape_pt_sequence"] = df["shape_pt_sequence"].astype(int)
@@ -180,10 +164,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
         for shape_id, group in df.groupby("shape_id", sort=False):
             coordinates = list(zip(group["shape_pt_lon"], group["shape_pt_lat"]))
             if len(coordinates) < 2:
-                print(
-                    f"Warning: Shape ID {shape_id} skipped: "
-                    "has fewer than 2 valid points."
-                )
+                print(f"Warning: Shape ID {shape_id} skipped: has fewer than 2 valid points.")
                 continue
             line = LineString(coordinates)
             records.append({"shape_id": shape_id, "geometry": line})
@@ -192,9 +173,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
     if not records:
         print("Warning: No valid line geometries constructed from shapes.txt.")
-        return gpd.GeoDataFrame(
-            columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS
-        )
+        return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
 
     gdf = gpd.GeoDataFrame(records, crs=GTFS_CRS)
     # print(f"Successfully constructed {len(gdf)} line geometries.") # Optional verbose output
@@ -283,9 +262,7 @@ def gtfs_to_shapefiles(
     try:
         resolved_output_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
-        raise IOError(
-            f"Could not create output directory {resolved_output_dir}: {e}"
-        ) from e
+        raise IOError(f"Could not create output directory {resolved_output_dir}: {e}") from e
 
     # --- Process Stops ---
     if kind in ("stops", "both"):
@@ -317,9 +294,7 @@ def gtfs_to_shapefiles(
     print("-" * 50)
     print("Conversion finished.")
     # Provide context requested
-    print(
-        f"Current time: {pd.Timestamp.now(tz='US/Eastern').strftime('%Y-%m-%d %H:%M:%S %Z')}"
-    )
+    print(f"Current time: {pd.Timestamp.now(tz='US/Eastern').strftime('%Y-%m-%d %H:%M:%S %Z')}")
     print("-" * 50)
 
 
