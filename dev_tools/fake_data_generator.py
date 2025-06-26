@@ -214,9 +214,7 @@ class _Schema:
         return pd.DataFrame(data)
 
 
-def mock_dataframe(
-    sample_df: pd.DataFrame, n_rows: int, seed: int | None = None
-) -> pd.DataFrame:
+def mock_dataframe(sample_df: pd.DataFrame, n_rows: int, seed: int | None = None) -> pd.DataFrame:
     """Return a synthetic DataFrame matching `sample_df`’s structure."""
     if seed is not None:
         Faker.seed(seed)
