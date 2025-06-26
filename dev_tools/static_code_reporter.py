@@ -233,9 +233,7 @@ def run_vulture(files: list[str]) -> int:
         if err:
             logger.info("\n--- stderr ---\n%s", err)
 
-        hit = any(
-            _VULTURE_LINE.match(line.strip()) for line in (out or "").splitlines()
-        )
+        hit = any(_VULTURE_LINE.match(line.strip()) for line in (out or "").splitlines())
         if hit:
             files_with_issues += 1
 
@@ -363,9 +361,7 @@ def main() -> None:
         CONSOLE.info("\n=== Running vulture pass ===")
         failures = run_vulture(files)
         if failures > 0:
-            CONSOLE.warning(
-                "vulture found potential dead code in %d file(s).", failures
-            )
+            CONSOLE.warning("vulture found potential dead code in %d file(s).", failures)
             overall_tools_failed_files += failures
         else:
             CONSOLE.info("vulture pass: No issues found.")
@@ -397,9 +393,7 @@ def main() -> None:
             "See individual logs for details.",
             overall_tools_failed_files,
         )
-    CONSOLE.info(
-        "Detailed logs and Excel summaries → %s", Path(OUTPUT_FOLDER).resolve()
-    )
+    CONSOLE.info("Detailed logs and Excel summaries → %s", Path(OUTPUT_FOLDER).resolve())
 
 
 if __name__ == "__main__":
