@@ -22,7 +22,8 @@ OUTPUT_FOLDER  = Path(r"Path\To\Your\Output_Folder") # where the shapefile will 
 OUTPUT_NAME    = "gtfs_shapes.shp"                           # .shp is required
 SR_EPSG        = 4326                                        # WGS‑84
 
-ROUTE_FILTER: list[str] = [ ]    # keep only these route_short_name values; empty list ⇒ no filtering
+# Optional route filter in list
+ROUTE_FILTER: list[str] = [ ]
 
 # =============================================================================
 # FUNCTIONS
