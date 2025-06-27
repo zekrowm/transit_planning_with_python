@@ -55,6 +55,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # FUNCTIONS
 # =============================================================================
 
+
 def is_number(value) -> bool:
     """Check if the input value can be converted to a float.
 
@@ -218,6 +219,7 @@ def filter_trips(trips_df, routes_df, cal_ids):
 # -----------------------------------------------------------------------------
 # BUILD PATTERNS
 # -----------------------------------------------------------------------------
+
 
 def generate_unique_patterns(trips_df, stop_times_df, stops_df):
     """Identify unique stop patterns grouped by route, direction, and service.
@@ -788,6 +790,7 @@ def export_patterns_to_excel(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,  # mark as optional
@@ -859,6 +862,7 @@ def load_gtfs_data(
             ) from exc
 
     return data
+
 
 # =============================================================================
 # MAIN
