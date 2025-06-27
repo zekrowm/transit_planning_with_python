@@ -9,7 +9,7 @@ though direct execution via the command line is also supported.
 
 import logging
 import os
-from typing import Any, Optional, cast
+from typing import Any, Optional, Mapping, cast
 
 import pandas as pd
 
