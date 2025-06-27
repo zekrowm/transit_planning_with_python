@@ -9,13 +9,12 @@
 target-version = "py310"        # already implied by your mypy config
 line-length    = 100            # or whatever you prefer
 
-fixable = ["F401", "D"]
-
 [tool.ruff.lint]
 # I  → isort-compatible import ordering
 # F  → Pyflakes-equivalent static analysis
 # D  → pydocstyle (Google-style enforced below)
 select = ["I", "F", "D"]
+fixable = ["F401", "D"]
 
 # Example: if you want to silence specific docstring rules later
 # ignore = ["D100", "D401"]
