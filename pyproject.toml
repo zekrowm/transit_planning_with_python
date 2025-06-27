@@ -14,7 +14,7 @@ line-length    = 100            # or whatever you prefer
 # F  → Pyflakes-equivalent static analysis
 # D  → pydocstyle (Google-style enforced below)
 select = ["I", "F", "D"]
-fixable = ["F401", "D"]
+fixable = ["F401", "D", "I"]
 
 # Example: if you want to silence specific docstring rules later
 # ignore = ["D100", "D401"]
