@@ -21,9 +21,10 @@ problem_stops_<route>.jpeg
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any, List, Mapping, Optional, Tuple
-import os 
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -64,6 +65,7 @@ LOGGER = logging.getLogger(__name__)
 # =============================================================================
 # CORE FUNCTIONS
 # =============================================================================
+
 
 def load_shapefile(shp_path: Path, crs: str) -> gpd.GeoDataFrame:
     """Read the route shapefile and coerce it to the desired CRS.
@@ -399,9 +401,11 @@ def identify_problem_stops(
 
     return problems_gdf, routes_with_flagged, geometry_lookup
 
+
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -478,6 +482,7 @@ def load_gtfs_data(
                 f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
     return data
+
 
 # =============================================================================
 # MAIN
