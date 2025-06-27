@@ -17,7 +17,7 @@ Outputs:
 import logging
 import os
 import re
-from typing import Optional
+from typing import Optional, Mapping, Any
 
 import geopandas as gpd
 import pandas as pd
