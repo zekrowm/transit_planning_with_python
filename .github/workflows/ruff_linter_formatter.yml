@@ -60,7 +60,7 @@ jobs:
       - name: Ruff – lint (Pyflakes + Google-pydocstyle)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
-          ruff check ${{ steps.changed.outputs.files }} --select F,D
+          ruff check ${{ steps.changed.outputs.files }} --select F,D --fix
 
       - name: Commit & push (if needed)
         if: ${{ steps.changed.outputs.files != '' }}
