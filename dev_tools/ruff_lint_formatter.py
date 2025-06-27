@@ -46,6 +46,20 @@ RUFF_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--extend-exclude", "migrations"]
 
 LOG_LEVEL: int = logging.INFO
 
+RUFF_CLI_ARGS: list[str] = [
+    # top-level settings
+    "--line-length", "100",
+    "--target-version", "py310",
+
+    # rule enablement
+    "--select", "I,F,D,ANN,TC",
+    "--fixable", "F401,D,I,TC003",
+    "--ignore",  "ANN401",
+
+    # pydocstyle: Google convention
+    "--config", 'lint.pydocstyle.convention="google"',
+]
+
 # -----------------------------------------------------------------------------
 # LOGGING
 # -----------------------------------------------------------------------------
@@ -139,8 +153,8 @@ def run_ruff(files: List[str], read_only: bool) -> int:
 
     files_with_issues = 0
     total_issues = 0
-
-    ruff_base_cmd: List[str] = ["ruff", "check", *RUFF_ADDITIONAL_ARGS]
+   
+    ruff_base_cmd: list[str] = ["ruff", "check", *RUFF_CLI_ARGS, *RUFF_ADDITIONAL_ARGS]
     if not read_only:
         ruff_base_cmd.append("--fix")
 
