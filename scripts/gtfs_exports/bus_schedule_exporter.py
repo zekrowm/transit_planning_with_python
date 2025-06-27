@@ -164,14 +164,13 @@ def prepare_timepoints(stop_times):
 
 
 def remove_empty_schedule_columns(input_df):
-    """Drop columns whose **entire** contents equal ``MISSING_TIME``.
+    """Drop schedule columns whose entire contents equal ``MISSING_TIME``.
 
     Args:
-        df: A schedule DataFrame whose columns end with ``" Schedule"``.
+        input_df: Schedule grid whose columns end with ``" Schedule"``.
 
     Returns:
-        The same DataFrame instance, modified in-place and also returned
-        for convenience.
+        The same DataFrame, with all-blank schedule columns removed.
     """
     schedule_cols = [col for col in input_df.columns if col.endswith("Schedule")]
     all_blank_cols = [
@@ -256,13 +255,13 @@ def safe_check_schedule_order(
 
 
 def map_service_id_to_schedule(service_row_local):
-    """Translate a **calendar.txt** row into a semantic schedule label.
+    """Translate one **calendar.txt** row into a schedule label.
 
     Args:
-        service_row: Single calendar record.
+        service_row_local: A single record from *calendar.txt*.
 
     Returns:
-        ``"Weekday"``, ``"Saturday"``, ``"Daily"``, etc.
+        A label such as ``"Weekday"``, ``"Saturday"``, ``"Daily"``, etc.
     """
     days = [
         "monday",
