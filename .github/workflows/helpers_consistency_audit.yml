@@ -1,0 +1,78 @@
+name: helpers_consistency_audit
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-helpers:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ─────────────────────────────────────────────
+      # 1️⃣ Checkout code
+      # ─────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ─────────────────────────────────────────────
+      # 2️⃣ Set up Python
+      # ─────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ─────────────────────────────────────────────
+      # 3️⃣ Detect changed *.py files in scripts/
+      # ─────────────────────────────────────────────
+      - name: Detect changed Python scripts
+        id: changed
+        shell: bash
+        run: |
+          BASE_SHA="${{ github.event.before }}"
+          # First push on a branch → empty base
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA="$(git rev-parse HEAD~1)"
+          fi
+          BASE_SHA="$(git merge-base "$BASE_SHA" "$GITHUB_SHA")"
+
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- 'scripts/**/*.py' | sort -u | tr '\n' ' ')
+          echo "files=$CHANGED" >> "$GITHUB_OUTPUT"
+
+      # ─────────────────────────────────────────────
+      # 4️⃣ Skip job if nothing relevant changed
+      # ─────────────────────────────────────────────
+      - name: No relevant scripts changed
+        if: ${{ steps.changed.outputs.files == '' }}
+        run: echo "No modified *.py files in scripts/ – skipping helpers audit."
+
+      # ─────────────────────────────────────────────
+      # 5️⃣ Run helper-consistency audit
+      # ─────────────────────────────────────────────
+      - name: Audit helper consistency
+        if: ${{ steps.changed.outputs.files != '' }}
+        shell: bash
+        env:
+          CANONICAL_PATH: helpers          # scan *all* helpers
+          LOG_DIR: $RUNNER_TEMP            # ephemerally satisfy checker
+        run: |
+          set -e
+          echo "Changed script(s): ${{ steps.changed.outputs.files }}"
+
+          TMP_DIR=$(mktemp -d)
+          # Copy only the changed files into TMP_DIR, preserving sub-dirs
+          for f in ${{ steps.changed.outputs.files }}; do
+            mkdir -p "$TMP_DIR/$(dirname "$f")"
+            cp "$f" "$TMP_DIR/$f"
+          done
+
+          echo "Running helper audit against modified files only…"
+          SEARCH_ROOT="$TMP_DIR" python code_tools/reusable_functions_consistency_checker.py
