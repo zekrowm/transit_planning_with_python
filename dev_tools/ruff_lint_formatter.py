@@ -59,7 +59,7 @@ CONSOLE = logging.getLogger(__name__)
 
 
 # =============================================================================
-# HELPERS
+# SCRIPTS
 # =============================================================================
 
 
@@ -94,11 +94,9 @@ def gather_python_files(targets: List[str], skip_list: List[str]) -> List[str]:
     # de-duplicate but keep order
     return list(dict.fromkeys(collected))
 
-
-# =============================================================================
+# -----------------------------------------------------------------------------
 # RUFF PASS
-# =============================================================================
-
+# -----------------------------------------------------------------------------
 
 def _setup_detailed_logger(out_folder: str) -> Tuple[logging.Logger, str]:
     """Create and return a file logger plus its log-file path."""
@@ -193,6 +191,7 @@ def run_ruff(files: List[str], read_only: bool) -> int:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main() -> None:
     """Entrypoint – collect files, run ruff, print high-level summary."""
     files = gather_python_files(FILES_OR_FOLDERS, SKIP_PATHS)
