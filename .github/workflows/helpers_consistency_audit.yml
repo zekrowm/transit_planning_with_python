@@ -55,24 +55,23 @@ jobs:
         run: echo "No modified *.py files in scripts/ – skipping helpers audit."
 
       # ─────────────────────────────────────────────
-      # 5️⃣ Run helper-consistency audit
+      # 5️⃣  Run helper-consistency audit
       # ─────────────────────────────────────────────
       - name: Audit helper consistency
         if: ${{ steps.changed.outputs.files != '' }}
         shell: bash
         env:
-          CANONICAL_PATH: helpers          # scan *all* helpers
-          LOG_DIR: $RUNNER_TEMP            # ephemerally satisfy checker
+          CANONICAL_PATH: helpers
+          LOG_DIR: $RUNNER_TEMP
         run: |
           set -e
           echo "Changed script(s): ${{ steps.changed.outputs.files }}"
-
+      
           TMP_DIR=$(mktemp -d)
-          # Copy only the changed files into TMP_DIR, preserving sub-dirs
           for f in ${{ steps.changed.outputs.files }}; do
             mkdir -p "$TMP_DIR/$(dirname "$f")"
             cp "$f" "$TMP_DIR/$f"
           done
-
+      
           echo "Running helper audit against modified files only…"
-          SEARCH_ROOT="$TMP_DIR" python code_tools/reusable_functions_consistency_checker.py
+          SEARCH_ROOT="$TMP_DIR" python dev_tools/reusable_functions_consistency_checker.py
