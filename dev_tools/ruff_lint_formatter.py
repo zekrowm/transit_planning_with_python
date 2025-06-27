@@ -94,9 +94,11 @@ def gather_python_files(targets: List[str], skip_list: List[str]) -> List[str]:
     # de-duplicate but keep order
     return list(dict.fromkeys(collected))
 
+
 # -----------------------------------------------------------------------------
 # RUFF PASS
 # -----------------------------------------------------------------------------
+
 
 def _setup_detailed_logger(out_folder: str) -> Tuple[logging.Logger, str]:
     """Create and return a file logger plus its log-file path."""
@@ -127,7 +129,7 @@ def run_ruff(files: List[str], read_only: bool) -> int:
         • ``True``  → run ``ruff check`` (report only)
         • ``False`` → run ``ruff check --fix`` (apply autofixes)
 
-    Returns
+    Returns:
     -------
     int
         Number of files that Ruff reported as having at least one issue.
@@ -161,9 +163,7 @@ def run_ruff(files: List[str], read_only: bool) -> int:
                 errors="replace",
             )
         except FileNotFoundError:  # Ruff not installed / not on PATH
-            CONSOLE.error(
-                "'ruff' command not found. Install it via 'pip install ruff'."
-            )
+            CONSOLE.error("'ruff' command not found. Install it via 'pip install ruff'.")
             sys.exit(1)
 
         out, err, rc = proc.stdout, proc.stderr, proc.returncode
@@ -191,6 +191,7 @@ def run_ruff(files: List[str], read_only: bool) -> int:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entrypoint – collect files, run ruff, print high-level summary."""
