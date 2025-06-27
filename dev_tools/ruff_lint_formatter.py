@@ -121,7 +121,7 @@ def _setup_detailed_logger(out_folder: str) -> Tuple[logging.Logger, str]:
 def run_ruff(files: List[str], read_only: bool) -> int:
     """Run Ruff on *files*, write a detailed log, and return the number of files with issues.
 
-    Parameters
+    Args
     ----------
     files : List[str]
         Absolute or relative paths to Python source files.
