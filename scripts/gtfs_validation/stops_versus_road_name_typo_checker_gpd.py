@@ -17,7 +17,7 @@ Outputs:
 import logging
 import os
 import re
-from typing import Optional, Mapping, Any
+from typing import Any, Mapping, Optional
 
 import geopandas as gpd
 import pandas as pd
@@ -31,9 +31,7 @@ from rapidfuzz import fuzz, process
 # Paths to input files
 GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
 
-ROADWAYS_PATH = (
-    r"path\to\your\roadways.shp"  # Replace with your roadways centerline shapefile path
-)
+ROADWAYS_PATH = r"path\to\your\roadways.shp"  # Replace with your roadways centerline shapefile path
 
 # Output settings
 OUTPUT_DIR = r"path\to\output\directory"  # Replace with your desired output directory
@@ -71,6 +69,7 @@ DESCRIPTIONS_ROADWAY = {
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def get_crs_unit(crs_code):
     """Determine the linear unit of a CRS.
@@ -143,9 +142,7 @@ def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame
     required_cols = ["stop_id", "stop_name", "stop_lat", "stop_lon"]
     missing = [c for c in required_cols if c not in stops_df.columns]
     if missing:
-        raise ValueError(
-            f"Required columns missing from stops.txt: {', '.join(missing)}"
-        )
+        raise ValueError(f"Required columns missing from stops.txt: {', '.join(missing)}")
 
     # Ensure numeric latitude / longitude
     stops_df = stops_df.copy()
@@ -176,6 +173,7 @@ def load_roadways(roadways_path):
 # DATA PROCESSING FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def map_roadway_columns(roadways_gdf):
     """Map the required roadway columns.
 
@@ -192,14 +190,11 @@ def map_roadway_columns(roadways_gdf):
         if col in roadways_gdf.columns:
             column_mapping[col] = col
         else:
-            logging.warning(
-                "The column '%s' is missing from the roadway shapefile.", col
-            )
+            logging.warning("The column '%s' is missing from the roadway shapefile.", col)
             logging.info("Description: %s", DESCRIPTIONS_ROADWAY[col])
             logging.info("Available columns: %s", roadways_gdf.columns.tolist())
             new_col = input(
-                f"Please enter the correct column name for '{col}' "
-                "(or leave blank to skip): "
+                f"Please enter the correct column name for '{col}' (or leave blank to skip): "
             ).strip()
             while new_col and new_col not in roadways_gdf.columns:
                 logging.warning(
@@ -208,8 +203,7 @@ def map_roadway_columns(roadways_gdf):
                     roadways_gdf.columns.tolist(),
                 )
                 new_col = input(
-                    f"Please enter the correct column name for '{col}' "
-                    "(or leave blank to skip): "
+                    f"Please enter the correct column name for '{col}' (or leave blank to skip): "
                 ).strip()
             if new_col:
                 column_mapping[col] = new_col
@@ -237,9 +231,7 @@ def extract_modifiers(roadways_gdf, column_mapping_roadway):
             unique_vals = roadways_gdf[mapped_field].dropna().unique()
             modifiers.update(unique_vals)
     modifiers = set(
-        str(mod).lower().strip()
-        for mod in modifiers
-        if pd.notnull(mod) and str(mod).strip()
+        str(mod).lower().strip() for mod in modifiers if pd.notnull(mod) and str(mod).strip()
     )
     return modifiers
 
@@ -313,9 +305,7 @@ def extract_street_names(stop_name, modifiers):
     return [normalize_street_name(street, modifiers) for street in streets if street]
 
 
-def compare_stop_to_roads(
-    stop_id, stop_name, stop_streets, road_names, roads_gdf, threshold
-):
+def compare_stop_to_roads(stop_id, stop_name, stop_streets, road_names, roads_gdf, threshold):
     """Compare each portion of the stop name to known road names via fuzzy matching.
 
     Args:
@@ -333,9 +323,7 @@ def compare_stop_to_roads(
     for street in stop_streets:
         if street in road_names:
             continue
-        match_tuples = process.extract(
-            street, road_names, scorer=fuzz.token_set_ratio, limit=3
-        )
+        match_tuples = process.extract(street, road_names, scorer=fuzz.token_set_ratio, limit=3)
         for match_clean, score, _ in match_tuples:
             if threshold <= score < 100:
                 original_matches = roads_gdf.loc[
@@ -378,18 +366,16 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshol
         )
         potential_typos.extend(typos)
 
-    logging.info(
-        "Total potential typos found before deduplication: %d", len(potential_typos)
-    )
+    logging.info("Total potential typos found before deduplication: %d", len(potential_typos))
     typos_df = pd.DataFrame(potential_typos)
-    typos_df_sorted = typos_df.sort_values(
-        by="similarity_score", ascending=False
-    ).drop_duplicates()
+    typos_df_sorted = typos_df.sort_values(by="similarity_score", ascending=False).drop_duplicates()
     return typos_df_sorted
+
 
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -466,10 +452,12 @@ def load_gtfs_data(
                 f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
     return data
-    
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entry point for the GTFS stop-vs-road typo-checker script."""
