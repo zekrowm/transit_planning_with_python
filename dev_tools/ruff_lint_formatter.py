@@ -31,15 +31,15 @@ from typing import List, Tuple
 # =============================================================================
 
 FILES_OR_FOLDERS: List[str] = [
-    r"C:\Path\to\Project\src",  # <<< CHANGE ME
+    r"C:\Path\to\Your\Project",  # <<< CHANGE ME
 ]
 
 SKIP_PATHS: List[str] = [
-    r"C:\Path\to\Project\.venv",
-    r"C:\Path\to\Project\build",
+    r"C:\Path\to\Your\Project\Folder1_to_Skip",
+    r"C:\Path\to\Your\Project\Folder2_to_Skip",
 ]
 
-OUTPUT_FOLDER: str = r"C:\Path\to\Project\qa_reports"  # <<< CHANGE ME
+OUTPUT_FOLDER: str = r"C:\Path\to\Your\Logs_Output_Folder"  # <<< CHANGE ME
 READ_ONLY: bool = True  # False → apply fixes
 
 RUFF_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--extend-exclude", "migrations"]
