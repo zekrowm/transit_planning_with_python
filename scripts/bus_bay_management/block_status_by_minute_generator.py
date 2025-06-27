@@ -9,7 +9,7 @@ though direct execution via the command line is also supported.
 
 import logging
 import os
-from typing import Any, Optional, Mapping, cast
+from typing import Any, Mapping, Optional, cast
 
 import pandas as pd
 
@@ -62,12 +62,11 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # FUNCTIONS
 # ==================================================================================================
 
+
 def validate_folders(input_path, output_path):
     """Check that the input folder exists, and ensure the output folder is created if not."""
     if not os.path.isdir(input_path):
-        raise NotADirectoryError(
-            f"Input path does not exist or is not a directory: {input_path}"
-        )
+        raise NotADirectoryError(f"Input path does not exist or is not a directory: {input_path}")
     os.makedirs(output_path, exist_ok=True)
 
 
@@ -597,9 +596,7 @@ def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
 
     # Convert times to minutes
     stop_times_df["arrival_min"] = stop_times_df["arrival_time"].apply(time_to_minutes)
-    stop_times_df["departure_min"] = stop_times_df["departure_time"].apply(
-        time_to_minutes
-    )
+    stop_times_df["departure_min"] = stop_times_df["departure_time"].apply(time_to_minutes)
     # Keep only stop_times for the trips that survived
     stop_times_df = stop_times_df[stop_times_df["trip_id"].isin(trips_df["trip_id"])]
 
@@ -614,9 +611,7 @@ def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
     stops_merge_cols = ["stop_id", "stop_name", "stop_code"]
     if "timepoint" in stops_df.columns:
         stops_merge_cols.append("timepoint")
-    merged_df = pd.merge(
-        merged_df, stops_df[stops_merge_cols], on="stop_id", how="left"
-    )
+    merged_df = pd.merge(merged_df, stops_df[stops_merge_cols], on="stop_id", how="left")
 
     # Mark first/last stops
     merged_df = mark_first_and_last_stops(merged_df)
@@ -630,12 +625,8 @@ def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
         )
 
     # Force first/last to timepoint=2 if it was 0
-    merged_df.loc[
-        (merged_df["is_first_stop"]) & (merged_df["timepoint"] == 0), "timepoint"
-    ] = 2
-    merged_df.loc[
-        (merged_df["is_last_stop"]) & (merged_df["timepoint"] == 0), "timepoint"
-    ] = 2
+    merged_df.loc[(merged_df["is_first_stop"]) & (merged_df["timepoint"] == 0), "timepoint"] = 2
+    merged_df.loc[(merged_df["is_last_stop"]) & (merged_df["timepoint"] == 0), "timepoint"] = 2
 
     # Block-level filtering based on route_short_name, stop_id, stop_code
     if ROUTE_SHORTNAME_FILTER or STOP_ID_FILTER or STOP_CODE_FILTER:
@@ -716,14 +707,11 @@ def run_step1_gtfs_to_blocks():
 
         if len(trip_ids) > MAX_TRIPS_PER_BLOCK:
             print(
-                f"Block {blk_id} has {len(trip_ids)} trips > limit "
-                f"{MAX_TRIPS_PER_BLOCK}. Skipped."
+                f"Block {blk_id} has {len(trip_ids)} trips > limit {MAX_TRIPS_PER_BLOCK}. Skipped."
             )
             continue
 
-        block_schedule_df = process_block(
-            block_data, blk_id, timeline, BUS_STOP_CLUSTERS_STEP1
-        )
+        block_schedule_df = process_block(block_data, blk_id, timeline, BUS_STOP_CLUSTERS_STEP1)
         block_schedule_df.sort_values("Timestamp", inplace=True)
 
         block_route_ids = block_data["route_id"].dropna().unique()
@@ -739,9 +727,11 @@ def run_step1_gtfs_to_blocks():
 
     print("\nStep 1 complete: All block-level spreadsheets generated.")
 
+
 # --------------------------------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -818,6 +808,7 @@ def load_gtfs_data(
                 f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
     return data
+
 
 # ==================================================================================================
 # MAIN
