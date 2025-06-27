@@ -42,6 +42,9 @@ ROUTE_LEVEL: str = "shape"          # "shape" or "route" (dissolve to route_id)
 MIN_SPACING_FT: float = 400.0       # threshold for short‐spacing log
 SPACING_LOG_FILE: str = "short_spacing_segments.txt"
 
+# Optional list of route_ids to process; leave empty ([]) for no filtering.
+ROUTE_FILTER: List[str] = ["101"]
+
 # =============================================================================
 # HELPERS
 # =============================================================================
@@ -84,6 +87,44 @@ def points_to_line(
         Sort_Field=sort_field
     )
 
+def apply_route_filter(
+    raw_fc: str,
+    gtfs_folder: str,
+    route_field: str,
+    per_shape: bool,
+    filter_routes: List[str],
+) -> str:
+    """Return an in-memory feature-class of only those routes in `filter_routes`.
+
+    If `per_shape` is True, we look up shape_id → route_id via trips.txt;
+    otherwise we filter directly on route_id.
+    """
+    import csv
+    from pathlib import Path
+
+    arcpy.AddMessage(f" → Applying route filter: {filter_routes!r}")
+    lyr = "routes_filter_lyr"
+    arcpy.MakeFeatureLayer_management(raw_fc, lyr)
+
+    if per_shape:
+        mapping: Dict[str, str] = {}
+        trips_path = Path(gtfs_folder) / "trips.txt"
+        with open(trips_path, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                sid = row.get("shape_id")
+                if sid:
+                    mapping[sid] = row["route_id"]
+        good_shapes = [sid for sid, rid in mapping.items() if rid in filter_routes]
+        where = f"shape_id IN ({','.join(f"'{s}'" for s in good_shapes)})" if good_shapes else "1=0"
+    else:
+        where = f"route_id IN ({','.join(f"'{r}'" for r in filter_routes)})" if filter_routes else "1=1"
+
+    arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", where)
+    out_lyr = "in_memory/routes_filtered"
+    arcpy.CopyFeatures_management(lyr, out_lyr)
+    arcpy.AddMessage(f"   ✔ Filtered routes → {out_lyr}")
+    return out_lyr
+
 def project_feature(
     in_fc: str,
     out_fc: str,
@@ -99,12 +140,7 @@ def dissolve_routes_by_route_id(
     routes_txt: Path,
     out_fc: str
 ) -> None:
-    """
-    Dissolve one feature per route_id:
-    • map shape_id → route_id via trips.txt
-    • add route_id field, update, then Dissolve()
-    • JoinField from routes.txt for attributes
-    """
+    """Dissolve one feature per route_id."""
     arcpy.AddMessage(" → Dissolve → by route_id")
     mapping: Dict[str, str] = {}
     with open(trips_txt, newline="", encoding="utf-8") as fh:
@@ -112,12 +148,10 @@ def dissolve_routes_by_route_id(
             sid = row.get("shape_id")
             if sid:
                 mapping.setdefault(sid, row["route_id"])
-
     arcpy.AddField_management(shapes_fc, "route_id", "TEXT", 50)
     with arcpy.da.UpdateCursor(shapes_fc, ["shape_id", "route_id"]) as ucur:
         for sid, _ in ucur:
             ucur.updateRow((sid, mapping.get(sid)))
-
     arcpy.Dissolve_management(shapes_fc, out_fc, "route_id")
     tmp_routes = arcpy.TableToTable_conversion(
         str(routes_txt), arcpy.env.scratchGDB, "routes_tmp"
@@ -129,11 +163,10 @@ def create_routes_with_m(
     route_id_field: str,
     out_fc: str
 ) -> None:
-    """Create M-enabled routes (measure=LENGTH)."""
+    """Create M-enabled routes (measure = LENGTH)."""
     arcpy.AddMessage(" → CreateRoutes (M‐enabled)")
     arcpy.CheckOutExtension("linearReferencing")
-    arcpy.lr.CreateRoutes(in_fc, route_id_field, out_fc,
-                          measure_source="LENGTH")
+    arcpy.lr.CreateRoutes(in_fc, route_id_field, out_fc, measure_source="LENGTH")
 
 def locate_stops_along_routes(
     stops_fc: str,
@@ -157,39 +190,24 @@ def build_segments(
     out_fc: str,
     spat_ref: arcpy.SpatialReference
 ) -> None:
-    """
-    Build inter‐stop segments in a new shapefile with fields:
-    route_id, from_stop, to_stop, length_ft.
-    """
+    """Build inter‐stop segments."""
     arcpy.AddMessage(" → Building segments")
     out_folder = os.path.dirname(out_fc)
     out_name = os.path.splitext(os.path.basename(out_fc))[0]
-
-    arcpy.CreateFeatureclass_management(
-        out_folder, out_name, "POLYLINE",
-        spatial_reference=spat_ref
-    )
+    arcpy.CreateFeatureclass_management(out_folder, out_name, "POLYLINE", spatial_reference=spat_ref)
     arcpy.AddField_management(out_fc, "route_id", "TEXT", 50)
     arcpy.AddField_management(out_fc, "from_stop", "TEXT", 50)
     arcpy.AddField_management(out_fc, "to_stop", "TEXT", 50)
     arcpy.AddField_management(out_fc, "length_ft", "DOUBLE")
-
     routes: Dict[str, arcpy.Polyline] = {}
     with arcpy.da.SearchCursor(routes_fc, [route_id_field, "SHAPE@"]) as scur:
         for rid, geom in scur:
             routes[rid] = geom
-
     measures: Dict[str, List[Tuple[float, str]]] = {}
-    with arcpy.da.SearchCursor(
-        events_tbl, [route_id_field, "MEAS", "stop_id"]
-    ) as ecur:
+    with arcpy.da.SearchCursor(events_tbl, [route_id_field, "MEAS", "stop_id"]) as ecur:
         for rid, meas, sid in ecur:
             measures.setdefault(rid, []).append((meas, sid))
-
-    with arcpy.da.InsertCursor(
-        out_fc,
-        ["SHAPE@", "route_id", "from_stop", "to_stop", "length_ft"]
-    ) as icur:
+    with arcpy.da.InsertCursor(out_fc, ["SHAPE@", "route_id", "from_stop", "to_stop", "length_ft"]) as icur:
         for rid, pts in measures.items():
             pts.sort(key=lambda x: x[0])
             line = routes[rid]
@@ -198,7 +216,6 @@ def build_segments(
                     continue
                 seg = line.segmentAlongLine(m1, m2, False)
                 icur.insertRow((seg, rid, s1, s2, seg.length))
-
     arcpy.AddMessage(f"   ✔ {out_fc}")
 
 def flag_short_spacing(
@@ -206,16 +223,12 @@ def flag_short_spacing(
     threshold: float,
     log_path: Path
 ) -> None:
-    """
-    Write a tab‐delimited log of all segments shorter than *threshold* feet.
-    Fields: route_id, from_stop, to_stop, length_ft
-    """
+    """Log all segments shorter than threshold."""
     arcpy.AddMessage(" → Flagging short‐spacing segments")
     with open(log_path, "w", encoding="utf-8") as fh:
         fh.write("route_id\tfrom_stop\tto_stop\tlength_ft\n")
         with arcpy.da.SearchCursor(
-            segments_fc,
-            ["route_id", "from_stop", "to_stop", "length_ft"]
+            segments_fc, ["route_id", "from_stop", "to_stop", "length_ft"]
         ) as scur:
             for rid, frm, to, length in scur:
                 if length < threshold:
@@ -230,7 +243,6 @@ def main() -> None:
     validate_config()
     arcpy.env.overwriteOutput = True
     arcpy.env.workspace = arcpy.env.scratchGDB
-
     gtfs = str(Path(GTFS_FOLDER))
     out = str(Path(OUTPUT_FOLDER))
     sr_wgs84 = arcpy.SpatialReference(4326)
@@ -239,7 +251,30 @@ def main() -> None:
     route_field = "shape_id" if per_shape else "route_id"
 
     try:
-        # --- Stops ---
+        # ROUTES
+        arcpy.AddMessage("\n=== Routes / Shapes ===")
+        shapes_tbl = arcpy.TableToTable_conversion(
+            os.path.join(gtfs, "shapes.txt"), "in_memory", "shapes_tbl"
+        ).getOutput(0)
+        shapes_xy = make_xy_event_layer(
+            shapes_tbl, "shape_pt_lon", "shape_pt_lat", "shapes_xy", sr_wgs84
+        )
+        shapes_line = "in_memory/shapes_line"
+        points_to_line(shapes_xy, shapes_line, "shape_id", "shape_pt_sequence")
+        routes_raw = os.path.join(out, "routes_raw.shp")
+        project_feature(shapes_line, routes_raw, sr_target)
+        if ROUTE_FILTER:
+            routes_fc = apply_route_filter(
+                routes_raw, GTFS_FOLDER, route_field, per_shape, ROUTE_FILTER
+            )
+            routes_shp = os.path.join(out, "routes.shp")
+            arcpy.CopyFeatures_management(routes_fc, routes_shp)
+            arcpy.AddMessage(f"   ✔ Filtered routes → {routes_shp}")
+        else:
+            routes_fc = routes_raw
+            arcpy.AddMessage(f"   ✔ All routes → {routes_fc}")
+
+        # STOPS
         arcpy.AddMessage("\n=== Stops ===")
         stops_tbl = arcpy.TableToTable_conversion(
             os.path.join(gtfs, "stops.txt"), "in_memory", "stops_tbl"
@@ -247,61 +282,31 @@ def main() -> None:
         stops_xy = make_xy_event_layer(
             stops_tbl, "stop_lon", "stop_lat", "stops_xy", sr_wgs84
         )
-        stops_wgs = arcpy.CopyFeatures_management(
-            stops_xy, "in_memory/stops_wgs"
-        ).getOutput(0)
-        stops_fc = os.path.join(out, "stops.shp")
-        project_feature(stops_wgs, stops_fc, sr_target)
-        arcpy.AddMessage(f"   ✔ {stops_fc}")
-
-        # --- Routes / Shapes ---
-        arcpy.AddMessage("\n=== Routes / Shapes ===")
-        shapes_tbl = arcpy.TableToTable_conversion(
-            os.path.join(gtfs, "shapes.txt"), "in_memory", "shapes_tbl"
-        ).getOutput(0)
-
-        shapes_xy = make_xy_event_layer(
-            shapes_tbl, "shape_pt_lon", "shape_pt_lat",
-            "shapes_xy", sr_wgs84
-        )
-        shapes_line = "in_memory/shapes_line"
-        points_to_line(
-            shapes_xy, shapes_line, "shape_id", "shape_pt_sequence"
-        )
-
-        routes_raw = os.path.join(out, "routes_raw.shp")
-        project_feature(shapes_line, routes_raw, sr_target)
-
-        if per_shape:
-            routes_fc = routes_raw
-            arcpy.AddMessage(f"   ✔ {routes_fc}")
+        stops_wgs = arcpy.CopyFeatures_management(stops_xy, "in_memory/stops_wgs").getOutput(0)
+        full_stops = os.path.join(out, "stops_full.shp")
+        project_feature(stops_wgs, full_stops, sr_target)
+        if ROUTE_FILTER:
+            arcpy.MakeFeatureLayer_management(full_stops, "stops_lyr")
+            arcpy.SelectLayerByLocation_management("stops_lyr", "INTERSECT", routes_fc)
+            filtered_stops = os.path.join(out, "stops.shp")
+            arcpy.CopyFeatures_management("stops_lyr", filtered_stops)
+            arcpy.AddMessage(f"   ✔ Filtered stops → {filtered_stops}")
+            stops_fc = filtered_stops
         else:
-            routes_fc = os.path.join(out, "routes.shp")
-            dissolve_routes_by_route_id(
-                routes_raw,
-                Path(gtfs) / "trips.txt",
-                Path(gtfs) / "routes.txt",
-                routes_fc
-            )
-            arcpy.AddMessage(f"   ✔ {routes_fc}")
+            arcpy.AddMessage(f"   ✔ All stops → {full_stops}")
+            stops_fc = full_stops
 
-        # --- Segments ---
+        # SEGMENTS
         arcpy.AddMessage("\n=== Inter-stop Segments ===")
         routes_m = "in_memory/routes_m"
         create_routes_with_m(routes_fc, route_field, routes_m)
-
         events_tbl = "in_memory/stops_events"
-        locate_stops_along_routes(
-            stops_fc, routes_m, route_field, events_tbl
-        )
-
+        locate_stops_along_routes(stops_fc, routes_m, route_field, events_tbl)
         segments_fc = os.path.join(out, "segments.shp")
-        build_segments(
-            routes_m, events_tbl, route_field,
-            segments_fc, sr_target
-        )
+        build_segments(routes_m, events_tbl, route_field, segments_fc, sr_target)
+        arcpy.AddMessage(f"   ✔ Segments → {segments_fc}")
 
-        # --- Short-spacing Log ---
+        # SHORT SPACING
         log_path = Path(OUTPUT_FOLDER) / SPACING_LOG_FILE
         flag_short_spacing(segments_fc, MIN_SPACING_FT, log_path)
 
