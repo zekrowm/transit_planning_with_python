@@ -75,6 +75,7 @@ arcpy.env.overwriteOutput = True
 # FUNCTIONS
 # =============================================================================
 
+
 def create_work_gdb(base_dir: str) -> str:
     """Create <base_dir>/typo_work_<timestamp>.gdb and return its path.
 
@@ -121,9 +122,7 @@ def load_gtfs_stops(folder: str) -> pd.DataFrame:
     df = pd.read_csv(path, dtype=str, low_memory=False)
     need = {"stop_id", "stop_name", "stop_lat", "stop_lon"}
     if not need.issubset(df.columns):
-        raise ValueError(
-            f"stops.txt missing columns: {', '.join(need - set(df.columns))}"
-        )
+        raise ValueError(f"stops.txt missing columns: {', '.join(need - set(df.columns))}")
     df["stop_lat"] = df["stop_lat"].astype(float)
     df["stop_lon"] = df["stop_lon"].astype(float)
     return df
@@ -354,9 +353,7 @@ def road_clean_dict(fc: str, fullname: str, mods: set[str]) -> dict[str, set[str
     return d
 
 
-def stop_to_candidate_roads(
-    join_fc: str, fullname: str, mods: set[str]
-) -> dict[str, set[str]]:
+def stop_to_candidate_roads(join_fc: str, fullname: str, mods: set[str]) -> dict[str, set[str]]:
     """Maps each stop ID to the set of nearby, normalized road names.
 
     Args:
@@ -412,9 +409,7 @@ def detect_typos(
         for frag in pieces:
             if frag in candidates:
                 continue
-            for match in difflib.get_close_matches(
-                frag, candidates, n=3, cutoff=thresh / 100
-            ):
+            for match in difflib.get_close_matches(frag, candidates, n=3, cutoff=thresh / 100):
                 score = dl_score(frag, match)
                 if thresh <= score < 100:
                     for orig in road_clean.get(match, {match}):
@@ -432,16 +427,13 @@ def detect_typos(
     if not out_rows:
         return pd.DataFrame()
 
-    return (
-        pd.DataFrame(out_rows)
-        .sort_values("similarity_score", ascending=False)
-        .drop_duplicates()
-    )
+    return pd.DataFrame(out_rows).sort_values("similarity_score", ascending=False).drop_duplicates()
 
 
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Main script execution function."""
@@ -467,9 +459,7 @@ def main() -> None:
     # Roadway schema
     logging.info("Mapping roadway fields …")
     col_map = map_road_fields(roads_proj)
-    mods = modifiers_from_roads(
-        roads_proj, col_map.get("RW_TYPE_US", col_map["FULLNAME"])
-    )
+    mods = modifiers_from_roads(roads_proj, col_map.get("RW_TYPE_US", col_map["FULLNAME"]))
     logging.info("Found %d modifiers.", len(mods))
 
     # Buffer stops
