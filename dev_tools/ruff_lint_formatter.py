@@ -15,10 +15,6 @@ Features:
 
 Configuration constants can be edited in-place to adapt to local environments.
 
-Exit codes:
-    0 — No Ruff violations detected.
-    1 — Ruff found violations in one or more files.
-
 Dependencies:
     - Ruff must be installed and accessible via CLI (`ruff` or `python -m ruff`).
 """
@@ -87,6 +83,14 @@ CONSOLE = logging.getLogger(__name__)
 # =============================================================================
 
 def _default_targets() -> list[str]:
+    """Return a default list of paths to scan.
+
+    If command-line arguments are provided, they are used as the targets.
+    Otherwise, the parent directory of this script is returned as a fallback.
+
+    Returns:
+        list[str]: List of file or directory paths to scan.
+    """
     if FILES_OR_FOLDERS:
         return FILES_OR_FOLDERS
     # fallback: repo root (folder above this script)
@@ -94,6 +98,15 @@ def _default_targets() -> list[str]:
 
 
 def _is_skipped(p: Path, skip: list[str]) -> bool:
+    """Determine whether a given path should be excluded from scanning.
+
+    Args:
+        p (Path): Path to evaluate.
+        skip (list[str]): List of paths to skip, normalized to lowercase.
+
+    Returns:
+        bool: True if the path should be skipped, False otherwise.
+    """
     norm = p.resolve().as_posix().lower()
     for s in skip:
         tgt = Path(s).expanduser().resolve().as_posix().lower()
@@ -103,6 +116,15 @@ def _is_skipped(p: Path, skip: list[str]) -> bool:
 
 
 def gather_python_files(targets: list[str], skip: list[str]) -> list[str]:
+    """Recursively collect all Python files from the given targets, excluding skip paths.
+
+    Args:
+        targets (list[str]): Files or directories to scan.
+        skip (list[str]): Directories to exclude (e.g., 'tests', 'venv').
+
+    Returns:
+        list[str]: List of discovered `.py` file paths.
+    """
     out: list[str] = []
     for entry in targets:
         p = Path(entry).expanduser()
@@ -127,6 +149,14 @@ def gather_python_files(targets: list[str], skip: list[str]) -> list[str]:
 
 
 def _setup_detailed_logger(out_dir: str) -> Tuple[logging.Logger, Path]:
+    """Create and configure a logger that writes detailed output to a timestamped file.
+
+    Args:
+        out_dir (str): Directory where the log file should be saved.
+
+    Returns:
+        Tuple[logging.Logger, Path]: The logger object and the path to the log file.
+    """
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder = Path(out_dir).expanduser().resolve()
     folder.mkdir(parents=True, exist_ok=True)
@@ -143,7 +173,11 @@ def _setup_detailed_logger(out_dir: str) -> Tuple[logging.Logger, Path]:
 
 
 def _ruff_cmd() -> list[str]:
-    """Return ['ruff'] if on PATH else [python, -m, ruff]."""
+    """Return the base command to invoke Ruff.
+
+    Returns:
+        list[str]: Command for subprocess call (either ['ruff'] or ['python', '-m', 'ruff']).
+    """
     return ["ruff"] if shutil.which("ruff") else [sys.executable, "-m", "ruff"]
 
 
@@ -213,6 +247,15 @@ def run_ruff(files: list[str], read_only: bool) -> int:
 # =============================================================================
 
 def main() -> None:
+    """Entry point for the script.
+
+    Gathers Python files, filters out skipped paths, and runs Ruff on the resulting list.
+    Prints summary output to the console and exits with an appropriate status code.
+
+    Exit Codes:
+        0: No issues found by Ruff.
+        1: Ruff found violations in one or more files.
+    """
     files = gather_python_files(_default_targets(), SKIP_PATHS)
     if not files:
         CONSOLE.warning("No Python files found – nothing to do.")
