@@ -10,14 +10,24 @@ jobs:
   ruff:
     runs-on: ubuntu-latest
 
-    # 1️⃣ – make sure we have the history we need for git-diff
     steps:
+      # 1️⃣ – full history so git-diff can span the PR range
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0      # ← important
+          fetch-depth: 0
 
-      # 2️⃣ – list changed *.py files (merged diff for PRs, simple diff for pushes)
+      # 2️⃣ – set up Python so we can pip-install Ruff
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 3️⃣ – install Ruff (pin the version if you need repeatable CI)
+      - name: Install Ruff
+        run: python -m pip install --no-cache-dir ruff==0.4.4
+
+      # 4️⃣ – list changed *.py files (merge base for PRs, previous SHA for pushes)
       - name: Detect changed Python files
         id: changed
         shell: bash
@@ -27,14 +37,14 @@ jobs:
           PY_CHANGED=$(git diff --name-only "$BASE" "$HEAD" -- '*.py' | tr '\n' ' ')
           echo "files=${PY_CHANGED}" >> "$GITHUB_OUTPUT"
 
-      # 3️⃣ – run your helper only if at least one file was found
+      # 5️⃣ – run the helper only when at least one Python file changed
       - name: Ruff – changed files only
         if: steps.changed.outputs.files != ''
         run: |
           echo "Running Ruff on: ${{ steps.changed.outputs.files }}"
           python dev_tools/ruff_lint_formatter.py ${{ steps.changed.outputs.files }}
 
-      # 4️⃣ – short-circuit when nothing to lint (prevents “job succeeded with no steps” noise)
+      # 6️⃣ – tidy “no-op” path
       - name: Skip – no Python files changed
         if: steps.changed.outputs.files == ''
         run: echo "No Python files changed – skipping Ruff."
