@@ -60,6 +60,7 @@ SERVICE_ID = "3"  # Replace with your desired service_id value from calendar.txt
 # FUNCTIONS
 # =============================================================================
 
+
 def fix_time_format(time_str):
     """Normalize GTFS HH:MM:SS strings.
 
@@ -143,9 +144,7 @@ def process_and_export(
     # ── Apply service filter ────────────────────────────────────────────────
     if service_id is not None:
         trips_filtered = trips[trips["service_id"] == str(service_id)]
-        logging.info(
-            "Analysing only service_id=%s (%d trips).", service_id, len(trips_filtered)
-        )
+        logging.info("Analysing only service_id=%s (%d trips).", service_id, len(trips_filtered))
     else:
         trips_filtered = trips.copy()
         logging.info("No service_id specified – will iterate over each one.")
@@ -190,16 +189,10 @@ def process_and_export(
         starts = sel[sel["stop_sequence"] == 1].dropna(subset=["departure_time"])
 
         # Determine which service_ids to iterate over
-        sid_iter = (
-            [service_id] if service_id is not None else starts["service_id"].unique()
-        )
+        sid_iter = [service_id] if service_id is not None else starts["service_id"].unique()
 
         for sid in sid_iter:
-            cur = (
-                starts
-                if service_id is not None
-                else starts[starts["service_id"] == sid]
-            )
+            cur = starts if service_id is not None else starts[starts["service_id"] == sid]
 
             if cur.empty:
                 logging.info(
@@ -211,9 +204,7 @@ def process_and_export(
                 continue
 
             cur = cur.assign(
-                time_bin=cur["departure_time"].apply(
-                    lambda t: get_time_bin(t, interval_minutes)
-                )
+                time_bin=cur["departure_time"].apply(lambda t: get_time_bin(t, interval_minutes))
             )
 
             trips_per_bin = (
@@ -275,15 +266,11 @@ def _export_to_excel(
         if direction_id is not None:
             ws.title = f"Route_{route_short}_Dir_{direction_id}"
             file_name = (
-                f"Trips_Per_{interval_minutes}Min_"
-                f"Route_{route_short}_Dir_{direction_id}.xlsx"
+                f"Trips_Per_{interval_minutes}Min_Route_{route_short}_Dir_{direction_id}.xlsx"
             )
         else:
             ws.title = f"Route_{route_short}_All_Directions"
-            file_name = (
-                f"Trips_Per_{interval_minutes}Min_"
-                f"Route_{route_short}_All_Directions.xlsx"
-            )
+            file_name = f"Trips_Per_{interval_minutes}Min_Route_{route_short}_All_Directions.xlsx"
 
     # Write headers
     ws.append(df.columns.tolist())
@@ -311,10 +298,12 @@ def _export_to_excel(
         interval_minutes,
         file_name,
     )
-    
+
+
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
     """Load requested GTFS tables into memory.
@@ -364,9 +353,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
         if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
     data = {}
     for file_name in files:
@@ -378,9 +365,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             logging.info(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
             raise ValueError(
@@ -394,9 +379,11 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 
     return data
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the end-to-end pipeline from CLI or “Run ▶” button.
