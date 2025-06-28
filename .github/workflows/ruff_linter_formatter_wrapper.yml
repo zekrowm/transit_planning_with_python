@@ -25,4 +25,4 @@ jobs:
 
       - name: Run Ruff wrapper
         run: |
-          python dev_tools/run_ruff.py
+          python dev_tools/ruff_lint_formatter.py
