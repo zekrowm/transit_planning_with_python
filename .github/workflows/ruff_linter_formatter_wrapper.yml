@@ -32,7 +32,7 @@ jobs:
         if: steps.changed.outputs.files != ''
         run: |
           echo "Running Ruff on: ${{ steps.changed.outputs.files }}"
-          python tools/ruff_lint_formatter.py ${{ steps.changed.outputs.files }}
+          python dev_tools/ruff_lint_formatter.py ${{ steps.changed.outputs.files }}
 
       # 4️⃣ – short-circuit when nothing to lint (prevents “job succeeded with no steps” noise)
       - name: Skip – no Python files changed
