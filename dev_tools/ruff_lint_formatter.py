@@ -23,15 +23,6 @@ Dependencies:
     - Ruff must be installed and accessible via CLI (`ruff` or `python -m ruff`).
 """
 
-"""
-Runs Ruff on Python source files, exporting detailed logs (single call).
-
-* Keeps the familiar “edit-constants” workflow.
-* Uses ONE Ruff invocation (faster).
-* Disables ANSI colours for clean logs/CLI.
-* Prints a one-line per-rule summary (e.g. D212:3, ANN001:2).
-"""
-
 from __future__ import annotations
 
 import logging
