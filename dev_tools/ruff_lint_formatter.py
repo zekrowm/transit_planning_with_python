@@ -35,11 +35,15 @@ from typing import List, Tuple
 # CONFIGURATION
 # =============================================================================
 
-FILES_OR_FOLDERS: list[str] = []   # CI: repo root fallback, replace with local folder path if desired
+FILES_OR_FOLDERS: list[
+    str
+] = []  # CI: repo root fallback, replace with local folder path if desired
 
 SKIP_PATHS: List[str] = ["tests"]  # e.g. ["venv", "build", "tests"]
 
-OUTPUT_FOLDER: str = ".artifacts"  # relative path is fine, replace with local folder path if desired
+OUTPUT_FOLDER: str = (
+    ".artifacts"  # relative path is fine, replace with local folder path if desired
+)
 READ_ONLY: bool = False  # False → ruff --fix
 RUFF_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--extend-exclude", "migrations"]
 
@@ -64,7 +68,7 @@ RUFF_CLI_ARGS: list[str] = [
     "F401,D,I,TCH003",
     "--ignore",
     "ANN401",
-#    "--pydocstyle-convention", "google",
+    #    "--pydocstyle-convention", "google",
 ]
 
 # ── new: fine-grained suppressions for libs without stubs ─────
@@ -81,6 +85,7 @@ CONSOLE = logging.getLogger(__name__)
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _default_targets() -> list[str]:
     """Return a default list of paths to scan.
@@ -242,9 +247,11 @@ def run_ruff(files: list[str], read_only: bool) -> int:
     issue_lines = re.findall(r"^(.+?):\d+:\d+:", proc.stdout or "", flags=re.MULTILINE)
     return len(set(issue_lines)) if proc.returncode == 1 else 0
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entry point for the script.
