@@ -81,11 +81,6 @@ def load_and_concatenate_csv(files: List[str]) -> pd.DataFrame:
     return combined_df
 
 
-# =============================================================================
-# CONCATENATION SECTION
-# =============================================================================
-
-
 def concatenate_csvs(csv_folder: str) -> pd.DataFrame:
     """Locate CSVs in a folder and merge them into one DataFrame.
 
@@ -103,11 +98,6 @@ def concatenate_csvs(csv_folder: str) -> pd.DataFrame:
     combined_df = load_and_concatenate_csv(csv_files)
     print(f"Concatenation complete: {combined_df.shape[0]} rows, {combined_df.shape[1]} columns")
     return combined_df
-
-
-# =============================================================================
-# SUMMARY CALCULATIONS
-# =============================================================================
 
 
 def aggregate_monthly_trips(df: pd.DataFrame) -> pd.DataFrame:
