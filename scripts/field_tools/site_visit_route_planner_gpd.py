@@ -69,10 +69,6 @@ OPTIMIZATION_CONFIG = {
 # FUNCTIONS
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# HELPER FUNCTIONS
-# -----------------------------------------------------------------------------
-
 # Build a transformer from WGS84 (lon/lat) to EPSG:2283 (feet).
 PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
     "EPSG:4326",  # source (lat/lon)
