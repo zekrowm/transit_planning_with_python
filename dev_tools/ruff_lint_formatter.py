@@ -23,10 +23,6 @@ from typing import List, Tuple
 # CONFIGURATION
 # =============================================================================
 
-# Allow explicit file list from the command line (e.g. CI “changed files” step)
-if len(sys.argv) > 1:
-    FILES_OR_FOLDERS[:] = sys.argv[1:]
-
 FILES_OR_FOLDERS: list[str] = []   # CI: repo root fallback, replace with local folder path if desired
 
 SKIP_PATHS: List[str] = ["tests"]  # e.g. ["venv", "build", "tests"]
@@ -34,6 +30,10 @@ SKIP_PATHS: List[str] = ["tests"]  # e.g. ["venv", "build", "tests"]
 OUTPUT_FOLDER: str = ".artifacts"  # relative path is fine, replace with local folder path if desired
 READ_ONLY: bool = True  # False → ruff --fix
 RUFF_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--extend-exclude", "migrations"]
+
+# Allow explicit file list from the command line (e.g. CI “changed files” step)
+if len(sys.argv) > 1:
+    FILES_OR_FOLDERS[:] = sys.argv[1:]
 
 # -----------------------------------------------------------------------------
 # CONSTANTS
