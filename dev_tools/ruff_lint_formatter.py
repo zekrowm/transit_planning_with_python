@@ -1,3 +1,28 @@
+"""Run Ruff on a collection of Python source files with a single invocation.
+
+This script is designed for efficient and consistent static analysis using
+Ruff, supporting use cases like pre-commit hooks, CI pipelines, or local
+batch validation with optional autofix.
+
+Features:
+- Accepts explicit file or folder paths (via command-line arguments or hardcoded fallback).
+- Excludes predefined paths (e.g. tests, venv).
+- Applies a single Ruff run for performance.
+- Disables ANSI color codes for log cleanliness.
+- Automatically logs detailed output to a timestamped log file.
+- Supports custom per-file suppressions for known missing stubs (e.g., `arcpy`, `geopandas`).
+- Outputs a concise rule-level summary (e.g., `D212:3, ANN001:2`).
+
+Configuration constants can be edited in-place to adapt to local environments.
+
+Exit codes:
+    0 — No Ruff violations detected.
+    1 — Ruff found violations in one or more files.
+
+Dependencies:
+    - Ruff must be installed and accessible via CLI (`ruff` or `python -m ruff`).
+"""
+
 """
 Runs Ruff on Python source files, exporting detailed logs (single call).
 
