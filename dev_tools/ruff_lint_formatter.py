@@ -49,7 +49,7 @@ RUFF_CLI_ARGS: list[str] = [
     "--select",
     "I,F,D,ANN,TCH",
     "--fixable",
-    "F401,D,I,TC003",
+    "F401,D,I,TCH003",
     "--ignore",
     "ANN401",
 #    "--pydocstyle-convention", "google",
