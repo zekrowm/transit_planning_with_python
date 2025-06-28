@@ -264,9 +264,7 @@ def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
     """
     selected_stops_gdf = stops_gdf[stops_gdf[stop_id_col].isin(selected_stop_ids)]
     if selected_stops_gdf.empty:
-        print(
-            "No stops found with the specified identifiers. Check your GTFS stops.txt file."
-        )
+        print("No stops found with the specified identifiers. Check your GTFS stops.txt file.")
         exit()
     bus_stops = {
         row[stop_id_col]: (row.geometry.x, row.geometry.y)
@@ -362,9 +360,7 @@ def build_directed_road_network(
                         street=street_name,
                     )
 
-    print(
-        f"Road network graph built: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges"
-    )
+    print(f"Road network graph built: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     return G, roads_gdf
 
 
@@ -440,9 +436,7 @@ def compute_tsp_route_greedy(G):
         *tsp_route* is a cyclic list of stop IDs and *total_travel_time*
         is in seconds.
     """
-    tsp_route = nx.approximation.traveling_salesman_problem(
-        G, weight="weight", cycle=True
-    )
+    tsp_route = nx.approximation.traveling_salesman_problem(G, weight="weight", cycle=True)
     print("TSP Route (greedy) before rotation:", tsp_route)
     total_travel_time = sum(
         G[tsp_route[i]][tsp_route[i + 1]]["weight"] for i in range(len(tsp_route) - 1)
@@ -493,9 +487,7 @@ def compute_tsp_route_ilp(G):
         u[i] = pulp.LpVariable(f"u_{i}", lowBound=1, upBound=n - 1, cat="Continuous")
 
     # Objective
-    prob += pulp.lpSum(
-        weights[(i, j)] * x[(i, j)] for i in range(n) for j in range(n) if i != j
-    )
+    prob += pulp.lpSum(weights[(i, j)] * x[(i, j)] for i in range(n) for j in range(n) if i != j)
 
     # Each node has exactly one outgoing edge
     for i in range(n):
@@ -526,9 +518,7 @@ def compute_tsp_route_ilp(G):
 
     route_indices = [0]
     next_index = successor.get(0)
-    while (
-        next_index is not None and next_index != 0 and next_index not in route_indices
-    ):
+    while next_index is not None and next_index != 0 and next_index not in route_indices:
         route_indices.append(next_index)
         next_index = successor.get(next_index)
     route_indices.append(0)
@@ -606,9 +596,7 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
             seg_heading = compute_heading(u, v)
             seg_length = edge_data.get("length", 0)  # in feet
             seg_street = edge_data.get("street", "Unnamed Road")
-            segments.append(
-                {"street": seg_street, "length": seg_length, "heading": seg_heading}
-            )
+            segments.append({"street": seg_street, "length": seg_length, "heading": seg_heading})
 
         # Group consecutive segments with the same street
         grouped = []
@@ -627,9 +615,7 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
             length_ft = group["length"]
             if i == 0:
                 if leg == 0:
-                    instruction = (
-                        f"Proceed on {group['street']} for {length_ft:.0f} ft."
-                    )
+                    instruction = f"Proceed on {group['street']} for {length_ft:.0f} ft."
                 else:
                     turn = (
                         compute_turn_direction(last_heading, group["heading"])
@@ -637,23 +623,23 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
                         else "Straight"
                     )
                     if turn == "Straight":
-                        instruction = f"Continue straight on {group['street']} for {length_ft:.0f} ft."
+                        instruction = (
+                            f"Continue straight on {group['street']} for {length_ft:.0f} ft."
+                        )
                     else:
                         instruction = f"Turn {turn} onto {group['street']} and continue for {length_ft:.0f} ft."
             else:
-                turn = compute_turn_direction(
-                    grouped[i - 1]["heading"], group["heading"]
-                )
+                turn = compute_turn_direction(grouped[i - 1]["heading"], group["heading"])
                 if turn == "Straight":
                     instruction = f"Continue straight on {group['street']} for {length_ft:.0f} ft."
                 else:
-                    instruction = f"Turn {turn} onto {group['street']} and continue for {length_ft:.0f} ft."
+                    instruction = (
+                        f"Turn {turn} onto {group['street']} and continue for {length_ft:.0f} ft."
+                    )
             directions_steps.append({"Step": step_num, "Instruction": instruction})
             step_num += 1
 
-        directions_steps.append(
-            {"Step": step_num, "Instruction": f"Arrive at stop {dest_stop}"}
-        )
+        directions_steps.append({"Step": step_num, "Instruction": f"Arrive at stop {dest_stop}"})
         step_num += 1
 
         if grouped:
@@ -675,9 +661,7 @@ def export_directions_excel(directions_steps, output_dir):
     print(f"Exported directions to {output_file}")
 
 
-def export_tsp_route_shapefile(
-    tsp_route, stops_snapped, road_graph, roads_crs, output_dir
-):
+def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, output_dir):
     """Export the assembled route geometry to ``tsp_route.shp``.
 
     Args:
@@ -724,9 +708,7 @@ def export_tsp_route_shapefile(
                 )
 
     if not route_features:
-        print(
-            "No route features found (possibly no valid path). Shapefile not created."
-        )
+        print("No route features found (possibly no valid path). Shapefile not created.")
         return
 
     route_gdf = gpd.GeoDataFrame(route_features, geometry="geometry", crs=roads_crs)
@@ -825,9 +807,7 @@ def main():
     if opt == "ilp":
         tsp_route, total_travel_time = compute_tsp_route_ilp(road_time_complete_graph)
     else:
-        tsp_route, total_travel_time = compute_tsp_route_greedy(
-            road_time_complete_graph
-        )
+        tsp_route, total_travel_time = compute_tsp_route_greedy(road_time_complete_graph)
 
     if tsp_route is None:
         print("TSP route computation failed.")
