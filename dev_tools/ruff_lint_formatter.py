@@ -47,7 +47,7 @@ RUFF_CLI_ARGS: list[str] = [
     "py310",
     # "--color", "never",                            # no ANSI escapes
     "--select",
-    "I,F,D,ANN,TC",
+    "I,F,D,ANN,TCH",
     "--fixable",
     "F401,D,I,TC003",
     "--ignore",
@@ -57,7 +57,7 @@ RUFF_CLI_ARGS: list[str] = [
 
 # ── new: fine-grained suppressions for libs without stubs ─────
 _NO_STUB_LIBS = {"geopandas", "arcpy"}
-_SILENCED_CODES = ("ANN", "TC")
+_SILENCED_CODES = ("ANN", "TCH")
 
 logging.basicConfig(
     level=LOG_LEVEL,
