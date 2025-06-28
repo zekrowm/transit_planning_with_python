@@ -33,7 +33,7 @@ from rapidfuzz import fuzz
 from shapely.geometry import Point, base
 
 # =============================================================================
-# CONFIGURATION (STATIC)
+# CONFIGURATION
 # =============================================================================
 
 GTFS_DIR: Path = Path(r"\\your_project_folder\system_gtfs")
@@ -63,7 +63,7 @@ logging.basicConfig(
 LOGGER = logging.getLogger(__name__)
 
 # =============================================================================
-# CORE FUNCTIONS
+# FUNCTIONS
 # =============================================================================
 
 
