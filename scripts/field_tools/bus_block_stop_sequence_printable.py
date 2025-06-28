@@ -58,6 +58,7 @@ MAX_COLUMN_WIDTH = 35
 # FUNCTIONS
 # =============================================================================
 
+
 def time_to_seconds(time_str):
     """Convert a ``HH:MM`` or ``HH:MM:SS`` string to total seconds.
 
@@ -350,9 +351,11 @@ def export_blocks(stop_times_df):
         output_path = os.path.join(BASE_OUTPUT_PATH, filename)
         export_to_excel(final_df, output_path)
 
+
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -433,6 +436,7 @@ def load_gtfs_data(
             ) from exc
 
     return data
+
 
 # =============================================================================
 # MAIN
