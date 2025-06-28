@@ -143,9 +143,7 @@ def prepare_trip_level(df: pd.DataFrame) -> pd.DataFrame:
         df["deviation_minutes"] = df["actual_minutes"] - df["scheduled_minutes"]
 
     # Percent deviation
-    df["percent_deviation"] = (
-        df["deviation_minutes"] / df["scheduled_minutes"] * 100
-    ).round(1)
+    df["percent_deviation"] = (df["deviation_minutes"] / df["scheduled_minutes"] * 100).round(1)
 
     # Flag
     df["flag_runtime_issue"] = df.apply(
@@ -166,15 +164,9 @@ def build_summary(trips: pd.DataFrame) -> pd.DataFrame:
                 lambda g: pd.Series(
                     {
                         "count_trips": g["count_trip"].sum(),
-                        "scheduled_avg": weighted_mean(
-                            g["scheduled_minutes"], g["count_trip"]
-                        ),
-                        "actual_avg": weighted_mean(
-                            g["actual_minutes"], g["count_trip"]
-                        ),
-                        "deviation_avg": weighted_mean(
-                            g["deviation_minutes"], g["count_trip"]
-                        ),
+                        "scheduled_avg": weighted_mean(g["scheduled_minutes"], g["count_trip"]),
+                        "actual_avg": weighted_mean(g["actual_minutes"], g["count_trip"]),
+                        "deviation_avg": weighted_mean(g["deviation_minutes"], g["count_trip"]),
                     }
                 )
             )
@@ -249,10 +241,7 @@ if __name__ == "__main__":
 
     print("✔ Trip-level output :", trip_csv)
     print("✔ Summary output    :", summary_csv)
-    print(
-        f"Flagged when |deviation| > {MIN_THRESHOLD} min "
-        f"OR |% deviation| > {PCT_THRESHOLD}%."
-    )
+    print(f"Flagged when |deviation| > {MIN_THRESHOLD} min OR |% deviation| > {PCT_THRESHOLD}%.")
     print(
         "Aggregation uses",
         "weighted averages." if WEIGHTED_AVERAGE else "simple averages.",
