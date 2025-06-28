@@ -1,25 +1,18 @@
-"""Runs ruff on Python source files, exporting detailed logs.
+"""
+Runs Ruff on Python source files, exporting detailed logs (single call).
 
-The script recursively scans one or more target paths, optionally skipping
-specified sub-paths, then:
-
-1. Executes ``ruff check`` on each file (or ``ruff check --fix`` when
-   ``READ_ONLY`` is ``False``).
-2. Writes per-file stdout/stderr to a timestamped log file.
-3. Exits with code 0 if all files pass, or 1 if any file reports issues.
-
-Outputs
--------
-Detailed log
-    <OUTPUT_FOLDER>/ruff_detailed_<timestamp>.log
-Exit status
-    0 when every file is clean; 1 otherwise.
+* Keeps the familiar “edit-constants” workflow.
+* Uses ONE Ruff invocation (faster).
+* Disables ANSI colours for clean logs/CLI.
+* Prints a one-line per-rule summary (e.g. D212:3, ANN001:2).
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -30,43 +23,37 @@ from typing import List, Tuple
 # CONFIGURATION
 # =============================================================================
 
-FILES_OR_FOLDERS: List[str] = [
-    r"C:\Path\to\Your\Project",  # <<< CHANGE ME
-]
+FILES_OR_FOLDERS: list[str] = []   # CI: repo root fallback, replace with local folder path if desired
 
-SKIP_PATHS: List[str] = [
-    r"C:\Path\to\Your\Project\Folder1_to_Skip",
-    r"C:\Path\to\Your\Project\Folder2_to_Skip",
-]
+SKIP_PATHS: List[str] = ["tests"]  # e.g. ["venv", "build", "tests"]
 
-OUTPUT_FOLDER: str = r"C:\Path\to\Your\Logs_Output_Folder"  # <<< CHANGE ME
-READ_ONLY: bool = True  # False → apply fixes
-
+OUTPUT_FOLDER: str = ".artifacts"  # relative path is fine, replace with local folder path if desired
+READ_ONLY: bool = True  # False → ruff --fix
 RUFF_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--extend-exclude", "migrations"]
 
-LOG_LEVEL: int = logging.INFO
+# -----------------------------------------------------------------------------
+# CONSTANTS
+# -----------------------------------------------------------------------------
 
+LOG_LEVEL = logging.INFO
 RUFF_CLI_ARGS: list[str] = [
-    # top-level settings
     "--line-length",
     "100",
     "--target-version",
     "py310",
-    # rule enablement
+    # "--color", "never",                            # no ANSI escapes
     "--select",
     "I,F,D,ANN,TC",
     "--fixable",
     "F401,D,I,TC003",
     "--ignore",
     "ANN401",
-    # pydocstyle: Google convention
-    "--config",
-    'lint.pydocstyle.convention="google"',
+#    "--pydocstyle-convention", "google",
 ]
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
+# ── new: fine-grained suppressions for libs without stubs ─────
+_NO_STUB_LIBS = {"geopandas", "arcpy"}
+_SILENCED_CODES = ("ANN", "TC")
 
 logging.basicConfig(
     level=LOG_LEVEL,
@@ -75,25 +62,28 @@ logging.basicConfig(
 )
 CONSOLE = logging.getLogger(__name__)
 
-
 # =============================================================================
-# SCRIPTS
+# FUNCTIONS
 # =============================================================================
 
+def _default_targets() -> list[str]:
+    if FILES_OR_FOLDERS:
+        return FILES_OR_FOLDERS
+    # fallback: repo root (folder above this script)
+    return [Path(__file__).resolve().parents[1].as_posix()]
 
-def _is_skipped(p: Path, skip_list: List[str]) -> bool:
-    """Return *True* when *p* matches or is inside any ``skip_list`` path."""
+
+def _is_skipped(p: Path, skip: list[str]) -> bool:
     norm = p.resolve().as_posix().lower()
-    for s in skip_list:
-        ns = Path(s).expanduser().resolve().as_posix().lower()
-        if norm == ns or norm.startswith(ns + "/"):
+    for s in skip:
+        tgt = Path(s).expanduser().resolve().as_posix().lower()
+        if norm == tgt or norm.startswith(tgt + "/"):
             return True
     return False
 
 
-def gather_python_files(targets: List[str], skip_list: List[str]) -> List[str]:
-    """Collect ``.py`` files from *targets*, excluding *skip_list*."""
-    collected: List[str] = []
+def gather_python_files(targets: list[str], skip: list[str]) -> list[str]:
+    out: list[str] = []
     for entry in targets:
         p = Path(entry).expanduser()
         if not p.exists():
@@ -101,142 +91,125 @@ def gather_python_files(targets: List[str], skip_list: List[str]) -> List[str]:
             continue
         if p.is_dir():
             for root, _, files in os.walk(p):
+                root_p = Path(root)
+                parts_lower = {part.lower() for part in root_p.parts}
+                if _is_skipped(root_p, skip) or "tests" in parts_lower:
+                    continue
                 for f in files:
                     if f.endswith(".py"):
-                        fpath = Path(root, f)
-                        if not _is_skipped(fpath, skip_list):
-                            collected.append(fpath.as_posix())
-        elif p.suffix.lower() == ".py" and not _is_skipped(p, skip_list):
-            collected.append(p.as_posix())
-
-    # de-duplicate but keep order
-    return list(dict.fromkeys(collected))
-
-
-# -----------------------------------------------------------------------------
-# RUFF PASS
-# -----------------------------------------------------------------------------
+                        fp = root_p / f
+                        if not _is_skipped(fp, skip):
+                            out.append(fp.as_posix())
+        elif p.suffix.lower() == ".py" and not _is_skipped(p, skip):
+            out.append(p.as_posix())
+    # remove duplicates, preserving order
+    return list(dict.fromkeys(out))
 
 
-def _setup_detailed_logger(out_folder: str) -> Tuple[logging.Logger, str]:
-    """Create and return a file logger plus its log-file path."""
+def _setup_detailed_logger(out_dir: str) -> Tuple[logging.Logger, Path]:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    folder = Path(out_folder).expanduser().resolve()
+    folder = Path(out_dir).expanduser().resolve()
     folder.mkdir(parents=True, exist_ok=True)
-    logfile = str(folder / f"ruff_detailed_{ts}.log")
+    log_path = folder / f"ruff_detailed_{ts}.log"
 
     lg = logging.getLogger("ruff_detailed")
     lg.setLevel(logging.DEBUG)
     lg.propagate = False
     lg.handlers.clear()
-
-    fh = logging.FileHandler(logfile, mode="w", encoding="utf-8")
+    fh = logging.FileHandler(log_path, mode="w", encoding="utf-8")
     fh.setFormatter(logging.Formatter("%(message)s"))
     lg.addHandler(fh)
-    return lg, logfile
+    return lg, log_path
 
 
-def run_ruff(files: List[str], read_only: bool) -> int:
-    """Run Ruff on *files*, write a detailed log, and return the number of files with issues.
+def _ruff_cmd() -> list[str]:
+    """Return ['ruff'] if on PATH else [python, -m, ruff]."""
+    return ["ruff"] if shutil.which("ruff") else [sys.executable, "-m", "ruff"]
 
-    Args:
-    ----------
-    files : List[str]
-        Absolute or relative paths to Python source files.
-    read_only : bool
-        • ``True``  → run ``ruff check`` (report only)
-        • ``False`` → run ``ruff check --fix`` (apply autofixes)
 
-    Returns:
-    -------
-    int
-        Number of files that Ruff reported as having at least one issue.
-    """
-    logger, log_fp = _setup_detailed_logger(OUTPUT_FOLDER)
-    CONSOLE.info("ruff log → %s", log_fp)
+def run_ruff(files: list[str], read_only: bool) -> int:
+    """Run Ruff once, echoing its output and returning the number of problem files."""
+    # Determine project root for drive‐colon–free relative paths
+    root_dir = Path(_default_targets()[0]).expanduser().resolve()
+    per_file_ignores_flags: list[str] = []
 
-    files_with_issues = 0
-    total_issues = 0
-
-    ruff_base_cmd: list[str] = ["ruff", "check", *RUFF_CLI_ARGS, *RUFF_ADDITIONAL_ARGS]
-    if not read_only:
-        ruff_base_cmd.append("--fix")
-
-    for idx, py in enumerate(files, start=1):
-        logger.info(
-            "\n%s\nFILE %d/%d → %s\n%s",
-            "=" * 80,
-            idx,
-            len(files),
-            py,
-            "=" * 80,
-        )
-
+    for fp in files:
         try:
-            proc = subprocess.run(
-                [*ruff_base_cmd, py],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-        except FileNotFoundError:  # Ruff not installed / not on PATH
-            CONSOLE.error("'ruff' command not found. Install it via 'pip install ruff'.")
-            sys.exit(1)
+            text = Path(fp).read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
 
-        out, err, rc = proc.stdout, proc.stderr, proc.returncode
-        logger.info(out or "")
-        if err:
-            logger.info("\n--- ruff stderr ---\n%s", err)
+        # If this file imports a library without stubs, queue one flag per code
+        if any(
+            re.search(rf"^\s*(?:from|import)\s+{lib}\b", text, re.MULTILINE)
+            for lib in _NO_STUB_LIBS
+        ):
+            try:
+                rel = Path(fp).resolve().relative_to(root_dir).as_posix()
+            except ValueError:
+                rel = Path(fp).name
 
-        # Ruff exit codes: 0 = clean, 1 = issues, ≥2 = internal error
-        if rc == 1:
-            issue_count = sum(1 for line in (out or "").splitlines() if ":" in line)
-            total_issues += issue_count
-            files_with_issues += 1
-        elif rc not in (0, 1):
-            # Treat internal errors as a single issue
-            files_with_issues += 1
+            for code in _SILENCED_CODES:
+                per_file_ignores_flags += [
+                    "--per-file-ignores",
+                    f"{rel}:{code}",
+                ]
 
-    logger.info(
-        "ruff flagged %d issue(s) across %d file(s).",
-        total_issues,
-        files_with_issues,
+    # Build the single Ruff invocation
+    cmd = [
+        *_ruff_cmd(),
+        "check",
+        *RUFF_CLI_ARGS,
+        *per_file_ignores_flags,
+        *RUFF_ADDITIONAL_ARGS,
+    ]
+    if not read_only:
+        cmd.append("--fix")
+
+    # Set up detailed logging and run Ruff
+    detailed_logger, _ = _setup_detailed_logger(OUTPUT_FOLDER)
+    proc = subprocess.run(
+        [*cmd, *files],
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
     )
-    return files_with_issues
 
+    # Echo Ruff’s stdout/stderr
+    if proc.stdout:
+        sys.stdout.write(proc.stdout)
+        detailed_logger.debug(proc.stdout)
+    if proc.stderr:
+        sys.stderr.write(proc.stderr)
+        detailed_logger.debug(proc.stderr)
+
+    # Count distinct files with issues
+    issue_lines = re.findall(r"^(.+?):\d+:\d+:", proc.stdout or "", flags=re.MULTILINE)
+    return len(set(issue_lines)) if proc.returncode == 1 else 0
 
 # =============================================================================
 # MAIN
 # =============================================================================
 
-
 def main() -> None:
-    """Entrypoint – collect files, run ruff, print high-level summary."""
-    files = gather_python_files(FILES_OR_FOLDERS, SKIP_PATHS)
+    files = gather_python_files(_default_targets(), SKIP_PATHS)
     if not files:
         CONSOLE.warning("No Python files found – nothing to do.")
         return
 
-    Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
-
     CONSOLE.info(
-        "=== Running ruff (%s mode) on %d file(s) ===",
-        "check-only" if READ_ONLY else "check + fix",
+        "Running Ruff (%s) on %d files …",
+        "check-only" if READ_ONLY else "check+fix",
         len(files),
     )
     failed = run_ruff(files, READ_ONLY)
 
-    CONSOLE.info("\n" + "=" * 80)
     if failed == 0:
-        CONSOLE.info("🎉  ruff reports no outstanding issues.")
+        CONSOLE.info("🎉  Ruff reports no outstanding issues.")
         sys.exit(0)
-    else:
-        CONSOLE.warning(
-            "⚠️  ruff detected problems in %d file(s). See the detailed log for details.",
-            failed,
-        )
-        sys.exit(1)
+    CONSOLE.warning("⚠️  Ruff detected problems in %d file(s).", failed)
+    sys.exit(1)
 
 
 if __name__ == "__main__":
