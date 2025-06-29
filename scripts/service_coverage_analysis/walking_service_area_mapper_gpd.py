@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional, Mapping, Any
 
 import geopandas as gpd
 import networkx as nx
