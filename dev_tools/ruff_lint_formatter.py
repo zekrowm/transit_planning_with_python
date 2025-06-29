@@ -35,52 +35,77 @@ from typing import List, Tuple
 # CONFIGURATION
 # =============================================================================
 
-FILES_OR_FOLDERS: list[
-    str
-] = []  # CI: repo root fallback, replace with local folder path if desired
+# Paths to scan (empty → auto-discover repo root or use CLI args)
+FILES_OR_FOLDERS: list[str] = []
 
+# Folders or files to exclude
 SKIP_PATHS: List[str] = ["tests"]  # e.g. ["venv", "build", "tests"]
 
-OUTPUT_FOLDER: str = (
-    ".artifacts"  # relative path is fine, replace with local folder path if desired
-)
-READ_ONLY: bool = False  # False → ruff --fix
-RUFF_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--extend-exclude", "migrations"]
+# Where to save Ruff logs and any artifacts
+OUTPUT_FOLDER: str = ".artifacts" # relative path is fine, replace with local folder path if desired
+
+# If True, only check; if False, allow autofix
+READ_ONLY: bool = False # False → ruff --fix
+
+# Extra flags you want to pass straight through to Ruff
+RUFF_ADDITIONAL_ARGS: list[str] = [] # e.g. ["--extend-exclude", "migrations"]
 
 # Allow explicit file list from the command line (e.g. CI “changed files” step)
 if len(sys.argv) > 1:
     FILES_OR_FOLDERS[:] = sys.argv[1:]
 
+# -----------------------------------------------------------------------------  
+# Backup Ruff flags (used **only** when no project config is found)  
+# -----------------------------------------------------------------------------  
+
+BACKUP_RUFF_CLI_ARGS: list[str] = [
+    "--line-length", "100",
+    "--target-version", "py310",
+    "--select", "I,F,D,ANN,TCH",
+    "--fixable", "F401,D,I,TCH003",
+    "--ignore", "ANN401",
+    # "--pydocstyle-convention", "google",
+]
+
 # -----------------------------------------------------------------------------
-# CONSTANTS
+# LOGGING
 # -----------------------------------------------------------------------------
 
 LOG_LEVEL = logging.INFO
-RUFF_CLI_ARGS: list[str] = [
-    "--line-length",
-    "100",
-    "--target-version",
-    "py310",
-    # "--color", "never",                            # no ANSI escapes
-    "--select",
-    "I,F,D,ANN,TCH",
-    "--fixable",
-    "F401,D,I,TCH003",
-    "--ignore",
-    "ANN401",
-    #    "--pydocstyle-convention", "google",
-]
-
-# ── new: fine-grained suppressions for libs without stubs ─────
-_NO_STUB_LIBS = {"geopandas", "arcpy"}
-_SILENCED_CODES = ("ANN", "TCH")
-
 logging.basicConfig(
     level=LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 CONSOLE = logging.getLogger(__name__)
+
+# -----------------------------------------------------------------------------
+# Ruff configuration discovery
+# -----------------------------------------------------------------------------
+
+def _find_ruff_config(start: Path | None = None) -> Path | None:
+    """Return the first Ruff config file found when walking upward."""
+    for parent in (start or Path(__file__).resolve().parent).resolve().parents:
+        for name in ("pyproject.toml", "ruff.toml", ".ruff.toml"):
+            cfg = parent / name
+            if cfg.is_file():
+                return cfg
+    return None
+
+
+_HAS_USER_RUFF_CONFIG = _find_ruff_config() is not None
+_EFFECTIVE_RUFF_CLI_ARGS: list[str] = (
+    [] if _HAS_USER_RUFF_CONFIG else BACKUP_RUFF_CLI_ARGS
+)
+
+CONSOLE.info(
+    "Using %s Ruff configuration.",
+    "project" if _HAS_USER_RUFF_CONFIG else "embedded backup",
+)
+
+# ── fine-grained suppressions for libs without stubs ──────────────────────────
+_NO_STUB_LIBS = {"geopandas", "arcpy"}
+_SILENCED_CODES = ("ANN", "TCH")
 
 # =============================================================================
 # FUNCTIONS
@@ -187,8 +212,18 @@ def _ruff_cmd() -> list[str]:
 
 
 def run_ruff(files: list[str], read_only: bool) -> int:
-    """Run Ruff once, echoing its output and returning the number of problem files."""
-    # Determine project root for drive‐colon–free relative paths
+    """Run Ruff once, echoing its output and returning the number of problem files.
+
+    Args:
+        files (list[str]): Paths to the Python files to lint.
+        read_only (bool): If True, Ruff runs in check-only mode; otherwise, it
+            applies autofixes where possible.
+
+    Returns:
+        int: The number of unique files that still contain violations after the
+        Ruff run (zero when clean). The script exits with a code mirroring this.
+    """
+    # Determine project root for cleaner relative paths in per-file ignores
     root_dir = Path(_default_targets()[0]).expanduser().resolve()
     per_file_ignores_flags: list[str] = []
 
@@ -198,7 +233,7 @@ def run_ruff(files: list[str], read_only: bool) -> int:
         except OSError:
             continue
 
-        # If this file imports a library without stubs, queue one flag per code
+        # Add suppressions for libraries lacking type stubs
         if any(
             re.search(rf"^\s*(?:from|import)\s+{lib}\b", text, re.MULTILINE)
             for lib in _NO_STUB_LIBS
@@ -209,23 +244,20 @@ def run_ruff(files: list[str], read_only: bool) -> int:
                 rel = Path(fp).name
 
             for code in _SILENCED_CODES:
-                per_file_ignores_flags += [
-                    "--per-file-ignores",
-                    f"{rel}:{code}",
-                ]
+                per_file_ignores_flags += ["--per-file-ignores", f"{rel}:{code}"]
 
-    # Build the single Ruff invocation
+    # Assemble the Ruff CLI invocation
     cmd = [
         *_ruff_cmd(),
         "check",
-        *RUFF_CLI_ARGS,
+        *_EFFECTIVE_RUFF_CLI_ARGS,     # ← single-source of truth
         *per_file_ignores_flags,
         *RUFF_ADDITIONAL_ARGS,
     ]
     if not read_only:
         cmd.append("--fix")
 
-    # Set up detailed logging and run Ruff
+    # Set up detailed logging and execute Ruff
     detailed_logger, _ = _setup_detailed_logger(OUTPUT_FOLDER)
     proc = subprocess.run(
         [*cmd, *files],
@@ -235,7 +267,7 @@ def run_ruff(files: list[str], read_only: bool) -> int:
         errors="replace",
     )
 
-    # Echo Ruff’s stdout/stderr
+    # Echo Ruff’s stdout/stderr to console and detailed log
     if proc.stdout:
         sys.stdout.write(proc.stdout)
         detailed_logger.debug(proc.stdout)
@@ -243,10 +275,9 @@ def run_ruff(files: list[str], read_only: bool) -> int:
         sys.stderr.write(proc.stderr)
         detailed_logger.debug(proc.stderr)
 
-    # Count distinct files with issues
+    # Count distinct files that still have issues
     issue_lines = re.findall(r"^(.+?):\d+:\d+:", proc.stdout or "", flags=re.MULTILINE)
     return len(set(issue_lines)) if proc.returncode == 1 else 0
-
 
 # =============================================================================
 # MAIN
