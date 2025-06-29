@@ -57,6 +57,7 @@ DISTRICT_FIELD = "DISTRICT"
 # FUNCTIONS
 # =============================================================================
 
+
 def create_projected_stops_gdf(stops_df, epsg_out):
     """Create a projected GeoDataFrame from GTFS stops.
 
@@ -169,9 +170,7 @@ def build_route_district_matrix(gtfs_data, intersect_gdf, district_field="DISTRI
     all_route_ids = sorted(
         route_to_districts.keys(), key=lambda rid: route_id_to_name.get(rid, "zzz")
     )
-    all_districts = sorted(
-        {dist for dset in route_to_districts.values() for dist in dset}
-    )
+    all_districts = sorted({dist for dset in route_to_districts.values() for dist in dset})
 
     matrix_data = []
     for route_id in all_route_ids:
@@ -201,6 +200,7 @@ def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype=str):
     """Load GTFS files into pandas DataFrames.
@@ -248,9 +248,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dty
         if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
     data = {}
     for file_name in files:
@@ -262,9 +260,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dty
             logging.info(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
             raise ValueError(
@@ -277,6 +273,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dty
             ) from exc
 
     return data
+
 
 # =============================================================================
 # MAIN
