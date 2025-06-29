@@ -57,87 +57,6 @@ DISTRICT_FIELD = "DISTRICT"
 # FUNCTIONS
 # =============================================================================
 
-
-# -----------------------------------------------------------------------------
-# REUSABLE FUNCTIONS
-# -----------------------------------------------------------------------------
-def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype=str):
-    """Load GTFS files into pandas DataFrames.
-
-    Loads each specified GTFS file from the given directory and returns
-    a dictionary of DataFrames keyed by file name (without extension).
-
-    Args:
-        gtfs_folder_path (str): Path to the directory containing GTFS files.
-        files (list[str], optional): List of GTFS file names to load. Defaults
-            to standard GTFS files.
-        dtype (str or dict, optional): Data type to use for loading CSVs. Defaults to str.
-
-    Returns:
-        dict[str, pd.DataFrame]: Dictionary of GTFS tables keyed by file base name.
-
-    Raises:
-        OSError: If the directory or any required file is missing.
-        ValueError: If a file is empty or cannot be parsed.
-        RuntimeError: If a file fails to load due to an OS error.
-    """
-    if not os.path.exists(gtfs_folder_path):
-        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
-
-    if files is None:
-        files = [
-            "agency.txt",
-            "stops.txt",
-            "routes.txt",
-            "trips.txt",
-            "stop_times.txt",
-            "calendar.txt",
-            "calendar_dates.txt",
-            "fare_attributes.txt",
-            "fare_rules.txt",
-            "feed_info.txt",
-            "frequencies.txt",
-            "shapes.txt",
-            "transfers.txt",
-        ]
-
-    missing = [
-        file_name
-        for file_name in files
-        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
-    ]
-    if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
-
-    data = {}
-    for file_name in files:
-        key = file_name.replace(".txt", "")
-        file_path = os.path.join(gtfs_folder_path, file_name)
-        try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
-            data[key] = df
-            logging.info(f"Loaded {file_name} ({len(df)} records).")
-
-        except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
-
-        except pd.errors.ParserError as exc:
-            raise ValueError(
-                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
-            ) from exc
-
-        except OSError as exc:
-            raise RuntimeError(
-                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
-            ) from exc
-
-    return data
-
-
 def create_projected_stops_gdf(stops_df, epsg_out):
     """Create a projected GeoDataFrame from GTFS stops.
 
@@ -278,6 +197,86 @@ def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name=sheet_name, index=False)
 
+
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
+
+def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype=str):
+    """Load GTFS files into pandas DataFrames.
+
+    Loads each specified GTFS file from the given directory and returns
+    a dictionary of DataFrames keyed by file name (without extension).
+
+    Args:
+        gtfs_folder_path (str): Path to the directory containing GTFS files.
+        files (list[str], optional): List of GTFS file names to load. Defaults
+            to standard GTFS files.
+        dtype (str or dict, optional): Data type to use for loading CSVs. Defaults to str.
+
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary of GTFS tables keyed by file base name.
+
+    Raises:
+        OSError: If the directory or any required file is missing.
+        ValueError: If a file is empty or cannot be parsed.
+        RuntimeError: If a file fails to load due to an OS error.
+    """
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
+
+    if files is None:
+        files = [
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt",
+        ]
+
+    missing = [
+        file_name
+        for file_name in files
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
+    ]
+    if missing:
+        raise OSError(
+            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
+        )
+
+    data = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(gtfs_folder_path, file_name)
+        try:
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            data[key] = df
+            logging.info(f"Loaded {file_name} ({len(df)} records).")
+
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(
+                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
+            ) from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+    return data
 
 # =============================================================================
 # MAIN
