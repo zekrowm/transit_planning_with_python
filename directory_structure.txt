@@ -3,13 +3,14 @@ transit_planning_with_python-main/
 ├── LICENSE
 ├── README.md
 ├── directory_structure.txt
+├── pyproject.toml
 ├── requirements.txt
 ├── .github/
 │   └── workflows/
-│       ├── auto_format_ruff.yml
-│       ├── docstring_check_pydocstyle.yml
-│       └── type_check_mypy.yml
-├── code_tools/
+│       ├── helpers_consistency_audit.yml
+│       ├── ruff_linter_formatter_wrapper.yml
+│       └── static_code_reporter.yml
+├── dev_tools/
 │   ├── fake_data_generator.py
 │   ├── repo_file_tree_printer.py
 │   ├── repo_imports_printer.py
@@ -18,6 +19,9 @@ transit_planning_with_python-main/
 │   └── static_code_reporter.py
 ├── helpers/
 │   └── gtfs_helpers.py
+├── sample_data/
+│   ├── WASH911URN_fred_sample.csv
+│   └── bus_stop_amenities_sample.csv
 ├── scripts/
 │   ├── bus_bay_management/
 │   │   ├── block_status_by_minute_generator.py
@@ -30,6 +34,8 @@ transit_planning_with_python-main/
 │   │   ├── census_shp_filter_export_gpd.py
 │   │   └── join_blocks_with_attributes_gpd.py
 │   ├── external_variables/
+│   │   ├── bike_json_ridership_joiner.py
+│   │   ├── bike_station_trip_reporter.py
 │   │   ├── bikeshare_ridership_processor_gpd.py
 │   │   ├── eia_gas_price_processor.py
 │   │   ├── fred_unemployment_processor.py
@@ -43,7 +49,9 @@ transit_planning_with_python-main/
 │   │   └── site_visit_route_planner_gpd.py
 │   ├── gtfs_exports/
 │   │   ├── bus_schedule_exporter.py
-│   │   ├── gtfs_shapefile_converter_gpd.py
+│   │   ├── gtfs_shp_converter_gpd.py
+│   │   ├── gtfs_shp_exporter_arcpy.py
+│   │   ├── routes_by_stop_exporter.py
 │   │   ├── speed_table_exporter.py
 │   │   ├── stop_pattern_exporter.py
 │   │   ├── stop_sequence_exporter.py
@@ -62,6 +70,7 @@ transit_planning_with_python-main/
 │   │   └── stops_versus_road_name_typo_checker_gpd.py
 │   ├── network_analysis/
 │   │   ├── route_direction_calculator_gpd.py
+│   │   ├── stop_spacing_flagger_arcpy.py
 │   │   └── stop_spacing_flagger_gpd.py
 │   ├── operations_tools/
 │   │   ├── historical_otp_data_processor.py
@@ -80,10 +89,11 @@ transit_planning_with_python-main/
 │   └── service_coverage_analysis/
 │       ├── districts_served_counter_gpd.py
 │       ├── nearest_stop_direction_gpd.py
-│       ├── strategic_facilities_served_counter.py
-│       └── transit_catchment_calculator.py
+│       ├── park_and_ride_isochrones_gpd.py
+│       ├── transit_buffer_demogs_arcpy.py
+│       ├── transit_buffer_demogs_gpd.py
+│       └── walking_service_area_mapper_gpd.py
 └── tests/
     ├── test_bus_schedule_exporter_e2e.py
-    ├── test_load_gtfs_data.py
-    └── test_data/
-        └── bus_stop_amenities_sample.csv
+    ├── test_fred_processor_e2e.py
+    └── test_load_gtfs_data.py
