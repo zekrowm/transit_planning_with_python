@@ -304,28 +304,30 @@ def _export_to_excel(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """Load requested GTFS tables into memory.
+def load_gtfs_data(
+    gtfs_folder_path: str,
+    files: Optional[list[str]] = None,
+    dtype: str | type[str] | Mapping[str, Any] = str,
+) -> dict[str, pd.DataFrame]:
+    """Load one or more GTFS text files into a dictionary of DataFrames.
 
     Args:
-        gtfs_folder_path: Absolute or relative path to the directory
+        gtfs_folder_path (str): Absolute or relative path to the directory
             containing GTFS text files.
-        files: Explicit list of GTFS filenames to read.
-            If ``None``, the canonical GTFS specification list is used.
-        dtype: Value passed to :pyfunc:`pandas.read_csv` to control column
-            dtypes. Accepts either a single dtype or a dict mapping columns
-            to dtypes.
+        files (list[str] | None): Explicit list of GTFS filenames to load.
+            If ``None``, the full standard GTFS set is read.
+        dtype (str | Mapping[str, Any]): Value forwarded to
+            :pyfunc:`pandas.read_csv` to control column dtypes;
+            defaults to ``str``.
 
     Returns:
-        A mapping whose keys are file stems (e.g. ``"trips"``) and whose
-        values are the corresponding :class:`pandas.DataFrame` objects.
+        dict[str, pandas.DataFrame]: Mapping of file stem → DataFrame.
+        For example, ``data["trips"]`` contains *trips.txt*.
 
     Raises:
-        OSError: If *gtfs_folder_path* is missing or any requested file does
-            not exist.
-        ValueError: If a file is empty or fails CSV parsing.
-        RuntimeError: For operating-system errors encountered while reading.
+        OSError: The folder does not exist or a required file is missing.
+        ValueError: A file is empty or malformed.
+        RuntimeError: An OS-level error occurs while reading.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
@@ -376,7 +378,6 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
             raise RuntimeError(
                 f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
-
     return data
 
 
