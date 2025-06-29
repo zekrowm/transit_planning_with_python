@@ -13,6 +13,7 @@ directions, time-bin width, and service filtering.
 
 import logging
 import os
+import datetime as dt
 from typing import Any, Mapping, Optional  # noqa: ANN401  (re-exported for typing)
 import pandas as pd
 from openpyxl import Workbook
@@ -93,7 +94,7 @@ def fix_time_format(
 
 
 def get_time_bin(
-    t: _dt.time,
+    t: dt.time,
     interval: int,
 ) -> str:
     """Map a :class:`datetime.time` to a formatted time-bin label.
