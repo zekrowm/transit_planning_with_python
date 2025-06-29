@@ -31,7 +31,7 @@ jobs:
       - name: Run static analysis suite
         env:
           STATIC_LINT_OUTDIR: logs
-        run: python code_tools/static_code_reporter.py
+        run: python code_tools/static_code_checker.py
 
       # Optional: upload the new logs directory
       - name: Upload logs
