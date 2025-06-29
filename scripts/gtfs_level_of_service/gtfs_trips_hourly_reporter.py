@@ -5,7 +5,7 @@ direction, service, and user-defined time bins (e.g., hourly), then
 exports the results to one Excel workbook per
 *route × direction × service* combination.
 
-Typical usage is in ArcGIS Pro, Jupyter, or the CLI.
+Typical usage is in ArcGIS Pro or Jupyter.
 
 The constants in the *CONFIGURATION* block control input paths, routes,
 directions, time-bin width, and service filtering.
