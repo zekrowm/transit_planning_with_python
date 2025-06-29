@@ -31,7 +31,8 @@ from typing import Final, Iterable, Sequence
 # =============================================================================
 
 #: Default folders/files to scan when none are supplied via the CLI.
-DEFAULT_TARGETS: Final[list[str]] = ["."]
+DEFAULT_TARGETS: Final[list[str]] = [_repo_root().as_posix()]
+#DEFAULT_TARGETS: Final[list[str]] = ["."]
 #: Directories that should never be scanned (rel-paths ok).
 DEFAULT_EXCLUDES: Final[list[str]] = ["tests", "venv", ".venv", ".mypy_cache"]
 #: Default output directory for detailed logs.
@@ -88,6 +89,14 @@ PYDOCSTYLE_ARGS_FALLBACK: Final[list[str]] = [
 # FUNCTIONS
 # =============================================================================
 
+def _repo_root() -> Path:
+    """Return the repository root (first parent containing a .git folder or
+    a *pyproject.toml*).  Falls back to the script’s directory when neither
+    marker is found (e.g. in a zipapp or site-wide install)."""
+    for parent in Path(__file__).resolve().parents:
+        if (parent / ".git").is_dir() or (parent / "pyproject.toml").is_file():
+            return parent
+    return Path(__file__).resolve().parent
 
 def _in_notebook() -> bool:
     """Return ``True`` if executed inside a Jupyter/IPython kernel."""
@@ -323,6 +332,7 @@ def main(argv: Sequence[str] | None = None, *, read_only: bool | None = None) ->
     )
     logging.info("Collecting Python files …")
     files = _gather_py_files(args.paths, [*DEFAULT_EXCLUDES, *args.exclude])
+    logging.info("Found %d Python files.", len(files))
     if not files:
         logging.warning("No Python files found – nothing to do.")
         return 0
