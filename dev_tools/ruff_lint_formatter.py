@@ -49,17 +49,12 @@ OUTPUT_FOLDER: str = (
 # If True, only check; if False, allow autofix
 READ_ONLY: bool = False  # False → ruff --fix
 
-# Extra flags you want to pass straight through to Ruff
+# Extra flags to pass straight through to Ruff
 RUFF_ADDITIONAL_ARGS: list[str] = []  # e.g. ["--extend-exclude", "migrations"]
-
-# Allow explicit file list from the command line (e.g. CI “changed files” step)
-if len(sys.argv) > 1:
-    FILES_OR_FOLDERS[:] = sys.argv[1:]
 
 # -----------------------------------------------------------------------------
 # Backup Ruff flags (used **only** when no project config is found)
 # -----------------------------------------------------------------------------
-
 BACKUP_RUFF_CLI_ARGS: list[str] = [
     "--line-length",
     "100",
@@ -77,14 +72,55 @@ BACKUP_RUFF_CLI_ARGS: list[str] = [
 # -----------------------------------------------------------------------------
 # LOGGING
 # -----------------------------------------------------------------------------
-
 LOG_LEVEL = logging.INFO
 logging.basicConfig(
     level=LOG_LEVEL,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s • %(levelname)s • %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 CONSOLE = logging.getLogger(__name__)
+
+# =============================================================================
+# PATH UTILITIES
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# CLI override for FILES_OR_FOLDERS
+# -----------------------------------------------------------------------------
+def _extract_cli_targets() -> list[str]:
+    """Return positional CLI arguments meant as lint targets.
+
+    Handles Jupyter’s “-f <kernel.json>” pair and drops any other leading
+    options. Only paths that survive this filter will override
+    FILES_OR_FOLDERS.
+    """
+    args = sys.argv[1:].copy()
+
+    # Remove every "-f <value>" pair (Jupyter may add several during restarts)
+    while "-f" in args:
+        idx = args.index("-f")
+        del args[idx : idx + 2]  # flag *and* its value
+
+    # Keep only arguments that do NOT start with "-"
+    return [a for a in args if not a.startswith("-")]
+
+
+cli_targets = _extract_cli_targets()
+if cli_targets:
+    FILES_OR_FOLDERS[:] = cli_targets
+
+def _script_dir() -> Path:
+    """Return the directory containing this script.
+
+    When the code runs inside IPython / Jupyter where ``__file__`` is undefined,
+    fall back to the current working directory.
+    """
+    try:
+        return Path(__file__).resolve().parent
+    except NameError:  # pragma: no cover – __file__ missing in notebooks
+        return Path.cwd()
+
 
 # -----------------------------------------------------------------------------
 # Ruff configuration discovery
@@ -93,7 +129,8 @@ CONSOLE = logging.getLogger(__name__)
 
 def _find_ruff_config(start: Path | None = None) -> Path | None:
     """Return the first Ruff config file found when walking upward."""
-    for parent in (start or Path(__file__).resolve().parent).resolve().parents:
+    root = start or _script_dir()
+    for parent in root.resolve().parents:
         for name in ("pyproject.toml", "ruff.toml", ".ruff.toml"):
             cfg = parent / name
             if cfg.is_file():
@@ -102,7 +139,9 @@ def _find_ruff_config(start: Path | None = None) -> Path | None:
 
 
 _HAS_USER_RUFF_CONFIG = _find_ruff_config() is not None
-_EFFECTIVE_RUFF_CLI_ARGS: list[str] = [] if _HAS_USER_RUFF_CONFIG else BACKUP_RUFF_CLI_ARGS
+_EFFECTIVE_RUFF_CLI_ARGS: list[str] = (
+    [] if _HAS_USER_RUFF_CONFIG else BACKUP_RUFF_CLI_ARGS
+)
 
 CONSOLE.info(
     "Using %s Ruff configuration.",
@@ -121,28 +160,18 @@ _SILENCED_CODES = ("ANN", "TCH")
 def _default_targets() -> list[str]:
     """Return a default list of paths to scan.
 
-    If command-line arguments are provided, they are used as the targets.
-    Otherwise, the parent directory of this script is returned as a fallback.
-
-    Returns:
-        list[str]: List of file or directory paths to scan.
+    If the **FILES_OR_FOLDERS** config (possibly overridden by CLI args) is
+    non-empty, that list is used verbatim. Otherwise the parent directory of
+    this script is returned as a fallback.
     """
     if FILES_OR_FOLDERS:
         return FILES_OR_FOLDERS
     # fallback: repo root (folder above this script)
-    return [Path(__file__).resolve().parents[1].as_posix()]
+    return [_script_dir().parent.as_posix()]
 
 
 def _is_skipped(p: Path, skip: list[str]) -> bool:
-    """Determine whether a given path should be excluded from scanning.
-
-    Args:
-        p (Path): Path to evaluate.
-        skip (list[str]): List of paths to skip, normalized to lowercase.
-
-    Returns:
-        bool: True if the path should be skipped, False otherwise.
-    """
+    """Determine whether a given path should be excluded from scanning."""
     norm = p.resolve().as_posix().lower()
     for s in skip:
         tgt = Path(s).expanduser().resolve().as_posix().lower()
@@ -152,21 +181,14 @@ def _is_skipped(p: Path, skip: list[str]) -> bool:
 
 
 def gather_python_files(targets: list[str], skip: list[str]) -> list[str]:
-    """Recursively collect all Python files from the given targets, excluding skip paths.
-
-    Args:
-        targets (list[str]): Files or directories to scan.
-        skip (list[str]): Directories to exclude (e.g., 'tests', 'venv').
-
-    Returns:
-        list[str]: List of discovered `.py` file paths.
-    """
+    """Recursively collect all Python files from *targets*, excluding *skip*."""
     out: list[str] = []
     for entry in targets:
         p = Path(entry).expanduser()
         if not p.exists():
             CONSOLE.warning("Path not found – skipping: %s", p)
             continue
+
         if p.is_dir():
             for root, _, files in os.walk(p):
                 root_p = Path(root)
@@ -180,19 +202,13 @@ def gather_python_files(targets: list[str], skip: list[str]) -> list[str]:
                             out.append(fp.as_posix())
         elif p.suffix.lower() == ".py" and not _is_skipped(p, skip):
             out.append(p.as_posix())
+
     # remove duplicates, preserving order
     return list(dict.fromkeys(out))
 
 
 def _setup_detailed_logger(out_dir: str) -> Tuple[logging.Logger, Path]:
-    """Create and configure a logger that writes detailed output to a timestamped file.
-
-    Args:
-        out_dir (str): Directory where the log file should be saved.
-
-    Returns:
-        Tuple[logging.Logger, Path]: The logger object and the path to the log file.
-    """
+    """Create a logger that writes detailed output to *out_dir*."""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     folder = Path(out_dir).expanduser().resolve()
     folder.mkdir(parents=True, exist_ok=True)
@@ -209,26 +225,12 @@ def _setup_detailed_logger(out_dir: str) -> Tuple[logging.Logger, Path]:
 
 
 def _ruff_cmd() -> list[str]:
-    """Return the base command to invoke Ruff.
-
-    Returns:
-        list[str]: Command for subprocess call (either ['ruff'] or ['python', '-m', 'ruff']).
-    """
+    """Return the base command to invoke Ruff."""
     return ["ruff"] if shutil.which("ruff") else [sys.executable, "-m", "ruff"]
 
 
 def run_ruff(files: list[str], read_only: bool) -> int:
-    """Run Ruff once, echoing its output and returning the number of problem files.
-
-    Args:
-        files (list[str]): Paths to the Python files to lint.
-        read_only (bool): If True, Ruff runs in check-only mode; otherwise, it
-            applies autofixes where possible.
-
-    Returns:
-        int: The number of unique files that still contain violations after the
-        Ruff run (zero when clean). The script exits with a code mirroring this.
-    """
+    """Run Ruff once, echo its output, and return the number of problem files."""
     # Determine project root for cleaner relative paths in per-file ignores
     root_dir = Path(_default_targets()[0]).expanduser().resolve()
     per_file_ignores_flags: list[str] = []
@@ -256,7 +258,7 @@ def run_ruff(files: list[str], read_only: bool) -> int:
     cmd = [
         *_ruff_cmd(),
         "check",
-        *_EFFECTIVE_RUFF_CLI_ARGS,  # ← single-source of truth
+        *_EFFECTIVE_RUFF_CLI_ARGS,  # single-source of truth
         *per_file_ignores_flags,
         *RUFF_ADDITIONAL_ARGS,
     ]
@@ -282,7 +284,9 @@ def run_ruff(files: list[str], read_only: bool) -> int:
         detailed_logger.debug(proc.stderr)
 
     # Count distinct files that still have issues
-    issue_lines = re.findall(r"^(.+?):\d+:\d+:", proc.stdout or "", flags=re.MULTILINE)
+    issue_lines = re.findall(
+        r"^(.+?):\d+:\d+:", proc.stdout or "", flags=re.MULTILINE
+    )
     return len(set(issue_lines)) if proc.returncode == 1 else 0
 
 
@@ -292,22 +296,14 @@ def run_ruff(files: list[str], read_only: bool) -> int:
 
 
 def main() -> None:
-    """Entry point for the script.
-
-    Gathers Python files, filters out skipped paths, and runs Ruff on the resulting list.
-    Prints summary output to the console and exits with an appropriate status code.
-
-    Exit Codes:
-        0: No issues found by Ruff.
-        1: Ruff found violations in one or more files.
-    """
+    """CLI entry point."""
     files = gather_python_files(_default_targets(), SKIP_PATHS)
     if not files:
         CONSOLE.warning("No Python files found – nothing to do.")
         return
 
     CONSOLE.info(
-        "Running Ruff (%s) on %d files …",
+        "Running Ruff (%s) on %d file(s)…",
         "check-only" if READ_ONLY else "check+fix",
         len(files),
     )
@@ -316,6 +312,7 @@ def main() -> None:
     if failed == 0:
         CONSOLE.info("🎉  Ruff reports no outstanding issues.")
         sys.exit(0)
+
     CONSOLE.warning("⚠️  Ruff detected problems in %d file(s).", failed)
     sys.exit(1)
 
