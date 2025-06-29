@@ -76,95 +76,6 @@ ISO_SMOOTH_BUFFER_M: float | None = 30.0  # metres; 0/None = no smoothing
 # FUNCTIONS
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# REUSABLE FUNCTIONS
-# -----------------------------------------------------------------------------
-
-
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
-    """Load one or more GTFS text files into memory.
-
-    Args:
-        gtfs_folder_path: Absolute or relative path to the directory
-            containing the GTFS feed.
-        files: Explicit list of filenames to read (e.g.
-            ``["stops.txt", "routes.txt"]``).  If *None*, every standard
-            GTFS file in the spec is attempted.
-        dtype: Value to pass straight through to :pyfunc:`pandas.read_csv`
-            (commonly ``str`` or a ``dict`` of per-column dtypes).
-
-    Returns:
-        Mapping whose keys are the filename stem (e.g. ``"stops"``) and whose
-        values are DataFrames of the parsed file contents.
-
-    Raises:
-        OSError: The folder does not exist *or* one of the requested files is
-            missing.
-        ValueError: The file is empty or cannot be parsed by pandas.
-        RuntimeError: Any other OS-level error during file I/O.
-    """
-    if not os.path.exists(gtfs_folder_path):
-        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
-
-    if files is None:
-        files = [
-            "agency.txt",
-            "stops.txt",
-            "routes.txt",
-            "trips.txt",
-            "stop_times.txt",
-            "calendar.txt",
-            "calendar_dates.txt",
-            "fare_attributes.txt",
-            "fare_rules.txt",
-            "feed_info.txt",
-            "frequencies.txt",
-            "shapes.txt",
-            "transfers.txt",
-        ]
-
-    missing = [
-        file_name
-        for file_name in files
-        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
-    ]
-    if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
-
-    data = {}
-    for file_name in files:
-        key = file_name.replace(".txt", "")
-        file_path = os.path.join(gtfs_folder_path, file_name)
-        try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
-            data[key] = df
-            logging.info(f"Loaded {file_name} ({len(df)} records).")
-
-        except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
-
-        except pd.errors.ParserError as exc:
-            raise ValueError(
-                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
-            ) from exc
-
-        except OSError as exc:
-            raise RuntimeError(
-                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
-            ) from exc
-
-    return data
-
-
-# -----------------------------------------------------------------------------
-# OTHER FUNCTIONS
-# -----------------------------------------------------------------------------
-
-
 def feet_to_meters(feet: float) -> float:
     """Convert feet to metres (1 ft = 0.3048 m)."""
     return feet * 0.3048
@@ -651,11 +562,89 @@ def build_buffers_gdf(
 
     return gpd.GeoDataFrame(records, crs=work_crs)
 
+# -----------------------------------------------------------------------------
+# REUSABLE FUNCTIONS
+# -----------------------------------------------------------------------------
+
+def load_gtfs_data(
+    gtfs_folder_path: str,
+    files: Optional[list[str]] = None,
+    dtype: str | type[str] | Mapping[str, Any] = str,
+) -> dict[str, pd.DataFrame]:
+    """Load one or more GTFS text files into a dictionary of DataFrames.
+
+    Args:
+        gtfs_folder_path (str): Absolute or relative path to the directory
+            containing GTFS text files.
+        files (list[str] | None): Explicit list of GTFS filenames to load.
+            If ``None``, the full standard GTFS set is read.
+        dtype (str | Mapping[str, Any]): Value forwarded to
+            :pyfunc:`pandas.read_csv` to control column dtypes;
+            defaults to ``str``.
+
+    Returns:
+        dict[str, pandas.DataFrame]: Mapping of file stem → DataFrame.
+        For example, ``data["trips"]`` contains *trips.txt*.
+
+    Raises:
+        OSError: The folder does not exist or a required file is missing.
+        ValueError: A file is empty or malformed.
+        RuntimeError: An OS-level error occurs while reading.
+    """
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
+
+    if files is None:
+        files = [
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt",
+        ]
+
+    missing = [
+        file_name
+        for file_name in files
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
+    ]
+    if missing:
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
+
+    data = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(gtfs_folder_path, file_name)
+        try:
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            data[key] = df
+            logging.info(f"Loaded {file_name} ({len(df)} records).")
+
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+    return data
 
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Top-level orchestration for command-line execution."""
