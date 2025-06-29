@@ -54,6 +54,7 @@ GDB_NAME = "analysis.gdb"
 # FUNCTIONS
 # =============================================================================
 
+
 def ensure_gdb_exists(output_dir, gdb_name):
     """Create a file geodatabase if it does not already exist.
 
@@ -673,8 +674,9 @@ def do_shapefile_analysis(
     xlsx_path = os.path.join(OUTPUT_DIRECTORY, "shapefile_service_buffer_data.xlsx")
     export_summary_to_excel(final_dict, xlsx_path)
 
+
 # =============================================================================
-# MAIN 
+# MAIN
 # =============================================================================
 
 if __name__ == "__main__":
