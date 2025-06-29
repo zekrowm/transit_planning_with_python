@@ -15,8 +15,7 @@ transit_planning_with_python-main/
 │   ├── repo_file_tree_printer.py
 │   ├── repo_imports_printer.py
 │   ├── reusable_functions_consistency_checker.py
-│   ├── ruff_lint_formatter.py
-│   └── static_code_reporter.py
+│   └── ruff_lint_formatter.py
 ├── helpers/
 │   └── gtfs_helpers.py
 ├── sample_data/
