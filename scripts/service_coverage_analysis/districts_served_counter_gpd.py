@@ -15,6 +15,7 @@ Outputs:
 """
 
 from __future__ import annotations
+
 import logging
 import os
 from typing import Any, Mapping, Optional
@@ -219,6 +220,7 @@ def write_dataframe_to_excel(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
@@ -294,6 +296,7 @@ def load_gtfs_data(
                 f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
     return data
+
 
 # =============================================================================
 # MAIN
