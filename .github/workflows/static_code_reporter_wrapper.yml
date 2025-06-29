@@ -19,7 +19,8 @@ jobs:
 
       - name: Set up Python
         uses: actions/setup-python@v5
-        with: { python-version: ${{ matrix.python-version }} }
+        with:
+          python-version: "${{ matrix.python-version }}"
 
       - name: Install dependencies
         run: |
@@ -27,7 +28,10 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install mypy vulture pylint pydocstyle
 
-      # ✅ Tell the script to put logs in ./logs
+      - name: Ensure logs dir exists
+        run: mkdir -p logs
+
+      # Tell the script to put logs in ./logs
       - name: Run static analysis suite
         env:
           STATIC_LINT_OUTDIR: logs
