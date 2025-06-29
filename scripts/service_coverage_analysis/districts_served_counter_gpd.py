@@ -57,8 +57,10 @@ DISTRICT_FIELD = "DISTRICT"
 # FUNCTIONS
 # =============================================================================
 
-
-def create_projected_stops_gdf(stops_df, epsg_out):
+def create_projected_stops_gdf(
+    stops_df: pd.DataFrame,
+    epsg_out: int,
+) -> gpd.GeoDataFrame:
     """Create a projected GeoDataFrame from GTFS stops.
 
     Converts a GTFS stops DataFrame with WGS84 coordinates into a projected
@@ -85,7 +87,10 @@ def create_projected_stops_gdf(stops_df, epsg_out):
     return stops_projected
 
 
-def buffer_stops_gdf(stops_gdf, buffer_dist):
+def buffer_stops_gdf(
+    stops_gdf: gpd.GeoDataFrame,
+    buffer_dist: float,
+) -> gpd.GeoDataFrame:
     """Buffer the stop geometries by a given distance.
 
     Args:
@@ -102,7 +107,10 @@ def buffer_stops_gdf(stops_gdf, buffer_dist):
     return stops_buffered
 
 
-def intersect_districts_gdf(stops_buffer_gdf, districts_gdf):
+def intersect_districts_gdf(
+    stops_buffer_gdf: gpd.GeoDataFrame,
+    districts_gdf: gpd.GeoDataFrame,
+) -> gpd.GeoDataFrame:
     """Intersect buffered stops with district boundaries.
 
     Uses a spatial overlay to find intersections between buffered stop areas
@@ -120,7 +128,11 @@ def intersect_districts_gdf(stops_buffer_gdf, districts_gdf):
     return intersected
 
 
-def build_route_district_matrix(gtfs_data, intersect_gdf, district_field="DISTRICT"):
+def build_route_district_matrix(
+    gtfs_data: dict[str, pd.DataFrame],
+    intersect_gdf: gpd.GeoDataFrame,
+    district_field: str = "DISTRICT",
+) -> pd.DataFrame:
     """Build a route-vs-district matrix based on GTFS stop coverage.
 
     Computes which GTFS routes serve which districts using stop->trip->route
@@ -185,7 +197,11 @@ def build_route_district_matrix(gtfs_data, intersect_gdf, district_field="DISTRI
     return df_out
 
 
-def write_dataframe_to_excel(df, excel_path, sheet_name="districts_vs_routes"):
+def write_dataframe_to_excel(
+    df: pd.DataFrame,
+    excel_path: str,
+    sheet_name: str = "districts_vs_routes",
+) -> None:
     """Write a DataFrame to an Excel file.
 
     Args:
