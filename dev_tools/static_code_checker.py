@@ -44,7 +44,7 @@ DEFAULT_LOG_LEVEL: Final[int] = (
 )
 
 # Tips
-# ---------------------------------
+#
 # Fully-qualified *absolute* paths work fine here; a few examples:
 #
 #   DEFAULT_TARGETS  = [r"C:\Users\alice\dev\my_repo",  # Windows
@@ -207,21 +207,55 @@ _PYLINT_RE = re.compile(r":\s*[EF]\d{4}:")
 _VULTURE_RE = re.compile(r"^\S+:\d+:.+\(\d+% confidence\)$", re.M)
 
 def run_mypy(files: list[str]) -> int:
+    """Run **mypy** on every file and return a failure count.
+
+    Args:
+        files: Absolute or relative Python-file paths to analyse.
+
+    Returns:
+        The number of files that produced at least one mypy error.
+    """
     cfg_exists = bool(_find_file_upwards(["mypy.ini", "pyproject.toml"]))
     args = [] if cfg_exists else MYPY_ARGS_FALLBACK
     return _tool("mypy", "mypy", ["--show-error-codes", "--no-color-output", *args], files, _MYPY_OUT_RE)
 
 def run_vulture(files: list[str]) -> int:
+    """Run **vulture** dead-code analysis across *files*.
+
+    Args:
+        files: Python-file paths to inspect.
+
+    Returns:
+        Count of files for which vulture reported unused code above the
+        configured confidence threshold.
+    """
     cfg_exists = bool(_find_file_upwards([".vulture_ignore", "pyproject.toml"]))
     min_conf = [] if cfg_exists else ["--min-confidence", str(VULTURE_MIN_CONFIDENCE_FALLBACK)]
     return _tool("vulture", "vulture", [*min_conf], files, _VULTURE_RE)
 
 def run_pylint(files: list[str]) -> int:
+    """Run **pylint** and return how many files triggered *E* or *F* messages.
+
+    Args:
+        files: Python-file paths to lint.
+
+    Returns:
+        Number of files that had at least one error-level or fatal message.
+    """
     cfg_exists = bool(_find_file_upwards([".pylintrc", "pyproject.toml"]))
     args = [] if cfg_exists else PYLINT_ARGS_FALLBACK
     return _tool("pylint", "pylint", args, files, _PYLINT_RE)
 
 def run_pydocstyle(files: list[str]) -> int:
+    """Run **pydocstyle** and return the count of files missing docstrings.
+
+    Args:
+        files: Python-file paths to validate.
+
+    Returns:
+        Number of files where pydocstyle emitted any output at all, which we
+        interpret as “has docstring issues”.
+    """
     cfg_exists = bool(_find_file_upwards([".pydocstyle", "pyproject.toml"]))
     args = [] if cfg_exists else PYDOCSTYLE_ARGS_FALLBACK
     # parser = None → treat any non-empty stdout as issues
