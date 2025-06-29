@@ -110,6 +110,7 @@ cli_targets = _extract_cli_targets()
 if cli_targets:
     FILES_OR_FOLDERS[:] = cli_targets
 
+
 def _script_dir() -> Path:
     """Return the directory containing this script.
 
@@ -139,9 +140,7 @@ def _find_ruff_config(start: Path | None = None) -> Path | None:
 
 
 _HAS_USER_RUFF_CONFIG = _find_ruff_config() is not None
-_EFFECTIVE_RUFF_CLI_ARGS: list[str] = (
-    [] if _HAS_USER_RUFF_CONFIG else BACKUP_RUFF_CLI_ARGS
-)
+_EFFECTIVE_RUFF_CLI_ARGS: list[str] = [] if _HAS_USER_RUFF_CONFIG else BACKUP_RUFF_CLI_ARGS
 
 CONSOLE.info(
     "Using %s Ruff configuration.",
@@ -284,9 +283,7 @@ def run_ruff(files: list[str], read_only: bool) -> int:
         detailed_logger.debug(proc.stderr)
 
     # Count distinct files that still have issues
-    issue_lines = re.findall(
-        r"^(.+?):\d+:\d+:", proc.stdout or "", flags=re.MULTILINE
-    )
+    issue_lines = re.findall(r"^(.+?):\d+:\d+:", proc.stdout or "", flags=re.MULTILINE)
     return len(set(issue_lines)) if proc.returncode == 1 else 0
 
 
