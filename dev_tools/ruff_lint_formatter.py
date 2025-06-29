@@ -42,28 +42,35 @@ FILES_OR_FOLDERS: list[str] = []
 SKIP_PATHS: List[str] = ["tests"]  # e.g. ["venv", "build", "tests"]
 
 # Where to save Ruff logs and any artifacts
-OUTPUT_FOLDER: str = ".artifacts" # relative path is fine, replace with local folder path if desired
+OUTPUT_FOLDER: str = (
+    ".artifacts"  # relative path is fine, replace with local folder path if desired
+)
 
 # If True, only check; if False, allow autofix
-READ_ONLY: bool = False # False → ruff --fix
+READ_ONLY: bool = False  # False → ruff --fix
 
 # Extra flags you want to pass straight through to Ruff
-RUFF_ADDITIONAL_ARGS: list[str] = [] # e.g. ["--extend-exclude", "migrations"]
+RUFF_ADDITIONAL_ARGS: list[str] = []  # e.g. ["--extend-exclude", "migrations"]
 
 # Allow explicit file list from the command line (e.g. CI “changed files” step)
 if len(sys.argv) > 1:
     FILES_OR_FOLDERS[:] = sys.argv[1:]
 
-# -----------------------------------------------------------------------------  
-# Backup Ruff flags (used **only** when no project config is found)  
-# -----------------------------------------------------------------------------  
+# -----------------------------------------------------------------------------
+# Backup Ruff flags (used **only** when no project config is found)
+# -----------------------------------------------------------------------------
 
 BACKUP_RUFF_CLI_ARGS: list[str] = [
-    "--line-length", "100",
-    "--target-version", "py310",
-    "--select", "I,F,D,ANN,TCH",
-    "--fixable", "F401,D,I,TCH003",
-    "--ignore", "ANN401",
+    "--line-length",
+    "100",
+    "--target-version",
+    "py310",
+    "--select",
+    "I,F,D,ANN,TCH",
+    "--fixable",
+    "F401,D,I,TCH003",
+    "--ignore",
+    "ANN401",
     # "--pydocstyle-convention", "google",
 ]
 
@@ -83,6 +90,7 @@ CONSOLE = logging.getLogger(__name__)
 # Ruff configuration discovery
 # -----------------------------------------------------------------------------
 
+
 def _find_ruff_config(start: Path | None = None) -> Path | None:
     """Return the first Ruff config file found when walking upward."""
     for parent in (start or Path(__file__).resolve().parent).resolve().parents:
@@ -94,9 +102,7 @@ def _find_ruff_config(start: Path | None = None) -> Path | None:
 
 
 _HAS_USER_RUFF_CONFIG = _find_ruff_config() is not None
-_EFFECTIVE_RUFF_CLI_ARGS: list[str] = (
-    [] if _HAS_USER_RUFF_CONFIG else BACKUP_RUFF_CLI_ARGS
-)
+_EFFECTIVE_RUFF_CLI_ARGS: list[str] = [] if _HAS_USER_RUFF_CONFIG else BACKUP_RUFF_CLI_ARGS
 
 CONSOLE.info(
     "Using %s Ruff configuration.",
@@ -250,7 +256,7 @@ def run_ruff(files: list[str], read_only: bool) -> int:
     cmd = [
         *_ruff_cmd(),
         "check",
-        *_EFFECTIVE_RUFF_CLI_ARGS,     # ← single-source of truth
+        *_EFFECTIVE_RUFF_CLI_ARGS,  # ← single-source of truth
         *per_file_ignores_flags,
         *RUFF_ADDITIONAL_ARGS,
     ]
@@ -278,6 +284,7 @@ def run_ruff(files: list[str], read_only: bool) -> int:
     # Count distinct files that still have issues
     issue_lines = re.findall(r"^(.+?):\d+:\d+:", proc.stdout or "", flags=re.MULTILINE)
     return len(set(issue_lines)) if proc.returncode == 1 else 0
+
 
 # =============================================================================
 # MAIN
