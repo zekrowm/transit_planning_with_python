@@ -13,7 +13,7 @@ directions, time-bin width, and service filtering.
 
 import logging
 import os
-
+from typing import Any, Mapping, Optional  # noqa: ANN401  (re-exported for typing)
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
@@ -61,7 +61,9 @@ SERVICE_ID = "3"  # Replace with your desired service_id value from calendar.txt
 # =============================================================================
 
 
-def fix_time_format(time_str):
+def fix_time_format(
+    time_str: str | pd.NA | None,
+) -> str | pd.NA | None:
     """Normalize GTFS HH:MM:SS strings.
 
     * Adds a leading zero when the hour has one digit.
@@ -90,7 +92,10 @@ def fix_time_format(time_str):
     return ":".join(parts)
 
 
-def get_time_bin(t, interval):
+def get_time_bin(
+    t: _dt.time,
+    interval: int,
+) -> str:
     """Map a :class:`datetime.time` to a formatted time-bin label.
 
     Args:
@@ -226,8 +231,13 @@ def process_and_export(
 
 
 def _export_to_excel(
-    df, output_path, interval_minutes, route_short, direction_id=None, service_id=None
-):
+    df: pd.DataFrame,
+    output_path: str,
+    interval_minutes: int,
+    route_short: str,
+    direction_id: int | None = None,
+    service_id: str | None = None,
+) -> None:
     """Write a single *trips-per-bin* table to an Excel workbook.
 
     Args:
