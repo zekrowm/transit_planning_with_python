@@ -8,9 +8,9 @@ import pandas as pd
 # Allow overwriting outputs in the ArcPy environment.
 arcpy.env.overwriteOutput = True
 
-# -----------------------------------------------------------------------------
-# CONFIGURATION SECTION
-# -----------------------------------------------------------------------------
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
 ANALYSIS_MODE = "network"  # Options: "network", "route", or "stop"
 
@@ -50,10 +50,9 @@ REQUIRED_GTFS_FILES = ["trips.txt", "stop_times.txt", "routes.txt", "stops.txt",
 GDB_NAME = "analysis.gdb"
 
 
-# -----------------------------------------------------------------------------
-# HELPER FUNCTIONS
-# -----------------------------------------------------------------------------
-
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
 def ensure_gdb_exists(output_dir, gdb_name):
     """Create a file geodatabase if it does not already exist.
@@ -674,10 +673,9 @@ def do_shapefile_analysis(
     xlsx_path = os.path.join(OUTPUT_DIRECTORY, "shapefile_service_buffer_data.xlsx")
     export_summary_to_excel(final_dict, xlsx_path)
 
-
-# -----------------------------------------------------------------------------
-# MAIN EXECUTION
-# -----------------------------------------------------------------------------
+# =============================================================================
+# MAIN 
+# =============================================================================
 
 if __name__ == "__main__":
     try:
