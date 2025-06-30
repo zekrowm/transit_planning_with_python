@@ -13,7 +13,8 @@ Run the script from ArcGIS Pro’s Python window or a Jupyter notebook.
 """
 
 import os
-
+from __future__ import annotations
+from typing import Mapping, Sequence, Optional, List, Union
 import pandas as pd
 
 # =============================================================================
@@ -73,7 +74,9 @@ def load_data(file_path: str) -> pd.DataFrame:
 
 
 def filter_routes(
-    df: pd.DataFrame, routes_to_exclude=None, routes_to_include=None
+    df: pd.DataFrame,
+    routes_to_exclude: Optional[Sequence[str]] = None,
+    routes_to_include: Optional[Sequence[str]] = None,
 ) -> pd.DataFrame:
     """Filter a CLEVER export by *Branch* (i.e. route) column.
 
@@ -97,7 +100,12 @@ def filter_routes(
     return df
 
 
-def convert_time_columns(df: pd.DataFrame, time_columns=None) -> None:
+def convert_time_columns(
+    df: pd.DataFrame,
+    time_columns: Optional[
+        Union[Mapping[str, str], Sequence[str]]
+    ] = None,
+) -> None:
     """Convert selected time columns from seconds to minutes *in-place*.
 
     Args:
@@ -120,7 +128,7 @@ def convert_time_columns(df: pd.DataFrame, time_columns=None) -> None:
             df[col] = df[col] / 60.0
 
 
-def parse_trip_time(trip_str: str):
+def parse_trip_time(trip_str: str) -> Optional[int]:
     """Parse the *HH:MM* portion of a CLEVER *Trip* string.
 
     Example input ``"04:56 1419958"`` → ``296`` (minutes after midnight).
@@ -146,7 +154,10 @@ def parse_trip_time(trip_str: str):
         return None
 
 
-def check_route_validity(segments, variation_values):
+def check_route_validity(
+    segments: Sequence[str],
+    variation_values: Sequence[str],
+) -> bool:
     """Perform sanity checks on a collection of *START – END* segments.
 
     The following issues are flagged (warnings only):
@@ -225,7 +236,7 @@ def check_route_validity(segments, variation_values):
     return is_valid
 
 
-def sort_route_segments(segments):
+def sort_route_segments(segments: Sequence[str]) -> List[str]:
     """Return *segments* reordered into a linear chain, if one is derivable.
 
     Args:
@@ -370,7 +381,7 @@ def create_and_save_pivots(
             print(f"Created {no_data_path}")
 
 
-def process_file(file_path: str, dataset_label: str):
+def process_file(file_path: str, dataset_label: str) -> None:
     """Run the full workflow for one CLEVER export.
 
     Args:
@@ -399,7 +410,7 @@ def process_file(file_path: str, dataset_label: str):
 # =============================================================================
 
 
-def main():
+def main() -> None:
     """Dispatch processing for each configured service period.
 
     File paths left blank in *CONFIGURATION* are skipped with a console notice.
