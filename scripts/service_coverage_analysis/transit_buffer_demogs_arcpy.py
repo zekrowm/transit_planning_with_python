@@ -23,7 +23,7 @@ equity analysis, or service coverage reporting.
 
 import os
 from __future__ import annotations
-from collections.abc import Mapping, Sequence
+from typing import Mapping, Sequence
 import arcpy
 import pandas as pd
 
