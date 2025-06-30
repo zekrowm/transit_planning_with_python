@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import os
 from typing import Final
-from datetime import time as _time
+import datetime as dt
+
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font
@@ -98,7 +99,7 @@ def load_data(input_file: str) -> pd.DataFrame:
     return data_frame[selected_columns]
 
 
-def assign_service_period(ts: pd.Timestamp | _time) -> str:
+def assign_service_period(ts: pd.Timestamp | dt.time) -> str:
     """Map a trip’s start time to a service-period label.
 
     Args:
