@@ -356,10 +356,15 @@ def export_summary_to_excel(data_dict, output_path):
 # ANALYSIS FUNCTIONS (GTFS)
 # -----------------------------------------------------------------------------
 
-
 def do_network_analysis(
-    trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path
-):
+    trips: pd.DataFrame,
+    stop_times: pd.DataFrame,
+    routes_df: pd.DataFrame,
+    stops_df: pd.DataFrame,
+    demog_fc: str,
+    all_demog_totals: dict[str, float],
+    gdb_path: str,
+) -> None:
     """Perform network-wide analysis of service buffers.
 
     Create a single dissolved buffer from all included stops, intersect with
