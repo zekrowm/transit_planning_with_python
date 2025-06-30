@@ -1,5 +1,4 @@
 # .github/workflows/ruff_linter_formatter.yml
-
 name: ruff_linter_formatter
 
 on:
@@ -35,6 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install "ruff>=0.4.0"
 
+      # ----- work out which .py files changed in the push/PR -----
       - name: Determine changed Python files
         id: changed
         shell: bash
@@ -51,17 +51,18 @@ jobs:
         if: ${{ steps.changed.outputs.files == '' }}
         run: echo "No Python files changed – skipping formatting and linting."
 
-      - name: Ruff – import ordering & formatting
+      # ----- Ruff driven entirely by your TOML -----
+      - name: Ruff – format (pyproject.toml-aware)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
-          ruff check ${{ steps.changed.outputs.files }} --select I --fix
           ruff format ${{ steps.changed.outputs.files }}
 
-      - name: Ruff – lint (Pyflakes + Google-pydocstyle)
+      - name: Ruff – lint & auto-fix (pyproject.toml-aware)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
-          ruff check ${{ steps.changed.outputs.files }} --select F,D --fix
+          ruff check ${{ steps.changed.outputs.files }} --fix
 
+      # ----- Commit any modifications back to the branch -----
       - name: Commit & push (if needed)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
@@ -73,3 +74,4 @@ jobs:
           else
             echo "Nothing to commit – changed files already tidy."
           fi
+
