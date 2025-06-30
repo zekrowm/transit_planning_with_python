@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from typing import Final
-
+from datetime import time as _time
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font
@@ -98,7 +98,7 @@ def load_data(input_file: str) -> pd.DataFrame:
     return data_frame[selected_columns]
 
 
-def assign_service_period(ts: TimeLike) -> str:   # ← fixes ANN001 & ANN201
+def assign_service_period(ts: pd.Timestamp | _time) -> str:
     """Map a trip’s start time to a service-period label.
 
     Args:
@@ -411,8 +411,7 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
 # MAIN
 # =============================================================================
 
-
-def main():
+def main() -> None:
     """Run the full ETL pipeline and create all exports."""
     # Load data
     data_frame = load_data(INPUT_FILE)
