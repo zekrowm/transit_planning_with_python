@@ -1,7 +1,29 @@
-"""Script to automate the calculation of service population demographics for EIA documents."""
+"""Analyze demographic coverage of transit service using GTFS, shapefiles, and ArcPy.
+
+This script automates the generation of service area buffers (e.g., 0.25-mile radius) 
+around transit stops, routes, or custom input geometries and calculates partial-weighted 
+demographic summaries based on spatial intersection with Census-based feature classes.
+
+It supports three analysis modes:
+  - "network": Combines all GTFS stops into a single systemwide buffer.
+  - "route": Dissolves buffers by `route_short_name` for route-level analysis.
+  - "stop": Analyzes each stop individually.
+A fourth mode uses shapefiles directly, bypassing GTFS.
+
+The script expects GTFS-formatted CSVs, an Esri-compatible demographic shapefile,
+and runs within an ArcGIS Pro Python environment using `arcpy`.
+
+Typical outputs include:
+  - Feature classes in a file geodatabase (`*.gdb`)
+  - Summary Excel spreadsheets with raw and % synthetic population fields.
+
+This tool is intended to support Environmental Impact Assessments (EIA), Title VI 
+equity analysis, or service coverage reporting.
+"""
 
 import os
-
+from __future__ import annotations
+from collections.abc import Mapping, Sequence
 import arcpy
 import pandas as pd
 
@@ -69,7 +91,9 @@ def ensure_gdb_exists(
     return gdb_path
 
 
-def load_gtfs_data(gtfs_path):
+def load_gtfs_data(
+    gtfs_path: str | os.PathLike[str],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Load GTFS CSVs into pandas DataFrames."""
     for filename in REQUIRED_GTFS_FILES:
         full_path = os.path.join(gtfs_path, filename)
