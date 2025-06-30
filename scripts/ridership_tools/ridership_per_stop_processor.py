@@ -10,40 +10,41 @@ Identify the key stops on each route by absolute volume and by percentage
 share of ridership.
 """
 
-import os
-
 import pandas as pd
+from __future__ import annotations
+import os
+from pathlib import Path            
+from typing import Sequence
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
 # Path to the input Excel file
-INPUT_FILE_PATH = r"\\Your\File\Path\To\STOP_USAGE_(BY_STOP_NAME).XLSX"
+INPUT_FILE_PATH: Path = Path(r"\\Your\File\Path\To\STOP_USAGE_(BY_STOP_NAME).XLSX")
 
 # Path to the directory where output files will be saved
-OUTPUT_DIR = r"\\Your\Folder\Path\To\Output"
+OUTPUT_DIR: Path = Path(r"\\Your\Folder\Path\To\Output")
 
 # List of STOP_IDs to filter on. If empty, no filter is applied.
-STOP_FILTER_LIST = [1107, 2816, 6548]  # Example default
+STOP_FILTER_LIST: Sequence[int] = [1107, 2816, 6548] # Example default
 
 # Decide which columns to use in the output (True/False)
-USE_BOARDINGS = True
-USE_ALIGHTINGS = True
+USE_BOARDINGS: bool = True
+USE_ALIGHTINGS: bool = True
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
-
-def load_data(excel_path):
+def load_data(excel_path: Path | str) -> pd.DataFrame:
     """Load stop-level ridership data from an Excel workbook.
 
     Args:
         excel_path: Absolute or relative path to the source workbook.
 
     Returns:
-        A :class:`pandas.DataFrame` containing the workbook contents.
+        A ``pandas.DataFrame`` containing the workbook contents.
 
     Raises:
         FileNotFoundError: If *excel_path* does not exist.
@@ -53,40 +54,44 @@ def load_data(excel_path):
     return data_frame
 
 
-def filter_by_stops(data_frame, stop_ids):
+def filter_by_stops(
+    data_frame: pd.DataFrame,
+    stop_ids: Sequence[int] | None,
+) -> pd.DataFrame:
     """Return rows whose ``STOP_ID`` is in *stop_ids*.
 
     Args:
         data_frame: DataFrame produced by :func:`load_data`.
-        stop_ids: Sequence of ``STOP_ID`` values to retain.
-            If empty, *data_frame* is returned unchanged.
+        stop_ids: Sequence of ``STOP_ID`` values to retain; ``None`` or
+            an empty sequence means *data_frame* is returned unchanged.
 
     Returns:
-        A filtered copy of *data_frame*.
+        Filtered copy of *data_frame* (may be the original object).
     """
     if stop_ids:
         return data_frame[data_frame["STOP_ID"].isin(stop_ids)]
     return data_frame
 
 
-def get_route_names(data_frame):
+def get_route_names(data_frame: pd.DataFrame) -> list[str]:
     """Extract the distinct route names present in *data_frame*.
 
     Args:
         data_frame: DataFrame containing a ``ROUTE_NAME`` column.
 
     Returns:
-        A list of unique route name strings, unsorted.
+        Unsorted list of unique route names.
     """
     return data_frame["ROUTE_NAME"].unique()
 
 
-def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag):
+def aggregate_route_data(
+    data_frame: pd.DataFrame,
+    route_name: str,
+    boardings_flag: bool,
+    alightings_flag: bool,
+) -> pd.DataFrame | None:
     """Aggregate ridership for a single route.
-
-    The function groups by ``STOP_ID`` + ``STOP_NAME``, sums the selected
-    metrics, and derives percentage-of-total columns. Values are rounded
-    to one decimal place to match the original precision.
 
     Args:
         data_frame: Full stop-level ridership DataFrame.
@@ -95,10 +100,7 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
         alightings_flag: ``True`` to include ``XALIGHTINGS``.
 
     Returns:
-        * A DataFrame with aggregated totals and percentages when at least
-          one flag is ``True``.
-        * ``None`` if both *boardings_flag* and *alightings_flag* are
-          ``False``.
+        Aggregated DataFrame or ``None`` if both flags are ``False``.
 
     Raises:
         ValueError: If *route_name* is absent from *data_frame*.
@@ -153,7 +155,11 @@ def aggregate_route_data(data_frame, route_name, boardings_flag, alightings_flag
     return grouped
 
 
-def save_route_data(route_data, route_name, output_directory):
+def save_route_data(
+    route_data: pd.DataFrame,
+    route_name: str,
+    output_directory: Path | str,
+) -> None:
     """Write *route_data* to ``<output_directory>/<route_name>.xlsx``.
 
     Args:
@@ -161,9 +167,6 @@ def save_route_data(route_data, route_name, output_directory):
             :func:`aggregate_route_data`.
         route_name: Route identifier used to build the filename.
         output_directory: Directory that will receive the workbook.
-
-    Returns:
-        None
     """
     filename = f"{route_name}.xlsx"
     filepath = os.path.join(output_directory, filename)
@@ -174,8 +177,7 @@ def save_route_data(route_data, route_name, output_directory):
 # MAIN
 # =============================================================================
 
-
-def main():
+def main() -> None:
     """Coordinate the end-to-end aggregation workflow.
 
     Steps
