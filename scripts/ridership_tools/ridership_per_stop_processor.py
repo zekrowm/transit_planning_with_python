@@ -11,10 +11,12 @@ share of ridership.
 """
 
 from __future__ import annotations
-import pandas as pd
+
 import os
-from pathlib import Path            
+from pathlib import Path
 from typing import Sequence
+
+import pandas as pd
 
 # =============================================================================
 # CONFIGURATION
@@ -27,7 +29,7 @@ INPUT_FILE_PATH: Path = Path(r"\\Your\File\Path\To\STOP_USAGE_(BY_STOP_NAME).XLS
 OUTPUT_DIR: Path = Path(r"\\Your\Folder\Path\To\Output")
 
 # List of STOP_IDs to filter on. If empty, no filter is applied.
-STOP_FILTER_LIST: Sequence[int] = [1107, 2816, 6548] # Example default
+STOP_FILTER_LIST: Sequence[int] = [1107, 2816, 6548]  # Example default
 
 # Decide which columns to use in the output (True/False)
 USE_BOARDINGS: bool = True
@@ -36,6 +38,7 @@ USE_ALIGHTINGS: bool = True
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def load_data(excel_path: Path | str) -> pd.DataFrame:
     """Load stop-level ridership data from an Excel workbook.
@@ -176,6 +179,7 @@ def save_route_data(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Coordinate the end-to-end aggregation workflow.
