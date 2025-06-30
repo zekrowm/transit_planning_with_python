@@ -98,33 +98,15 @@ def load_data(input_file: str) -> pd.DataFrame:
     return data_frame[selected_columns]
 
 
-def assign_service_period(ts):
+def assign_service_period(ts: TimeLike) -> str:   # ← fixes ANN001 & ANN201
     """Map a trip’s start time to a service-period label.
 
-    The mapping is based on local clock hour:
-
-    ============  =========
-    Hour range    Label
-    ------------  ---------
-     04:00–05:59  AM Early
-     06:00–08:59  AM Peak
-     09:00–14:59  Midday
-     15:00–17:59  PM Peak
-     18:00–20:59  PM Late
-     21:00–23:59  PM Nite
-     Else         Other
-    ============  =========
-
     Args:
-    ----------
-    ts :
-        A pandas/NumPy time-like object (timestamp, datetime.time, or
-        ``NaT``/``None``).
+        ts: A pandas/NumPy time-like scalar (``pd.Timestamp``, ``datetime.time``,
+            or ``None``/``NaT``).
 
     Returns:
-    -------
-    str
-        One of the seven period strings shown above.
+        One of the seven period strings shown in the table below.
     """
     hour = ts.hour
     if 4 <= hour < 6:
