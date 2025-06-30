@@ -12,9 +12,11 @@ Typical Usage
 Run the script from ArcGIS Pro’s Python window or a Jupyter notebook.
 """
 
-import os
 from __future__ import annotations
-from typing import Mapping, Sequence, Optional, List, Union
+
+import os
+from typing import List, Mapping, Optional, Sequence, Union
+
 import pandas as pd
 
 # =============================================================================
@@ -102,9 +104,7 @@ def filter_routes(
 
 def convert_time_columns(
     df: pd.DataFrame,
-    time_columns: Optional[
-        Union[Mapping[str, str], Sequence[str]]
-    ] = None,
+    time_columns: Optional[Union[Mapping[str, str], Sequence[str]]] = None,
 ) -> None:
     """Convert selected time columns from seconds to minutes *in-place*.
 
@@ -363,11 +363,7 @@ def create_and_save_pivots(
                 no_data_name = f"{dataset_label}_Route{route}_Dir{direction}_NoData.csv"
                 no_data_path = os.path.join(output_subdir, no_data_name)
                 pd.DataFrame(
-                    {
-                        "Info": [
-                            f"No valid data for route {route}, direction {direction}."
-                        ]
-                    }
+                    {"Info": [f"No valid data for route {route}, direction {direction}."]}
                 ).to_csv(no_data_path, index=False)
                 print(f"Created {no_data_path}")
 
