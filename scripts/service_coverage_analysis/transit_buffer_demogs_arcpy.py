@@ -54,8 +54,10 @@ GDB_NAME = "analysis.gdb"
 # FUNCTIONS
 # =============================================================================
 
-
-def ensure_gdb_exists(output_dir, gdb_name):
+def ensure_gdb_exists(
+    output_dir: str | os.PathLike[str],
+    gdb_name: str,
+) -> str:
     """Create a file geodatabase if it does not already exist.
 
     Return the path to the GDB.
@@ -82,8 +84,7 @@ def load_gtfs_data(gtfs_path):
 
     return trips, stop_times, routes_df, stops_df, calendar
 
-
-def filter_weekday_service(calendar_df):
+def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
     """Return service IDs that run Monday–Friday."""
     weekday_filter = (
         (calendar_df["monday"] == 1)
@@ -95,7 +96,11 @@ def filter_weekday_service(calendar_df):
     return calendar_df[weekday_filter]["service_id"]
 
 
-def apply_county_state_filter(demog_fc, statefp_filter, countyfp_filter):
+def apply_county_state_filter(
+    demog_fc: str,
+    statefp_filter: Sequence[str] | None,
+    countyfp_filter: Sequence[str] | None,
+) -> str:
     """Filter a demographics feature class by optional STATEFP and COUNTYFP code lists.
 
     Return the name of an in-memory feature class containing the selection.
@@ -133,7 +138,11 @@ def apply_county_state_filter(demog_fc, statefp_filter, countyfp_filter):
     return filtered_fc
 
 
-def get_included_routes(routes_df, routes_to_include, routes_to_exclude):
+def get_included_routes(
+    routes_df: pd.DataFrame,
+    routes_to_include: Sequence[str] | None,
+    routes_to_exclude: Sequence[str] | None,
+) -> pd.DataFrame:
     """Apply route filters to routes_df and return the filtered DataFrame."""
     filtered = routes_df.copy()
     if routes_to_include:
@@ -151,7 +160,11 @@ def get_included_routes(routes_df, routes_to_include, routes_to_exclude):
     return filtered
 
 
-def get_included_stops(stops_df, stop_ids_to_include, stop_ids_to_exclude):
+def get_included_stops(
+    stops_df: pd.DataFrame,
+    stop_ids_to_include: Sequence[str | int] | None,
+    stop_ids_to_exclude: Sequence[str | int] | None,
+) -> pd.DataFrame:
     """Apply stop filters to a DataFrame of stops.
 
     The DataFrame may be the result of merging GTFS trips, stop_times, and stops.
@@ -176,7 +189,12 @@ def get_included_stops(stops_df, stop_ids_to_include, stop_ids_to_exclude):
     return filtered
 
 
-def pick_buffer_distance(stop_id, normal_buffer, large_buffer, large_buffer_ids):
+def pick_buffer_distance(
+    stop_id: str | int,
+    normal_buffer: float,
+    large_buffer: float,
+    large_buffer_ids: Sequence[str | int],
+) -> float:
     """Return the normal or large buffer distance in miles depending on stop_id."""
     str_stop_id = str(stop_id)
     large_list_str = [str(s) for s in large_buffer_ids]
@@ -185,7 +203,11 @@ def pick_buffer_distance(stop_id, normal_buffer, large_buffer, large_buffer_ids)
     return normal_buffer
 
 
-def create_feature_class_from_stops(stops_df, out_fc, spatial_ref):
+def create_feature_class_from_stops(
+    stops_df: pd.DataFrame,
+    out_fc: str,
+    spatial_ref: arcpy.SpatialReference,
+) -> str:
     """Create a point feature class from stops.
 
     Given a DataFrame of stops with 'stop_id', 'stop_lat', and 'stop_lon' columns,
@@ -223,7 +245,11 @@ def create_feature_class_from_stops(stops_df, out_fc, spatial_ref):
     return out_fc
 
 
-def buffer_feature_class_with_variable_distance(in_fc, out_fc, dist_field="dist_m"):
+def buffer_feature_class_with_variable_distance(
+    in_fc: str,
+    out_fc: str,
+    dist_field: str = "dist_m",
+) -> str:
     """Buffer the input feature class using a field-based distance.
 
     Use the buffer distance values stored in dist_field.
@@ -239,7 +265,12 @@ def buffer_feature_class_with_variable_distance(in_fc, out_fc, dist_field="dist_
     return out_fc
 
 
-def intersect_and_partial_weight(demog_fc, buffer_fc, synthetic_fields, out_fc):
+def intersect_and_partial_weight(
+    demog_fc: str,
+    buffer_fc: str,
+    synthetic_fields: Sequence[str],
+    out_fc: str,
+) -> dict[str, float]:
     """Intersect the buffer feature class with demographics and compute partial-weighted synthetic fields.
 
     Ensure that demog_fc has an 'area_ac_og' field representing original area in acres.
@@ -298,7 +329,10 @@ def intersect_and_partial_weight(demog_fc, buffer_fc, synthetic_fields, out_fc):
     return sum_dict
 
 
-def compute_demographics_totals(demog_fc, fields):
+def compute_demographics_totals(
+    demog_fc: str,
+    fields: Sequence[str],
+) -> dict[str, float]:
     """Compute total sums for specified fields in the demographic feature class.
 
     Return a dict mapping each field name to its unweighted sum value.
@@ -319,7 +353,11 @@ def compute_demographics_totals(demog_fc, fields):
     return totals
 
 
-def build_output_dict(partial_sums_dict, total_sums_dict, synthetic_fields):
+def build_output_dict(
+    partial_sums_dict: Mapping[str, float],
+    total_sums_dict: Mapping[str, float],
+    synthetic_fields: Sequence[str],
+) -> dict[str, float]:
     """Build a dictionary of partial and percentage values for synthetic fields.
 
     Given partial_sums_dict mapping synthetic_<field> names to summed values and
@@ -339,7 +377,10 @@ def build_output_dict(partial_sums_dict, total_sums_dict, synthetic_fields):
     return result
 
 
-def export_summary_to_excel(data_dict, output_path):
+def export_summary_to_excel(
+    data_dict: Mapping[str, float | int],
+    output_path: str | os.PathLike[str],
+) -> None:
     """Export a dictionary of scalar values to a one-row Excel file.
 
     Write the keys of data_dict as column names and their values in the first
@@ -418,8 +459,14 @@ def do_network_analysis(
 
 
 def do_route_by_route_analysis(
-    trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path
-):
+    trips: pd.DataFrame,
+    stop_times: pd.DataFrame,
+    routes_df: pd.DataFrame,
+    stops_df: pd.DataFrame,
+    demog_fc: str,
+    all_demog_totals: dict[str, float],
+    gdb_path: str,
+) -> None:
     """Perform route-by-route analysis of service buffers.
 
     Create dissolved buffers by route_short_name, intersect with demographics,
@@ -525,8 +572,14 @@ def do_route_by_route_analysis(
 
 
 def do_stop_by_stop_analysis(
-    trips, stop_times, routes_df, stops_df, demog_fc, all_demog_totals, gdb_path
-):
+    trips: pd.DataFrame,
+    stop_times: pd.DataFrame,
+    routes_df: pd.DataFrame,
+    stops_df: pd.DataFrame,
+    demog_fc: str,
+    all_demog_totals: dict[str, float],
+    gdb_path: str,
+) -> None:
     """Perform stop-by-stop analysis of service buffers.
 
     For each included stop, create an individual buffer, intersect with demographics,
@@ -614,8 +667,13 @@ def do_stop_by_stop_analysis(
 
 
 def do_shapefile_analysis(
-    shp_path, shp_filter_field, filter_values, demog_fc, all_demog_totals, gdb_path
-):
+    shp_path: str | os.PathLike[str],
+    shp_filter_field: str,
+    filter_values: Sequence[str] | None,
+    demog_fc: str,
+    all_demog_totals: dict[str, float],
+    gdb_path: str,
+) -> None:
     """Perform shapefile-based analysis of service buffers.
 
     Make a buffer around features in shp_path (filtered by shp_filter_field and
