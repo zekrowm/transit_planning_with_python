@@ -206,7 +206,7 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
             index=COL_ROUTE,
             columns=["MONTH_ABBR", COL_DAYTYPE],
             values=val_col,
-        ).rename_axis(None, axis=1)
+        )
 
         # Flatten MultiIndex column labels in a mypy-friendly way
         cols: Sequence[Tuple[str, str]] = cast(
