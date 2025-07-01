@@ -62,8 +62,7 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # FUNCTIONS
 # ==================================================================================================
 
-
-def validate_folders(input_path, output_path):
+def validate_folders(input_path: str, output_path: str):
     """Check that the input folder exists, and ensure the output folder is created if not."""
     if not os.path.isdir(input_path):
         raise NotADirectoryError(f"Input path does not exist or is not a directory: {input_path}")
@@ -74,8 +73,7 @@ def validate_folders(input_path, output_path):
 # HELPER FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
-
-def time_to_minutes(time_str):
+def time_to_minutes(time_str: str):
     """Convert 'HH:MM:SS' or 'HH:MM' to integer minutes (e.g. "26:30:00" -> 1590)."""
     parts = time_str.split(":")
     hours = int(parts[0])
@@ -84,14 +82,14 @@ def time_to_minutes(time_str):
     return hours * 60 + minutes + (seconds // 60)
 
 
-def minutes_to_hhmm(total_minutes):
+def minutes_to_hhmm(total_minutes: int):
     """Convert integer minutes into 'HH:MM' (e.g. 1590 -> "26:30")."""
     hours = total_minutes // 60
     mins = total_minutes % 60
     return f"{hours:02d}:{mins:02d}"
 
 
-def mark_first_and_last_stops(df_in):
+def mark_first_and_last_stops(df_in: pd.DataFrame):
     """Mark each stop in the trip as the first or last using boolean columns."""
     df_out = df_in.sort_values(["trip_id", "stop_sequence"]).copy()
     df_out["is_first_stop"] = False
@@ -106,7 +104,7 @@ def mark_first_and_last_stops(df_in):
     return df_out
 
 
-def find_cluster(stop_id, bus_stop_clusters):
+def find_cluster(stop_id: str, bus_stop_clusters: list[dict[str, Any]]):
     """Given a stop_id, return the named cluster (if any) or None if not found."""
     for cluster_item in bus_stop_clusters:
         if stop_id in cluster_item["stops"]:
@@ -118,8 +116,7 @@ def find_cluster(stop_id, bus_stop_clusters):
 # BRIDGING LOGIC REFACTOR
 # --------------------------------------------------------------------------------------------------
 
-
-def _status_for_same_trip(minute, stop_info):
+def _status_for_same_trip(minute: int, stop_info: tuple):
     """Handle same-trip logic. stop_info is a tuple."""
     (arr, dep, s_id, s_name, t_id, is_first, is_last, s_seq, t_val) = stop_info
 
@@ -172,7 +169,12 @@ def _status_for_same_trip(minute, stop_info):
 
 
 def _status_for_different_trip(
-    dep, next_arr, current_stop_id, current_stop_name, next_stop_id, bus_stop_clusters
+    dep: int,
+    next_arr: int,
+    current_stop_id: str,
+    current_stop_name: str,
+    next_stop_id: str,
+    bus_stop_clusters: list[dict[str, Any]],
 ):
     """Sub-logic for bridging between two different trips, determining LAYOVER, DEADHEAD, etc."""
     gap = next_arr - dep
@@ -194,7 +196,7 @@ def _status_for_different_trip(
     return ("DEADHEAD", current_stop_id, current_stop_name)
 
 
-def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
+def get_status_for_minute(minute: int, stop_times_sequence: list[tuple], bus_stop_clusters: list[dict[str, Any]]):
     """Determine the block's status at a specific 'minute'.
 
     Returns tuple:
@@ -258,8 +260,7 @@ def get_status_for_minute(minute, stop_times_sequence, bus_stop_clusters):
 # MAIN BLOCK PROCESSING
 # --------------------------------------------------------------------------------------------------
 
-
-def check_for_overlapping_trips(block_subset, block_id):
+def check_for_overlapping_trips(block_subset: pd.DataFrame, block_id: str):
     """Print a warning if any trips within this block overlap in time."""
     trip_times = []
     for trip_id, group in block_subset.groupby("trip_id"):
@@ -281,7 +282,7 @@ def check_for_overlapping_trips(block_subset, block_id):
                 )
 
 
-def fill_stop_ids_for_dwell_layover_loading(df_in):
+def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame):
     """Fills in missing stop information for certain vehicle statuses.
 
     For rows with a status of 'DWELL', 'LAYOVER', or 'LOADING', where the
@@ -334,7 +335,7 @@ def fill_stop_ids_for_dwell_layover_loading(df_in):
     return df_out
 
 
-def _create_trips_summary(block_subset):
+def _create_trips_summary(block_subset: pd.DataFrame):
     """Helper to build trip summaries for a block.
 
     Returns a list of dictionaries with trip info and sorted stop times.
@@ -379,7 +380,7 @@ def _create_trips_summary(block_subset):
     return trips_summary
 
 
-def _status_for_active_trips(minute, active_trips, bus_stop_clusters):
+def _status_for_active_trips(minute: int, active_trips: list[dict[str, Any]], bus_stop_clusters: list[dict[str, Any]]):
     """Among all 'active' trips for the given minute, determine the single chosen status."""
     candidate_info = []
     for trip_obj in active_trips:
@@ -572,7 +573,7 @@ def _build_schedule_rows(
     return rows
 
 
-def process_block(block_subset, block_id, timeline, bus_stop_clusters):
+def process_block(block_subset: pd.DataFrame, block_id: str, timeline: range, bus_stop_clusters: list[dict[str, Any]]):
     """Generate a minute-by-minute schedule DataFrame for a single block."""
     trips_summary = _create_trips_summary(block_subset)
     rows = _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters)
