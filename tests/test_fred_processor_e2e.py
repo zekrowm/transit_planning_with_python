@@ -59,6 +59,7 @@ def _build_dummy_csv(csv_path: Path) -> None:
 # The test
 # ==============================================================================
 
+
 def test_unemployment_processor_e2e(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Run simple end-to-end test.
 
