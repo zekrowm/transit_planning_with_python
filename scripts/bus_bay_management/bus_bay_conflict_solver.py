@@ -57,11 +57,6 @@ LAYOVER_STATUSES = {"LAYOVER", "DWELL", "LONG BREAK", "LOADING"}
 # FUNCTIONS
 # ==================================================================================================
 
-# --------------------------------------------------------------------------------------------------
-# BASIC CONFLICT-DETECTION UTILS
-# --------------------------------------------------------------------------------------------------
-
-
 def build_stop_capacities(cluster_info):
     """Map stop IDs to their integer bay capacities.
 
@@ -365,7 +360,6 @@ def solve_bus_assignment_pulp(df, cluster_info):
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
-
 
 def main():
     """Execute the full assignment and output pipeline for each defined cluster.
