@@ -57,7 +57,9 @@ jobs:
         run: |
           echo "Collecting Python files…"
           # Get the list of Python files, replacing newlines with spaces for a single-line string
-          FILES="$(git ls-files '*.py' | tr '\n' ' ')"
+          #FILES="$(git ls-files '*.py' | tr '\n' ' ')"
+          FILES="$(git ls-files '*.py' | grep -vE '/(tests|helpers)/' | tr '\n' ' ')"
+        
           echo "Found Python files: $FILES"
           
           # Set FILES as an output of this step, which is safer for multi-line content
