@@ -21,7 +21,7 @@ Outputs:
 import logging
 import os
 import sys
-
+from typing import Dict, List, Tuple, Union
 import geopandas as gpd
 import pandas as pd
 from rapidfuzz import fuzz, process
