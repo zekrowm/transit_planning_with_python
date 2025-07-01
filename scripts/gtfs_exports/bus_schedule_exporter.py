@@ -46,8 +46,7 @@ MAX_COLUMN_WIDTH = 30
 # FUNCTIONS
 # =============================================================================
 
-
-def time_to_minutes(time_str):
+def time_to_minutes(time_str: str) -> Optional[int]:
     """Convert a time string to minutes after midnight.
 
     Supports both *HH:MM* and *HH:MM AM/PM* tokens.  Times such as
@@ -85,7 +84,7 @@ def time_to_minutes(time_str):
     return result
 
 
-def adjust_time(time_str, time_format="24"):
+def adjust_time(time_str: str, time_format: str = "24") -> Optional[str]:
     """Re-format a GTFS time string.
 
     Args:
@@ -124,7 +123,7 @@ def adjust_time(time_str, time_format="24"):
         return None
 
 
-def prepare_timepoints(stop_times):
+def prepare_timepoints(stop_times: pd.DataFrame) -> pd.DataFrame:
     """Return only the rows in *stop_times* where ``timepoint == 1``.
 
     If the ``timepoint`` column is missing, the original DataFrame is
@@ -237,7 +236,7 @@ def safe_check_schedule_order(
         )
 
 
-def map_service_id_to_schedule(service_row_local):
+def map_service_id_to_schedule(service_row_local: pd.Series) -> str:
     """Translate one **calendar.txt** row into a schedule label.
 
     Args:
@@ -286,7 +285,7 @@ def map_service_id_to_schedule(service_row_local):
     return schedule_label
 
 
-def build_service_id_schedule_map(calendar_df):
+def build_service_id_schedule_map(calendar_df: pd.DataFrame) -> dict[str, str]:
     """Create ``service_id → schedule_type`` lookup."""
     service_id_schedule_map = {}
     for _, service_row_local in calendar_df.iterrows():
@@ -296,12 +295,12 @@ def build_service_id_schedule_map(calendar_df):
     return service_id_schedule_map
 
 
-def get_all_route_short_names(routes_df):
+def get_all_route_short_names(routes_df: pd.DataFrame) -> list[str]:
     """Return every unique ``route_short_name`` in ascending order."""
     return sorted(routes_df["route_short_name"].dropna().unique().tolist())
 
 
-def apply_in_out_filters(route_list):
+def apply_in_out_filters(route_list: list[str]) -> list[str]:
     """Apply ``FILTER_IN_ROUTES`` and ``FILTER_OUT_ROUTES`` to *route_list*."""
     route_set = set(route_list)
 
@@ -313,8 +312,12 @@ def apply_in_out_filters(route_list):
 
     return sorted(list(route_set))
 
-
-def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
+def get_master_trip_stops(
+    dir_id: int,
+    relevant_trips_dir: pd.DataFrame,
+    timepoints: pd.DataFrame,
+    stops_df: pd.DataFrame,
+) -> pd.DataFrame:
     """Select the trip with the most timepoints and return its ordered stops.
 
     Args:
@@ -398,7 +401,13 @@ def get_master_trip_stops(dir_id, relevant_trips_dir, timepoints, stops_df):
     return out_df
 
 
-def process_single_trip(trip_id, trip_stop_times, master_trip_stops, master_dict, ctx):
+def process_single_trip(
+    trip_id: str,
+    trip_stop_times: pd.DataFrame,
+    master_trip_stops: pd.DataFrame,
+    master_dict: dict[str, list[tuple[int, int, int]]],
+    ctx: dict[str, Any],
+)-> list[Any]:
     """Build one row of the schedule grid for *trip_id*."""
     trips_df = ctx["trips"]
     routes_df = ctx["routes"]
@@ -502,7 +511,7 @@ def process_single_trip(trip_id, trip_stop_times, master_trip_stops, master_dict
     return row_data
 
 
-def process_trips_for_direction(params):
+def process_trips_for_direction(params: dict[str, Any]) -> pd.DataFrame:
     """Generate the schedule grid for a single ``direction_id``."""
     trips_dir = params["trips_dir"]
     master_trip_stops = params["master_trip_stops"]
@@ -568,7 +577,10 @@ def process_trips_for_direction(params):
     return out_df
 
 
-def export_to_excel_multiple_sheets(df_dict, out_file):
+def export_to_excel_multiple_sheets(
+    df_dict: dict[str, pd.DataFrame],
+    out_file: str,
+) -> None:
     """Write each DataFrame in *df_dict* to its own sheet in *out_file*."""
     if not df_dict:
         logging.info(f"No data to export to {out_file}.")  # Changed to logging
@@ -615,7 +627,7 @@ def export_to_excel_multiple_sheets(df_dict, out_file):
         logging.error(f"Failed to export to Excel file {out_file}. Error: {e}")
 
 
-def format_service_id_folder_name(service_row):
+def format_service_id_folder_name(service_row: pd.Series) -> str:
     """Return a folder slug such as ``'calendar_3_mon_tue_wed_thu_fri'``."""
     service_id = service_row["service_id"]
     day_map = [
@@ -644,8 +656,9 @@ def format_service_id_folder_name(service_row):
 # SUB-STEPS
 # -----------------------------------------------------------------------------
 
-
-def filter_calendar_df(calendar_df):
+def filter_calendar_df(
+    calendar_df: pd.DataFrame,
+) -> Optional[pd.DataFrame]:
     """Filter *calendar_df* by ``FILTER_SERVICE_IDS``; return *None* if empty."""
     if FILTER_SERVICE_IDS:
         calendar_df = calendar_df[calendar_df["service_id"].isin(FILTER_SERVICE_IDS)]
@@ -657,7 +670,7 @@ def filter_calendar_df(calendar_df):
     return calendar_df
 
 
-def process_route_service_combinations(ctx):
+def process_route_service_combinations(ctx: dict[str, Any]) -> None:
     """Loop through every ``route × service_id`` and export schedule files."""
     routes_df = ctx["routes"]
     trips_df = ctx["trips"]
@@ -750,7 +763,6 @@ def process_route_service_combinations(ctx):
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
@@ -832,8 +844,7 @@ def load_gtfs_data(
 # MAIN
 # =============================================================================
 
-
-def main():
+def main() -> None:
     """Coordinate the end-to-end GTFS → Excel workflow.
 
     Steps
