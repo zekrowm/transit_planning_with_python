@@ -20,8 +20,7 @@ import logging
 import os
 from collections import defaultdict
 from pathlib import Path
-from typing import List, Literal, Optional
-
+from typing import Any, List, Literal, Mapping, Optional, Tuple, Dict
 import numpy as np
 import pandas as pd
 from openpyxl import Workbook
@@ -102,7 +101,7 @@ def convert_dist_to_miles(distance, input_unit):
     return num_distance / conv
 
 
-def parse_time_to_minutes(time_str):
+def parse_time_to_minutes(time_str: str) -> Optional[float]:
     """Convert HH:MM:SS to minutes past midnight.
 
     Args:
@@ -125,7 +124,7 @@ def parse_time_to_minutes(time_str):
         return None
 
 
-def minutes_to_hhmm(minutes_val):
+def minutes_to_hhmm(minutes_val: Optional[float]) -> str:
     """Convert minutes past midnight to HH:MM 24-hour format.
 
     Args:
@@ -142,7 +141,7 @@ def minutes_to_hhmm(minutes_val):
     return f"{hours:02d}:{mins:02d}"
 
 
-def format_service_id_folder_name(service_id, calendar_df):
+def format_service_id_folder_name(service_id: str, calendar_df: Optional[pd.DataFrame]) -> str:
     """Generate a subfolder name from service_id and weekday info.
 
     Args:
@@ -185,7 +184,7 @@ def format_service_id_folder_name(service_id, calendar_df):
     return f"calendar_{service_id}_{day_str}"
 
 
-def filter_trips(trips_df, routes_df, cal_ids):
+def filter_trips(trips_df: pd.DataFrame, routes_df: pd.DataFrame, cal_ids: List[str]) -> pd.DataFrame:
     """Filter trips by route_short_name and service_id.
 
     Args:
@@ -383,7 +382,7 @@ def generate_unique_patterns(trips_df, stop_times_df, stops_df):
     return patterns_dict
 
 
-def assign_pattern_ids(patterns_dict):
+def assign_pattern_ids(patterns_dict: Dict[Tuple, Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Assign numeric pattern IDs to each unique stop sequence.
 
     Args:
@@ -424,8 +423,7 @@ def assign_pattern_ids(patterns_dict):
 # EARLIEST START TIME
 # -----------------------------------------------------------------------------
 
-
-def compute_earliest_start_times(pattern_records, stop_times_df):
+def compute_earliest_start_times(pattern_records: List[Dict[str, Any]], stop_times_df: pd.DataFrame) -> None:
     """Add earliest start time (in minutes and HH:MM) to pattern records.
 
     Args:
@@ -499,8 +497,7 @@ def compute_earliest_start_times(pattern_records, stop_times_df):
 # MASTER TRIP
 # -----------------------------------------------------------------------------
 
-
-def find_master_trip_stops(route_id_val, direction_id_val, relevant_trips, stop_times_df, stops_df):
+def find_master_trip_stops(route_id_val: str, direction_id_val: str, relevant_trips: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame) -> List[Tuple[str, str]]:
     """Identify the trip with the most timepoints as the master for a direction.
 
     Args:
@@ -577,8 +574,7 @@ def forward_match_pattern_to_master(pattern_stops, master_stops):
 # EXCEL EXPORT
 # -----------------------------------------------------------------------------
 
-
-def create_workbook():
+def create_workbook() -> Workbook:
     """Create a new openpyxl Workbook with the default sheet removed.
 
     Returns:
@@ -592,14 +588,14 @@ def create_workbook():
 
 
 def fill_worksheet_for_direction(
-    workbook,
-    sheet_title,
-    route_short_name,
-    direction_id_val,
-    service_id_val,
-    pattern_records_dir,
-    master_stops,
-):
+    workbook: Workbook,
+    sheet_title: str,
+    route_short_name: str,
+    direction_id_val: str,
+    service_id_val: str,
+    pattern_records_dir: List[Dict[str, Any]],
+    master_stops: List[Tuple[str, str]],
+) -> None:
     """Add a sheet to the workbook with patterns for one route-direction.
 
     Args:
@@ -676,8 +672,13 @@ def fill_worksheet_for_direction(
 
 
 def export_patterns_to_excel(
-    pattern_records, routes_df, trips_df, stop_times_df, stops_df, calendar_df=None
-):
+    pattern_records: List[Dict[str, Any]],
+    routes_df: pd.DataFrame,
+    trips_df: pd.DataFrame,
+    stop_times_df: pd.DataFrame,
+    stops_df: pd.DataFrame,
+    calendar_df: Optional[pd.DataFrame] = None,
+) -> None:
     """Export pattern data to Excel workbooks by route and service_id.
 
     Args:
@@ -869,7 +870,7 @@ def load_gtfs_data(
 # MAIN
 # =============================================================================
 
-def main():
+def main() -> None:
     """Main script function for generating GTFS pattern exports."""
     if not os.path.exists(OUTPUT_DIR):
         try:
