@@ -14,7 +14,8 @@ Typical use:
 
 import csv
 import os
-from typing import Any, List, Tuple
+from typing import List, Tuple
+
 import arcpy  # type: ignore
 import pandas as pd
 
@@ -73,6 +74,7 @@ arcpy.env.overwriteOutput = True
 # FUNCTIONS
 # =============================================================================
 
+
 def create_bus_stops_feature_class() -> Tuple[str, List[str]]:
     """Create or identify the bus stops feature class.
 
@@ -119,9 +121,7 @@ def create_bus_stops_feature_class() -> Tuple[str, List[str]]:
     return bus_stops_fc, fields_to_export
 
 
-def spatial_join_bus_stops_to_polygons(
-    bus_stops_fc: str, fields_to_export: List[str]
-) -> str:
+def spatial_join_bus_stops_to_polygons(bus_stops_fc: str, fields_to_export: List[str]) -> str:
     """Perform a spatial join of bus stops to polygon features (if provided)."""
     polygon_layer_str = POLYGON_LAYER.strip()
     if polygon_layer_str:
@@ -247,9 +247,7 @@ def filter_matched_bus_stops(current_fc: str, df_joined: pd.DataFrame, key_field
     elif field_type in ["Integer", "SmallInteger", "Double", "Single", "OID"]:
         formatted_keys = [str(k) for k in matched_keys]
     else:
-        print(
-            f"Unsupported field type '{field_type}' for field '{key_field}'. Exiting."
-        )
+        print(f"Unsupported field type '{field_type}' for field '{key_field}'. Exiting.")
         exit()
 
     # Due to potential large number of keys, split into chunks
@@ -264,9 +262,7 @@ def filter_matched_bus_stops(current_fc: str, df_joined: pd.DataFrame, key_field
     print(f"Constructed WHERE clause (first 200 chars): {full_where_clause[:200]}...")
 
     try:
-        arcpy.SelectLayerByAttribute_management(
-            "joined_lyr", "NEW_SELECTION", full_where_clause
-        )
+        arcpy.SelectLayerByAttribute_management("joined_lyr", "NEW_SELECTION", full_where_clause)
     except arcpy.ExecuteError:
         print("Failed SelectLayerByAttribute. Check WHERE clause syntax.")
         print(f"WHERE clause attempted: {full_where_clause}")
@@ -285,9 +281,7 @@ def filter_matched_bus_stops(current_fc: str, df_joined: pd.DataFrame, key_field
     return MATCHED_JOINED_FC
 
 
-def update_bus_stops_ridership(
-    current_fc: str, df_joined: pd.DataFrame, key_field: str
-) -> None:
+def update_bus_stops_ridership(current_fc: str, df_joined: pd.DataFrame, key_field: str) -> None:
     """Add ridership fields to the bus stops shapefile and update them with data from df_joined."""
     ridership_fields = [
         ("XBOARD", "DOUBLE"),
@@ -313,9 +307,7 @@ def update_bus_stops_ridership(
                 "XTOTAL": row["TOTAL"],
             }
 
-    with arcpy.da.UpdateCursor(
-        current_fc, [key_field, "XBOARD", "XALIGHT", "XTOTAL"]
-    ) as cursor:
+    with arcpy.da.UpdateCursor(current_fc, [key_field, "XBOARD", "XALIGHT", "XTOTAL"]) as cursor:
         for r in cursor:
             code_val = str(r[0])
             if code_val in stop_ridership_dict:
@@ -359,9 +351,7 @@ def aggregate_ridership(df_joined: pd.DataFrame) -> None:
         ("TOTAL_SUM", "DOUBLE"),
     ]
 
-    existing_fields_blocks = [
-        f.name for f in arcpy.ListFields(POLYGON_WITH_RIDERSHIP_SHP)
-    ]
+    existing_fields_blocks = [f.name for f in arcpy.ListFields(POLYGON_WITH_RIDERSHIP_SHP)]
     for f_name, f_type in agg_fields:
         if f_name not in existing_fields_blocks:
             arcpy.management.AddField(POLYGON_WITH_RIDERSHIP_SHP, f_name, f_type)
@@ -443,6 +433,7 @@ def process_stops_for_single_run() -> None:
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Main entry point for the script.
 
@@ -516,9 +507,7 @@ def main() -> None:
                 "joined_lyr_route", "NEW_SELECTION", route_where_clause
             )
 
-            selected_count = int(
-                arcpy.GetCount_management("joined_lyr_route").getOutput(0)
-            )
+            selected_count = int(arcpy.GetCount_management("joined_lyr_route").getOutput(0))
             if selected_count == 0:
                 print(f"No bus stops found in FC for route {route}. Skipping.")
                 continue
