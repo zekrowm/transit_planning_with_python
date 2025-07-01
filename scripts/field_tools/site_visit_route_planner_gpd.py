@@ -788,7 +788,7 @@ def main() -> None:
     # bus_stops now has (x,y) in EPSG:2283 (feet)
 
     # 3. Parse the user-provided Google Maps DMS into lat/lon
-    lat_dd, lon_dd = parse_google_maps_coords(GOOGLE_MAPS_COORD_STR)
+    lat_dd, lon_dd = parse_Maps_coords(GOOGLE_MAPS_COORD_STR)
     # Reproject from EPSG:4326 -> EPSG:2283 (feet)
     start_coord_2283 = reproject_point_4326_to_2283(lon_dd, lat_dd)
     bus_stops["start"] = start_coord_2283
