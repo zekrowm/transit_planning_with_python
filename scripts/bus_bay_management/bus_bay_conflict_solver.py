@@ -10,11 +10,11 @@ Typical usage:
 """
 
 import os
+from typing import Dict, List, Set, Tuple
 
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import Font
-from typing import Dict, List, Tuple, Set
 
 try:
     import pulp
@@ -56,6 +56,7 @@ LAYOVER_STATUSES = {"LAYOVER", "DWELL", "LONG BREAK", "LOADING"}
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def build_stop_capacities(cluster_info: Dict[str, List[str]]) -> Dict[str, int]:
     """Map stop IDs to their integer bay capacities.
@@ -102,9 +103,7 @@ def recompute_conflict_types(df_in: pd.DataFrame, cluster_info: Dict[str, List[s
     # Timestamps that exceed cluster capacity
     presence_df = df[~df["Status"].isna()]
     presence_count = presence_df.groupby("Timestamp")["Block"].count()
-    cluster_conf_set = {
-        ts for ts, ct in presence_count.items() if ct > cluster_capacity
-    }
+    cluster_conf_set = {ts for ts, ct in presence_count.items() if ct > cluster_capacity}
 
     # Stop-level conflicts for passenger-service statuses
     pass_df = df[df["Status"].str.upper().isin(PASSENGER_SERVICE_STATUSES)]
@@ -138,7 +137,9 @@ def recompute_conflict_types(df_in: pd.DataFrame, cluster_info: Dict[str, List[s
     return out_list
 
 
-def count_conflicts_by_routedir(df: pd.DataFrame, conflict_col: str = "ConflictType_Recalc") -> pd.DataFrame:
+def count_conflicts_by_routedir(
+    df: pd.DataFrame, conflict_col: str = "ConflictType_Recalc"
+) -> pd.DataFrame:
     """Count conflict-labeled minutes for each (Route, Direction) pair.
 
     Args:
@@ -159,7 +160,10 @@ def count_conflicts_by_routedir(df: pd.DataFrame, conflict_col: str = "ConflictT
 # GREEDY SOLVER
 # --------------------------------------------------------------------------------------------------
 
-def solve_bus_assignment_greedy(df: pd.DataFrame, cluster_info: Dict[str, List[str]]) -> pd.DataFrame:
+
+def solve_bus_assignment_greedy(
+    df: pd.DataFrame, cluster_info: Dict[str, List[str]]
+) -> pd.DataFrame:
     """Assign buses to stops using a greedy first-fit strategy.
 
     Args:
@@ -232,6 +236,7 @@ def solve_bus_assignment_greedy(df: pd.DataFrame, cluster_info: Dict[str, List[s
 # PULP-BASED SOLVER
 # --------------------------------------------------------------------------------------------------
 
+
 def solve_bus_assignment_pulp(df: pd.DataFrame, cluster_info: Dict[str, List[str]]) -> pd.DataFrame:
     """Assign buses to stops using an integer programming formulation via PuLP.
 
@@ -274,9 +279,7 @@ def solve_bus_assignment_pulp(df: pd.DataFrame, cluster_info: Dict[str, List[str
             st = str(row["Status"]).upper()
             bdict[t] = {
                 "status": st,
-                "primary_stop_id": (
-                    str(row["Stop ID"]) if pd.notna(row["Stop ID"]) else None
-                ),
+                "primary_stop_id": (str(row["Stop ID"]) if pd.notna(row["Stop ID"]) else None),
                 "requires_capacity": st in PASSENGER_SERVICE_STATUSES,
             }
         bus_info[b] = bdict
@@ -358,6 +361,7 @@ def solve_bus_assignment_pulp(df: pd.DataFrame, cluster_info: Dict[str, List[str
 # MAIN
 # ==================================================================================================
 
+
 def main() -> None:
     """Execute the full assignment and output pipeline for each defined cluster.
 
@@ -405,14 +409,10 @@ def main() -> None:
         # 2) Recompute conflicts (before vs after)
         df_before_annot = df_before.copy()
         df_before_annot["AssignedStop"] = df_before_annot["Stop ID"].fillna("")
-        df_before_annot["ConflictType_Recalc"] = recompute_conflict_types(
-            df_before_annot, cinfo
-        )
+        df_before_annot["ConflictType_Recalc"] = recompute_conflict_types(df_before_annot, cinfo)
 
         df_after_annot = df_after.copy()
-        df_after_annot["ConflictType_Recalc"] = recompute_conflict_types(
-            df_after_annot, cinfo
-        )
+        df_after_annot["ConflictType_Recalc"] = recompute_conflict_types(df_after_annot, cinfo)
 
         # 3) Build row-level “Before/After” file
         df_before_cols = df_before_annot[
@@ -497,17 +497,15 @@ def main() -> None:
         )
 
         # 4) Build a route+direction conflict summary
-        conf_before = count_conflicts_by_routedir(
-            df_before_annot, "ConflictType_Recalc"
-        )
+        conf_before = count_conflicts_by_routedir(df_before_annot, "ConflictType_Recalc")
         conf_before.rename(columns={"ConflictMinutes": "ConflictBefore"}, inplace=True)
 
         conf_after = count_conflicts_by_routedir(df_after_annot, "ConflictType_Recalc")
         conf_after.rename(columns={"ConflictMinutes": "ConflictAfter"}, inplace=True)
 
-        df_conf = pd.merge(
-            conf_before, conf_after, on=["Route", "Direction"], how="outer"
-        ).fillna(0)
+        df_conf = pd.merge(conf_before, conf_after, on=["Route", "Direction"], how="outer").fillna(
+            0
+        )
         df_conf["ConflictBefore"] = df_conf["ConflictBefore"].astype(int)
         df_conf["ConflictAfter"] = df_conf["ConflictAfter"].astype(int)
 
@@ -560,9 +558,7 @@ def main() -> None:
                     lambda lst: ",".join(lst) if isinstance(lst, list) else ""
                 )
 
-        df_summary = pd.merge(
-            df_conf, pivoted, on=["Route", "Direction"], how="outer"
-        ).fillna("")
+        df_summary = pd.merge(df_conf, pivoted, on=["Route", "Direction"], how="outer").fillna("")
 
         summary_out = os.path.join(OUTPUT_DIR, f"{safe_name}_Summary.xlsx")
         with pd.ExcelWriter(summary_out, engine="openpyxl") as writer:
