@@ -1,6 +1,5 @@
 # tests/test_bus_schedule_exporter_e2e.py
-"""
-End-to-end smoke test for ``bus_schedule_exporter``.
+"""End-to-end smoke test for ``bus_schedule_exporter``.
 
 What the test does
 ------------------
@@ -121,7 +120,6 @@ def _write_dummy_gtfs(gtfs_dir: Path) -> None:
 # ------------------------------------------------------------------------------
 # 2. End-to-end test
 # ------------------------------------------------------------------------------
-
 
 def test_exporter_creates_excel(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
