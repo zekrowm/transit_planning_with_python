@@ -1,5 +1,5 @@
 # tests/test_bus_schedule_exporter_e2e.py
-"""End-to-end smoke test for ``bus_schedule_exporter``.
+r"""End-to-end smoke test for ``bus_schedule_exporter``.
 
 What the test does
 ------------------
@@ -124,8 +124,8 @@ def _write_dummy_gtfs(gtfs_dir: Path) -> None:
 def test_exporter_creates_excel(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """
-    GIVEN the dummy GTFS bundle
+    """GIVEN the dummy GTFS bundle
+    
     WHEN  bus_schedule_exporter.main() runs
     THEN  an Excel schedule appears where expected.
     """
