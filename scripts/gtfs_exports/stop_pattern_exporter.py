@@ -55,7 +55,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # FUNCTIONS
 # =============================================================================
 
-
 def is_number(value) -> bool:
     """Check if the input value can be converted to a float.
 
@@ -869,7 +868,6 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main():
     """Main script function for generating GTFS pattern exports."""
