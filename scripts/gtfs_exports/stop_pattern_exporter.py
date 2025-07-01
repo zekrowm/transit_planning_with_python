@@ -537,7 +537,7 @@ def find_master_trip_stops(route_id_val: str, direction_id_val: str, relevant_tr
     return out_list
 
 
-def forward_match_pattern_to_master(pattern_stops, master_stops):
+def forward_match_pattern_to_master(pattern_stops: List[Tuple[str, str]], master_stops: List[Tuple[str, str]]) -> List[str]:
     """Align pattern segment distances to the master stop order.
 
     Args:
