@@ -212,7 +212,7 @@ def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFram
     """
     try:
 
-        def categorize_day(day_num):
+        def categorize_day(day_num: int) -> str:
             if day_num < 5:
                 return "Weekday"
             if day_num == 5:
@@ -257,7 +257,7 @@ def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFram
         raise
 
 
-def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str):
+def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str) -> None:
     """Save a DataFrame to a CSV file in the specified output folder.
 
     Args:
@@ -278,7 +278,7 @@ def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str):
 # MAIN
 # =============================================================================
 
-def main():
+def main() -> None:
     """Main function to load, process, summarize, and save NOAA weather data."""
     # Load the data
     weather_data = load_weather_data(FILE_PATH)
