@@ -175,7 +175,7 @@ def _status_for_different_trip(
     current_stop_name: str,
     next_stop_id: str,
     bus_stop_clusters: list[dict[str, Any]],
-):
+) -> tuple[str, str, str]:
     """Sub-logic for bridging between two different trips, determining LAYOVER, DEADHEAD, etc."""
     gap = next_arr - dep
     current_cluster = find_cluster(current_stop_id, bus_stop_clusters)
@@ -196,7 +196,9 @@ def _status_for_different_trip(
     return ("DEADHEAD", current_stop_id, current_stop_name)
 
 
-def get_status_for_minute(minute: int, stop_times_sequence: list[tuple], bus_stop_clusters: list[dict[str, Any]]):
+def get_status_for_minute(
+    minute: int, stop_times_sequence: list[tuple], bus_stop_clusters: list[dict[str, Any]]
+) -> tuple[str, Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[int], int]:
     """Determine the block's status at a specific 'minute'.
 
     Returns tuple:
@@ -260,7 +262,7 @@ def get_status_for_minute(minute: int, stop_times_sequence: list[tuple], bus_sto
 # MAIN BLOCK PROCESSING
 # --------------------------------------------------------------------------------------------------
 
-def check_for_overlapping_trips(block_subset: pd.DataFrame, block_id: str):
+def check_for_overlapping_trips(block_subset: pd.DataFrame, block_id: str) -> None: # Added return type annotation
     """Print a warning if any trips within this block overlap in time."""
     trip_times = []
     for trip_id, group in block_subset.groupby("trip_id"):
@@ -282,7 +284,7 @@ def check_for_overlapping_trips(block_subset: pd.DataFrame, block_id: str):
                 )
 
 
-def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame):
+def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame) -> pd.DataFrame: # Added return type annotation
     """Fills in missing stop information for certain vehicle statuses.
 
     For rows with a status of 'DWELL', 'LAYOVER', or 'LOADING', where the
@@ -335,7 +337,7 @@ def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame):
     return df_out
 
 
-def _create_trips_summary(block_subset: pd.DataFrame):
+def _create_trips_summary(block_subset: pd.DataFrame) -> list[dict[str, Any]]: # Added return type annotation
     """Helper to build trip summaries for a block.
 
     Returns a list of dictionaries with trip info and sorted stop times.
@@ -380,7 +382,11 @@ def _create_trips_summary(block_subset: pd.DataFrame):
     return trips_summary
 
 
-def _status_for_active_trips(minute: int, active_trips: list[dict[str, Any]], bus_stop_clusters: list[dict[str, Any]]):
+def _status_for_active_trips(
+    minute: int,
+    active_trips: list[dict[str, Any]],
+    bus_stop_clusters: list[dict[str, Any]],
+) -> tuple[Optional[dict[str, Any]], tuple]: # Added return type annotation
     """Among all 'active' trips for the given minute, determine the single chosen status."""
     candidate_info = []
     for trip_obj in active_trips:
