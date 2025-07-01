@@ -41,6 +41,7 @@ IGNORE_PRIVATE = True  # skip functions whose names start with "_"
 # FUNCTIONS
 # =============================================================================
 
+
 def _normalise(node: ast.AST) -> ast.AST:
     """Strip line/column metadata for stable comparison."""
     for n in ast.walk(node):
@@ -85,9 +86,7 @@ def _compare_ast(a: ast.AST, b: ast.AST) -> bool:
     Returns:
         True if the ASTs are identical (semantically), False otherwise.
     """
-    return ast.dump(a, include_attributes=False) == ast.dump(
-        b, include_attributes=False
-    )
+    return ast.dump(a, include_attributes=False) == ast.dump(b, include_attributes=False)
 
 
 class AuditResult(NamedTuple):
@@ -109,12 +108,13 @@ class AuditResult(NamedTuple):
 # CANONICAL FUNCTION HARVEST
 # -----------------------------------------------------------------------------
 
+
 def _collect_canonical_funcs(
     source: Path,
 ) -> tuple[Dict[str, ast.AST], Set[Path]]:
     """Harvest canonical functions from *source* (file or directory).
 
-    Returns
+    Returns:
     -------
     funcs : dict
         {function_name: canonical_ast}
@@ -127,9 +127,7 @@ def _collect_canonical_funcs(
     if source.is_file():
         paths = [source]
     elif source.is_dir():
-        paths = [
-            p for p in source.iterdir() if p.is_file() and p.suffix in PY_EXTENSIONS
-        ]
+        paths = [p for p in source.iterdir() if p.is_file() and p.suffix in PY_EXTENSIONS]
     else:
         raise RuntimeError(f"{source} is neither a file nor a directory.")
 
@@ -144,8 +142,7 @@ def _collect_canonical_funcs(
         for name, ast_node in fns.items():
             if name in funcs:
                 logging.warning(
-                    "Duplicate canonical definition of %s: keeping first (%s), "
-                    "ignoring %s",
+                    "Duplicate canonical definition of %s: keeping first (%s), ignoring %s",
                     name,
                     funcs[name].__dict__.get("__file__", "<unknown>"),  # type: ignore[attr-defined]
                     path,
@@ -160,6 +157,7 @@ def _collect_canonical_funcs(
 # -----------------------------------------------------------------------------
 # AUDIT CORE
 # -----------------------------------------------------------------------------
+
 
 def _audit_single_function(
     name: str,
@@ -213,6 +211,7 @@ def _audit_single_function(
 # LOGGING & MAINFLOW
 # -----------------------------------------------------------------------------
 
+
 def _setup_logging() -> None:
     """Set up logging for the audit process.
 
@@ -237,6 +236,7 @@ def _setup_logging() -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the codebase audit for canonical function consistency.
