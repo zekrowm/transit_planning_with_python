@@ -15,9 +15,9 @@ Outputs:
     - Disk: Text file containing the same structure.
 """
 
-from typing import Dict, List, Any
 import os
 import sys
+from typing import Any, Dict, List
 
 # ==================================================================================================
 # CONFIGURATION
@@ -30,6 +30,7 @@ OUTPUT_FILE = r"directory_structure.txt"
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def build_tree(root: str) -> Dict[str, Any]:
     """Build nested dict of dirs containing files.
@@ -54,7 +55,7 @@ def build_tree(root: str) -> Dict[str, Any]:
 def build_lines(tree: Dict[str, Any], root_name: str) -> List[str]:
     """Convert nested dict to list of tree lines with connectors."""
     lines = [f"{root_name}/"]
-    
+
     def recurse(node: Dict[str, Any], prefix: str) -> None:
         files = node.get("__files__", [])
         dirs = sorted(k for k in node.keys() if k != "__files__")
@@ -76,6 +77,7 @@ def build_lines(tree: Dict[str, Any], root_name: str) -> List[str]:
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main(directory: str, output_dir: str, output_filename: str) -> None:
     """Generate and output the directory tree for all files."""
