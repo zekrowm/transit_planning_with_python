@@ -35,10 +35,10 @@ OUTPUT_FILE: Final[str] = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
 BUS_CAPACITY: Final[int] = 39
 
 # Routes that get the *higher* (1.25) load factor limit
-HIGHER_LIMIT_ROUTES: Final[list[str]] = ["101", "102", "103", "104"]
+HIGHER_LIMIT_ROUTES: Final[list[str]] = []
 
 # Routes that get the *lower* (1.0) limit
-LOWER_LIMIT_ROUTES: Final[list[str]] = ["105", "106"]
+LOWER_LIMIT_ROUTES: Final[list[str]] = []
 
 LOWER_LOAD_FACTOR_LIMIT: Final[float] = 1.0
 HIGHER_LOAD_FACTOR_LIMIT: Final[float] = 1.25
