@@ -21,6 +21,7 @@ Outputs:
 
 import os
 from datetime import timedelta
+from typing import Any, Dict, List, Optional, Tuple, Union
 from typing import List, Dict, Tuple, Optional, Any
 import geopandas as gpd
 import pandas as pd
@@ -30,6 +31,7 @@ from openpyxl.utils import get_column_letter
 from pandas import DataFrame
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
+from shapely.geometry import MultiPolygon
 
 # ==================================================================================================
 # CONFIGURATION
