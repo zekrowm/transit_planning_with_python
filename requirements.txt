@@ -4,7 +4,7 @@ numpy==1.26.4                # Numerical computing
 scipy==1.15.2                # Scientific computing and optimization
 
 # Geospatial Libraries (GeoPandas stack)
-geopandas==1.1.0             # Geospatial data handling (open-source)
+geopandas==0.14.4            # Geospatial data handling (open-source)
 shapely==2.1.1               # Geometry operations
 pyproj==3.7.1                # Coordinate reference systems and transformations
 
