@@ -46,6 +46,7 @@ MAX_COLUMN_WIDTH = 30
 # FUNCTIONS
 # =============================================================================
 
+
 def time_to_minutes(time_str: str) -> Optional[int]:
     """Convert a time string to minutes after midnight.
 
@@ -322,6 +323,7 @@ def apply_in_out_filters(route_list: list[str]) -> list[str]:
 
     return sorted(list(route_set))
 
+
 def get_master_trip_stops(
     dir_id: int,
     relevant_trips_dir: pd.DataFrame,
@@ -417,7 +419,7 @@ def process_single_trip(
     master_trip_stops: pd.DataFrame,
     master_dict: dict[str, list[tuple[int, int, int]]],
     ctx: dict[str, Any],
-)-> list[Any]:
+) -> list[Any]:
     """Build one row of the schedule grid for *trip_id*."""
     trips_df = ctx["trips"]
     routes_df = ctx["routes"]
@@ -666,6 +668,7 @@ def format_service_id_folder_name(service_row: pd.Series) -> str:
 # SUB-STEPS
 # -----------------------------------------------------------------------------
 
+
 def filter_calendar_df(
     calendar_df: pd.DataFrame,
 ) -> Optional[pd.DataFrame]:
@@ -773,6 +776,7 @@ def process_route_service_combinations(ctx: dict[str, Any]) -> None:
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
@@ -853,6 +857,7 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Coordinate the end-to-end GTFS → Excel workflow.
