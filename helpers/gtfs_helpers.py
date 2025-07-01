@@ -6,16 +6,14 @@ across transit data processing scripts.
 
 import logging
 import os
-
-import re
-import sys
-from collections import defaultdict
 from typing import Any, Mapping, Optional
+
 import pandas as pd
 
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
