@@ -151,7 +151,7 @@ def prepare_timepoints(stop_times: pd.DataFrame) -> pd.DataFrame:
     return timepoints
 
 
-def remove_empty_schedule_columns(input_df):
+def remove_empty_schedule_columns(input_df: pd.DataFrame) -> pd.DataFrame:
     """Drop schedule columns whose entire contents equal ``MISSING_TIME``.
 
     Args:
@@ -166,7 +166,13 @@ def remove_empty_schedule_columns(input_df):
     return input_df
 
 
-def check_schedule_order(input_df, ordered_stop_names, route_short_name, schedule_type, dir_id):
+def check_schedule_order(
+    input_df: pd.DataFrame,
+    ordered_stop_names: list[str],
+    route_short_name: str,
+    schedule_type: str,
+    dir_id: int,
+) -> None:
     """Validate that times increase by stop (row) and by trip (column).
 
     Args:
@@ -224,8 +230,12 @@ def check_schedule_order(input_df, ordered_stop_names, route_short_name, schedul
 
 
 def safe_check_schedule_order(
-    input_df, ordered_stop_names, route_short_name, schedule_type, dir_id
-):
+    input_df: pd.DataFrame,
+    ordered_stop_names: list[str],
+    route_short_name: str,
+    schedule_type: str,
+    dir_id: int,
+) -> None:
     """Run :func:`check_schedule_order` but never propagate its errors."""
     try:
         check_schedule_order(input_df, ordered_stop_names, route_short_name, schedule_type, dir_id)
