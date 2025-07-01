@@ -21,7 +21,7 @@ Typical usage is from a Jupyter notebook or the command line.
 import math
 import os
 import re
-
+from typing import Tuple, List, Dict, Any, Union
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -79,7 +79,7 @@ PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
 # FUNCTIONS
 # =============================================================================
 
-def reproject_point_4326_to_2283(x_lon, y_lat):
+def reproject_point_4326_to_2283(x_lon: float, y_lat: float) -> Tuple[float, float]:
     """Reproject a WGS 84 point to EPSG:2283.
 
     Args:
@@ -93,7 +93,7 @@ def reproject_point_4326_to_2283(x_lon, y_lat):
     return (x_2283, y_2283)
 
 
-def dms_to_decimal(dms_str):
+def dms_to_decimal(dms_str: str) -> float:
     """Convert a DMS coordinate string to decimal degrees.
 
     Args:
@@ -123,7 +123,7 @@ def dms_to_decimal(dms_str):
     return dec
 
 
-def parse_google_maps_coords(coord_str):
+def parse_Maps_coords(coord_str: str) -> Tuple[float, float]:
     """Parse a single Google-Maps DMS pair into decimal **lat**, **lon**.
 
     Args:
@@ -146,7 +146,7 @@ def parse_google_maps_coords(coord_str):
     return lat_dd, lon_dd
 
 
-def rotate_route(route, start_node):
+def rotate_route(route: List[Any], start_node: Any) -> List[Any]:
     """Rotate a cyclic TSP tour so that it begins/ends at *start_node*.
 
     Args:
@@ -168,7 +168,7 @@ def rotate_route(route, start_node):
     return rotated
 
 
-def compute_heading(p1, p2):
+def compute_heading(p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
     """Return the compass heading from *p1* to *p2* (degrees, 0° = East).
 
     Both points are assumed to be in the same planar CRS.
@@ -188,7 +188,9 @@ def compute_heading(p1, p2):
     return angle_deg
 
 
-def compute_turn_direction(heading1, heading2, threshold=15):
+def compute_turn_direction(
+    heading1: float, heading2: float, threshold: float = 15
+) -> str:
     """Categorize the turn between two headings.
 
     Args:
@@ -218,7 +220,9 @@ def compute_turn_direction(heading1, heading2, threshold=15):
 # GTFS AND STOP FUNCTIONS
 # -----------------------------------------------------------------------------
 
-def export_gtfs_stops(gtfs_path, output_dir, target_crs):
+def export_gtfs_stops(
+    gtfs_path: str, output_dir: str, target_crs: str
+) -> gpd.GeoDataFrame:
     """Read *stops.txt*, reproject, and write a shapefile.
 
     Args:
@@ -248,7 +252,9 @@ def export_gtfs_stops(gtfs_path, output_dir, target_crs):
     return stops_gdf
 
 
-def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
+def filter_selected_stops(
+    stops_gdf: gpd.GeoDataFrame, selected_stop_ids: List[str], stop_id_col: str
+) -> gpd.GeoDataFrame:
     """Filter *stops_gdf* to the user-selected IDs.
 
     Args:
@@ -279,12 +285,12 @@ def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
 # -----------------------------------------------------------------------------
 
 def build_directed_road_network(
-    road_shp_path,
-    oneway_col=ONEWAY_COL,
-    speed_col=SPEED_COL,
-    target_crs=TARGET_ROAD_CRS,
-    street_name_col=STREET_NAME_COL,
-):
+    road_shp_path: str,
+    oneway_col: str = ONEWAY_COL,
+    speed_col: str = SPEED_COL,
+    target_crs: str = TARGET_ROAD_CRS,
+    street_name_col: str = STREET_NAME_COL,
+) -> nx.DiGraph:
     """Construct a directed NetworkX graph from a road shapefile.
 
     Args:
@@ -364,7 +370,9 @@ def build_directed_road_network(
     return G, roads_gdf
 
 
-def snap_point_to_network(pt, road_graph):
+def snap_point_to_network(
+    pt: Union[Point, Tuple[float, float]], road_graph: nx.DiGraph
+) -> Any:
     """Snap an arbitrary point to its nearest graph node.
 
     Args:
@@ -386,7 +394,9 @@ def snap_point_to_network(pt, road_graph):
     return nearest_node
 
 
-def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops):
+def build_complete_graph_from_road_network(
+    road_graph: nx.DiGraph, stops_snapped: gpd.GeoDataFrame, bus_stops: List[Any]
+) -> nx.DiGraph:
     """Create the all-pairs travel-time graph used by the TSP.
 
     Args:
@@ -423,7 +433,7 @@ def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops)
 # TSP SOLVER FUNCTIONS
 # -----------------------------------------------------------------------------
 
-def compute_tsp_route_greedy(G):
+def compute_tsp_route_greedy(G: nx.DiGraph) -> List[Any]:
     """Solve the TSP approximately using NetworkX’s greedy heuristic.
 
     Args:
@@ -444,7 +454,7 @@ def compute_tsp_route_greedy(G):
     return tsp_route, total_travel_time
 
 
-def compute_tsp_route_ilp(G):
+def compute_tsp_route_ilp(G: nx.DiGraph) -> List[Any]:
     """Solve the TSP exactly via a Miller–Tucker–Zemlin ILP.
 
     Args:
@@ -537,7 +547,9 @@ def compute_tsp_route_ilp(G):
 # DIRECTIONS & EXPORTS
 # -----------------------------------------------------------------------------
 
-def generate_directions(tsp_route, stops_snapped, road_graph):
+def generate_directions(
+    tsp_route: List[Any], stops_snapped: gpd.GeoDataFrame, road_graph: nx.DiGraph
+) -> List[Dict[str, Any]]:
     """Create human-readable turn-by-turn instructions.
 
     Args:
@@ -646,7 +658,7 @@ def generate_directions(tsp_route, stops_snapped, road_graph):
     return directions_steps
 
 
-def export_directions_excel(directions_steps, output_dir):
+def export_directions_excel(directions_steps: List[Dict[str, Any]], output_dir: str) -> None:
     """Write the directions to ``directions.xlsx``.
 
     Args:
@@ -659,7 +671,13 @@ def export_directions_excel(directions_steps, output_dir):
     print(f"Exported directions to {output_file}")
 
 
-def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, output_dir):
+def export_tsp_route_shapefile(
+    tsp_route: List[Any],
+    stops_snapped: gpd.GeoDataFrame,
+    road_graph: nx.DiGraph,
+    roads_crs: str,
+    output_dir: str,
+) -> None:
     """Export the assembled route geometry to ``tsp_route.shp``.
 
     Args:
@@ -720,7 +738,7 @@ def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, 
 # PLOTTING
 # -----------------------------------------------------------------------------
 
-def plot_tsp_route(G, tsp_route):
+def plot_tsp_route(G: nx.DiGraph, tsp_route: List[Any]) -> None:
     """Render a quick NetworkX plot of the stop-to-stop graph.
 
     The figure is intended as a visual sanity check, not publication
@@ -752,7 +770,7 @@ def plot_tsp_route(G, tsp_route):
 # MAIN
 # =============================================================================
 
-def main():
+def main() -> None:
     """Run the full GTFS-to-TSP workflow.
 
     Coordinates execution of the helper functions defined in this module.
