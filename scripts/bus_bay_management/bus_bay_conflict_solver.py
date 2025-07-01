@@ -194,7 +194,6 @@ def solve_bus_assignment_greedy(df: pd.DataFrame, cluster_info: Dict[str, List[s
             used_stops_by_bus[bus_key] = set()
 
         primary_stop_id = str(row["Stop ID"]) if pd.notna(row["Stop ID"]) else ""
-        requires_capacity = stat in PASSENGER_SERVICE_STATUSES
 
         if stat == "DEPART":
             # must depart from primary
