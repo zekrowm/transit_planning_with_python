@@ -49,7 +49,6 @@ LOGGER: Final[logging.Logger] = logging.getLogger(__name__)
 # FUNCTIONS
 # =============================================================================
 
-
 def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
     """Read block geometry from *shp_path*.
 
@@ -222,7 +221,6 @@ def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Script entry point."""
