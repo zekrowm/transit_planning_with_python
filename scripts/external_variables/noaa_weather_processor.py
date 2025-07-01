@@ -72,6 +72,7 @@ POOR_WEATHER_CRITERIA = {
 # FUNCTIONS
 # =============================================================================
 
+
 def load_weather_data(file_path: str) -> pd.DataFrame:
     """Load NOAA weather data from a CSV file.
 
@@ -126,12 +127,8 @@ def process_date_columns(weather_df: pd.DataFrame) -> pd.DataFrame:
         weather_df["year"] = weather_df["date"].dt.year
         weather_df["month"] = weather_df["date"].dt.month
         weather_df["day"] = weather_df["date"].dt.day
-        weather_df["day_of_week"] = weather_df[
-            "date"
-        ].dt.dayofweek  # 0 = Monday, 6 = Sunday
-        weather_df["day_name"] = weather_df[
-            "date"
-        ].dt.day_name()  # Human-readable day name
+        weather_df["day_of_week"] = weather_df["date"].dt.dayofweek  # 0 = Monday, 6 = Sunday
+        weather_df["day_name"] = weather_df["date"].dt.day_name()  # Human-readable day name
         print("Date columns processed successfully.")
         return weather_df
     except KeyError:
@@ -246,9 +243,7 @@ def create_monthly_poor_weather_summary(weather_df: pd.DataFrame) -> pd.DataFram
                 monthly_summary_pivot[day_type] = 0
 
         # Convert year_month to string for easier handling
-        monthly_summary_pivot["year_month"] = monthly_summary_pivot[
-            "year_month"
-        ].astype(str)
+        monthly_summary_pivot["year_month"] = monthly_summary_pivot["year_month"].astype(str)
 
         print("Monthly poor weather summary created successfully.")
         return monthly_summary_pivot
@@ -274,9 +269,11 @@ def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str) 
         print(f"Error saving file {filename}: {error}")
         raise
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Main function to load, process, summarize, and save NOAA weather data."""
