@@ -95,7 +95,7 @@ SPECIAL_ROUTES = [
 # FUNCTIONS
 # =============================================================================
 
-def validate_input_directory(base_input_path, gtfs_files):
+def validate_input_directory(base_input_path: str, gtfs_files: List[str]) -> None:
     """Verify that *all* required GTFS files exist in the given directory.
 
     Args:
@@ -121,7 +121,7 @@ def validate_input_directory(base_input_path, gtfs_files):
             )
 
 
-def create_output_directory(base_output_path):
+def create_output_directory(base_output_path: str) -> None:
     """Create ``base_output_path`` if it does not already exist.
 
     Args:
@@ -134,7 +134,9 @@ def create_output_directory(base_output_path):
         os.makedirs(base_output_path)
 
 
-def load_gtfs_data(base_input_path, dtype_dict):
+def load_gtfs_data(
+    base_input_path: str, dtype_dict: Dict[str, type]
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Read required GTFS tables into memory.
 
     Args:
@@ -162,7 +164,9 @@ def load_gtfs_data(base_input_path, dtype_dict):
     return trips, stop_times, routes, stops, calendar
 
 
-def apply_stop_identifier_mode(stops_df, stop_identifier_field):
+def apply_stop_identifier_mode(
+    stops_df: pd.DataFrame, stop_identifier_field: str
+) -> None:
     """Align `stops_df` so downstream code can always key on ``stop_id``.
 
     If the user elects to use ``stop_code`` as the primary identifier, this
@@ -187,7 +191,7 @@ def apply_stop_identifier_mode(stops_df, stop_identifier_field):
         stops_df["stop_id"] = stops_df["stop_code"]
 
 
-def fix_time_format(time_str):
+def fix_time_format(time_str: str) -> str:
     """Normalize GTFS HH:MM[:SS] strings to *24-hour* ``"HH:MM"``.
 
     The GTFS spec permits hours ≥ 24 for post-midnight trips; values in that
@@ -210,7 +214,7 @@ def fix_time_format(time_str):
     return f"{hours:02}:{minutes:02}"
 
 
-def export_to_excel(df, output_file):
+def export_to_excel(df: pd.DataFrame, output_file: str) -> None:
     """Write a DataFrame to a formatted Excel workbook.
 
     Formatting rules
@@ -272,13 +276,13 @@ def export_to_excel(df, output_file):
 
 
 def process_cluster_data(
-    cluster_data,
-    stops_df,
-    cluster_name,
-    schedule_name,
-    base_output_path,
-    time_windows=None,
-):
+    cluster_data: pd.DataFrame,
+    stops_df: pd.DataFrame,
+    cluster_name: str,
+    schedule_name: str,
+    base_output_path: str,
+    time_windows: Optional[Dict[str, Dict[str, Tuple[str, str]]]] = None,
+) -> None:
     """Transform and export a *cluster × schedule* slice.
 
     Workflow
@@ -538,7 +542,7 @@ def process_cluster_data(
         )
 
 
-def generate_gtfs_checklists():
+def generate_gtfs_checklists() -> None:
     """Orchestrate the end-to-end checklist generation process.
 
     High-level steps:
@@ -631,7 +635,7 @@ def generate_gtfs_checklists():
 # MAIN
 # =============================================================================
 
-def main():
+def main() -> None:
     """Script entry point: simply calls :pyfunc:`generate_gtfs_checklists`."""
     generate_gtfs_checklists()
 
