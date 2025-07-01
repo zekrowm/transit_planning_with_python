@@ -62,6 +62,7 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # FUNCTIONS
 # ==================================================================================================
 
+
 def validate_folders(input_path: str, output_path: str) -> None:
     """Check that the input folder exists, and ensure the output folder is created if not."""
     if not os.path.isdir(input_path):
@@ -72,6 +73,7 @@ def validate_folders(input_path: str, output_path: str) -> None:
 # --------------------------------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # --------------------------------------------------------------------------------------------------
+
 
 def time_to_minutes(time_str: str) -> int:
     """Convert 'HH:MM:SS' or 'HH:MM' to integer minutes (e.g. "26:30:00" -> 1590)."""
@@ -115,6 +117,7 @@ def find_cluster(stop_id: str, bus_stop_clusters: list[dict[str, Any]]) -> Optio
 # --------------------------------------------------------------------------------------------------
 # BRIDGING LOGIC REFACTOR
 # --------------------------------------------------------------------------------------------------
+
 
 def _status_for_same_trip(minute: int, stop_info: tuple) -> Optional[tuple]:
     """Handle same-trip logic. stop_info is a tuple."""
@@ -198,7 +201,16 @@ def _status_for_different_trip(
 
 def get_status_for_minute(
     minute: int, stop_times_sequence: list[tuple], bus_stop_clusters: list[dict[str, Any]]
-) -> tuple[str, Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[int], int]:
+) -> tuple[
+    str,
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[int],
+    int,
+]:
     """Determine the block's status at a specific 'minute'.
 
     Returns tuple:
@@ -262,7 +274,10 @@ def get_status_for_minute(
 # MAIN BLOCK PROCESSING
 # --------------------------------------------------------------------------------------------------
 
-def check_for_overlapping_trips(block_subset: pd.DataFrame, block_id: str) -> None: # Added return type annotation
+
+def check_for_overlapping_trips(
+    block_subset: pd.DataFrame, block_id: str
+) -> None:  # Added return type annotation
     """Print a warning if any trips within this block overlap in time."""
     trip_times = []
     for trip_id, group in block_subset.groupby("trip_id"):
@@ -284,7 +299,9 @@ def check_for_overlapping_trips(block_subset: pd.DataFrame, block_id: str) -> No
                 )
 
 
-def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame) -> pd.DataFrame: # Added return type annotation
+def fill_stop_ids_for_dwell_layover_loading(
+    df_in: pd.DataFrame,
+) -> pd.DataFrame:  # Added return type annotation
     """Fills in missing stop information for certain vehicle statuses.
 
     For rows with a status of 'DWELL', 'LAYOVER', or 'LOADING', where the
@@ -337,7 +354,9 @@ def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame) -> pd.DataFrame
     return df_out
 
 
-def _create_trips_summary(block_subset: pd.DataFrame) -> list[dict[str, Any]]: # Added return type annotation
+def _create_trips_summary(
+    block_subset: pd.DataFrame,
+) -> list[dict[str, Any]]:  # Added return type annotation
     """Helper to build trip summaries for a block.
 
     Returns a list of dictionaries with trip info and sorted stop times.
@@ -386,7 +405,7 @@ def _status_for_active_trips(
     minute: int,
     active_trips: list[dict[str, Any]],
     bus_stop_clusters: list[dict[str, Any]],
-) -> tuple[Optional[dict[str, Any]], tuple]: # Added return type annotation
+) -> tuple[Optional[dict[str, Any]], tuple]:  # Added return type annotation
     """Among all 'active' trips for the given minute, determine the single chosen status."""
     candidate_info = []
     for trip_obj in active_trips:
@@ -511,7 +530,7 @@ def _build_schedule_rows(
 
             if chosen_trip is not None:
                 chosen_trip = cast("dict[str, Any]", chosen_trip)
-                
+
                 (
                     status,
                     stop_id,
@@ -577,7 +596,13 @@ def _build_schedule_rows(
 
     return rows
 
-def process_block(block_subset: pd.DataFrame, block_id: str, timeline: range, bus_stop_clusters: list[dict[str, Any]]) -> pd.DataFrame:
+
+def process_block(
+    block_subset: pd.DataFrame,
+    block_id: str,
+    timeline: range,
+    bus_stop_clusters: list[dict[str, Any]],
+) -> pd.DataFrame:
     """Generate a minute-by-minute schedule DataFrame for a single block."""
     trips_summary = _create_trips_summary(block_subset)
     rows = _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters)
@@ -589,7 +614,10 @@ def process_block(block_subset: pd.DataFrame, block_id: str, timeline: range, bu
 # STEP 1: GTFS -> Block Spreadsheets
 # --------------------------------------------------------------------------------------------------
 
-def _merge_and_filter_data(trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame) -> pd.DataFrame:
+
+def _merge_and_filter_data(
+    trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame
+) -> pd.DataFrame:
     """Merge trips and stops, filter by service_id, route, etc.
 
     Return a single merged DataFrame with arrival_min/departure_min.
@@ -817,6 +845,7 @@ def load_gtfs_data(
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:
     """Master entry point."""
