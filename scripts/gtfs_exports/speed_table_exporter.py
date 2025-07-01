@@ -218,7 +218,7 @@ def segment_metrics(grp: pd.DataFrame) -> Tuple[SegSpeeds, float, int]:
 
     for _, row in grp.iterrows():
         times.append(
-            hhmmss_to_minutes(cast(str, row.get("departure_time") or row.get("arrival_time")))
+            hhmmss_to_minutes(cast("str", row.get("departure_time") or row.get("arrival_time")))
         )
         dists.append(convert_to_miles(row.get("shape_dist_traveled")))
 
@@ -303,7 +303,7 @@ def build_index(
     rows: List[Dict[str, Union[int, str, float, None]]] = []
 
     for trip_id, grp in st.groupby("trip_id"):
-        pattern = tuple(cast(str, sid) for sid in grp["stop_id"])
+        pattern = tuple(cast("str", sid) for sid in grp["stop_id"])
         pat_hash = hash(pattern)
         pat_lut.setdefault(pat_hash, pattern)
 
@@ -327,7 +327,7 @@ def build_index(
         first_seg = seg_speeds[1] if len(seg_speeds) > 1 else MISSING_VAL
         start_min = hhmmss_to_minutes(
             cast(
-                str,
+                "str",
                 grp.iloc[0].get("departure_time") or grp.iloc[0].get("arrival_time"),
             )
         )
@@ -339,7 +339,7 @@ def build_index(
                 "direction_id": grp.iloc[0]["direction_id"],
                 "pattern_hash": pat_hash,
                 "speed_hash": spd_hash,
-                "first_seg_mph": None if first_seg == MISSING_VAL else cast(float, first_seg),
+                "first_seg_mph": None if first_seg == MISSING_VAL else cast("float", first_seg),
                 "start": start_min,
             }
         )
@@ -401,12 +401,12 @@ def export_excel(
         for did, grp_dir in grp_rs.groupby("direction_id", sort=False):
             ws = wb.create_sheet(safe_sheet(f"Dir_{did or 'X'}"))
 
-            first_pat = cast(int, grp_dir.iloc[0]["pattern_hash"])
+            first_pat = cast("int", grp_dir.iloc[0]["pattern_hash"])
             header = ["Pattern", "FrTime", "ToTime", "Mean_mph", *header_lut[first_pat]]
             ws.append(header)
 
             for _, row in grp_dir.iterrows():
-                speed_rec = speed_lut[cast(int, row["speed_hash"])]
+                speed_rec = speed_lut[cast("int", row["speed_hash"])]
                 ws.append(
                     [
                         row["pattern_hash"],
