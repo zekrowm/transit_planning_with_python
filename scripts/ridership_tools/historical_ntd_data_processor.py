@@ -81,9 +81,7 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
     if not os.path.exists(path):
         sys.exit(f"ERROR: compiled input file not found → {path}")
 
-    read_func = (
-        pd.read_excel if path.lower().endswith((".xlsx", ".xls")) else pd.read_csv
-    )
+    read_func = pd.read_excel if path.lower().endswith((".xlsx", ".xls")) else pd.read_csv
     # Read as *object* so nothing is silently coerced to float
     df = read_func(path, dtype="object")
 
@@ -141,9 +139,7 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
         .fillna(df[COL_DAYTYPE])
     )
 
-    unknown = df[~df[COL_DAYTYPE].isin(DAYTYPE_NORMALISER.values())][
-        COL_DAYTYPE
-    ].unique()
+    unknown = df[~df[COL_DAYTYPE].isin(DAYTYPE_NORMALISER.values())][COL_DAYTYPE].unique()
     if unknown.size:
         print(
             f"WARNING: unknown DAY_TYPE values encountered {unknown}; rows kept but may be ignored later."
@@ -172,9 +168,7 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
     dup_mask = df.duplicated([COL_ROUTE, "MONTH_ABBR", COL_DAYTYPE], keep=False)
     if dup_mask.any():
         dups = df.loc[dup_mask, [COL_ROUTE, COL_PERIOD, COL_DAYTYPE]]
-        print(
-            "WARNING: duplicate (route, month, day-type) rows detected:\n", dups.head()
-        )
+        print("WARNING: duplicate (route, month, day-type) rows detected:\n", dups.head())
         # Aggregate duplicates (summing ridership and days)
         df = df.groupby([COL_ROUTE, "MONTH_ABBR", COL_DAYTYPE], as_index=False).agg(
             {COL_RIDERSHIP: "sum", COL_DAYS: "sum"}
@@ -222,8 +216,7 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
         # Flatten MultiIndex column labels in a mypy-friendly way
         cols: Sequence[Tuple[str, str]] = cast("Sequence[Tuple[str, str]]", tmp.columns.to_list())
         tmp.columns = [
-            f"{month}_{day_type.title().rstrip('s')}{metric}"
-            for month, day_type in cols
+            f"{month}_{day_type.title().rstrip('s')}{metric}" for month, day_type in cols
         ]
         pieces.append(tmp)
 
@@ -311,9 +304,7 @@ def plot_ridership(df_wide: pd.DataFrame) -> None:
         return
 
     routes = (
-        df_wide
-        if not ROUTES_OF_INTEREST
-        else df_wide[df_wide[COL_ROUTE].isin(ROUTES_OF_INTEREST)]
+        df_wide if not ROUTES_OF_INTEREST else df_wide[df_wide[COL_ROUTE].isin(ROUTES_OF_INTEREST)]
     )
 
     for _, row in routes.iterrows():
@@ -328,9 +319,7 @@ def plot_ridership(df_wide: pd.DataFrame) -> None:
 
         # plot one figure per tag
         for tag, pts in series_lookup.items():
-            pts.sort(
-                key=lambda x: pd.to_datetime(x[0], format="%b-%y", errors="coerce")
-            )
+            pts.sort(key=lambda x: pd.to_datetime(x[0], format="%b-%y", errors="coerce"))
             months, vals = zip(*pts) if pts else ([], [])
             if not months:
                 continue
