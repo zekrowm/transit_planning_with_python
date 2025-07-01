@@ -57,7 +57,7 @@ LAYOVER_STATUSES = {"LAYOVER", "DWELL", "LONG BREAK", "LOADING"}
 # FUNCTIONS
 # ==================================================================================================
 
-def build_stop_capacities(cluster_info):
+def build_stop_capacities(cluster_info: Dict[str, List[str]]) -> Dict[str, int]:
     """Map stop IDs to their integer bay capacities.
 
     Args:
@@ -79,7 +79,7 @@ def build_stop_capacities(cluster_info):
     return stop_caps
 
 
-def recompute_conflict_types(df_in, cluster_info):
+def recompute_conflict_types(df_in: pd.DataFrame, cluster_info: Dict[str, List[str]]) -> List[str]:
     """Classify each row with 'STOP', 'CLUSTER', 'BOTH', or 'NONE' based on capacity limits.
 
     Args:
@@ -138,7 +138,7 @@ def recompute_conflict_types(df_in, cluster_info):
     return out_list
 
 
-def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
+def count_conflicts_by_routedir(df: pd.DataFrame, conflict_col: str = "ConflictType_Recalc") -> pd.DataFrame:
     """Count conflict-labeled minutes for each (Route, Direction) pair.
 
     Args:
@@ -159,8 +159,7 @@ def count_conflicts_by_routedir(df, conflict_col="ConflictType_Recalc"):
 # GREEDY SOLVER
 # --------------------------------------------------------------------------------------------------
 
-
-def solve_bus_assignment_greedy(df, cluster_info):
+def solve_bus_assignment_greedy(df: pd.DataFrame, cluster_info: Dict[str, List[str]]) -> pd.DataFrame:
     """Assign buses to stops using a greedy first-fit strategy.
 
     Args:
@@ -234,8 +233,7 @@ def solve_bus_assignment_greedy(df, cluster_info):
 # PULP-BASED SOLVER
 # --------------------------------------------------------------------------------------------------
 
-
-def solve_bus_assignment_pulp(df, cluster_info):
+def solve_bus_assignment_pulp(df: pd.DataFrame, cluster_info: Dict[str, List[str]]) -> pd.DataFrame:
     """Assign buses to stops using an integer programming formulation via PuLP.
 
     Args:
@@ -361,7 +359,7 @@ def solve_bus_assignment_pulp(df, cluster_info):
 # MAIN
 # ==================================================================================================
 
-def main():
+def main() -> None:
     """Execute the full assignment and output pipeline for each defined cluster.
 
     This function:
@@ -515,7 +513,7 @@ def main():
         df_conf["ConflictAfter"] = df_conf["ConflictAfter"].astype(int)
 
         # 5) Multi-bucket approach for ARRIVE/DEPART in the final assignment
-        def classify_buckets(status_str):
+        def classify_buckets(status_str: str) -> Set[str]:
             result = set()
             s_up = status_str.upper()
             if s_up in ARRIVE_STATUSES:
