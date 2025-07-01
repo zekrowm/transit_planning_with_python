@@ -74,11 +74,6 @@ PASSENGER_SERVICE_STATUSES: Set[str] = {
 # FUNCTIONS
 # ==================================================================================================
 
-# --------------------------------------------------------------------------------------------------
-# CAPACITY AND STOP-LIST BUILDING BASED ON BAY COUNTS
-# --------------------------------------------------------------------------------------------------
-
-
 def get_all_official_stops(cinfo: Dict[str, List[str]]) -> List[str]:
     """Return a combined list of all *official* stops in a cluster.
 
