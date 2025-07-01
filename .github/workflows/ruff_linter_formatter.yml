@@ -44,7 +44,7 @@ jobs:
             BASE_SHA="$(git rev-parse HEAD~1)"
           fi
           BASE_SHA="$(git merge-base "$BASE_SHA" "$GITHUB_SHA")"
-          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- '*.py' | sort -u | tr '\n' ' ')
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- '*.py' | grep -v '/tests/' | grep -v '^tests/' | sort -u | tr '\n' ' ')
           echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
 
       - name: Nothing to do
