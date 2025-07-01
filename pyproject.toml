@@ -17,10 +17,8 @@ line-length    = 100            # or whatever you prefer
 # ANN = flake8-annotations
 # TC = flake8-type-checking
 select   = ["I", "F", "D", "ANN", "TCH"]
-fixable  = ["F401", "D", "I", "TC003"]
-ignore   = [
-  "ANN401",  # allow Any for now
-]
+fixable  = ["F401", "D", "I"]
+ignore   = ["ANN401", "TC003"]
 
 # Example: if you want to silence specific docstring rules later
 # ignore = ["D100", "D401"]
