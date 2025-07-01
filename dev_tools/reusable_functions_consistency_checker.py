@@ -41,11 +41,6 @@ IGNORE_PRIVATE = True  # skip functions whose names start with "_"
 # FUNCTIONS
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# INTERNAL UTILITIES
-# -----------------------------------------------------------------------------
-
-
 def _normalise(node: ast.AST) -> ast.AST:
     """Strip line/column metadata for stable comparison."""
     for n in ast.walk(node):
@@ -114,7 +109,6 @@ class AuditResult(NamedTuple):
 # CANONICAL FUNCTION HARVEST
 # -----------------------------------------------------------------------------
 
-
 def _collect_canonical_funcs(
     source: Path,
 ) -> tuple[Dict[str, ast.AST], Set[Path]]:
@@ -166,7 +160,6 @@ def _collect_canonical_funcs(
 # -----------------------------------------------------------------------------
 # AUDIT CORE
 # -----------------------------------------------------------------------------
-
 
 def _audit_single_function(
     name: str,
@@ -220,7 +213,6 @@ def _audit_single_function(
 # LOGGING & MAINFLOW
 # -----------------------------------------------------------------------------
 
-
 def _setup_logging() -> None:
     """Set up logging for the audit process.
 
@@ -245,7 +237,6 @@ def _setup_logging() -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Run the codebase audit for canonical function consistency.
