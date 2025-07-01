@@ -1,4 +1,4 @@
-name: helpers_consistency_audit_weekly
+name: helpers_consistency_audit
 
 on:
   schedule:
