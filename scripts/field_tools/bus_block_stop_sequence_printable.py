@@ -58,8 +58,7 @@ MAX_COLUMN_WIDTH = 35
 # FUNCTIONS
 # =============================================================================
 
-
-def time_to_seconds(time_str):
+def time_to_seconds(time_str: str) -> Union[float, int]:
     """Convert a ``HH:MM`` or ``HH:MM:SS`` string to total seconds.
 
     Args:
@@ -86,7 +85,7 @@ def time_to_seconds(time_str):
     return hours * 3600 + minutes * 60 + seconds
 
 
-def format_hhmm(total_seconds):
+def format_hhmm(total_seconds: Union[int, float]) -> str:
     """Render seconds since midnight as a ``HH:MM`` string.
 
     Args:
@@ -107,8 +106,7 @@ def format_hhmm(total_seconds):
 # OTHER FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
-def export_to_excel(data_frame, output_file):
+def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
     """Write *data_frame* to an Excel file with basic styling.
 
     The sheet is named **Schedule** and receives:
@@ -160,7 +158,9 @@ def export_to_excel(data_frame, output_file):
     print(f"Exported: {output_file}")
 
 
-def filter_data(trips_df, stop_times_df, routes_df):
+def filter_data(
+    trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, routes_df: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Apply route and service filters, propagating them to stop times.
 
     Args:
@@ -206,7 +206,9 @@ def filter_data(trips_df, stop_times_df, routes_df):
     return trips_df, stop_times_df
 
 
-def prepare_stop_times(trips_df, stop_times_df, stops_df):
+def prepare_stop_times(
+    trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame
+) -> pd.DataFrame:
     """Enrich and tidy ``stop_times`` for Excel export.
 
     Steps
@@ -256,7 +258,7 @@ def prepare_stop_times(trips_df, stop_times_df, stops_df):
     return stop_times_df
 
 
-def export_blocks(stop_times_df):
+def export_blocks(stop_times_df: pd.DataFrame) -> None:
     """Generate one Excel schedule per vehicle block.
 
     Args:
@@ -355,7 +357,6 @@ def export_blocks(stop_times_df):
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def load_gtfs_data(
     gtfs_folder_path: str,
