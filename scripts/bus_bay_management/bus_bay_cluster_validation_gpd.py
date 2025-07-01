@@ -22,6 +22,7 @@ import logging
 import os
 import sys
 from typing import Dict, List, Tuple, Union
+
 import geopandas as gpd
 import pandas as pd
 from rapidfuzz import fuzz, process
@@ -51,6 +52,7 @@ DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def prepare_stops_gdf(crs_epsg: int, service_id: str = "3") -> gpd.GeoDataFrame:
     """Loads stops, trips, and stop_times with `load_gtfs_data()`.
@@ -88,24 +90,16 @@ def prepare_stops_gdf(crs_epsg: int, service_id: str = "3") -> gpd.GeoDataFrame:
         trips["service_id"] = service_id
 
     trips_filtered = trips.loc[trips["service_id"] == service_id]
-    logging.info(
-        "Filtered trips to service_id=%s → %d trips", service_id, len(trips_filtered)
-    )
+    logging.info("Filtered trips to service_id=%s → %d trips", service_id, len(trips_filtered))
 
     # Keep only stop_times for those trips
-    stop_times_filtered = stop_times.loc[
-        stop_times["trip_id"].isin(trips_filtered["trip_id"])
-    ]
-    logging.info(
-        "Remaining stop_times after filter → %d records", len(stop_times_filtered)
-    )
+    stop_times_filtered = stop_times.loc[stop_times["trip_id"].isin(trips_filtered["trip_id"])]
+    logging.info("Remaining stop_times after filter → %d records", len(stop_times_filtered))
 
     # Keep only stops referenced by those stop_times
     active_stop_ids = stop_times_filtered["stop_id"].unique()
     stops_active = stops_df.loc[stops_df["stop_id"].isin(active_stop_ids)].copy()
-    logging.info(
-        "Active stops for service_id=%s → %d stops", service_id, len(stops_active)
-    )
+    logging.info("Active stops for service_id=%s → %d stops", service_id, len(stops_active))
 
     # ------------------------------------------------------------------
     # Build GeoDataFrame
@@ -114,9 +108,9 @@ def prepare_stops_gdf(crs_epsg: int, service_id: str = "3") -> gpd.GeoDataFrame:
         Point(float(lon), float(lat))
         for lon, lat in zip(stops_active.stop_lon, stops_active.stop_lat)
     ]
-    stops_gdf = gpd.GeoDataFrame(
-        stops_active, geometry="geometry", crs="EPSG:4326"
-    ).to_crs(epsg=crs_epsg)
+    stops_gdf = gpd.GeoDataFrame(stops_active, geometry="geometry", crs="EPSG:4326").to_crs(
+        epsg=crs_epsg
+    )
 
     return stops_gdf
 
@@ -148,14 +142,10 @@ def initialize_clusters(
         }
 
         included_stop_ids = [
-            stop_id
-            for stop_id_list in clusters_dict.values()
-            for stop_id in stop_id_list
+            stop_id for stop_id_list in clusters_dict.values() for stop_id in stop_id_list
         ]
 
-        included_stops_global = stops_gdf[
-            stops_gdf["stop_id"].isin(included_stop_ids)
-        ].copy()
+        included_stops_global = stops_gdf[stops_gdf["stop_id"].isin(included_stop_ids)].copy()
         included_stops_global["cluster"] = None
 
         # Assign cluster names
@@ -164,9 +154,7 @@ def initialize_clusters(
                 included_stops_global["stop_id"].isin(stop_ids), "cluster"
             ] = cluster_name
 
-        excluded_stops_global = stops_gdf[
-            ~stops_gdf["stop_id"].isin(included_stop_ids)
-        ].copy()
+        excluded_stops_global = stops_gdf[~stops_gdf["stop_id"].isin(included_stop_ids)].copy()
         excluded_stops_global.reset_index(drop=True, inplace=True)
 
     return included_stops_global, excluded_stops_global, clusters_dict
@@ -211,9 +199,9 @@ def find_similar_stop_names(
         for _, score, idx in matches:
             if score >= threshold:
                 similar_stop = exc_stops.iloc[idx]
-                original_included_name = inc_stops[
-                    inc_stops["stop_name_lower"] == name
-                ]["stop_name"].iloc[0]
+                original_included_name = inc_stops[inc_stops["stop_name_lower"] == name][
+                    "stop_name"
+                ].iloc[0]
                 similar_stops.append(
                     {
                         "included_stop_name": original_included_name,
@@ -342,9 +330,7 @@ def find_different_named_included_stops(
         pd.DataFrame: DataFrame of included stops with different names.
     """
     if inc_stops.empty:
-        return pd.DataFrame(
-            columns=["stop_id", "stop_name", "cluster", "max_similarity_score"]
-        )
+        return pd.DataFrame(columns=["stop_id", "stop_name", "cluster", "max_similarity_score"])
 
     different_named_stops = []
     clusters_list = inc_stops["cluster"].unique()
@@ -417,6 +403,7 @@ def save_to_excel(data_frame: pd.DataFrame, filename: str, output_directory: str
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str, files: List[str] = None, dtype: Union[str, Dict] = str
 ) -> Dict[str, pd.DataFrame]:
@@ -464,9 +451,7 @@ def load_gtfs_data(
         if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
     data = {}
     for file_name in files:
@@ -478,9 +463,7 @@ def load_gtfs_data(
             logging.info(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
             raise ValueError(
@@ -494,9 +477,11 @@ def load_gtfs_data(
 
     return data
 
+
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main(service_id: str = "3") -> None:
     """Main entry point for the GTFS Bus-Bay Cluster Validation script.
@@ -538,8 +523,8 @@ def main(service_id: str = "3") -> None:
     # ------------------------------------------------------------------
     stops_gdf = prepare_stops_gdf(DISTANCE_CRS_EPSG, service_id)
 
-    included_stops_global, excluded_stops_global, updated_clusters = (
-        initialize_clusters(stops_gdf, clusters)
+    included_stops_global, excluded_stops_global, updated_clusters = initialize_clusters(
+        stops_gdf, clusters
     )
 
     # ------------------------------------------------------------------
@@ -576,13 +561,9 @@ def main(service_id: str = "3") -> None:
     # ------------------------------------------------------------------
     # Persist results
     # ------------------------------------------------------------------
-    save_to_excel(
-        similar_name_stops, "excluded_stops_similar_names.xlsx", output_directory
-    )
+    save_to_excel(similar_name_stops, "excluded_stops_similar_names.xlsx", output_directory)
     save_to_excel(nearby_excluded_stops, "excluded_stops_nearby.xlsx", output_directory)
-    save_to_excel(
-        distant_included_stops, "included_stops_distant.xlsx", output_directory
-    )
+    save_to_excel(distant_included_stops, "included_stops_distant.xlsx", output_directory)
     save_to_excel(
         different_named_included_stops,
         "included_stops_different_names.xlsx",
