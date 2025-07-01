@@ -43,7 +43,7 @@ FUZZY_THRESHOLD = 0.8
 # FUNCTIONS
 # =============================================================================
 
-def load_shapefiles(bikeshare_shp_path, boundary_shp_path=None):
+def load_shapefiles(bikeshare_shp_path: str, boundary_shp_path: str | None = None) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame | None]:
     """Loads the bikeshare shapefile and optionally the boundary shapefile.
 
     Args:
@@ -69,7 +69,7 @@ def load_shapefiles(bikeshare_shp_path, boundary_shp_path=None):
     return bikeshare_gdf, boundary_gdf
 
 
-def load_and_concatenate_csv(csv_folder):
+def load_and_concatenate_csv(csv_folder: str) -> pd.DataFrame:
     """Finds and loads all CSV files in the specified folder.
 
     Concatenates them into a single DataFrame.
@@ -92,7 +92,7 @@ def load_and_concatenate_csv(csv_folder):
     return combined_data_frame
 
 
-def clip_shapefile(bikeshare_gdf, boundary_gdf):
+def clip_shapefile(bikeshare_gdf: gpd.GeoDataFrame, boundary_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Reprojects if needed and clips the bikeshare GeoDataFrame to the boundary.
 
     Args:
@@ -108,7 +108,7 @@ def clip_shapefile(bikeshare_gdf, boundary_gdf):
     return clipped_gdf
 
 
-def plot_shapefile(boundary_gdf, clipped_gdf):
+def plot_shapefile(boundary_gdf: gpd.GeoDataFrame, clipped_gdf: gpd.GeoDataFrame) -> None:
     """Plots the boundary and clipped bikeshare locations.
 
     Args:
@@ -125,7 +125,7 @@ def plot_shapefile(boundary_gdf, clipped_gdf):
     plt.show()
 
 
-def find_close_matches(station_name, valid_station_names, threshold):
+def find_close_matches(station_name: str, valid_station_names: list[str], threshold: float) -> str | None:
     """Returns the best fuzzy match for a station name from the valid_station_names list.
 
     Args:
@@ -142,7 +142,7 @@ def find_close_matches(station_name, valid_station_names, threshold):
     return matches[0] if matches else None
 
 
-def rename_stations(data_frame):
+def rename_stations(data_frame: pd.DataFrame) -> pd.DataFrame:
     """Renames specific station names based on a predefined mapping dictionary.
 
     Args:
@@ -175,8 +175,8 @@ def rename_stations(data_frame):
 
 
 def interactive_update_station_names(
-    unmatched_start, unmatched_end, valid_station_names, threshold
-):
+    unmatched_start: list[str], unmatched_end: list[str], valid_station_names: list[str], threshold: float
+) -> dict[str, str]:
     """Interactively prompts the user with fuzzy match suggestions for station names.
 
     For station names not matching any valid stop in the study area,
@@ -228,7 +228,7 @@ def interactive_update_station_names(
     return update_mapping
 
 
-def filter_valid_stations(combined_data_frame, clipped_gdf):
+def filter_valid_stations(combined_data_frame: pd.DataFrame, clipped_gdf: gpd.GeoDataFrame) -> tuple[pd.DataFrame, np.ndarray]:
     """Filters trips that include at least one valid station in clipped_gdf.
 
     Returns the filtered DataFrame and the list of valid station names.
@@ -282,7 +282,7 @@ def filter_valid_stations(combined_data_frame, clipped_gdf):
     return filtered_data_frame, valid_stations
 
 
-def aggregate_monthly_trips(filtered_data_frame, valid_stations):
+def aggregate_monthly_trips(filtered_data_frame: pd.DataFrame, valid_stations: np.ndarray) -> pd.DataFrame:
     """Given a filtered DataFrame, groups trips by station-month.
 
     Returns monthly totals for each station plus a 'total_activity' column.
@@ -317,7 +317,7 @@ def aggregate_monthly_trips(filtered_data_frame, valid_stations):
     return total_trip_counts
 
 
-def get_month_day_counts(year, month):
+def get_month_day_counts(year: int, month: int) -> tuple[int, int, int]:
     """Returns the number of weekdays (Mon-Fri), Saturdays, and Sundays in that month.
 
     Args:
@@ -337,7 +337,7 @@ def get_month_day_counts(year, month):
     return weekday_count, saturday_count, sunday_count
 
 
-def _create_average_record(station, month_str, row_data):
+def _create_average_record(station: str, month_str: str, row_data: pd.Series) -> dict[str, str | float]:
     """Helper function to compute average weekday/Saturday/Sunday trips for a single station-month row.
 
     Returns a dict or None if parsing fails.
@@ -379,7 +379,7 @@ def _create_average_record(station, month_str, row_data):
     }
 
 
-def compute_daily_averages(filtered_data_frame, valid_station_names):
+def compute_daily_averages(filtered_data_frame: pd.DataFrame, valid_station_names: np.ndarray) -> pd.DataFrame:
     """Computes, for each station and month, the average trips per day for weekdays, Saturday, and Sunday.
 
     Args:
@@ -422,7 +422,7 @@ def compute_daily_averages(filtered_data_frame, valid_station_names):
 # MAIN
 # =============================================================================
 
-def main():
+def main() -> None:
     """Processes Capital Bikeshare data to generate trip activity reports.
 
     This function:
