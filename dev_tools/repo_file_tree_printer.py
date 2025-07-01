@@ -54,8 +54,8 @@ def build_tree(root: str) -> Dict[str, Any]:
 def build_lines(tree: Dict[str, Any], root_name: str) -> List[str]:
     """Convert nested dict to list of tree lines with connectors."""
     lines = [f"{root_name}/"]
-
-    def recurse(node, prefix):
+    
+    def recurse(node: Dict[str, Any], prefix: str) -> None:
         files = node.get("__files__", [])
         dirs = sorted(k for k in node.keys() if k != "__files__")
         entries = [(f, "file") for f in files] + [(d, "dir") for d in dirs]
