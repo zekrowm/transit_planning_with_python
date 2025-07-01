@@ -21,7 +21,8 @@ Typical usage is from a Jupyter notebook or the command line.
 import math
 import os
 import re
-from typing import Tuple, List, Dict, Any, Union
+from typing import Any, Dict, List, Tuple, Union
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -78,6 +79,7 @@ PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def reproject_point_4326_to_2283(x_lon: float, y_lat: float) -> Tuple[float, float]:
     """Reproject a WGS 84 point to EPSG:2283.
@@ -188,9 +190,7 @@ def compute_heading(p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
     return angle_deg
 
 
-def compute_turn_direction(
-    heading1: float, heading2: float, threshold: float = 15
-) -> str:
+def compute_turn_direction(heading1: float, heading2: float, threshold: float = 15) -> str:
     """Categorize the turn between two headings.
 
     Args:
@@ -220,9 +220,8 @@ def compute_turn_direction(
 # GTFS AND STOP FUNCTIONS
 # -----------------------------------------------------------------------------
 
-def export_gtfs_stops(
-    gtfs_path: str, output_dir: str, target_crs: str
-) -> gpd.GeoDataFrame:
+
+def export_gtfs_stops(gtfs_path: str, output_dir: str, target_crs: str) -> gpd.GeoDataFrame:
     """Read *stops.txt*, reproject, and write a shapefile.
 
     Args:
@@ -283,6 +282,7 @@ def filter_selected_stops(
 # -----------------------------------------------------------------------------
 # ROAD NETWORK FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def build_directed_road_network(
     road_shp_path: str,
@@ -370,9 +370,7 @@ def build_directed_road_network(
     return G, roads_gdf
 
 
-def snap_point_to_network(
-    pt: Union[Point, Tuple[float, float]], road_graph: nx.DiGraph
-) -> Any:
+def snap_point_to_network(pt: Union[Point, Tuple[float, float]], road_graph: nx.DiGraph) -> Any:
     """Snap an arbitrary point to its nearest graph node.
 
     Args:
@@ -432,6 +430,7 @@ def build_complete_graph_from_road_network(
 # -----------------------------------------------------------------------------
 # TSP SOLVER FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def compute_tsp_route_greedy(G: nx.DiGraph) -> List[Any]:
     """Solve the TSP approximately using NetworkX’s greedy heuristic.
@@ -546,6 +545,7 @@ def compute_tsp_route_ilp(G: nx.DiGraph) -> List[Any]:
 # -----------------------------------------------------------------------------
 # DIRECTIONS & EXPORTS
 # -----------------------------------------------------------------------------
+
 
 def generate_directions(
     tsp_route: List[Any], stops_snapped: gpd.GeoDataFrame, road_graph: nx.DiGraph
@@ -738,6 +738,7 @@ def export_tsp_route_shapefile(
 # PLOTTING
 # -----------------------------------------------------------------------------
 
+
 def plot_tsp_route(G: nx.DiGraph, tsp_route: List[Any]) -> None:
     """Render a quick NetworkX plot of the stop-to-stop graph.
 
@@ -769,6 +770,7 @@ def plot_tsp_route(G: nx.DiGraph, tsp_route: List[Any]) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the full GTFS-to-TSP workflow.
