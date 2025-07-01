@@ -62,7 +62,6 @@ VIOLATION_LOG_FILE: Final[str] = OUTPUT_FILE.replace(".xlsx", "_violations_log.t
 # FUNCTIONS
 # =============================================================================
 
-
 def load_data(input_file: str) -> pd.DataFrame:
     """Load required columns from an Excel file.
 
