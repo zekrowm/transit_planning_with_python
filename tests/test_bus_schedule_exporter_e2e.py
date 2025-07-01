@@ -124,7 +124,7 @@ def _write_dummy_gtfs(gtfs_dir: Path) -> None:
 def test_exporter_creates_excel(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-   """Test that the exporter successfully creates an Excel schedule from a dummy GTFS bundle."""
+    """Test that the exporter successfully creates an Excel schedule from a dummy GTFS bundle."""
     # Arrange
     gtfs_dir = tmp_path / "gtfs"
     out_dir = tmp_path / "out"
