@@ -308,7 +308,7 @@ def _is_summary_row(frame: pd.DataFrame) -> pd.Series:
 def _periodify(series: pd.Series) -> pd.Series:
     """Parse many month formats → pandas.Period ('M')."""
     known = ("%b-%y", "%B-%y", "%Y-%m", "%Y%m", "%m/%Y")
-    def _p(s: str) -> Union[pd.Timestamp, NaTType]:
+    def _p(s: str) -> Union[pd.Timestamp, type(pd.NaT)]:
     """Return a Timestamp (or NaT) from a single date-like string."""
         for f in known:
             try:
