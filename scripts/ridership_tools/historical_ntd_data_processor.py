@@ -220,9 +220,7 @@ def pivot_to_wide(df_long: pd.DataFrame) -> pd.DataFrame:
         )
 
         # Flatten MultiIndex column labels in a mypy-friendly way
-        cols: Sequence[Tuple[str, str]] = cast(
-            Sequence[Tuple[str, str]], tmp.columns.to_list()
-        )
+        cols: Sequence[Tuple[str, str]] = cast("Sequence[Tuple[str, str]]", tmp.columns.to_list())
         tmp.columns = [
             f"{month}_{day_type.title().rstrip('s')}{metric}"
             for month, day_type in cols
