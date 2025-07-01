@@ -180,7 +180,7 @@ def assign_cluster_name(df_in: DataFrame) -> DataFrame:
     If a stop appears in multiple clusters (unlikely), the first match in
     ``CLUSTER_DEFINITIONS`` wins.
 
-    Parameters
+    Args
     ----------
     df_in :
         Input DataFrame containing at least a ``Stop ID`` column.
@@ -214,7 +214,7 @@ def find_cluster_conflicts(df_in: DataFrame) -> Set[Tuple[str, str]]:
     A conflict occurs when the number of *present* buses exceeds the
     cluster’s capacity at a specific timestamp.
 
-    Parameters
+    Args
     ----------
     df_in :
         DataFrame that already contains a ``ClusterName`` column.
@@ -245,7 +245,7 @@ def find_stop_conflicts(df_in: DataFrame) -> Set[Tuple[str, str]]:
     A conflict occurs when the number of buses in passenger-service
     statuses at a stop exceeds that stop’s capacity at a given timestamp.
 
-    Parameters
+    Args
     ----------
     df_in :
         Raw DataFrame containing ``Stop ID`` and ``Status`` columns.
@@ -279,7 +279,7 @@ def annotate_conflicts(
 
     ``ConflictType`` will be one of ``{"NONE", "CLUSTER", "STOP", "BOTH"}``.
 
-    Parameters
+    Args
     ----------
     df_in :
         Input DataFrame (must include ``ClusterName``, ``Stop ID``,
@@ -328,7 +328,7 @@ def annotate_conflicts(
 def gather_block_spreadsheets(block_folder: str) -> DataFrame:
     """Read and concatenate every ``block_*.xlsx`` spreadsheet in *block_folder*.
 
-    Parameters
+    Args
     ----------
     block_folder :
         Directory containing the Step 1 block-level output workbooks.
