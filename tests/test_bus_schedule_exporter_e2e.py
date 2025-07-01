@@ -30,6 +30,7 @@ Running locally
 The test is offline, takes < 2 s, and the same ``pytest -q`` command works
 unchanged in GitHub Actions.
 """
+
 from __future__ import annotations
 
 import sys
@@ -55,9 +56,7 @@ CORE_FILES: dict[str, pd.DataFrame] = {
             "stop_lon": [0, 0],
         }
     ),
-    "routes.txt": pd.DataFrame(
-        {"route_id": ["R1"], "route_short_name": ["1"], "route_type": [3]}
-    ),
+    "routes.txt": pd.DataFrame({"route_id": ["R1"], "route_short_name": ["1"], "route_type": [3]}),
     "trips.txt": pd.DataFrame(
         {
             "service_id": ["WEEK"],
@@ -121,9 +120,8 @@ def _write_dummy_gtfs(gtfs_dir: Path) -> None:
 # 2. End-to-end test
 # ------------------------------------------------------------------------------
 
-def test_exporter_creates_excel(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+
+def test_exporter_creates_excel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that the exporter successfully creates an Excel schedule from a dummy GTFS bundle."""
     # Arrange
     gtfs_dir = tmp_path / "gtfs"
