@@ -15,11 +15,10 @@ section.
 """
 
 from __future__ import annotations
-
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 import logging
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple, Union, cast
 
 import pandas as pd
 from openpyxl import Workbook
