@@ -103,7 +103,6 @@ ALL_SIGNUP_COVERAGES: dict[
 # FUNCTIONS
 # ==================================================================================================
 
-
 def check_input_files(base_path, files):
     """Verify that the input directory and all required GTFS files exist."""
     if not os.path.exists(base_path):
@@ -740,7 +739,6 @@ def save_comparison_to_excel(comparison_df, output_path, filename):
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
-
 
 def main():
     """Main entry point orchestrates script."""
