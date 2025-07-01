@@ -19,8 +19,9 @@ Outputs:
 from __future__ import annotations  # postpone evaluation of type-hints
 
 import os
-from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 from datetime import datetime
+from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
 
@@ -30,7 +31,10 @@ import pandas as pd
 
 FILES_TO_PROCESS: List[Tuple[str, Optional[str]]] = [
     (r"\\Your\File\Path\JULY 2024 NTD RIDERSHIP.XLSX", "Temporary_Query_N"),
-    (r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP.XLSX", "Temporary_Query_N",),
+    (
+        r"\\Your\File\Path\AUGUST 2024 NTD RIDERSHIP.XLSX",
+        "Temporary_Query_N",
+    ),
     (r"\\Your\File\Path\SEPTEMBER 2024 NTD RIDERSHIP.XLSX", "Sep.2024 Finals"),
 ]
 
@@ -58,7 +62,7 @@ SUMMARY_ROW_PATTERNS: tuple[str, ...] = (
 # -----------------------------------------------------------------------------
 
 ROLLING_WINDOW_MONTHS: int = 12
-NEG_THRESHOLD: float = -0.10              # –10 %
+NEG_THRESHOLD: float = -0.10  # –10 %
 LOG_FILE_PATH: str = os.path.join(
     os.path.dirname(OUTPUT_FILE_PATH) or ".",
     "Data_Quality_Log.txt",
@@ -77,6 +81,7 @@ COL_DAYS = "DAYS"
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def robust_numeric_converter(value: Any) -> float | None:
     """Convert strings such as "1,234" to 1234.0 (float).
@@ -305,9 +310,11 @@ def _is_summary_row(frame: pd.DataFrame) -> pd.Series:
 # QUALITY-CHECK FLAGGER
 # -----------------------------------------------------------------------------
 
+
 def _periodify(series: pd.Series) -> pd.Series:
     """Parse many month formats → pandas.Period ('M')."""
     known = ("%b-%y", "%B-%y", "%Y-%m", "%Y%m", "%m/%Y")
+
     def _p(s: str) -> Union[pd.Timestamp, type(pd.NaT)]:
         """Return a Timestamp (or NaT) from a single date-like string."""
         for f in known:
@@ -316,10 +323,11 @@ def _periodify(series: pd.Series) -> pd.Series:
             except ValueError:
                 continue
         return pd.to_datetime(s, errors="coerce")
+
     return series.astype(str, copy=False).map(_p).dt.to_period("M")
 
 
-def _fmt(p: "pd.Period") -> str:   # noqa: F821
+def _fmt(p: "pd.Period") -> str:  # noqa: F821
     return p.to_timestamp().strftime("%b-%y") if pd.notna(p) else "?"
 
 
@@ -359,9 +367,7 @@ def _build_rolling_weekday_table(df: pd.DataFrame) -> pd.DataFrame:
             .sum(min_count=1)
             .assign(
                 PERIOD_END=end,
-                WKDY_AVG=lambda x: np.where(
-                    x[COL_DAYS] > 0, x[COL_BOARD] / x[COL_DAYS], np.nan
-                ),
+                WKDY_AVG=lambda x: np.where(x[COL_DAYS] > 0, x[COL_BOARD] / x[COL_DAYS], np.nan),
             )[[COL_ROUTE, "PERIOD_END", "WKDY_AVG"]]
         )
         results.append(roll)
@@ -424,8 +430,9 @@ def write_quality_log(compiled_df: pd.DataFrame) -> None:
     # 2. reshape → wide (routes as rows, months as columns), date-sorted
     if not roll_long.empty:
         roll_wide = (
-            roll_long.pivot(index=COL_ROUTE, columns="PERIOD_END", values="WKDY_AVG")
-            .sort_index(axis=1)                                  # chronological L→R
+            roll_long.pivot(index=COL_ROUTE, columns="PERIOD_END", values="WKDY_AVG").sort_index(
+                axis=1
+            )  # chronological L→R
         )
         # make header friendly "Apr-25", "Mar-25", …
         roll_wide.columns = [_fmt(p) for p in roll_wide.columns]
@@ -435,10 +442,7 @@ def write_quality_log(compiled_df: pd.DataFrame) -> None:
         roll_wide = pd.DataFrame()  # empty sentinel
 
     # 3. build log
-    items = (
-        _routes_with_missing_months(compiled_df)
-        + _flag_negative_trends(roll_long)
-    )
+    items = _routes_with_missing_months(compiled_df) + _flag_negative_trends(roll_long)
     if not items:
         items = ["No issues found."]
 
@@ -453,6 +457,7 @@ def write_quality_log(compiled_df: pd.DataFrame) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Command-line entry point for the NTD compilation workflow.
@@ -481,9 +486,7 @@ def main() -> None:
         print("CRITICAL ERROR: 'OUTPUT_FILE_PATH' not set.")
         critical_ok = False
     if not EXISTING_PERIOD_COLUMN_NAME:
-        print(
-            "WARNING: 'EXISTING_PERIOD_COLUMN_NAME' not set; period validation will be skipped."
-        )
+        print("WARNING: 'EXISTING_PERIOD_COLUMN_NAME' not set; period validation will be skipped.")
 
     # ─────────────────────────────── main pipeline ──────────────────────────
     if critical_ok:
@@ -495,8 +498,7 @@ def main() -> None:
 
             # ---------- summary -------------------------------------------
             print(
-                f"\nCompilation summary: "
-                f"{result_df.shape[0]} rows × {result_df.shape[1]} columns."
+                f"\nCompilation summary: {result_df.shape[0]} rows × {result_df.shape[1]} columns."
             )
         else:
             print("\nCompilation failed or returned no data.")
