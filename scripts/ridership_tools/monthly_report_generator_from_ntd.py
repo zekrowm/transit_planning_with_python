@@ -15,7 +15,7 @@ Typical use cases
 * Rapid generation of NTD-style summaries for board reports.
 * Historical trend analysis and data visualization.
 
-Attributes
+Attributes:
 ----------
 CONFIG : dict[str, Any]
     File paths, ordered periods, classification dictionaries, and constants
@@ -156,6 +156,7 @@ PLOT_STYLE = {
 # FUNCTIONS
 # =============================================================================
 
+
 def safe_float(value: Any) -> float | None:
     """Return a float if *value* looks numeric, otherwise ``None``.
 
@@ -183,9 +184,7 @@ def safe_float(value: Any) -> float | None:
         return None
 
 
-def safe_div(
-    numerator: float | int, denominator: float | int, precision: int = 1
-) -> float | None:
+def safe_div(numerator: float | int, denominator: float | int, precision: int = 1) -> float | None:
     """Divide *numerator* by *denominator* with graceful zero handling.
 
     Args:
@@ -377,15 +376,9 @@ def aggregate_by_service_type(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Derived columns
-    grouped["BOARDS_PER_HOUR"] = (
-        grouped["MTH_BOARD"] / grouped["MTH_REV_HOURS"]
-    ).round(1)
-    grouped["PASSENGERS_PER_TRIP"] = (
-        grouped["MTH_BOARD"] / grouped["TOTAL_TRIPS"]
-    ).round(1)
-    grouped["PASSENGERS_PER_MILE"] = (
-        grouped["MTH_BOARD"] / grouped["MTH_REV_MILES"]
-    ).round(3)
+    grouped["BOARDS_PER_HOUR"] = (grouped["MTH_BOARD"] / grouped["MTH_REV_HOURS"]).round(1)
+    grouped["PASSENGERS_PER_TRIP"] = (grouped["MTH_BOARD"] / grouped["TOTAL_TRIPS"]).round(1)
+    grouped["PASSENGERS_PER_MILE"] = (grouped["MTH_BOARD"] / grouped["MTH_REV_MILES"]).round(3)
 
     # Build TOTAL row
     sums = grouped[
@@ -400,19 +393,13 @@ def aggregate_by_service_type(df: pd.DataFrame) -> pd.DataFrame:
         "MTH_REV_MILES": sums["MTH_REV_MILES"],
         "TOTAL_TRIPS": sums["TOTAL_TRIPS"],
         "BOARDS_PER_HOUR": (
-            round(sums["MTH_BOARD"] / sums["MTH_REV_HOURS"], 1)
-            if sums["MTH_REV_HOURS"]
-            else None
+            round(sums["MTH_BOARD"] / sums["MTH_REV_HOURS"], 1) if sums["MTH_REV_HOURS"] else None
         ),
         "PASSENGERS_PER_TRIP": (
-            round(sums["MTH_BOARD"] / sums["TOTAL_TRIPS"], 1)
-            if sums["TOTAL_TRIPS"]
-            else None
+            round(sums["MTH_BOARD"] / sums["TOTAL_TRIPS"], 1) if sums["TOTAL_TRIPS"] else None
         ),
         "PASSENGERS_PER_MILE": (
-            round(sums["MTH_BOARD"] / sums["MTH_REV_MILES"], 3)
-            if sums["MTH_REV_MILES"]
-            else None
+            round(sums["MTH_BOARD"] / sums["MTH_REV_MILES"], 3) if sums["MTH_REV_MILES"] else None
         ),
     }
 
@@ -447,9 +434,7 @@ def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
         "MTH_REV_MILES": "sum",
         "TOTAL_TRIPS": "sum",
     }
-    route_totals = df.groupby(["service_type", "ROUTE_NAME"], as_index=False).agg(
-        agg_cols
-    )
+    route_totals = df.groupby(["service_type", "ROUTE_NAME"], as_index=False).agg(agg_cols)
 
     # --------------------------------------------------
     # 2. Derived columns
@@ -473,9 +458,7 @@ def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
     # --------------------------------------------------
     # 3. Sort and return
     # --------------------------------------------------
-    route_totals.sort_values(
-        ["ROUTE_NAME", "service_type"], inplace=True, ignore_index=True
-    )
+    route_totals.sort_values(["ROUTE_NAME", "service_type"], inplace=True, ignore_index=True)
 
     return route_totals
 
@@ -578,21 +561,15 @@ def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFra
         # Weighted daily averages for weekday/sat/sun (or we can do sum of board/days again)
         # If you prefer a simpler approach, we can sum the board/days across all routes.
         # But for now, let's just do a simple sum->divide approach, same logic as above:
-        df_p = agg_df[
-            (agg_df["period"] == period) & (agg_df["SERVICE_PERIOD"] == "Weekday")
-        ]
+        df_p = agg_df[(agg_df["period"] == period) & (agg_df["SERVICE_PERIOD"] == "Weekday")]
         sys_wd_board = df_p["MTH_BOARD"].sum()
         sys_wd_days = df_p["DAYS"].sum()
 
-        df_s = agg_df[
-            (agg_df["period"] == period) & (agg_df["SERVICE_PERIOD"] == "Saturday")
-        ]
+        df_s = agg_df[(agg_df["period"] == period) & (agg_df["SERVICE_PERIOD"] == "Saturday")]
         sys_sat_board = df_s["MTH_BOARD"].sum()
         sys_sat_days = df_s["DAYS"].sum()
 
-        df_su = agg_df[
-            (agg_df["period"] == period) & (agg_df["SERVICE_PERIOD"] == "Sunday")
-        ]
+        df_su = agg_df[(agg_df["period"] == period) & (agg_df["SERVICE_PERIOD"] == "Sunday")]
         sys_sun_board = df_su["MTH_BOARD"].sum()
         sys_sun_days = df_su["DAYS"].sum()
 
@@ -735,6 +712,7 @@ def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict) -
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Execute the NTD performance workflow.
 
@@ -769,9 +747,7 @@ def main() -> None:
     all_data = pd.concat(data_dict.values(), ignore_index=True)
 
     # Warn about routes that were not classified
-    unknown_routes = all_data.loc[
-        all_data["service_type"] == "unknown", "ROUTE_NAME"
-    ].unique()
+    unknown_routes = all_data.loc[all_data["service_type"] == "unknown", "ROUTE_NAME"].unique()
     if unknown_routes.size:
         print("\nRoutes not classified by SERVICE_TYPE_DICT:")
         print(", ".join(sorted(unknown_routes)))
@@ -793,9 +769,7 @@ def main() -> None:
     # 3-B  Aggregated by service type (YTD + monthly)
     file2_path = os.path.join(output_dir, "AggByServiceType.xlsx")
     with pd.ExcelWriter(file2_path) as writer:
-        aggregate_by_service_type(all_data).to_excel(
-            writer, sheet_name="YTD", index=False
-        )
+        aggregate_by_service_type(all_data).to_excel(writer, sheet_name="YTD", index=False)
         for period in CONFIG["ordered_periods"]:
             aggregate_by_service_type(data_dict[period]).to_excel(
                 writer, sheet_name=period, index=False
