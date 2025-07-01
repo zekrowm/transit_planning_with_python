@@ -43,7 +43,6 @@ FUZZY_THRESHOLD = 0.8
 # FUNCTIONS
 # =============================================================================
 
-
 def load_shapefiles(bikeshare_shp_path, boundary_shp_path=None):
     """Loads the bikeshare shapefile and optionally the boundary shapefile.
 
@@ -422,6 +421,7 @@ def compute_daily_averages(filtered_data_frame, valid_station_names):
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main():
     """Processes Capital Bikeshare data to generate trip activity reports.
 
