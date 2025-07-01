@@ -1,6 +1,7 @@
-"""Reusable utility functions for GTFS data processing scripts.
+"""General-purpose helper functions for GTFS and transit data workflows.
 
-Includes common GTFS data loader.
+Includes reusable utilities for loading GTFS files and other common tasks used
+across transit data processing scripts.
 """
 
 import logging
