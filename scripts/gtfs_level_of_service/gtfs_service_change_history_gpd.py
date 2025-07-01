@@ -22,7 +22,6 @@ Outputs:
 import os
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Tuple, Union
-from typing import List, Dict, Tuple, Optional, Any
 import geopandas as gpd
 import pandas as pd
 from openpyxl import Workbook
