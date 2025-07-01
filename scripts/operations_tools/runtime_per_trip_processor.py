@@ -67,8 +67,7 @@ def first_existing(df: pd.DataFrame, names: list[str]) -> str | None:
 # FUNCTIONS
 # =============================================================================
 
-
-def parse_time_to_minutes(value) -> float:
+def parse_time_to_minutes(value: Union[str, int, float]) -> float:
     """Convert HH:MM:SS (or H:MM) strings to a float number of minutes."""
     # value already numeric?
     if isinstance(value, (int, float)) and not pd.isna(value):
@@ -121,7 +120,7 @@ def prepare_trip_level(df: pd.DataFrame) -> pd.DataFrame:
     # ---------------------------------------------------------------------
     # Minutes conversion
     # ---------------------------------------------------------------------
-    def to_minutes(v):
+    def to_minutes(v: Union[str, int, float]) -> float:
         return parse_time_to_minutes(v)
 
     # Scheduled
