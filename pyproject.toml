@@ -17,7 +17,7 @@ line-length    = 100            # or whatever you prefer
 # ANN = flake8-annotations
 # TC = flake8-type-checking
 select   = ["I", "F", "D", "ANN", "TCH"]
-fixable  = ["F401", "D", "I", "TCH003"]
+fixable  = ["F401", "D", "I", "TC003"]
 ignore   = [
   "ANN401",  # allow Any for now
 ]
