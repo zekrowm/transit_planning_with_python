@@ -62,7 +62,7 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # FUNCTIONS
 # ==================================================================================================
 
-def validate_folders(input_path: str, output_path: str):
+def validate_folders(input_path: str, output_path: str) -> None:
     """Check that the input folder exists, and ensure the output folder is created if not."""
     if not os.path.isdir(input_path):
         raise NotADirectoryError(f"Input path does not exist or is not a directory: {input_path}")
@@ -73,7 +73,7 @@ def validate_folders(input_path: str, output_path: str):
 # HELPER FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
-def time_to_minutes(time_str: str):
+def time_to_minutes(time_str: str) -> int:
     """Convert 'HH:MM:SS' or 'HH:MM' to integer minutes (e.g. "26:30:00" -> 1590)."""
     parts = time_str.split(":")
     hours = int(parts[0])
@@ -82,14 +82,14 @@ def time_to_minutes(time_str: str):
     return hours * 60 + minutes + (seconds // 60)
 
 
-def minutes_to_hhmm(total_minutes: int):
+def minutes_to_hhmm(total_minutes: int) -> str:
     """Convert integer minutes into 'HH:MM' (e.g. 1590 -> "26:30")."""
     hours = total_minutes // 60
     mins = total_minutes % 60
     return f"{hours:02d}:{mins:02d}"
 
 
-def mark_first_and_last_stops(df_in: pd.DataFrame):
+def mark_first_and_last_stops(df_in: pd.DataFrame) -> pd.DataFrame:
     """Mark each stop in the trip as the first or last using boolean columns."""
     df_out = df_in.sort_values(["trip_id", "stop_sequence"]).copy()
     df_out["is_first_stop"] = False
@@ -104,7 +104,7 @@ def mark_first_and_last_stops(df_in: pd.DataFrame):
     return df_out
 
 
-def find_cluster(stop_id: str, bus_stop_clusters: list[dict[str, Any]]):
+def find_cluster(stop_id: str, bus_stop_clusters: list[dict[str, Any]]) -> Optional[str]:
     """Given a stop_id, return the named cluster (if any) or None if not found."""
     for cluster_item in bus_stop_clusters:
         if stop_id in cluster_item["stops"]:
@@ -116,7 +116,7 @@ def find_cluster(stop_id: str, bus_stop_clusters: list[dict[str, Any]]):
 # BRIDGING LOGIC REFACTOR
 # --------------------------------------------------------------------------------------------------
 
-def _status_for_same_trip(minute: int, stop_info: tuple):
+def _status_for_same_trip(minute: int, stop_info: tuple) -> Optional[tuple]:
     """Handle same-trip logic. stop_info is a tuple."""
     (arr, dep, s_id, s_name, t_id, is_first, is_last, s_seq, t_val) = stop_info
 
@@ -572,8 +572,7 @@ def _build_schedule_rows(
 
     return rows
 
-
-def process_block(block_subset: pd.DataFrame, block_id: str, timeline: range, bus_stop_clusters: list[dict[str, Any]]):
+def process_block(block_subset: pd.DataFrame, block_id: str, timeline: range, bus_stop_clusters: list[dict[str, Any]]) -> pd.DataFrame:
     """Generate a minute-by-minute schedule DataFrame for a single block."""
     trips_summary = _create_trips_summary(block_subset)
     rows = _build_schedule_rows(trips_summary, timeline, block_id, bus_stop_clusters)
@@ -585,8 +584,7 @@ def process_block(block_subset: pd.DataFrame, block_id: str, timeline: range, bu
 # STEP 1: GTFS -> Block Spreadsheets
 # --------------------------------------------------------------------------------------------------
 
-
-def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
+def _merge_and_filter_data(trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame) -> pd.DataFrame:
     """Merge trips and stops, filter by service_id, route, etc.
 
     Return a single merged DataFrame with arrival_min/departure_min.
@@ -660,7 +658,7 @@ def _merge_and_filter_data(trips_df, stop_times_df, stops_df):
     return merged_df
 
 
-def run_step1_gtfs_to_blocks():
+def run_step1_gtfs_to_blocks() -> None:
     """Step 1: Generate block-level schedules from GTFS."""
     print("=== Step 1: Reading GTFS and generating block-level schedules ===")
     validate_folders(GTFS_FOLDER_PATH, BLOCK_OUTPUT_FOLDER)
@@ -815,8 +813,7 @@ def load_gtfs_data(
 # MAIN
 # ==================================================================================================
 
-
-def main():
+def main() -> None:
     """Master entry point."""
     run_step1_gtfs_to_blocks()
 
