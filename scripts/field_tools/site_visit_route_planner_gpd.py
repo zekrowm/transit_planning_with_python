@@ -64,10 +64,9 @@ AVERAGE_SPEED_FPS = 44.0  # if we fail to parse speed from SPEEDLIMI
 OPTIMIZATION_CONFIG = {
     "optimization_approach": "ilp",
 }
-
-# =============================================================================
-# FUNCTIONS
-# =============================================================================
+# -----------------------------------------------------------------------------
+# TRANSFORMER
+# -----------------------------------------------------------------------------
 
 # Build a transformer from WGS84 (lon/lat) to EPSG:2283 (feet).
 PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
@@ -76,6 +75,9 @@ PROJECT_4326_TO_2283 = pyproj.Transformer.from_crs(
     always_xy=True,  # treat x=lon, y=lat
 )
 
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
 
 def reproject_point_4326_to_2283(x_lon, y_lat):
     """Reproject a WGS 84 point to EPSG:2283.
@@ -216,7 +218,6 @@ def compute_turn_direction(heading1, heading2, threshold=15):
 # GTFS AND STOP FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def export_gtfs_stops(gtfs_path, output_dir, target_crs):
     """Read *stops.txt*, reproject, and write a shapefile.
 
@@ -276,7 +277,6 @@ def filter_selected_stops(stops_gdf, selected_stop_ids, stop_id_col):
 # -----------------------------------------------------------------------------
 # ROAD NETWORK FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def build_directed_road_network(
     road_shp_path,
@@ -423,7 +423,6 @@ def build_complete_graph_from_road_network(road_graph, stops_snapped, bus_stops)
 # TSP SOLVER FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def compute_tsp_route_greedy(G):
     """Solve the TSP approximately using NetworkX’s greedy heuristic.
 
@@ -537,7 +536,6 @@ def compute_tsp_route_ilp(G):
 # -----------------------------------------------------------------------------
 # DIRECTIONS & EXPORTS
 # -----------------------------------------------------------------------------
-
 
 def generate_directions(tsp_route, stops_snapped, road_graph):
     """Create human-readable turn-by-turn instructions.
@@ -722,7 +720,6 @@ def export_tsp_route_shapefile(tsp_route, stops_snapped, road_graph, roads_crs, 
 # PLOTTING
 # -----------------------------------------------------------------------------
 
-
 def plot_tsp_route(G, tsp_route):
     """Render a quick NetworkX plot of the stop-to-stop graph.
 
@@ -754,7 +751,6 @@ def plot_tsp_route(G, tsp_route):
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main():
     """Run the full GTFS-to-TSP workflow.
