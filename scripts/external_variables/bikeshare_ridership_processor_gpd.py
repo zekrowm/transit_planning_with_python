@@ -20,9 +20,10 @@ import calendar
 import difflib
 import glob
 import os
-import numpy as np
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 # =============================================================================
@@ -43,7 +44,10 @@ FUZZY_THRESHOLD = 0.8
 # FUNCTIONS
 # =============================================================================
 
-def load_shapefiles(bikeshare_shp_path: str, boundary_shp_path: str | None = None) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame | None]:
+
+def load_shapefiles(
+    bikeshare_shp_path: str, boundary_shp_path: str | None = None
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame | None]:
     """Loads the bikeshare shapefile and optionally the boundary shapefile.
 
     Args:
@@ -92,7 +96,9 @@ def load_and_concatenate_csv(csv_folder: str) -> pd.DataFrame:
     return combined_data_frame
 
 
-def clip_shapefile(bikeshare_gdf: gpd.GeoDataFrame, boundary_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def clip_shapefile(
+    bikeshare_gdf: gpd.GeoDataFrame, boundary_gdf: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
     """Reprojects if needed and clips the bikeshare GeoDataFrame to the boundary.
 
     Args:
@@ -125,7 +131,9 @@ def plot_shapefile(boundary_gdf: gpd.GeoDataFrame, clipped_gdf: gpd.GeoDataFrame
     plt.show()
 
 
-def find_close_matches(station_name: str, valid_station_names: list[str], threshold: float) -> str | None:
+def find_close_matches(
+    station_name: str, valid_station_names: list[str], threshold: float
+) -> str | None:
     """Returns the best fuzzy match for a station name from the valid_station_names list.
 
     Args:
@@ -136,9 +144,7 @@ def find_close_matches(station_name: str, valid_station_names: list[str], thresh
     Returns:
         str or None: The best matching station name if found, otherwise None.
     """
-    matches = difflib.get_close_matches(
-        station_name, valid_station_names, n=1, cutoff=threshold
-    )
+    matches = difflib.get_close_matches(station_name, valid_station_names, n=1, cutoff=threshold)
     return matches[0] if matches else None
 
 
@@ -167,15 +173,16 @@ def rename_stations(data_frame: pd.DataFrame) -> pd.DataFrame:
         "21st NW & E St NW": "21st & E St NW",
     }
 
-    data_frame["start_station_name"] = data_frame["start_station_name"].replace(
-        rename_dict
-    )
+    data_frame["start_station_name"] = data_frame["start_station_name"].replace(rename_dict)
     data_frame["end_station_name"] = data_frame["end_station_name"].replace(rename_dict)
     return data_frame
 
 
 def interactive_update_station_names(
-    unmatched_start: list[str], unmatched_end: list[str], valid_station_names: list[str], threshold: float
+    unmatched_start: list[str],
+    unmatched_end: list[str],
+    valid_station_names: list[str],
+    threshold: float,
 ) -> dict[str, str]:
     """Interactively prompts the user with fuzzy match suggestions for station names.
 
@@ -207,12 +214,8 @@ def interactive_update_station_names(
         suggestion = find_close_matches(station, valid_station_names, threshold)
         if suggestion:
             if suggestion == station:
-                print(
-                    f"Station '{station}' appears identical to its fuzzy match suggestion."
-                )
-                print(
-                    "  -> If this is incorrect, please update manually in a mapping.\n"
-                )
+                print(f"Station '{station}' appears identical to its fuzzy match suggestion.")
+                print("  -> If this is incorrect, please update manually in a mapping.\n")
             else:
                 print(f"Suggestion: '{station}' -> '{suggestion}'")
                 try:
@@ -228,7 +231,9 @@ def interactive_update_station_names(
     return update_mapping
 
 
-def filter_valid_stations(combined_data_frame: pd.DataFrame, clipped_gdf: gpd.GeoDataFrame) -> tuple[pd.DataFrame, np.ndarray]:
+def filter_valid_stations(
+    combined_data_frame: pd.DataFrame, clipped_gdf: gpd.GeoDataFrame
+) -> tuple[pd.DataFrame, np.ndarray]:
     """Filters trips that include at least one valid station in clipped_gdf.
 
     Returns the filtered DataFrame and the list of valid station names.
@@ -247,9 +252,7 @@ def filter_valid_stations(combined_data_frame: pd.DataFrame, clipped_gdf: gpd.Ge
     combined_data_frame["start_station_name"] = combined_data_frame[
         "start_station_name"
     ].str.strip()
-    combined_data_frame["end_station_name"] = combined_data_frame[
-        "end_station_name"
-    ].str.strip()
+    combined_data_frame["end_station_name"] = combined_data_frame["end_station_name"].str.strip()
     valid_stations = clipped_gdf["NAME"].str.strip().unique()
 
     # Filter trips where at least one station is in the valid list.
@@ -275,14 +278,14 @@ def filter_valid_stations(combined_data_frame: pd.DataFrame, clipped_gdf: gpd.Ge
 
     # Extract day of week and month for future analysis.
     filtered_data_frame["day_of_week"] = filtered_data_frame["started_at"].dt.day_name()
-    filtered_data_frame["month"] = (
-        filtered_data_frame["started_at"].dt.to_period("M").astype(str)
-    )
+    filtered_data_frame["month"] = filtered_data_frame["started_at"].dt.to_period("M").astype(str)
 
     return filtered_data_frame, valid_stations
 
 
-def aggregate_monthly_trips(filtered_data_frame: pd.DataFrame, valid_stations: np.ndarray) -> pd.DataFrame:
+def aggregate_monthly_trips(
+    filtered_data_frame: pd.DataFrame, valid_stations: np.ndarray
+) -> pd.DataFrame:
     """Given a filtered DataFrame, groups trips by station-month.
 
     Returns monthly totals for each station plus a 'total_activity' column.
@@ -296,17 +299,13 @@ def aggregate_monthly_trips(filtered_data_frame: pd.DataFrame, valid_stations: n
             and a 'total_activity' column showing total monthly trips.
     """
     start_trip_counts = (
-        filtered_data_frame[
-            filtered_data_frame["start_station_name"].isin(valid_stations)
-        ]
+        filtered_data_frame[filtered_data_frame["start_station_name"].isin(valid_stations)]
         .groupby(["start_station_name", "month"])
         .size()
         .unstack(fill_value=0)
     )
     end_trip_counts = (
-        filtered_data_frame[
-            filtered_data_frame["end_station_name"].isin(valid_stations)
-        ]
+        filtered_data_frame[filtered_data_frame["end_station_name"].isin(valid_stations)]
         .groupby(["end_station_name", "month"])
         .size()
         .unstack(fill_value=0)
@@ -337,7 +336,9 @@ def get_month_day_counts(year: int, month: int) -> tuple[int, int, int]:
     return weekday_count, saturday_count, sunday_count
 
 
-def _create_average_record(station: str, month_str: str, row_data: pd.Series) -> dict[str, str | float]:
+def _create_average_record(
+    station: str, month_str: str, row_data: pd.Series
+) -> dict[str, str | float]:
     """Helper function to compute average weekday/Saturday/Sunday trips for a single station-month row.
 
     Returns a dict or None if parsing fails.
@@ -360,8 +361,7 @@ def _create_average_record(station: str, month_str: str, row_data: pd.Series) ->
 
     weekdays_num, saturdays_num, sundays_num = get_month_day_counts(year, mon)
     weekday_trip_count = sum(
-        row_data.get(day, 0)
-        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        row_data.get(day, 0) for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     )
     saturday_trip_count = row_data.get("Saturday", 0)
     sunday_trip_count = row_data.get("Sunday", 0)
@@ -379,7 +379,9 @@ def _create_average_record(station: str, month_str: str, row_data: pd.Series) ->
     }
 
 
-def compute_daily_averages(filtered_data_frame: pd.DataFrame, valid_station_names: np.ndarray) -> pd.DataFrame:
+def compute_daily_averages(
+    filtered_data_frame: pd.DataFrame, valid_station_names: np.ndarray
+) -> pd.DataFrame:
     """Computes, for each station and month, the average trips per day for weekdays, Saturday, and Sunday.
 
     Args:
@@ -422,6 +424,7 @@ def compute_daily_averages(filtered_data_frame: pd.DataFrame, valid_station_name
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Processes Capital Bikeshare data to generate trip activity reports.
 
@@ -458,9 +461,7 @@ def main() -> None:
         clipped_gdf = bikeshare_gdf
 
     valid_station_names = clipped_gdf["NAME"].str.strip().unique()
-    print(
-        f"\nTotal unique station names within the study area: {len(valid_station_names)}"
-    )
+    print(f"\nTotal unique station names within the study area: {len(valid_station_names)}")
 
     print("\nApplying fixed station name corrections...")
     combined_data_frame = rename_stations(combined_data_frame)
@@ -483,13 +484,9 @@ def main() -> None:
         .unique()
     )
 
-    print(
-        f"\nUnique start station names not matching study area stops: {len(unmatched_start)}"
-    )
+    print(f"\nUnique start station names not matching study area stops: {len(unmatched_start)}")
     print(unmatched_start)
-    print(
-        f"\nUnique end station names not matching study area stops: {len(unmatched_end)}"
-    )
+    print(f"\nUnique end station names not matching study area stops: {len(unmatched_end)}")
     print(unmatched_end)
 
     # Interactive fuzzy match
@@ -503,16 +500,14 @@ def main() -> None:
         combined_data_frame["start_station_name"] = combined_data_frame[
             "start_station_name"
         ].replace(update_mapping)
-        combined_data_frame["end_station_name"] = combined_data_frame[
-            "end_station_name"
-        ].replace(update_mapping)
+        combined_data_frame["end_station_name"] = combined_data_frame["end_station_name"].replace(
+            update_mapping
+        )
     else:
         print("No interactive updates applied.")
 
     # Filter trips to valid stations and aggregate.
-    filtered_data_frame, valid_stations = filter_valid_stations(
-        combined_data_frame, clipped_gdf
-    )
+    filtered_data_frame, valid_stations = filter_valid_stations(combined_data_frame, clipped_gdf)
     total_trip_counts = aggregate_monthly_trips(filtered_data_frame, valid_stations)
 
     print("\nAggregated trip counts by station and month:")
@@ -524,9 +519,7 @@ def main() -> None:
     except OSError as exc:
         print(f"Error exporting CSV: {exc}")
 
-    print(
-        "\nComputing daily averages (weekday, Saturday, Sunday) for each station by month..."
-    )
+    print("\nComputing daily averages (weekday, Saturday, Sunday) for each station by month...")
     averages_data_frame = compute_daily_averages(filtered_data_frame, valid_stations)
 
     print("\nDaily averages:")
