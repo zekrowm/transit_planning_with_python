@@ -19,7 +19,7 @@ Outputs:
 """
 
 import os
-
+from typing import Dict, List, Optional, Tuple
 import pandas as pd
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
@@ -421,7 +421,7 @@ def process_cluster_data(
     cluster_data = cluster_data.drop(columns=actual_columns_to_drop, errors="ignore")
 
     # --- helper to prepend sample row 5 min before first trip ---
-    def prepend_sample(df_to_sample):
+    def prepend_sample(df_to_sample: pd.DataFrame) -> pd.DataFrame:
         if df_to_sample.empty:
             print(
                 f"Warning: Dataframe for {cluster_name} on {schedule_name} is empty. Cannot prepend sample row."
