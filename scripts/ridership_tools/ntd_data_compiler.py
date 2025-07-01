@@ -19,7 +19,7 @@ Outputs:
 from __future__ import annotations  # postpone evaluation of type-hints
 
 import os
-from typing import Any, Callable, List, Mapping, Optional, Tuple
+from typing import Any, Callable, List, Mapping, Optional, Tuple, Union
 from datetime import datetime
 import numpy as np
 import pandas as pd
