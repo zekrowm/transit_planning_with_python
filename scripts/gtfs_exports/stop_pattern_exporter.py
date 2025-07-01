@@ -20,7 +20,8 @@ import logging
 import os
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, List, Literal, Mapping, Optional, Tuple, Dict
+from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 from openpyxl import Workbook
@@ -53,6 +54,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def is_number(value: Any) -> bool:
     """Check if the input value can be converted to a float.
@@ -184,7 +186,9 @@ def format_service_id_folder_name(service_id: str, calendar_df: Optional[pd.Data
     return f"calendar_{service_id}_{day_str}"
 
 
-def filter_trips(trips_df: pd.DataFrame, routes_df: pd.DataFrame, cal_ids: List[str]) -> pd.DataFrame:
+def filter_trips(
+    trips_df: pd.DataFrame, routes_df: pd.DataFrame, cal_ids: List[str]
+) -> pd.DataFrame:
     """Filter trips by route_short_name and service_id.
 
     Args:
@@ -218,7 +222,10 @@ def filter_trips(trips_df: pd.DataFrame, routes_df: pd.DataFrame, cal_ids: List[
 # BUILD PATTERNS
 # -----------------------------------------------------------------------------
 
-def generate_unique_patterns(trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame) -> Dict[Tuple, Dict[str, Any]]:
+
+def generate_unique_patterns(
+    trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame
+) -> Dict[Tuple, Dict[str, Any]]:
     """Identify unique stop patterns grouped by route, direction, and service.
 
     Args:
@@ -422,7 +429,10 @@ def assign_pattern_ids(patterns_dict: Dict[Tuple, Dict[str, Any]]) -> List[Dict[
 # EARLIEST START TIME
 # -----------------------------------------------------------------------------
 
-def compute_earliest_start_times(pattern_records: List[Dict[str, Any]], stop_times_df: pd.DataFrame) -> None:
+
+def compute_earliest_start_times(
+    pattern_records: List[Dict[str, Any]], stop_times_df: pd.DataFrame
+) -> None:
     """Add earliest start time (in minutes and HH:MM) to pattern records.
 
     Args:
@@ -496,7 +506,14 @@ def compute_earliest_start_times(pattern_records: List[Dict[str, Any]], stop_tim
 # MASTER TRIP
 # -----------------------------------------------------------------------------
 
-def find_master_trip_stops(route_id_val: str, direction_id_val: str, relevant_trips: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame) -> List[Tuple[str, str]]:
+
+def find_master_trip_stops(
+    route_id_val: str,
+    direction_id_val: str,
+    relevant_trips: pd.DataFrame,
+    stop_times_df: pd.DataFrame,
+    stops_df: pd.DataFrame,
+) -> List[Tuple[str, str]]:
     """Identify the trip with the most timepoints as the master for a direction.
 
     Args:
@@ -537,7 +554,9 @@ def find_master_trip_stops(route_id_val: str, direction_id_val: str, relevant_tr
     return out_list
 
 
-def forward_match_pattern_to_master(pattern_stops: List[Tuple[str, str]], master_stops: List[Tuple[str, str]]) -> List[str]:
+def forward_match_pattern_to_master(
+    pattern_stops: List[Tuple[str, str]], master_stops: List[Tuple[str, str]]
+) -> List[str]:
     """Align pattern segment distances to the master stop order.
 
     Args:
@@ -572,6 +591,7 @@ def forward_match_pattern_to_master(pattern_stops: List[Tuple[str, str]], master
 # -----------------------------------------------------------------------------
 # EXCEL EXPORT
 # -----------------------------------------------------------------------------
+
 
 def create_workbook() -> Workbook:
     """Create a new openpyxl Workbook with the default sheet removed.
@@ -789,6 +809,7 @@ def export_patterns_to_excel(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
@@ -865,9 +886,11 @@ def load_gtfs_data(
             ) from exc
     return data
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Main script function for generating GTFS pattern exports."""
