@@ -1,0 +1,67 @@
+name: helpers_consistency_audit_weekly
+
+on:
+  schedule:
+    - cron: '0 0 * * SUN' # Runs every Sunday at 00:00 UTC
+  workflow_dispatch: # Allows manual triggering
+
+permissions:
+  contents: read
+
+jobs:
+  audit-helpers:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ─────────────────────────────────────────────
+      # 1️⃣ Checkout code
+      # ─────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ─────────────────────────────────────────────
+      # 2️⃣ Set up Python
+      # ─────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ─────────────────────────────────────────────
+      # 3️⃣ Collect all Python files in scripts/
+      # ─────────────────────────────────────────────
+      - name: Collect all Python scripts for audit
+        id: files_to_audit
+        shell: bash
+        run: |
+          echo "Collecting all 'scripts/**/*.py' files for audit."
+          ALL_SCRIPTS=$(git ls-files 'scripts/**/*.py' | sort -u | tr '\n' ' ')
+          echo "files=$ALL_SCRIPTS" >> "$GITHUB_OUTPUT"
+
+      # ─────────────────────────────────────────────
+      # 4️⃣ Skip job if no relevant files to audit
+      # ─────────────────────────────────────────────
+      - name: No relevant scripts to audit
+        if: ${{ steps.files_to_audit.outputs.files == '' }}
+        run: echo "No *.py files in 'scripts/' detected for audit – skipping helper consistency audit."
+
+      # ─────────────────────────────────────────────
+      # 5️⃣ Run helper-consistency audit
+      # ─────────────────────────────────────────────
+      - name: Audit helper consistency
+        if: ${{ steps.files_to_audit.outputs.files != '' }}
+        shell: bash
+        env:
+          CANONICAL_PATH: helpers
+          LOG_DIR: $RUNNER_TEMP
+        run: |
+          set -e
+          echo "Script(s) selected for audit: ${{ steps.files_to_audit.outputs.files }}"
+
+          echo "Executing full helper audit on all selected files."
+          # This assumes `reusable_functions_consistency_checker.py` can take a list of files
+          # or implicitly searches within a root. Adjust `SEARCH_ROOT` or add `--files` as needed
+          # for your specific script's expected arguments.
+          SEARCH_ROOT="." python dev_tools/reusable_functions_consistency_checker.py --files ${{ steps.files_to_audit.outputs.files }}
