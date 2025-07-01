@@ -518,7 +518,7 @@ def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFra
     # We want each row to correspond to (period, route).
     # We'll pivot the daily boardings for weekday/sat/sun so we can form averages.
 
-    def get_daytype_sum(dfsub, daytype):
+    def get_daytype_sum(dfsub: pd.DataFrame, daytype: str) -> tuple[float, float]:
         row = dfsub.loc[dfsub["SERVICE_PERIOD"] == daytype]
         if row.empty:
             return (0, 0)  # (boardings, days)
@@ -627,7 +627,7 @@ def build_monthly_timeseries(all_data: pd.DataFrame, config: dict) -> pd.DataFra
     return df_time
 
 
-def plot_metric_over_time(df_time: pd.DataFrame, metric: str, config: dict):
+def plot_metric_over_time(df_time: pd.DataFrame, metric: str, config: dict) -> None:
     """Create a line plot of *metric* by month for every route.
 
     Files are saved as PNG under ``<output_dir>/plots/<metric>/``.
@@ -702,7 +702,7 @@ def plot_metric_over_time(df_time: pd.DataFrame, metric: str, config: dict):
         plt.close()
 
 
-def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict):
+def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict) -> None:
     """Iterate over PLOT_CONFIG flags and call plot_metric_over_time when enabled.
 
     Args:
@@ -735,7 +735,7 @@ def generate_all_plots(df_time: pd.DataFrame, config: dict, plot_config: dict):
 # MAIN
 # =============================================================================
 
-def main():
+def main() -> None:
     """Execute the NTD performance workflow.
 
     Steps
