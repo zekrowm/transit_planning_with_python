@@ -34,6 +34,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt pylint vulture mypy pydocstyle
+        pip install ruff
 
     # ---------- FIXED STEP -------------------------------------------------
     - name: Collect Python sources
@@ -68,4 +69,10 @@ jobs:
       run: |
         echo "Running pydocstyle (Google convention)…"
         pydocstyle $FILES || true
+      continue-on-error: true
+
+      - name: Run Ruff
+      run: |
+        echo "Running Ruff…"
+        ruff check $FILES || true
       continue-on-error: true
