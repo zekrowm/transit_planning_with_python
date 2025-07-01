@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import math
 import os
-from typing import Any, Sequence
+from typing import Any, Sequence, Union
 
 import pandas as pd
 from openpyxl.styles import Alignment
