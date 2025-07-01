@@ -70,9 +70,7 @@ LARGE_BUFFER_DISTANCE = 2.0  # Larger buffer distance for specified stops
 STOP_IDS_LARGE_BUFFER: list[str] = []
 
 # Optional FIPS filter (list of codes). Empty list = no filter.
-FIPS_FILTER: list[
-    str
-] = []  # Replace with FIPS code(s) for desired jurisdictions (e.g. "11001")
+FIPS_FILTER: list[str] = []  # Replace with FIPS code(s) for desired jurisdictions (e.g. "11001")
 
 # Fields in demographics shapefile to multiply by area ratio
 SYNTHETIC_FIELDS = [
@@ -106,6 +104,7 @@ REQUIRED_GTFS_FILES = [
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
     """Return service_ids for routes that run Monday through Friday.
@@ -333,26 +332,20 @@ def do_network_analysis(
     print("\n=== Network-wide Analysis ===")
 
     # 1) Filter routes
-    final_routes_df = get_included_routes(
-        routes_df, routes_to_include, routes_to_exclude
-    )
+    final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
     if final_routes_df.empty:
         print("No routes remain after route filters. Aborting network analysis.")
         return
 
     # 2) Subset trips to only final routes
-    trips_merged = pd.merge(
-        trips, final_routes_df[["route_id", "route_short_name"]], on="route_id"
-    )
+    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
     # 3) Merge trips with stop_times
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
     # 4) Merge with stops
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
     # 5) Filter final stops
-    final_stops_df = get_included_stops(
-        merged_data, stop_ids_to_include, stop_ids_to_exclude
-    )
+    final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
     if final_stops_df.empty:
         print("No stops remain after stop filters. Aborting network analysis.")
         return
@@ -361,26 +354,27 @@ def do_network_analysis(
     final_stops_df["geometry"] = final_stops_df.apply(
         lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
     )
-    stops_gdf = gpd.GeoDataFrame(
-        final_stops_df, geometry="geometry", crs="EPSG:4326"
-    ).to_crs(epsg=CRS_EPSG_CODE)
+    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
+        epsg=CRS_EPSG_CODE
+    )
 
     # 7) Compute variable buffer distances — vectorised, pylint-friendly
-    buffer_m = stops_gdf["stop_id"].map(
-        lambda sid: pick_buffer_distance(
-            sid,
-            normal_buffer=buffer_distance_mi,
-            large_buffer=large_buffer_distance_mi,
-            large_buffer_ids=stop_ids_large_buffer,
+    buffer_m = (
+        stops_gdf["stop_id"].map(
+            lambda sid: pick_buffer_distance(
+                sid,
+                normal_buffer=buffer_distance_mi,
+                large_buffer=large_buffer_distance_mi,
+                large_buffer_ids=stop_ids_large_buffer,
+            )
         )
-    ) * 1609.34
-
-    stops_gdf = (
-        stops_gdf
-        .assign(buffer_distance_meters=buffer_m)
-        .set_geometry(stops_gdf.geometry.buffer(buffer_m))
+        * 1609.34
     )
-    
+
+    stops_gdf = stops_gdf.assign(buffer_distance_meters=buffer_m).set_geometry(
+        stops_gdf.geometry.buffer(buffer_m)
+    )
+
     # 8) Dissolve all buffers to create a single “network” buffer
     network_buffer_gdf = stops_gdf.dissolve().reset_index(drop=True)
 
@@ -442,24 +436,18 @@ def do_route_by_route_analysis(
     """
     print("\n=== Route-by-Route Analysis ===")
 
-    final_routes_df = get_included_routes(
-        routes_df, routes_to_include, routes_to_exclude
-    )
+    final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
     if final_routes_df.empty:
         print("No routes remain after route filters. Aborting route-by-route analysis.")
         return
 
     # Merge the relevant GTFS data
-    trips_merged = pd.merge(
-        trips, final_routes_df[["route_id", "route_short_name"]], on="route_id"
-    )
+    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
     # Filter stops per user-specified ID filters
-    final_stops_df = get_included_stops(
-        merged_data, stop_ids_to_include, stop_ids_to_exclude
-    )
+    final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
     if final_stops_df.empty:
         print("No stops remain after stop filters. Aborting route-by-route analysis.")
         return
@@ -468,9 +456,9 @@ def do_route_by_route_analysis(
     final_stops_df["geometry"] = final_stops_df.apply(
         lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
     )
-    stops_gdf = gpd.GeoDataFrame(
-        final_stops_df, geometry="geometry", crs="EPSG:4326"
-    ).to_crs(epsg=CRS_EPSG_CODE)
+    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
+        epsg=CRS_EPSG_CODE
+    )
 
     # Apply variable buffer logic
     stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
@@ -559,24 +547,18 @@ def do_stop_by_stop_analysis(
     """
     print("\n=== Stop-by-Stop Analysis ===")
 
-    final_routes_df = get_included_routes(
-        routes_df, routes_to_include, routes_to_exclude
-    )
+    final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
     if final_routes_df.empty:
         print("No routes remain after route filters. Aborting stop-by-stop analysis.")
         return
 
     # Merge the relevant GTFS data
-    trips_merged = pd.merge(
-        trips, final_routes_df[["route_id", "route_short_name"]], on="route_id"
-    )
+    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
     # Filter stops per user-specified ID filters
-    final_stops_df = get_included_stops(
-        merged_data, stop_ids_to_include, stop_ids_to_exclude
-    )
+    final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
     if final_stops_df.empty:
         print("No stops remain after stop filters. Aborting stop-by-stop analysis.")
         return
@@ -585,9 +567,9 @@ def do_stop_by_stop_analysis(
     final_stops_df["geometry"] = final_stops_df.apply(
         lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
     )
-    stops_gdf = gpd.GeoDataFrame(
-        final_stops_df, geometry="geometry", crs="EPSG:4326"
-    ).to_crs(epsg=CRS_EPSG_CODE)
+    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
+        epsg=CRS_EPSG_CODE
+    )
 
     # Apply variable buffer logic
     stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
@@ -630,16 +612,12 @@ def do_stop_by_stop_analysis(
             print(f"  Total Synthetic {display_col}: {int(val)}")
 
         # Export shapefile
-        shp_path = os.path.join(
-            output_dir, f"stop_{stop_id_str}_service_buffer_data.shp"
-        )
+        shp_path = os.path.join(output_dir, f"stop_{stop_id_str}_service_buffer_data.shp")
         clipped_result.to_file(shp_path)
         print(f"Exported shapefile for stop {stop_id_str}: {shp_path}")
 
         # Export summary to Excel
-        xlsx_path = os.path.join(
-            output_dir, f"stop_{stop_id_str}_service_buffer_data.xlsx"
-        )
+        xlsx_path = os.path.join(output_dir, f"stop_{stop_id_str}_service_buffer_data.xlsx")
         final_dict = {col: int(val) for col, val in totals.items()}
         export_summary_to_excel(final_dict, xlsx_path)
 
@@ -673,9 +651,7 @@ def apply_fips_filter(
         if geo_cols:
             src = geo_cols[0]
             demog_gdf[fips_col] = demog_gdf[src].str[:5]
-            logging.info(
-                "Derived %s from %s (first 5 chars) for FIPS filtering.", fips_col, src
-            )
+            logging.info("Derived %s from %s (first 5 chars) for FIPS filtering.", fips_col, src)
         else:
             logging.warning(
                 "FIPS filter requested (%s) but no '%s' column or GEOID-like "
@@ -695,11 +671,15 @@ def apply_fips_filter(
     )
     return demog_gdf
 
+
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: type = str) -> dict[str, pd.DataFrame]:
+
+def load_gtfs_data(
+    gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: type = str
+) -> dict[str, pd.DataFrame]:
     """Load GTFS text files from *gtfs_folder_path*.
 
     The function validates the presence of each requested file, reads it
@@ -751,9 +731,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dty
         if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
     ]
     if missing:
-        raise OSError(
-            f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}"
-        )
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
     data = {}
     for file_name in files:
@@ -765,9 +743,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dty
             logging.info(f"Loaded {file_name} ({len(df)} records).")
 
         except pd.errors.EmptyDataError as exc:
-            raise ValueError(
-                f"File '{file_name}' in '{gtfs_folder_path}' is empty."
-            ) from exc
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
 
         except pd.errors.ParserError as exc:
             raise ValueError(
@@ -780,6 +756,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dty
             ) from exc
 
     return data
+
 
 # =============================================================================
 # MAIN
@@ -831,9 +808,7 @@ def main() -> None:
         # ==============================================================
         demographics_path = Path(DEMOGRAPHICS_SHP_PATH)
         if not demographics_path.is_file():
-            raise FileNotFoundError(
-                f"Demographics shapefile not found: {demographics_path}"
-            )
+            raise FileNotFoundError(f"Demographics shapefile not found: {demographics_path}")
 
         demographics_gdf = gpd.read_file(demographics_path)
         demographics_gdf = apply_fips_filter(demographics_gdf, FIPS_FILTER)
