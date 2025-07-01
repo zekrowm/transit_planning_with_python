@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 from typing import Tuple, Union
+
 import pandas as pd
 
 # =============================================================================
@@ -65,6 +66,7 @@ def first_existing(df: pd.DataFrame, names: list[str]) -> str | None:
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def parse_time_to_minutes(value: Union[str, int, float]) -> float:
     """Convert HH:MM:SS (or H:MM) strings to a float number of minutes."""
