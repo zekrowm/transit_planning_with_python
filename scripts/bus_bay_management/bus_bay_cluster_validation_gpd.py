@@ -52,7 +52,7 @@ DISTANCE_CRS_EPSG = 2248  # NAD83 / Maryland (ft)
 # FUNCTIONS
 # ==================================================================================================
 
-def prepare_stops_gdf(crs_epsg: int, service_id: str = "3"):
+def prepare_stops_gdf(crs_epsg: int, service_id: str = "3") -> gpd.GeoDataFrame:
     """Loads stops, trips, and stop_times with `load_gtfs_data()`.
 
     It filters the data to the specified `service_id` and returns a re-projected
@@ -121,7 +121,9 @@ def prepare_stops_gdf(crs_epsg: int, service_id: str = "3"):
     return stops_gdf
 
 
-def initialize_clusters(stops_gdf, clusters_dict):
+def initialize_clusters(
+    stops_gdf: gpd.GeoDataFrame, clusters_dict: Dict[str, List[str]]
+) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, Dict[str, List[str]]]:
     """Splits stops into included and excluded sets based on cluster definitions.
 
     Args:
@@ -170,7 +172,9 @@ def initialize_clusters(stops_gdf, clusters_dict):
     return included_stops_global, excluded_stops_global, clusters_dict
 
 
-def find_similar_stop_names(inc_stops, exc_stops, threshold):
+def find_similar_stop_names(
+    inc_stops: gpd.GeoDataFrame, exc_stops: gpd.GeoDataFrame, threshold: int
+) -> pd.DataFrame:
     """Find excluded stops whose names are similar to included stops above a threshold.
 
     Args:
@@ -232,7 +236,9 @@ def find_similar_stop_names(inc_stops, exc_stops, threshold):
     return pd.DataFrame(similar_stops, columns=columns)
 
 
-def find_nearby_excluded_stops(inc_stops, exc_stops, distance_threshold):
+def find_nearby_excluded_stops(
+    inc_stops: gpd.GeoDataFrame, exc_stops: gpd.GeoDataFrame, distance_threshold: Union[int, float]
+) -> pd.DataFrame:
     """Find excluded stops that are within distance_threshold from included stops.
 
     Args:
@@ -282,7 +288,9 @@ def find_nearby_excluded_stops(inc_stops, exc_stops, distance_threshold):
     return pd.DataFrame(nearby_stops, columns=columns)
 
 
-def find_distant_included_stops(inc_stops, distance_threshold):
+def find_distant_included_stops(
+    inc_stops: gpd.GeoDataFrame, distance_threshold: Union[int, float]
+) -> pd.DataFrame:
     """Find included stops that are far from all other stops in their cluster.
 
     Args:
@@ -321,7 +329,9 @@ def find_distant_included_stops(inc_stops, distance_threshold):
     return pd.DataFrame(distant_stops, columns=columns)
 
 
-def find_different_named_included_stops(inc_stops, similarity_threshold):
+def find_different_named_included_stops(
+    inc_stops: gpd.GeoDataFrame, similarity_threshold: int
+) -> pd.DataFrame:
     """Find included stops in the same cluster whose name similarity is below similarity_threshold.
 
     Args:
@@ -363,7 +373,7 @@ def find_different_named_included_stops(inc_stops, similarity_threshold):
     return pd.DataFrame(different_named_stops, columns=columns)
 
 
-def save_to_excel(data_frame, filename, output_directory):
+def save_to_excel(data_frame: pd.DataFrame, filename: str, output_directory: str) -> None:
     """Save a DataFrame to Excel with headers, even if empty.
 
     Args:
@@ -407,7 +417,9 @@ def save_to_excel(data_frame, filename, output_directory):
 # REUSABLE FUNCTIONS
 # --------------------------------------------------------------------------------------------------
 
-def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
+def load_gtfs_data(
+    gtfs_folder_path: str, files: List[str] = None, dtype: Union[str, Dict] = str
+) -> Dict[str, pd.DataFrame]:
     """Loads GTFS files into pandas DataFrames from the specified directory.
 
     This function uses the logging module for output.
@@ -486,8 +498,7 @@ def load_gtfs_data(gtfs_folder_path: str, files: list[str] = None, dtype=str):
 # MAIN
 # ==================================================================================================
 
-
-def main(service_id: str = "3"):
+def main(service_id: str = "3") -> None:
     """Main entry point for the GTFS Bus-Bay Cluster Validation script.
 
     Steps:
