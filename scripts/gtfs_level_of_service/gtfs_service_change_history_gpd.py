@@ -103,7 +103,7 @@ ALL_SIGNUP_COVERAGES: dict[
 # FUNCTIONS
 # ==================================================================================================
 
-def check_input_files(base_path, files):
+def check_input_files(base_path: str, files: List[str]) -> None:
     """Verify that the input directory and all required GTFS files exist."""
     if not os.path.exists(base_path):
         raise FileNotFoundError(f"The input directory {base_path} does not exist.")
@@ -115,7 +115,7 @@ def check_input_files(base_path, files):
             )
 
 
-def load_gtfs_data(base_path, files):
+def load_gtfs_data(base_path: str, files: List[str]) -> Dict[str, pd.DataFrame]:
     """Load GTFS data from specified files into a dictionary of pandas DataFrames."""
     data = {}
     for file_name in files:
@@ -129,7 +129,7 @@ def load_gtfs_data(base_path, files):
     return data
 
 
-def parse_time_blocks(time_blocks_str):
+def parse_time_blocks(time_blocks_str: str) -> Dict[str, Tuple[pd.Timedelta, pd.Timedelta]]:
     """Convert the human-readable time block strings into start/end timedeltas for each named time-block."""
     parsed_blocks = {}
     for block_name, (start_str, end_str) in time_blocks_str.items():
@@ -142,7 +142,7 @@ def parse_time_blocks(time_blocks_str):
     return parsed_blocks
 
 
-def assign_time_block(time_delta, blocks):
+def assign_time_block(time_delta: pd.Timedelta, blocks: Dict[str, Tuple[pd.Timedelta, pd.Timedelta]]) -> str:
     """Given a time_delta (time of day) and pre-parsed blocks, determine which block (am, midday, pm, night, or 'other')."""
     for block_name, (start, end) in blocks.items():
         if start <= time_delta < end:
@@ -150,7 +150,7 @@ def assign_time_block(time_delta, blocks):
     return "other"
 
 
-def format_timedelta(time_delta):
+def format_timedelta(time_delta: pd.Timedelta) -> Optional[str]:
     """Format a timedelta object as HH:MM string, or None if invalid."""
     if pd.isna(time_delta):
         return None
@@ -160,7 +160,7 @@ def format_timedelta(time_delta):
     return f"{hours:02}:{minutes:02}"
 
 
-def find_large_break(trip_times):
+def find_large_break(trip_times: pd.Series) -> bool:
     """Check if there's a 3+ hour break in the trip_times array between 10:00 and 14:00."""
     late_morning = pd.Timedelta(hours=10)
     early_afternoon = pd.Timedelta(hours=14)
@@ -176,7 +176,7 @@ def find_large_break(trip_times):
     return False
 
 
-def calculate_trip_times(group):
+def calculate_trip_times(group: pd.DataFrame) -> pd.Series:
     """Calculate first and last trip times, and if there's a long midday gap, separate AM and PM times. Return a series with relevant info."""
     trip_times = group["departure_time"].sort_values()
     first_trip = trip_times.min()
@@ -229,7 +229,7 @@ def calculate_trip_times(group):
     )
 
 
-def calculate_headways(departure_times):
+def calculate_headways(departure_times: pd.Series) -> float:
     """Given all departure_times for a route/direction/time_block, calculate and return the most common (mode) headway in minutes."""
     sorted_times = departure_times.sort_values()
     headway_values = (
@@ -240,7 +240,7 @@ def calculate_headways(departure_times):
     return headway_values.mode()[0]
 
 
-def process_headways(merged_data):
+def process_headways(merged_data: pd.DataFrame) -> Dict[str, Any]:
     """Group data by route/direction/time_block and apply calculate_headways, then store them in a dict."""
     headways = (
         merged_data.groupby(
@@ -272,7 +272,7 @@ def process_headways(merged_data):
     return headway_dict
 
 
-def merge_headways(trip_times_df, headway_dict):
+def merge_headways(trip_times_df: pd.DataFrame, headway_dict: Dict[str, Any]) -> pd.DataFrame:
     """Merge the computed headways from process_headways() back into the trip_times_df."""
 
     def get_val_from_dict(row, block_type):
@@ -295,7 +295,7 @@ def merge_headways(trip_times_df, headway_dict):
     return trip_times_df
 
 
-def save_to_excel(final_data, output_dir, output_file):
+def save_to_excel(final_data: pd.DataFrame, output_dir: str, output_file: str) -> None:
     """Save the final_data DataFrame to an Excel file, auto-sizing columns and centering text in each cell."""
     workbook = Workbook()
     worksheet = workbook.active
@@ -322,7 +322,9 @@ def save_to_excel(final_data, output_dir, output_file):
     print(f"Final data successfully saved to {file_path}")
 
 
-def build_coverage_polygons(gtfs_data, route_filter_out, label):
+def build_coverage_polygons(
+    gtfs_data: Dict[str, pd.DataFrame], route_filter_out: List[str], label: str
+) -> gpd.GeoDataFrame: # Or Dict[str, Any] depending on exact return
     """Build combined coverage polygon based on buffer for each route.
 
     For each route, gather all stops used by that route,
@@ -408,7 +410,9 @@ def build_coverage_polygons(gtfs_data, route_filter_out, label):
     return coverage_polygons
 
 
-def process_schedule_type(schedule_type, days, data, label):
+def process_schedule_type(
+    schedule_type: str, days: List[int], data: Dict[str, pd.DataFrame], label: str
+) -> None:
     """Process a single schedule type, save final results, and export Excel file."""
     calendar_df = data["calendar"]
     trips_df = data["trips"]
@@ -535,7 +539,7 @@ def process_schedule_type(schedule_type, days, data, label):
     ALL_SIGNUP_FINAL_DATA.setdefault(label, []).append(final_data)
 
 
-def process_gtfs_dataset(gtfs_path, label):
+def process_gtfs_dataset(gtfs_path: str, label: str) -> None:
     """Load, process, and export GTFS data for a given signup label."""
     if not gtfs_path.strip():
         print(f"Empty path provided for {label}. Skipping.")
@@ -558,7 +562,9 @@ def process_gtfs_dataset(gtfs_path, label):
         process_schedule_type(sch_type, days, data, label)
 
 
-def build_route_signatures_for_signup(final_data_list, coverage_dict):
+def build_route_signatures_for_signup(
+    final_data_list: List[pd.DataFrame], coverage_dict: Dict[str, gpd.GeoDataFrame]
+) -> pd.DataFrame:
     """Combine schedule-based data and coverage geometry for each route into a dict."""
     combined_df = (
         pd.concat(final_data_list, ignore_index=True)
@@ -605,7 +611,11 @@ def build_route_signatures_for_signup(final_data_list, coverage_dict):
     return route_signatures
 
 
-def classify_geometry_change(poly_old, poly_new, threshold=GEOM_CHANGE_THRESHOLD):
+def classify_geometry_change(
+    poly_old: Optional[Union[Polygon, MultiPolygon]],
+    poly_new: Optional[Union[Polygon, MultiPolygon]],
+    threshold: float = GEOM_CHANGE_THRESHOLD,
+) -> str:
     """Compare coverage polygons to see if the route's coverage is expanded/contracted/modified."""
     if (poly_old is None or poly_old.is_empty) and (poly_new and not poly_new.is_empty):
         return "Geography expanded"
@@ -638,7 +648,9 @@ def classify_geometry_change(poly_old, poly_new, threshold=GEOM_CHANGE_THRESHOLD
     return "No geographic change"
 
 
-def compare_signups_detailed(labels_in_order, all_signups_data):
+def compare_signups_detailed(
+    labels_in_order: List[str], all_signups_data: Dict[str, pd.DataFrame]
+) -> pd.DataFrame:
     """Build a DataFrame comparing each signup to the previous one, labeling each route."""
     # Gather all routes from all signups
     all_routes = set()
@@ -708,7 +720,7 @@ def compare_signups_detailed(labels_in_order, all_signups_data):
     return comparison_df
 
 
-def save_comparison_to_excel(comparison_df, output_path, filename):
+def save_comparison_to_excel(comparison_df: pd.DataFrame, output_path: str, filename: str) -> None:
     """Save the final route-by-route comparison DataFrame to an Excel file."""
     workbook = Workbook()
     worksheet = workbook.active
