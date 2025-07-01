@@ -699,8 +699,7 @@ def apply_fips_filter(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
-def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype=str):
+def load_gtfs_data(gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: type = str) -> dict[str, pd.DataFrame]:
     """Load GTFS text files from *gtfs_folder_path*.
 
     The function validates the presence of each requested file, reads it
