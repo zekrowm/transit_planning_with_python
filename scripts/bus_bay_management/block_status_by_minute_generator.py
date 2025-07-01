@@ -407,9 +407,9 @@ def _status_for_active_trips(
         return valid_candidates[0]
 
     # Tie-break if multiple
-    def candidate_sort_key(item):
+    def candidate_sort_key(item: tuple[dict[str, Any], tuple]) -> tuple[bool, int]:
         stat = item[1]
-        stop_seq = stat[6] if stat[6] else 999999
+        stop_seq = stat[6] if stat[6] is not None else 999999
         timepoint_val = stat[7] if len(stat) == 8 else 0
         # Prefer timepoints, then lower stop_sequence
         return (timepoint_val == 0, stop_seq)
@@ -510,9 +510,8 @@ def _build_schedule_rows(
             )
 
             if chosen_trip is not None:
-                # Narrow the type for static analysers / pylint.
-                chosen_trip = cast(dict[str, Any], chosen_trip)
-
+                chosen_trip = cast("dict[str, Any]", chosen_trip)
+                
                 (
                     status,
                     stop_id,
