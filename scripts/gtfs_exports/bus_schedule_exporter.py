@@ -7,10 +7,6 @@ print-style public schedules.
 Typical usage is within ArcGIS Pro or a Jupyter notebook. Configuration is
 manual: edit constants near the top before execution.
 
-Inputs:
-    - GTFS .txt files in a specified folder
-    - Configurable route and service filters, time formatting
-
 Outputs:
     - One Excel file per route × service type with schedule sheets by direction
 """
