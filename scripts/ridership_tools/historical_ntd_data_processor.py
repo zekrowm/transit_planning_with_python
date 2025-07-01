@@ -97,15 +97,15 @@ def load_compiled_dataset(path: str) -> pd.DataFrame:
 
     def _normalise_period(v: Any) -> str | float:
         """Ensure period values are clean strings (handles NaN, 202309.0, etc.).
-        
-            Args:
-                v: The raw period value coming from the spreadsheet.  Can be a string,
-                   an Excel float/int, or a pandas NA/NumPy NaN.
-        
-            Returns:
-                A canonicalised representation:
-                * `str` when the value is valid (e.g. ``"202309"`` or ``"Sep-23"``).
-                * `float("nan")` when the value is missing/blank.
+
+        Args:  # <--- Corrected indentation
+            v: The raw period value coming from the spreadsheet.  Can be a string,
+               an Excel float/int, or a pandas NA/NumPy NaN.
+
+        Returns: # <--- Corrected indentation
+            A canonicalised representation:
+            * `str` when the value is valid (e.g. ``"202309"`` or ``"Sep-23"``).
+            * `float("nan")` when the value is missing/blank.
         """
         if pd.isna(v):
             return np.nan
