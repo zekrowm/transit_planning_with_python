@@ -17,9 +17,9 @@ Typical use cases
 
 from __future__ import annotations
 
+import datetime as dt
 import os
 from typing import Final
-import datetime as dt
 
 import pandas as pd
 from openpyxl import Workbook
@@ -61,6 +61,7 @@ VIOLATION_LOG_FILE: Final[str] = OUTPUT_FILE.replace(".xlsx", "_violations_log.t
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def load_data(input_file: str) -> pd.DataFrame:
     """Load required columns from an Excel file.
@@ -410,6 +411,7 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the full ETL pipeline and create all exports."""
