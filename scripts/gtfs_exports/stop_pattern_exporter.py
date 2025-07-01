@@ -54,7 +54,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # FUNCTIONS
 # =============================================================================
 
-def is_number(value) -> bool:
+def is_number(value: Any) -> bool:
     """Check if the input value can be converted to a float.
 
     Args:
@@ -70,7 +70,7 @@ def is_number(value) -> bool:
         return False
 
 
-def convert_dist_to_miles(distance, input_unit):
+def convert_dist_to_miles(distance: Any, input_unit: str) -> Any:
     """Convert a distance value to miles.
 
     Args:
@@ -218,8 +218,7 @@ def filter_trips(trips_df: pd.DataFrame, routes_df: pd.DataFrame, cal_ids: List[
 # BUILD PATTERNS
 # -----------------------------------------------------------------------------
 
-
-def generate_unique_patterns(trips_df, stop_times_df, stops_df):
+def generate_unique_patterns(trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame) -> Dict[Tuple, Dict[str, Any]]:
     """Identify unique stop patterns grouped by route, direction, and service.
 
     Args:
