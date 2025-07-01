@@ -21,7 +21,7 @@ Outputs:
 
 import os
 from datetime import timedelta
-
+from typing import List, Dict, Tuple, Optional, Any
 import geopandas as gpd
 import pandas as pd
 from openpyxl import Workbook
@@ -275,7 +275,7 @@ def process_headways(merged_data: pd.DataFrame) -> Dict[str, Any]:
 def merge_headways(trip_times_df: pd.DataFrame, headway_dict: Dict[str, Any]) -> pd.DataFrame:
     """Merge the computed headways from process_headways() back into the trip_times_df."""
 
-    def get_val_from_dict(row, block_type):
+    def get_val_from_dict(row: pd.Series, block_type: str) -> Any:
         return headway_dict[block_type].get(
             (row["route_short_name"], row["route_long_name"], row["direction_id"]), None
         )
@@ -500,11 +500,11 @@ def process_schedule_type(
         .apply(lambda s: set(s.dropna()))
         .to_dict()
     )
-    interlined_routes_map = {}
+    _routes_map = {}
     for block_id, route_set in block_to_routes.items():
         for route_name in route_set:
             # NOTE: rename 'blk' -> 'block_id' or use _blk if truly unused
-            interlined_routes_map.setdefault(route_name, set()).update(
+            _routes_map.setdefault(route_name, set()).update(
                 route_set - {route_name}
             )
 
@@ -521,8 +521,8 @@ def process_schedule_type(
     # 11. Merge headways
     final_data = merge_headways(trip_times, headway_dict)
 
-    # 12. Add interlined_routes column
-    def get_interlined(route_name):
+    # 12. Add _routes column
+    def get_interlined(route_name: str) -> str:
         """Build a comma-separated string of routes that share the same block_id."""
         return ", ".join(sorted(interlined_routes_map.get(route_name, [])))
 
@@ -752,7 +752,7 @@ def save_comparison_to_excel(comparison_df: pd.DataFrame, output_path: str, file
 # MAIN
 # ==================================================================================================
 
-def main():
+def main() -> None:
     """Main entry point orchestrates script."""
     # Process each GTFS config in order
     for cfg in MULTIPLE_GTFS_CONFIGS:
