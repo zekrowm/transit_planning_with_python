@@ -526,6 +526,7 @@ def process_schedule_type(
     def get_interlined(route_name: str) -> str:
         """Build a comma-separated string of routes that share the same block_id."""
         return ", ".join(sorted(interlined_routes_map.get(route_name, [])))
+        return ", ".join(sorted(_routes_map.get(route_name, [])))
 
     final_data["interlined_routes"] = final_data["route_short_name"].apply(
         get_interlined
