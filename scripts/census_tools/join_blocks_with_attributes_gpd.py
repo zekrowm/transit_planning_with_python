@@ -49,6 +49,7 @@ LOGGER: Final[logging.Logger] = logging.getLogger(__name__)
 # FUNCTIONS
 # =============================================================================
 
+
 def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
     """Read block geometry from *shp_path*.
 
@@ -56,11 +57,11 @@ def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
         shp_path: Path to the shapefile or GeoPackage layer.
         key:      Column expected to hold the block identifier.
 
-    Returns
+    Returns:
     -------
         GeoDataFrame with *key* coerced to ``str``.
 
-    Raises
+    Raises:
     ------
     KeyError
         If *key* is missing from the file.
@@ -79,7 +80,7 @@ def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
     If *key* is missing, derive it from *DERIVATION_SRC* by
     slicing the last 15 characters (standard block FIPS length).
 
-    Raises
+    Raises:
     ------
     KeyError
         If neither *key* nor *DERIVATION_SRC* is present.
@@ -90,9 +91,7 @@ def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
     if key not in df.columns:
         if DERIVATION_SRC in df.columns:
             df[key] = df[DERIVATION_SRC].str[-15:]
-            LOGGER.info(
-                "Derived %s from %s by taking last 15 chars", key, DERIVATION_SRC
-            )
+            LOGGER.info("Derived %s from %s by taking last 15 chars", key, DERIVATION_SRC)
         else:
             raise KeyError(
                 f"Neither '{key}' nor '{DERIVATION_SRC}' found in {csv_path}. "
@@ -117,11 +116,11 @@ def join_blocks_to_attributes(
         right_key: Join field in *attrs*.
         how:       Pandas merge strategy.
 
-    Returns
+    Returns:
     -------
         GeoDataFrame with geometry and attribute columns.
 
-    Raises
+    Raises:
     ------
     ValueError
         If duplicates in either key violate a 1 : 1 expectation.
@@ -207,20 +206,17 @@ def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
     Shapefile drivers cannot store pandas' nullable integer extension type.
     """
     int_cols: list[str] = [
-        str(col)
-        for col, dtype in gdf.dtypes.items()
-        if pd.api.types.is_integer_dtype(dtype)
+        str(col) for col, dtype in gdf.dtypes.items() if pd.api.types.is_integer_dtype(dtype)
     ]
     if int_cols:
-        LOGGER.debug(
-            "Casting %d Int64 column(s) → float64: %s", len(int_cols), int_cols
-        )
+        LOGGER.debug("Casting %d Int64 column(s) → float64: %s", len(int_cols), int_cols)
         gdf[int_cols] = gdf[int_cols].astype("float64")
 
 
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Script entry point."""
