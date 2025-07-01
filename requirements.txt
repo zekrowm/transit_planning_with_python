@@ -9,7 +9,7 @@ shapely==2.1.1               # Geometry operations
 pyproj==3.7.1                # Coordinate reference systems and transformations
 
 # Visualization
-matplotlib==3.10.0           # Plotting and visualization
+matplotlib==3.9.0           # Plotting and visualization
 
 # Excel File Support
 openpyxl==3.1.5              # Read/write Excel .xlsx files
