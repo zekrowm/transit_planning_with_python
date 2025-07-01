@@ -74,6 +74,7 @@ PASSENGER_SERVICE_STATUSES: Set[str] = {
 # FUNCTIONS
 # ==================================================================================================
 
+
 def get_all_official_stops(cinfo: Dict[str, List[str]]) -> List[str]:
     """Return a combined list of all *official* stops in a cluster.
 
@@ -81,12 +82,12 @@ def get_all_official_stops(cinfo: Dict[str, List[str]]) -> List[str]:
     overflow bays are *excluded* here because they do not count toward
     the “official” set used in certain analyses.
 
-    Args
+    Args:
     ----
     cinfo :
         The cluster-definition dictionary for a single cluster.
 
-    Returns
+    Returns:
     -------
     list[str]
         Concatenated list of all official stop IDs.
@@ -105,7 +106,7 @@ def build_cluster_capacities() -> Dict[str, int]:
 
         capacity = (#single * 1) + (#double * 2) + (#triple * 3) + (#overflow * 1)
 
-    Returns
+    Returns:
     -------
     dict[str, int]
         Mapping of ``cluster_name -> capacity`` (number of buses that
@@ -118,9 +119,7 @@ def build_cluster_capacities() -> Dict[str, int]:
         n_triple = len(cinfo.get("triple_bay_stops", []))
         n_overflow = len(cinfo.get("overflow_bays", []))
 
-        cluster_cap = (
-            (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
-        )
+        cluster_cap = (1 * n_single) + (2 * n_double) + (3 * n_triple) + (1 * n_overflow)
         capacities[cname] = cluster_cap
     return capacities
 
@@ -128,7 +127,7 @@ def build_cluster_capacities() -> Dict[str, int]:
 def build_stop_capacities() -> Dict[str, int]:
     """Generate a per-stop capacity dictionary.
 
-    Returns
+    Returns:
     -------
     dict[str, int]
         ``{stop_id: capacity}`` where single-bay = 1, double-bay = 2,
@@ -157,12 +156,12 @@ def normalize_stop_id(stop_id: object) -> Optional[str]:
 
     Converts ``2956.0`` → ``"2956"`` and gracefully handles *NaN*.
 
-    Args
+    Args:
     ----
     stop_id :
         Value from the ``Stop ID`` column, potentially numeric or NaN.
 
-    Returns
+    Returns:
     -------
     str | None
         Cleaned stop ID or *None* if ``stop_id`` is NaN.
@@ -186,7 +185,7 @@ def assign_cluster_name(df_in: DataFrame) -> DataFrame:
     df_in :
         Input DataFrame containing at least a ``Stop ID`` column.
 
-    Returns
+    Returns:
     -------
     pandas.DataFrame
         Copy of ``df_in`` with the additional ``ClusterName`` column.
@@ -220,7 +219,7 @@ def find_cluster_conflicts(df_in: DataFrame) -> Set[Tuple[str, str]]:
     df_in :
         DataFrame that already contains a ``ClusterName`` column.
 
-    Returns
+    Returns:
     -------
     set[tuple[str, str]]
         {(cluster_name, timestamp), …} representing each conflict point.
@@ -251,7 +250,7 @@ def find_stop_conflicts(df_in: DataFrame) -> Set[Tuple[str, str]]:
     df_in :
         Raw DataFrame containing ``Stop ID`` and ``Status`` columns.
 
-    Returns
+    Returns:
     -------
     set[tuple[str, str]]
         {(stop_id, timestamp), …} representing each conflict point.
@@ -292,7 +291,7 @@ def annotate_conflicts(
         Set of stop-level conflict keys as produced by
         :func:`find_stop_conflicts`.
 
-    Returns
+    Returns:
     -------
     pandas.DataFrame
         Copy of ``df_in`` with the additional ``ConflictType`` column.
@@ -334,12 +333,12 @@ def gather_block_spreadsheets(block_folder: str) -> DataFrame:
     block_folder :
         Directory containing the Step 1 block-level output workbooks.
 
-    Returns
+    Returns:
     -------
     pandas.DataFrame
         Combined DataFrame of all block files.
 
-    Raises
+    Raises:
     ------
     FileNotFoundError
         If no eligible ``block_*.xlsx`` files are found.
@@ -376,7 +375,7 @@ def run_step2_conflict_detection() -> None:
        * One sheet per stop/overflow bay (same bolding).
     4. Print summary statistics.
 
-    Raises
+    Raises:
     ------
     ValueError
         If required columns are missing from the input spreadsheets.
