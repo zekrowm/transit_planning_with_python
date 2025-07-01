@@ -22,15 +22,15 @@ Outputs:
 import os
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Tuple, Union
+
 import geopandas as gpd
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 from openpyxl.utils import get_column_letter
 from pandas import DataFrame
-from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import unary_union
-from shapely.geometry import MultiPolygon
 
 # ==================================================================================================
 # CONFIGURATION
@@ -93,16 +93,13 @@ GEOM_CHANGE_THRESHOLD = 0.05  # 5% area difference
 # GLOBAL STORAGE
 # -----------------------------------------------------------------------------
 
-ALL_SIGNUP_FINAL_DATA: dict[
-    str, list[DataFrame]
-] = {}  # { label: [DataFrame, DataFrame, ...] }
-ALL_SIGNUP_COVERAGES: dict[
-    str, dict[str, Polygon]
-] = {}  # { label: { route_short_name: polygon } }
+ALL_SIGNUP_FINAL_DATA: dict[str, list[DataFrame]] = {}  # { label: [DataFrame, DataFrame, ...] }
+ALL_SIGNUP_COVERAGES: dict[str, dict[str, Polygon]] = {}  # { label: { route_short_name: polygon } }
 
 # ==================================================================================================
 # FUNCTIONS
 # ==================================================================================================
+
 
 def check_input_files(base_path: str, files: List[str]) -> None:
     """Verify that the input directory and all required GTFS files exist."""
@@ -143,7 +140,9 @@ def parse_time_blocks(time_blocks_str: str) -> Dict[str, Tuple[pd.Timedelta, pd.
     return parsed_blocks
 
 
-def assign_time_block(time_delta: pd.Timedelta, blocks: Dict[str, Tuple[pd.Timedelta, pd.Timedelta]]) -> str:
+def assign_time_block(
+    time_delta: pd.Timedelta, blocks: Dict[str, Tuple[pd.Timedelta, pd.Timedelta]]
+) -> str:
     """Given a time_delta (time of day) and pre-parsed blocks, determine which block (am, midday, pm, night, or 'other')."""
     for block_name, (start, end) in blocks.items():
         if start <= time_delta < end:
@@ -165,9 +164,7 @@ def find_large_break(trip_times: pd.Series) -> bool:
     """Check if there's a 3+ hour break in the trip_times array between 10:00 and 14:00."""
     late_morning = pd.Timedelta(hours=10)
     early_afternoon = pd.Timedelta(hours=14)
-    midday_trips = trip_times[
-        (trip_times >= late_morning) & (trip_times <= early_afternoon)
-    ]
+    midday_trips = trip_times[(trip_times >= late_morning) & (trip_times <= early_afternoon)]
     midday_trips = midday_trips.reset_index(drop=True)
     if len(midday_trips) < 2:
         return False
@@ -233,9 +230,7 @@ def calculate_trip_times(group: pd.DataFrame) -> pd.Series:
 def calculate_headways(departure_times: pd.Series) -> float:
     """Given all departure_times for a route/direction/time_block, calculate and return the most common (mode) headway in minutes."""
     sorted_times = departure_times.sort_values()
-    headway_values = (
-        sorted_times.diff().dropna().apply(lambda x: x.total_seconds() / 60)
-    )
+    headway_values = sorted_times.diff().dropna().apply(lambda x: x.total_seconds() / 60)
     if headway_values.empty:
         return None
     return headway_values.mode()[0]
@@ -244,9 +239,9 @@ def calculate_headways(departure_times: pd.Series) -> float:
 def process_headways(merged_data: pd.DataFrame) -> Dict[str, Any]:
     """Group data by route/direction/time_block and apply calculate_headways, then store them in a dict."""
     headways = (
-        merged_data.groupby(
-            ["route_short_name", "route_long_name", "direction_id", "time_block"]
-        )["departure_time"]
+        merged_data.groupby(["route_short_name", "route_long_name", "direction_id", "time_block"])[
+            "departure_time"
+        ]
         .apply(calculate_headways)
         .reset_index()
     )
@@ -309,9 +304,7 @@ def save_to_excel(final_data: pd.DataFrame, output_dir: str, output_file: str) -
         worksheet.append(row)
 
     for col_cells in worksheet.columns:
-        max_length = (
-            max(len(str(cell.value)) if cell.value else 0 for cell in col_cells) + 2
-        )
+        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col_cells) + 2
         col_letter = get_column_letter(col_cells[0].column)
         worksheet.column_dimensions[col_letter].width = max_length
         for cell in col_cells:
@@ -325,7 +318,7 @@ def save_to_excel(final_data: pd.DataFrame, output_dir: str, output_file: str) -
 
 def build_coverage_polygons(
     gtfs_data: Dict[str, pd.DataFrame], route_filter_out: List[str], label: str
-) -> gpd.GeoDataFrame: # Or Dict[str, Any] depending on exact return
+) -> gpd.GeoDataFrame:  # Or Dict[str, Any] depending on exact return
     """Build combined coverage polygon based on buffer for each route.
 
     For each route, gather all stops used by that route,
@@ -364,9 +357,7 @@ def build_coverage_polygons(
         how="left",
     )
     if route_filter_out:
-        stimes_merged = stimes_merged[
-            ~stimes_merged["route_short_name"].isin(route_filter_out)
-        ]
+        stimes_merged = stimes_merged[~stimes_merged["route_short_name"].isin(route_filter_out)]
     full_merged = pd.merge(
         stimes_merged,
         stops_df[["stop_id", "stop_lat", "stop_lon"]],
@@ -448,13 +439,9 @@ def process_schedule_type(
     if ROUTE_FILTER_OUT:
         trip_info = trip_info[~trip_info["route_short_name"].isin(ROUTE_FILTER_OUT)]
     if trip_info.empty:
-        print(
-            f"All routes filtered out or no data for {schedule_type} ({label}). Skipping.\n"
-        )
+        print(f"All routes filtered out or no data for {schedule_type} ({label}). Skipping.\n")
         return
-    print(
-        f"Merged trip info has {len(trip_info)} records for {schedule_type} ({label}).\n"
-    )
+    print(f"Merged trip info has {len(trip_info)} records for {schedule_type} ({label}).\n")
 
     # 4. Merge with stop_times
     merged_data = pd.merge(
@@ -463,22 +450,16 @@ def process_schedule_type(
         on="trip_id",
         how="inner",
     )
-    print(
-        f"Merged data has {len(merged_data)} records for {schedule_type} ({label}).\n"
-    )
+    print(f"Merged data has {len(merged_data)} records for {schedule_type} ({label}).\n")
 
     # 5. Filter to starting stops
     merged_data = merged_data[merged_data["stop_sequence"] == 1]
-    print(
-        f"Filtered starting trips count: {len(merged_data)} for {schedule_type} ({label})\n"
-    )
+    print(f"Filtered starting trips count: {len(merged_data)} for {schedule_type} ({label})\n")
     if merged_data.empty:
         return
 
     # 6. Convert departure_time to timedelta
-    merged_data["departure_time"] = pd.to_timedelta(
-        merged_data["departure_time"], errors="coerce"
-    )
+    merged_data["departure_time"] = pd.to_timedelta(merged_data["departure_time"], errors="coerce")
     merged_data.dropna(subset=["departure_time"], inplace=True)
     if merged_data.empty:
         return
@@ -489,25 +470,19 @@ def process_schedule_type(
         lambda x: assign_time_block(x, time_blocks)
     )
     merged_data = merged_data[merged_data["time_block"] != "other"]
-    print(
-        f"Trips after filtering 'other': {len(merged_data)} for {schedule_type} ({label})\n"
-    )
+    print(f"Trips after filtering 'other': {len(merged_data)} for {schedule_type} ({label})\n")
     if merged_data.empty:
         return
 
     # 8. Determine interlined routes via block_id
     block_to_routes = (
-        trip_info.groupby("block_id")["route_short_name"]
-        .apply(lambda s: set(s.dropna()))
-        .to_dict()
+        trip_info.groupby("block_id")["route_short_name"].apply(lambda s: set(s.dropna())).to_dict()
     )
     _routes_map = {}
     for block_id, route_set in block_to_routes.items():
         for route_name in route_set:
             # NOTE: rename 'blk' -> 'block_id' or use _blk if truly unused
-            _routes_map.setdefault(route_name, set()).update(
-                route_set - {route_name}
-            )
+            _routes_map.setdefault(route_name, set()).update(route_set - {route_name})
 
     # 9. Group by route/direction and calculate trip times
     trip_times = (
@@ -527,9 +502,7 @@ def process_schedule_type(
         """Build a comma-separated string of routes that share the same block_id."""
         return ", ".join(sorted(_routes_map.get(route_name, [])))
 
-    final_data["interlined_routes"] = final_data["route_short_name"].apply(
-        get_interlined
-    )
+    final_data["interlined_routes"] = final_data["route_short_name"].apply(get_interlined)
 
     # 13. Save to Excel
     safe_label = label.replace(" ", "_")
@@ -568,9 +541,7 @@ def build_route_signatures_for_signup(
 ) -> pd.DataFrame:
     """Combine schedule-based data and coverage geometry for each route into a dict."""
     combined_df = (
-        pd.concat(final_data_list, ignore_index=True)
-        if final_data_list
-        else pd.DataFrame()
+        pd.concat(final_data_list, ignore_index=True) if final_data_list else pd.DataFrame()
     )
     route_signatures = {}
 
@@ -584,9 +555,7 @@ def build_route_signatures_for_signup(
             interlined_str = ", ".join(sorted(all_interlined))
 
             skip_cols = {"route_short_name", "interlined_routes"}
-            tmp = group_df.sort_values(by=["direction_id", "route_long_name"]).fillna(
-                ""
-            )
+            tmp = group_df.sort_values(by=["direction_id", "route_long_name"]).fillna("")
             keep_cols = [col for col in tmp.columns if col not in skip_cols]
             row_strings = []
             for row in tmp[keep_cols].itertuples(index=False, name=None):
@@ -622,9 +591,7 @@ def classify_geometry_change(
         return "Geography expanded"
     if (poly_new is None or poly_new.is_empty) and (poly_old and not poly_old.is_empty):
         return "Geography contracted"
-    if (poly_old is None or poly_old.is_empty) and (
-        poly_new is None or poly_new.is_empty
-    ):
+    if (poly_old is None or poly_old.is_empty) and (poly_new is None or poly_new.is_empty):
         return "No geographic change"
 
     area_old = poly_old.area
@@ -735,9 +702,7 @@ def save_comparison_to_excel(comparison_df: pd.DataFrame, output_path: str, file
         worksheet.append(row_values)
 
     for col_cells in worksheet.columns:
-        max_length = (
-            max(len(str(cell.value)) if cell.value else 0 for cell in col_cells) + 2
-        )
+        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col_cells) + 2
         col_letter = get_column_letter(col_cells[0].column)
         worksheet.column_dimensions[col_letter].width = max_length
         for cell in col_cells:
@@ -753,6 +718,7 @@ def save_comparison_to_excel(comparison_df: pd.DataFrame, output_path: str, file
 # MAIN
 # ==================================================================================================
 
+
 def main() -> None:
     """Main entry point orchestrates script."""
     # Process each GTFS config in order
@@ -762,16 +728,12 @@ def main() -> None:
         print(f"\n========== Processing {label} ========== \n")
         try:
             process_gtfs_dataset(path, label)
-        except (
-            Exception
-        ) as exc:  # NOTE: This is broad, but often necessary for top-level
+        except Exception as exc:  # NOTE: This is broad, but often necessary for top-level
             print(f"Error processing {label}: {exc}")
 
     # Build route-level signatures (including coverage geometry) for each signup
     all_signups_data = {}
-    signup_labels = list(ALL_SIGNUP_FINAL_DATA.keys()) + list(
-        ALL_SIGNUP_COVERAGES.keys()
-    )
+    signup_labels = list(ALL_SIGNUP_FINAL_DATA.keys()) + list(ALL_SIGNUP_COVERAGES.keys())
     for label in set(signup_labels):
         final_data_list = ALL_SIGNUP_FINAL_DATA.get(label, [])
         coverage_dict = ALL_SIGNUP_COVERAGES.get(label, {})
