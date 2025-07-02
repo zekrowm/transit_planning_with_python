@@ -37,13 +37,13 @@ import arcpy
 
 GTFS_FOLDER: str = r"Path\To\Your\GTFS_Folder"
 OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
-EPSG_CODE: int = 2283               # StatePlane VA North (US Feet)
+EPSG_CODE: int = 2248         # StatePlane Maryland (US survey feet)
 ROUTE_LEVEL: str = "shape"          # "shape" or "route" (dissolve to route_id)
 MIN_SPACING_FT: float = 400.0       # threshold for short‐spacing log
 SPACING_LOG_FILE: str = "short_spacing_segments.txt"
 
 # Optional list of route_ids to process; leave empty ([]) for no filtering.
-ROUTE_FILTER: List[str] = ["101"]
+ROUTE_FILTER: List[str] = []
 
 # =============================================================================
 # HELPERS
