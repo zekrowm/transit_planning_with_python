@@ -240,6 +240,15 @@ def flag_short_spacing(
 # =============================================================================
 
 def main() -> None:
+    """Executes the main workflow for generating GIS data layers and identifying short inter-stop spacings from a GTFS feed.
+
+    This function orchestrates the processing steps, including:
+    - Configuration validation.
+    - GTFS shape and stop processing.
+    - Creation of M-enabled routes.
+    - Linear referencing to build inter-stop segments.
+    - Identification and logging of short spacing segments.
+    """
     validate_config()
     arcpy.env.overwriteOutput = True
     arcpy.env.workspace = arcpy.env.scratchGDB
