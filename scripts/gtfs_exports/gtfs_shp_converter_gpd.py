@@ -301,7 +301,7 @@ def gtfs_to_shapefiles(
 # MAIN
 # ===========================================================================
 
-def main():
+def main() -> None:
     """Runs example scenarios for the GTFS to Shapefile conversion.
 
     This function is executed only when the script is run directly.
