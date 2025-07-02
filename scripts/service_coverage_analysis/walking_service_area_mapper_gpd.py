@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Dict, Tuple, Optional, Mapping, Any
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 import geopandas as gpd
 import networkx as nx
@@ -45,16 +45,14 @@ OUTPUT_DIR = r"Path\To\Your\Output\Folder"
 # Optional filters (leave empty lists [] if you don’t need them)
 FILTER_IN_STOP_CODES: list[str] = []  # e.g. ["1234", "5678"]
 FILTER_OUT_STOP_CODES: list[str] = []
-FILTER_IN_ROUTE_SHORT_NAMES: list[str] = [] # e.g. ["101", "202"]
+FILTER_IN_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["101", "202"]
 FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = ["9999A", "9999B", "9999C"]
 
 BUFFER_DISTANCE_FEET: float = 1320.0  # ¼ mile
 WORK_CRS: str = "EPSG:3857"  # metric – good for buffering
 EXPORT_CRS: str = "EPSG:4326"  # WGS-84 (GTFS default)
 
-NETWORK_SHP_PATH: str | None = (
-    r"Path\To\Your\Roadway_Centerlines.shp"  # ← leave None to disable
-)
+NETWORK_SHP_PATH: str | None = r"Path\To\Your\Roadway_Centerlines.shp"  # ← leave None to disable
 ISOCHRONE_MINUTES: int = 5  # travel-time cut-off, corresponds to 1,320 feet at 3.0 MPH
 DEFAULT_SPEED_MPH: float = 3.0  # applied when speed field missing (≈walking)
 NETWORK_SPEED_FIELD: str | None = (
@@ -75,6 +73,7 @@ ISO_SMOOTH_BUFFER_M: float | None = 30.0  # metres; 0/None = no smoothing
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def feet_to_meters(feet: float) -> float:
     """Convert feet to metres (1 ft = 0.3048 m)."""
@@ -126,8 +125,7 @@ def apply_filters(
 
     # Keep only stop_times referencing remaining trips *and* stops
     stop_times = stop_times[
-        stop_times["trip_id"].isin(trips["trip_id"])
-        & stop_times["stop_id"].isin(stops["stop_id"])
+        stop_times["trip_id"].isin(trips["trip_id"]) & stop_times["stop_id"].isin(stops["stop_id"])
     ]
 
     # Finally, only stops appearing in stop_times
@@ -216,9 +214,7 @@ def build_stop_route_direction_gdf(
         .merge(gdf_stops, on="stop_id")
     )
 
-    merged = merged.drop_duplicates(
-        subset=["stop_id", "route_short_name", "direction_id"]
-    )
+    merged = merged.drop_duplicates(subset=["stop_id", "route_short_name", "direction_id"])
     return gpd.GeoDataFrame(merged, geometry="geometry", crs="EPSG:4326")
 
 
@@ -276,13 +272,11 @@ def build_route_lines_gdf(
     # ↓ attach route_short_name + direction_id, then dissolve by both
     look = trips_has_shape[["shape_id", "route_id", "direction_id"]].drop_duplicates()
     gdf_lines = gdf_lines.merge(look, on="shape_id", how="left")
-    gdf_lines = gdf_lines.merge(
-        routes[["route_id", "route_short_name"]], on="route_id", how="left"
-    )
+    gdf_lines = gdf_lines.merge(routes[["route_id", "route_short_name"]], on="route_id", how="left")
 
-    return gdf_lines.dissolve(
-        by=["route_short_name", "direction_id"], as_index=False
-    ).drop(columns=["shape_id", "route_id"])
+    return gdf_lines.dissolve(by=["route_short_name", "direction_id"], as_index=False).drop(
+        columns=["shape_id", "route_id"]
+    )
 
 
 def export_stops_by_direction(
@@ -315,9 +309,7 @@ def export_routes_by_direction(
 
     for direction, sub in gdf_routes.groupby("direction_id", dropna=False):
         dir_str = f"dir{int(direction) if pd.notna(direction) else 0}"
-        sub.to_crs(export_crs).to_file(
-            os.path.join(output_dir, f"routes_{dir_str}.shp")
-        )
+        sub.to_crs(export_crs).to_file(os.path.join(output_dir, f"routes_{dir_str}.shp"))
         print(f"✓ Exported routes ({dir_str})")
 
 
@@ -404,9 +396,7 @@ def build_network_graph_from_gdf(  # same logic as before, but no file I/O
             if not oneway:
                 graph.add_edge(v_xy, u_xy, weight=travel_time_s)
 
-    print(
-        f"  ✔ graph has {graph.number_of_nodes():,} nodes / {graph.number_of_edges():,} edges"
-    )
+    print(f"  ✔ graph has {graph.number_of_nodes():,} nodes / {graph.number_of_edges():,} edges")
     return graph
 
 
@@ -443,9 +433,7 @@ def generate_isochrone(
         return gpd.GeoSeries([], crs=export_crs)
 
     # 2️⃣  collect every traversed edge
-    reach_edges = {
-        (u, v) for path in paths.values() for u, v in zip(path[:-1], path[1:])
-    }
+    reach_edges = {(u, v) for path in paths.values() for u, v in zip(path[:-1], path[1:])}
     edge_lines = [LineString([u, v]) for u, v in reach_edges]
 
     # 3️⃣  buffer edges → union → polygonize → prune specks
@@ -527,9 +515,7 @@ def export_isochrones_by_direction(
             crs=iso.crs,
         ).to_file(os.path.join(output_dir, fname))
 
-        print(
-            f"✓ Exported isochrone ({route or 'None'} dir {direction}, ≤{cutoff_min} min)"
-        )
+        print(f"✓ Exported isochrone ({route or 'None'} dir {direction}, ≤{cutoff_min} min)")
 
 
 def build_buffers_gdf(
@@ -562,9 +548,11 @@ def build_buffers_gdf(
 
     return gpd.GeoDataFrame(records, crs=work_crs)
 
+
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -642,9 +630,11 @@ def load_gtfs_data(
             ) from exc
     return data
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Top-level orchestration for command-line execution."""
