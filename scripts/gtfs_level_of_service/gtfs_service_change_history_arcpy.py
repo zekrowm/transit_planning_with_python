@@ -73,7 +73,6 @@ SCHEDULE_TYPES = {
 # FUNCTIONS
 # ==================================================================================================
 
-
 def _keep_changed(df: pd.DataFrame) -> pd.DataFrame:
     """Return only those routes where at least one metric actually changed."""
     mask = (
@@ -509,7 +508,6 @@ def compare_signups_detailed(
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
-
 
 def main() -> None:
     """Entry-point: run the full multi-signup GTFS comparison pipeline."""
