@@ -40,7 +40,6 @@ SPACING_LOG_FILE: str = "short_spacing_segments.txt"
 # FUNCTIONS
 # =============================================================================
 
-
 def _ensure_output_folder(folder: str | Path) -> Path:
     """Create (if necessary) and return the output folder as a ``Path``."""
     out = Path(folder)
@@ -338,7 +337,6 @@ def _flag_short_spacing(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:  # noqa: D401
     """Run the entire GTFS shapefile & spacing-log pipeline."""
