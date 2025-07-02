@@ -303,8 +303,7 @@ def export_individual_files(
 # MAIN
 # =============================================================================
 
-
-def main():
+def main() -> None:
     """Run the full OTP analysis pipeline.
 
     Workflow:
