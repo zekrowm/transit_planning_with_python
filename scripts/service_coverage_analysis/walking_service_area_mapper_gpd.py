@@ -45,7 +45,7 @@ OUTPUT_DIR = r"Path\To\Your\Output\Folder"
 # Optional filters (leave empty lists [] if you don’t need them)
 FILTER_IN_STOP_CODES: list[str] = []  # e.g. ["1234", "5678"]
 FILTER_OUT_STOP_CODES: list[str] = []
-FILTER_IN_ROUTE_SHORT_NAMES: list[str] = ["101", "202"]
+FILTER_IN_ROUTE_SHORT_NAMES: list[str] = [] # e.g. ["101", "202"]
 FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = ["9999A", "9999B", "9999C"]
 
 BUFFER_DISTANCE_FEET: float = 1320.0  # ¼ mile
