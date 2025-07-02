@@ -61,7 +61,6 @@ SERVICE_ID = "3"  # Replace with your desired service_id value from calendar.txt
 # FUNCTIONS
 # =============================================================================
 
-
 def fix_time_format(
     time_str: str | pd.NA | None,
 ) -> str | pd.NA | None:
@@ -395,7 +394,6 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Run the end-to-end pipeline from CLI or “Run ▶” button.
