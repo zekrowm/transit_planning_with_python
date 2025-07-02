@@ -50,6 +50,7 @@ DEG_TO_FEET = DEG_TO_MILES * 5280
 # TYPE DEFINITIONS
 # -----------------------------------------------------------------------------
 
+
 @dataclass
 class StopSnapshot:
     """Snapshot of the previous stop used for speed/gap checks.
@@ -66,9 +67,11 @@ class StopSnapshot:
     lat: float
     lon: float
 
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     """Read one or more GTFS text files from the given folder.
@@ -93,9 +96,7 @@ def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     return dfs
 
 
-def safe_write(
-    df: pd.DataFrame, out_dir: Path, fname: str, *, write_empty: bool = False
-) -> None:
+def safe_write(df: pd.DataFrame, out_dir: Path, fname: str, *, write_empty: bool = False) -> None:
     """Write a DataFrame to CSV in the specified output directory.
 
     Args:
@@ -136,10 +137,7 @@ def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float
 
     R_MI = 3958.8
     dlat, dlon = radians(lat2 - lat1), radians(lon2 - lon1)
-    a = (
-        sin(dlat / 2) ** 2
-        + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
-    )
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
     return 2 * R_MI * atan2(sqrt(a), sqrt(1 - a))
 
 
@@ -162,9 +160,7 @@ def parse_time(t: str) -> int | None:
 def build_route_id_set(routes: pd.DataFrame) -> Set[str]:
     """Return the set of route_id values that pass the include/exclude rules."""
     if "route_short_name" not in routes.columns:
-        logging.warning(
-            "route_short_name column missing – route filters skipped entirely."
-        )
+        logging.warning("route_short_name column missing – route filters skipped entirely.")
         return set(routes["route_id"])
 
     df = routes.copy()
@@ -182,9 +178,7 @@ def build_route_id_set(routes: pd.DataFrame) -> Set[str]:
         df = df[~df["route_short_name"].isin(FILTER_OUT_ROUTES)]
         missing_out = set(FILTER_OUT_ROUTES) - set(routes["route_short_name"])
         if missing_out:
-            logging.info(
-                "FILTER_OUT_ROUTES not present in feed: %s", ", ".join(missing_out)
-            )
+            logging.info("FILTER_OUT_ROUTES not present in feed: %s", ", ".join(missing_out))
 
     selected = set(df["route_id"])
     if not selected:
@@ -247,9 +241,7 @@ def isolated_trips(stop_times: pd.DataFrame) -> pd.DataFrame:
     """
     counts = stop_times.groupby("stop_id")["trip_id"].nunique()
     unique_stops = counts[counts == 1].index
-    grp = stop_times.groupby("trip_id")["stop_id"].apply(
-        lambda s: set(s).issubset(unique_stops)
-    )
+    grp = stop_times.groupby("trip_id")["stop_id"].apply(lambda s: set(s).issubset(unique_stops))
     return pd.DataFrame({"trip_id": grp[grp].index})
 
 
@@ -271,9 +263,7 @@ def shapes_far_from_stops(
         DataFrame of trips with route_id, trip_id, and shape_id that violate the threshold.
     """
     if sgeom is None or shapes.empty:
-        logging.warning(
-            "Shapely not installed or shapes.txt missing – skipping rule 4."
-        )
+        logging.warning("Shapely not installed or shapes.txt missing – skipping rule 4.")
         return pd.DataFrame()
 
     # Ensure correct dtypes
@@ -284,9 +274,9 @@ def shapes_far_from_stops(
     # Precompute LineString geometry by shape_id
     geom_by_id: dict[str, sgeom.LineString] = {
         str(shape_id): sgeom.LineString(df[["shape_pt_lon", "shape_pt_lat"]].values)
-        for shape_id, df in shapes.sort_values(
-            ["shape_id", "shape_pt_sequence"]
-        ).groupby("shape_id")
+        for shape_id, df in shapes.sort_values(["shape_id", "shape_pt_sequence"]).groupby(
+            "shape_id"
+        )
     }
 
     def far(trip: pd.Series) -> bool:
@@ -365,9 +355,7 @@ def unrealistic_timings(
             * speed_mph – average speed over the segment (mph)
     """
     # Attach lat/lon to every stop_time record.
-    st = stop_times.merge(
-        stops[["stop_id", "stop_lat", "stop_lon"]], on="stop_id", how="left"
-    )
+    st = stop_times.merge(stops[["stop_id", "stop_lat", "stop_lon"]], on="stop_id", how="left")
 
     offenders: list[dict[str, Any]] = []
 
@@ -439,6 +427,7 @@ def bad_stop_sequences(stop_times: pd.DataFrame) -> pd.DataFrame:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main(gtfs_path: Path, out_path: Path) -> None:
     """Run all internal validation checks on the specified GTFS dataset.
