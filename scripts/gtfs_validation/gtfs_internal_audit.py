@@ -120,7 +120,7 @@ def safe_write(
     logging.info("⚠ %s: %d records written to %s", tag, len(df), out_path)
 
 
-def haversine_miles(lat1, lon1, lat2, lon2) -> float:
+def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate great-circle distance between two lat/lon points in miles.
 
     Args:
