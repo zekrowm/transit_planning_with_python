@@ -19,8 +19,7 @@ Note:
 """
 
 import os
-from typing import List, Optional
-
+from typing import List, Optional, Union
 import pandas as pd
 
 # =============================================================================
@@ -74,7 +73,6 @@ SUM_ON_TIME_COLUMN = "Sum # On Time"
 # FUNCTIONS
 # =============================================================================
 
-
 def parse_time_string_to_minutes(time_str: str) -> float:
     """Convert an ``HH:MM:SS`` time string to minutes.
 
@@ -106,7 +104,7 @@ def parse_time_string_to_minutes(time_str: str) -> float:
     return round(total_minutes, 1)
 
 
-def parse_seconds_to_minutes(value) -> float:
+def parse_seconds_to_minutes(value: Union[int, float, str]) -> float:
     """Convert a raw seconds value to minutes.
 
     Args:
@@ -297,7 +295,6 @@ def export_individual_files(
         file_path = os.path.join(output_dir, f"{file_name}_aggregated.xlsx")
         group.to_excel(file_path, index=False)
         print(f"Exported individual aggregated file for group {name} to: {file_path}")
-
 
 # =============================================================================
 # MAIN
