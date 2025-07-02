@@ -11,10 +11,11 @@ The constants in the *CONFIGURATION* block control input paths, routes,
 directions, time-bin width, and service filtering.
 """
 
+import datetime as dt
 import logging
 import os
-import datetime as dt
 from typing import Any, Mapping, Optional  # noqa: ANN401  (re-exported for typing)
+
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
@@ -60,6 +61,7 @@ SERVICE_ID = "3"  # Replace with your desired service_id value from calendar.txt
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def fix_time_format(
     time_str: str | pd.NA | None,
@@ -314,6 +316,7 @@ def _export_to_excel(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
@@ -394,6 +397,7 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the end-to-end pipeline from CLI or “Run ▶” button.
