@@ -57,6 +57,7 @@ faker.add_provider(_StopNameProvider)
 # FUNCTIONS
 # ==================================================================================================
 
+
 def _max_decimal_places(
     s: pd.Series,
     default: int = 3,
@@ -249,6 +250,7 @@ def _load_table(path: Path) -> pd.DataFrame:
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:  # noqa: D401
     """Function serves as entry point and orchestrator for the script."""
