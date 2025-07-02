@@ -63,6 +63,7 @@ CONSOLE = logging.getLogger(__name__)
 # FUNCTIONS
 # =============================================================================
 
+
 def _is_skipped(p: Path, skip_list: List[str]) -> bool:
     """Return *True* when *p* matches or is inside any ``skip_list`` path."""
     norm = p.resolve().as_posix().lower()
@@ -94,9 +95,11 @@ def gather_python_files(targets: List[str], skip_list: List[str]) -> List[str]:
     # de-duplicate but keep order
     return list(dict.fromkeys(collected))
 
+
 # -----------------------------------------------------------------------------
 # RUFF PASS
 # -----------------------------------------------------------------------------
+
 
 def _setup_detailed_logger(out_folder: str) -> Tuple[logging.Logger, str]:
     """Create and return a file logger plus its log-file path."""
@@ -191,6 +194,7 @@ def run_ruff(files: List[str], read_only: bool) -> int:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entrypoint – collect files, run ruff, print high-level summary."""
