@@ -115,7 +115,7 @@ def apply_route_filter(
                 if sid:
                     mapping[sid] = row["route_id"]
         good_shapes = [sid for sid, rid in mapping.items() if rid in filter_routes]
-        where = f"shape_id IN ({','.join(f"'{s}'" for s in good_shapes)})" if good_shapes else "1=0"
+        where = f"shape_id IN ({','.join([f"'{s}'" for s in good_shapes])})" if good_shapes else "1=0"
     else:
         where = f"route_id IN ({','.join(f"'{r}'" for r in filter_routes)})" if filter_routes else "1=1"
 
