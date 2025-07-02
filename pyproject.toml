@@ -7,7 +7,7 @@
 # ruff
 # ----------------------------------------------------------------
 [tool.ruff]
-target-version = "py310"        # already implied by your mypy config
+target-version = "py312"        # already implied by your mypy config
 line-length    = 100            # or whatever you prefer
 
 [tool.ruff.lint]
@@ -33,7 +33,7 @@ convention = "google"
 # mypy (type-checker)
 # ----------------------------------------------------------------
 [tool.mypy]
-python_version         = "3.10"
+python_version         = "3.12"
 
 pretty                 = true
 show_error_codes       = true
