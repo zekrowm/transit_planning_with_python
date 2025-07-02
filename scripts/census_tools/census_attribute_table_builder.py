@@ -82,6 +82,7 @@ _UNFRIENDLY_COL_RE = re.compile(r"^[A-Z]{2,}\d{3,}.*")
 # FUNCTIONS
 # =============================================================================
 
+
 def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame:
     """Replace *only* numeric NaNs with *value*; leave object columns untouched.
 
@@ -93,7 +94,7 @@ def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame
     Returns:
         The same ``df`` reference, for call-chaining convenience.
 
-    Notes
+    Notes:
     -----
     This helper prevents accidental overwriting of NaN/None in string columns
     such as ``NAME`` while keeping downstream arithmetic safe for division.
@@ -440,6 +441,7 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:  # noqa: D401
 # FIPS HELPERS
 # -----------------------------------------------------------------------------
 
+
 def _ensure_fips_column(
     df: pd.DataFrame,
     *,
@@ -497,6 +499,7 @@ def _apply_fips_filter(
 # PUBLIC API
 # -----------------------------------------------------------------------------
 
+
 def build_joined_table(
     *,
     pop_files: list[str],
@@ -512,7 +515,7 @@ def build_joined_table(
 ) -> pd.DataFrame:
     """Return a fully-joined **block + tract** DataFrame with optional FIPS filter.
 
-     Args:
+    Args:
          pop_files: List of paths to block-level population Census files (CSV or CSV.GZ).
          hh_files: List of paths to block-level household Census files (CSV or CSV.GZ).
          jobs_files: List of paths to block-level jobs Census files (CSV or CSV.GZ).
@@ -567,6 +570,7 @@ __all__ = ["build_joined_table"]
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Orchestrate join using CONFIGURATION paths and, optionally, write CSV."""
