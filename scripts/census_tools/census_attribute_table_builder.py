@@ -512,14 +512,15 @@ def build_joined_table(
 ) -> pd.DataFrame:
     """Return a fully-joined **block + tract** DataFrame with optional FIPS filter.
 
-    Args:
-        pop_files, hh_files, jobs_files: Block-level Census file paths.
-        income_files, ethnicity_files, language_files, vehicle_files, age_files:
-            Optional lists of tract-level file paths.
-        county_fips_filter: Optional iterable of 5-digit county FIPS codes to
-            retain in the final output.
-        _clean_columns: If ``True`` (default) drop any residual Census code
-            columns that were not renamed.
+     Args:
+         pop_files: List of paths to block-level population Census files (CSV or CSV.GZ).
+         hh_files: List of paths to block-level household Census files (CSV or CSV.GZ).
+         jobs_files: List of paths to block-level jobs Census files (CSV or CSV.GZ).
+         income_files: Optional list of paths to tract-level income Census files.
+         ethnicity_files: Optional list of paths to tract-level ethnicity Census files.
+         language_files: Optional list of paths to tract-level language Census files.
+         vehicle_files: Optional list of paths to tract-level vehicle ownership Census files.
+         age_files: Optional list of paths to tract-level age Census files.
 
     Returns:
         A DataFrame containing the merged block and tract records, cleaned,
