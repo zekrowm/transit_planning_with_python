@@ -51,6 +51,7 @@ ANALYZE_ONLY_DOMINANT_SHAPE = True
 # FUNCTIONS
 # =============================================================================
 
+
 def classify_direction(
     line_4326: LineString,
     line_projected: LineString,
@@ -69,17 +70,13 @@ def classify_direction(
     start_p = line_projected.coords[0]
     end_p = line_projected.coords[-1]
 
-    dist_start_end = math.sqrt(
-        (start_p[0] - end_p[0]) ** 2 + (start_p[1] - end_p[1]) ** 2
-    )
+    dist_start_end = math.sqrt((start_p[0] - end_p[0]) ** 2 + (start_p[1] - end_p[1]) ** 2)
 
     if dist_start_end < loop_threshold:
         coords = list(line_projected.coords)
         if coords[0] != coords[-1]:
             coords.append(coords[0])
-        area = sum(
-            (x1 * y2 - x2 * y1) for (x1, y1), (x2, y2) in zip(coords, coords[1:])
-        )
+        area = sum((x1 * y2 - x2 * y1) for (x1, y1), (x2, y2) in zip(coords, coords[1:]))
         if area > 0:
             return "CCW"
         if area < 0:
@@ -93,16 +90,16 @@ def classify_direction(
     return "EB" if lon_diff > 0 else "WB"
 
 
-def plot_route_shape(gdf_shape: gpd.GeoDataFrame, route: str, direction: str, output_path: str) -> None:
+def plot_route_shape(
+    gdf_shape: gpd.GeoDataFrame, route: str, direction: str, output_path: str
+) -> None:
     """Plot the given shape geometry and save as a .jpeg.
 
     Highlights the start and end of the route shape, and includes a simple
     'N' arrow for orientation in the top-left corner of the map.
     """
     if not isinstance(gdf_shape, gpd.GeoDataFrame):
-        gdf_shape = gpd.GeoDataFrame(
-            [gdf_shape], columns=gdf_shape.index, crs="EPSG:4326"
-        )
+        gdf_shape = gpd.GeoDataFrame([gdf_shape], columns=gdf_shape.index, crs="EPSG:4326")
 
     gdf_shape_4326 = gdf_shape.to_crs(epsg=4326)
     shape_line = gdf_shape_4326.iloc[0].geometry
@@ -168,9 +165,7 @@ def filter_routes(routes: pd.DataFrame) -> pd.DataFrame:
 
 def create_lines_from_shapes(shapes: pd.DataFrame) -> gpd.GeoDataFrame:
     """Sorts shapes, builds LineString geometries, and returns a GeoDataFrame (EPSG:4326)."""
-    shapes_grouped = shapes.sort_values(["shape_id", "shape_pt_sequence"]).groupby(
-        "shape_id"
-    )
+    shapes_grouped = shapes.sort_values(["shape_id", "shape_pt_sequence"]).groupby("shape_id")
 
     lines = []
     for sid, group in shapes_grouped:
@@ -196,9 +191,7 @@ def merge_and_classify_shapes(
     for idx, row in gdf_shapes.iterrows():
         shape_id = row["shape_id"]
         geom_4326 = row["geometry"]
-        geom_proj = (
-            gdf_shapes_proj[gdf_shapes_proj["shape_id"] == shape_id].iloc[0].geometry
-        )
+        geom_proj = gdf_shapes_proj[gdf_shapes_proj["shape_id"] == shape_id].iloc[0].geometry
         directions.append((shape_id, classify_direction(geom_4326, geom_proj)))
 
     direction_df = pd.DataFrame(directions, columns=["shape_id", "shape_direction"])
@@ -230,9 +223,7 @@ def identify_first_last_stops(
     trips_merged = trips_merged.merge(stops_ren_first, on="first_stop_id")
     trips_merged = trips_merged.merge(stops_ren_last, on="last_stop_id")
 
-    first_departures = stop_times[stop_times["stop_sequence"] == 1][
-        ["trip_id", "departure_time"]
-    ]
+    first_departures = stop_times[stop_times["stop_sequence"] == 1][["trip_id", "departure_time"]]
     return trips_merged.merge(first_departures, on="trip_id")
 
 
@@ -255,17 +246,13 @@ def determine_dominant_shapes(final_data: pd.DataFrame) -> pd.DataFrame:
         .reset_index(name="trip_count")
     )
 
-    idx_max = shape_counts.groupby(["route_short_name", "direction_id"])[
-        "trip_count"
-    ].idxmax()
+    idx_max = shape_counts.groupby(["route_short_name", "direction_id"])["trip_count"].idxmax()
 
     dominant_shapes = shape_counts.loc[idx_max]
     dominant_shapes["is_dominant"] = True
 
     return final_data.merge(
-        dominant_shapes[
-            ["route_short_name", "direction_id", "shape_id", "is_dominant"]
-        ],
+        dominant_shapes[["route_short_name", "direction_id", "shape_id", "is_dominant"]],
         on=["route_short_name", "direction_id", "shape_id"],
         how="left",
     )
@@ -288,17 +275,13 @@ def export_jpegs(summary: pd.DataFrame, gdf_shapes: gpd.GeoDataFrame) -> None:
     remaining_shape_ids = summary["shape_id"].unique().tolist()
     gdf_shapes_dominant = gdf_shapes[gdf_shapes["shape_id"].isin(remaining_shape_ids)]
 
-    shape_info_lookup = summary[
-        ["shape_id", "route_short_name", "direction_id"]
-    ].drop_duplicates()
+    shape_info_lookup = summary[["shape_id", "route_short_name", "direction_id"]].drop_duplicates()
 
     for shape_id in remaining_shape_ids:
         row = shape_info_lookup[shape_info_lookup["shape_id"] == shape_id].iloc[0]
         route = row["route_short_name"]
         direction = row["direction_id"]
-        route_shape_gdf = gdf_shapes_dominant[
-            gdf_shapes_dominant["shape_id"] == shape_id
-        ]
+        route_shape_gdf = gdf_shapes_dominant[gdf_shapes_dominant["shape_id"] == shape_id]
 
         output_name = f"Route_{route}_Dir_{direction}_DominantShape.jpeg"
         output_path = os.path.join(OUTPUT_FOLDER, output_name)
@@ -336,9 +319,7 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
 
     rd_group = summary_simplified.groupby(["route_short_name", "direction_id"])
     for (rname, did), subgrp in rd_group:
-        cardinal_dirs = [
-            d for d in subgrp["shape_direction"] if is_cardinal_direction(d)
-        ]
+        cardinal_dirs = [d for d in subgrp["shape_direction"] if is_cardinal_direction(d)]
         if len(set(cardinal_dirs)) > 1:
             flags.append(
                 {
@@ -360,6 +341,7 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Primary entry point for GTFS direction classification.
