@@ -15,7 +15,8 @@ import logging
 import os
 import re
 from collections import Counter
-from typing import Any, Mapping, Optional 
+from typing import Any, Mapping, Optional
+
 import pandas as pd
 
 # =============================================================================
@@ -32,6 +33,7 @@ FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["999"]
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def compute_most_common_pattern(
     trips_df: pd.DataFrame,
@@ -57,16 +59,12 @@ def compute_most_common_pattern(
     if route_trips.empty:
         return []
 
-    stop_times = stop_times_df[
-        stop_times_df["trip_id"].isin(route_trips["trip_id"])
-    ].copy()
+    stop_times = stop_times_df[stop_times_df["trip_id"].isin(route_trips["trip_id"])].copy()
     if stop_times.empty:
         return []
 
     if not pd.api.types.is_numeric_dtype(stop_times["stop_sequence"]):
-        stop_times["stop_sequence"] = pd.to_numeric(
-            stop_times["stop_sequence"], errors="raise"
-        )
+        stop_times["stop_sequence"] = pd.to_numeric(stop_times["stop_sequence"], errors="raise")
 
     counter: Counter[tuple[str, ...]] = Counter()
     for _, grp in stop_times.groupby("trip_id"):
@@ -227,9 +225,11 @@ def export_patterns_by_route(result_df: pd.DataFrame, out_dir: str) -> None:
         group.to_csv(path, index=False)
         logging.info("Wrote %s (%d rows)", fname, len(group))
 
+
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -307,9 +307,11 @@ def load_gtfs_data(
             ) from exc
     return data
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entrypoint for ad hoc execution.
@@ -324,9 +326,7 @@ def main() -> None:
         logging.error(exc)
         return
 
-    routes = filter_routes(
-        routes, FILTER_IN_ROUTE_SHORT_NAMES, FILTER_OUT_ROUTE_SHORT_NAMES
-    )
+    routes = filter_routes(routes, FILTER_IN_ROUTE_SHORT_NAMES, FILTER_OUT_ROUTE_SHORT_NAMES)
     if routes.empty:
         logging.info("No routes to process after applying filters.")
         return
