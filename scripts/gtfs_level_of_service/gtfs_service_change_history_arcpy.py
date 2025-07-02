@@ -391,7 +391,6 @@ def compare_signups(
 # SERVICE-LEVEL METRIC COMPARISONS
 # --------------------------------------------------------------------------------------------------
 
-
 def build_service_level_changes(
     prev_df: pd.DataFrame,
     curr_df: pd.DataFrame,
@@ -406,26 +405,47 @@ def build_service_level_changes(
     deleted = sorted(set(prev_i.index) - set(curr_i.index))
     common = sorted(set(prev_i.index) & set(curr_i.index))
 
-    deltas: list[dict[str, Any]] = []  # ← relaxed value typing
+    deltas: list[dict[str, Any]] = []
     for rt in common:
         p, c = prev_i.loc[rt], curr_i.loc[rt]
 
-        def dcol(col: str) -> float:
-            a, b = p[col], c[col]
-            return (b - a) if pd.notna(a) and pd.notna(b) else np.nan
+        # Inlined logic for calculating deltas
+        span_old_min = p["span_minutes"]
+        span_new_min = c["span_minutes"]
+        span_delta = (
+            (span_new_min - span_old_min)
+            if pd.notna(span_old_min) and pd.notna(span_new_min)
+            else np.nan
+        )
+
+        trips_old = p["trips_count"]
+        trips_new = c["trips_count"]
+        trips_delta = (
+            (trips_new - trips_old)
+            if pd.notna(trips_old) and pd.notna(trips_new)
+            else np.nan
+        )
+
+        hdwy_old_min = p["median_headway_min"]
+        hdwy_new_min = c["median_headway_min"]
+        hdwy_delta = (
+            (hdwy_new_min - hdwy_old_min)
+            if pd.notna(hdwy_old_min) and pd.notna(hdwy_new_min)
+            else np.nan
+        )
 
         deltas.append(
             {
                 "route_short_name": rt,
-                "span_old_min": p["span_minutes"],
-                "span_new_min": c["span_minutes"],
-                "span_delta": dcol("span_minutes"),
-                "trips_old": p["trips_count"],
-                "trips_new": c["trips_count"],
-                "trips_delta": dcol("trips_count"),
-                "hdwy_old_min": p["median_headway_min"],
-                "hdwy_new_min": c["median_headway_min"],
-                "hdwy_delta": dcol("median_headway_min"),
+                "span_old_min": span_old_min,
+                "span_new_min": span_new_min,
+                "span_delta": span_delta,
+                "trips_old": trips_old,
+                "trips_new": trips_new,
+                "trips_delta": trips_delta,
+                "hdwy_old_min": hdwy_old_min,
+                "hdwy_new_min": hdwy_new_min,
+                "hdwy_delta": hdwy_delta,
             }
         )
 
@@ -444,7 +464,6 @@ def build_service_level_changes(
 # --------------------------------------------------------------------------------------------------
 # INTERLINING & DETAILED CLASSIFICATION (NO GEOMETRY)
 # --------------------------------------------------------------------------------------------------
-
 
 def _build_interlining_map(trips_df: pd.DataFrame, routes_df: pd.DataFrame) -> dict[str, str]:
     """Returns dict: route_short_name -> comma-joined list of other routes sharing the same block_id."""
