@@ -47,6 +47,7 @@ OUTPUT_CSV_NAME = "intersecting_stops.csv"
 # FUNCTIONS
 # =============================================================================
 
+
 def create_output_directory(output_dir: str) -> None:
     """Creates the output directory if it doesn't exist."""
     if not os.path.exists(output_dir):
@@ -77,7 +78,9 @@ def reproject_data(gdf: gpd.GeoDataFrame, target_crs: str) -> gpd.GeoDataFrame:
     return gdf.to_crs(target_crs)
 
 
-def find_intersecting_stops(stops_gdf: gpd.GeoDataFrame, roadways_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def find_intersecting_stops(
+    stops_gdf: gpd.GeoDataFrame, roadways_gdf: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
     """Performs a spatial join to find stops that intersect with roadways.
 
     Returns only columns from stops_gdf.
@@ -134,7 +137,9 @@ def determine_conflict_depth(
     return stops_gdf
 
 
-def sort_stops_by_conflict_depth(stops_gdf: gpd.GeoDataFrame, buffer_distances: list[int]) -> gpd.GeoDataFrame:
+def sort_stops_by_conflict_depth(
+    stops_gdf: gpd.GeoDataFrame, buffer_distances: list[int]
+) -> gpd.GeoDataFrame:
     """Sorts the stops by conflict depth columns in descending order."""
     conflict_columns = [f"conflict_{-bd}ft" for bd in buffer_distances]
     return stops_gdf.sort_values(by=conflict_columns, ascending=[False] * len(conflict_columns))
@@ -155,6 +160,7 @@ def save_csv(gdf: gpd.GeoDataFrame, output_dir: str, csv_name: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Main entry point for running the GTFS stop–roadway shapefile intersection checks."""
