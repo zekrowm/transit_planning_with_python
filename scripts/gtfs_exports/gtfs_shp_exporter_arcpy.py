@@ -157,7 +157,8 @@ def create_output_fc(out_folder: Path, name: str, spatial_ref: arcpy.SpatialRefe
     arcpy.management.AddField(out_fc, "shape_id", "TEXT", field_length=50)
     return out_fc
 
-def insert_shapes(out_fc: str, shapes: dict[str, list[tuple[int, float, float]]], spatial_ref):
+
+def insert_shapes(out_fc: str, shapes: dict[str, list[tuple[int, float, float]]], spatial_ref: arcpy.SpatialReference) -> None:
     """Inserts GTFS shapes as polyline features into the output feature class.
 
     Each entry in the `shapes` dictionary is converted into an `arcpy.Polyline`
