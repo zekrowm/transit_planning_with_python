@@ -51,7 +51,6 @@ ANALYZE_ONLY_DOMINANT_SHAPE = True
 # FUNCTIONS
 # =============================================================================
 
-
 def classify_direction(
     line_4326: LineString,
     line_projected: LineString,
@@ -361,7 +360,6 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main():
     """Primary entry point for GTFS direction classification.
