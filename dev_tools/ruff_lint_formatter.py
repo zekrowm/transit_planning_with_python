@@ -55,6 +55,7 @@ RUFF_ADDITIONAL_ARGS: list[str] = []  # e.g. ["--extend-exclude", "migrations"]
 # -----------------------------------------------------------------------------
 # Backup Ruff flags (used **only** when no project config is found)
 # -----------------------------------------------------------------------------
+
 BACKUP_RUFF_CLI_ARGS: list[str] = [
     "--line-length",
     "100",
@@ -72,6 +73,7 @@ BACKUP_RUFF_CLI_ARGS: list[str] = [
 # -----------------------------------------------------------------------------
 # LOGGING
 # -----------------------------------------------------------------------------
+
 LOG_LEVEL = logging.INFO
 logging.basicConfig(
     level=LOG_LEVEL,
@@ -83,7 +85,6 @@ CONSOLE = logging.getLogger(__name__)
 # =============================================================================
 # PATH UTILITIES
 # =============================================================================
-
 
 # -----------------------------------------------------------------------------
 # CLI override for FILES_OR_FOLDERS
@@ -127,7 +128,6 @@ def _script_dir() -> Path:
 # Ruff configuration discovery
 # -----------------------------------------------------------------------------
 
-
 def _find_ruff_config(start: Path | None = None) -> Path | None:
     """Return the first Ruff config file found when walking upward."""
     root = start or _script_dir()
@@ -154,7 +154,6 @@ _SILENCED_CODES = ("ANN", "TCH")
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
 
 def _default_targets() -> list[str]:
     """Return a default list of paths to scan.
@@ -290,7 +289,6 @@ def run_ruff(files: list[str], read_only: bool) -> int:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """CLI entry point."""
