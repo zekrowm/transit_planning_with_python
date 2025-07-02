@@ -29,13 +29,13 @@ jobs:
         with:
           python-version: "3.11"
 
-       - name: Cache Python dependencies
-         uses: actions/cache@v4
-         with:
-           path: ~/.cache/pip
-           key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}-${{ hashFiles('**/requirements.txt') }}
-           restore-keys: |
-             ${{ runner.os }}-pip-
+      - name: Cache Python dependencies  # <--- This line and below need correct indentation
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Ruff
         run: |
