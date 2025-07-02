@@ -311,7 +311,6 @@ def load_gtfs_data(
 # MAIN
 # =============================================================================
 
-
 def main() -> None:
     """Entrypoint for ad hoc execution.
 
