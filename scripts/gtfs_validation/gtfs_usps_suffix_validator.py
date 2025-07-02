@@ -266,6 +266,7 @@ VALID_SHORT_WORDS_SET = USPS_ABBREVIATIONS_SET | EXEMPT_WORDS_SET
 # FUNCTIONS
 # =============================================================================
 
+
 def _check_usps_suffix(stop_name: str) -> tuple[bool, str | None]:
     """Return ``False`` and a message if the last token isn’t a valid USPS suffix."""
     tokens = stop_name.split()
@@ -314,10 +315,11 @@ def _validate_row(row: pd.Series) -> dict[str, Any]:
 # WORKFLOW FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def validate_stops(stops_path: Path) -> pd.DataFrame:
     """Validate every stop in *stops_path* and return the full results DataFrame.
 
-    Raises
+    Raises:
     ------
     FileNotFoundError
         If *stops_path* is missing.
@@ -368,6 +370,7 @@ def write_outputs(results: pd.DataFrame) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the GTFS stop-name validation using the CONFIGURATION constants."""
