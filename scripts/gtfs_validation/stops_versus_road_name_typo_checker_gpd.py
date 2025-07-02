@@ -70,6 +70,7 @@ DESCRIPTIONS_ROADWAY = {
 # FUNCTIONS
 # =============================================================================
 
+
 def get_crs_unit(crs_code: str) -> Optional[str]:
     """Determine the linear unit of a CRS.
 
@@ -123,6 +124,7 @@ def convert_buffer_distance(value: float, from_unit: str, to_unit: str) -> float
 # DATA LOADING FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame:
     """Validate an in-memory GTFS stops DataFrame and return a GeoDataFrame.
 
@@ -171,6 +173,7 @@ def load_roadways(roadways_path: str) -> gpd.GeoDataFrame:
 # DATA PROCESSING FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def map_roadway_columns(roadways_gdf: gpd.GeoDataFrame) -> Dict[str, str]:
     """Map the required roadway columns.
 
@@ -210,7 +213,9 @@ def map_roadway_columns(roadways_gdf: gpd.GeoDataFrame) -> Dict[str, str]:
     return {k: v for k, v in column_mapping.items() if v is not None}
 
 
-def extract_modifiers(roadways_gdf: gpd.GeoDataFrame, column_mapping_roadway: Dict[str, str]) -> Set[str]:
+def extract_modifiers(
+    roadways_gdf: gpd.GeoDataFrame, column_mapping_roadway: Dict[str, str]
+) -> Set[str]:
     """Extract unique modifier values (e.g., street types) from the roadway GeoDataFrame.
 
     Args:
@@ -266,7 +271,9 @@ def create_buffered_stops(stops_gdf: gpd.GeoDataFrame, buffer_distance: float) -
     return stops_gdf.set_geometry("buffered_geometry")
 
 
-def spatial_join_stops_roadways(stops_buffered_gdf: gpd.GeoDataFrame, roadways_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def spatial_join_stops_roadways(
+    stops_buffered_gdf: gpd.GeoDataFrame, roadways_gdf: gpd.GeoDataFrame
+) -> gpd.GeoDataFrame:
     """Spatially join the buffered stops with the roadways.
 
     Args:
@@ -308,7 +315,7 @@ def compare_stop_to_roads(
     stop_streets: List[str],
     road_names: Set[str],
     roads_gdf: gpd.GeoDataFrame,
-    threshold: int
+    threshold: int,
 ) -> List[Dict[str, Any]]:
     """Compare each portion of the stop name to known road names via fuzzy matching.
 
@@ -352,7 +359,7 @@ def process_typos(
     roadways_gdf: gpd.GeoDataFrame,
     modifiers: Set[str],
     road_names_clean: Set[str],
-    threshold: int
+    threshold: int,
 ) -> pd.DataFrame:
     """Process each stop and perform fuzzy matching to identify potential typos.
 
@@ -385,6 +392,7 @@ def process_typos(
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -466,6 +474,7 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entry point for the GTFS stop-vs-road typo-checker script."""
