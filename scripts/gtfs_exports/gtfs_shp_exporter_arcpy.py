@@ -9,8 +9,8 @@ Optionally, it can filter shapes based on route_short_name values found in
 Requires ArcGIS Pro-installed ArcPy (no pandas / geopandas needed).
 """
 
-from pathlib import Path
 import csv
+from pathlib import Path
 
 import arcpy
 
@@ -18,17 +18,18 @@ import arcpy
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FOLDER   = Path(r"Path\To\YourGTFS_Folder")         # folder containing shapes.txt
-OUTPUT_FOLDER  = Path(r"Path\To\Your\Output_Folder") # where the shapefile will go
-OUTPUT_NAME    = "gtfs_shapes.shp"                           # .shp is required
-SR_EPSG        = 4326                                        # WGS‑84
+INPUT_FOLDER = Path(r"Path\To\YourGTFS_Folder")  # folder containing shapes.txt
+OUTPUT_FOLDER = Path(r"Path\To\Your\Output_Folder")  # where the shapefile will go
+OUTPUT_NAME = "gtfs_shapes.shp"  # .shp is required
+SR_EPSG = 4326  # WGS‑84
 
 # Optional route filter in list
-ROUTE_FILTER: list[str] = [ ]
+ROUTE_FILTER: list[str] = []
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def read_shapes_txt(txt_path: Path) -> dict[str, list[tuple[int, float, float]]]:
     """Parses shapes.txt and returns a dictionary of shapes.
@@ -57,10 +58,10 @@ def read_shapes_txt(txt_path: Path) -> dict[str, list[tuple[int, float, float]]]
             raise ValueError(f"shapes.txt missing required columns: {', '.join(missing)}")
 
         for row in reader:
-            sid   = row["shape_id"]
-            lat   = float(row["shape_pt_lat"])
-            lon   = float(row["shape_pt_lon"])
-            seq   = int(row["shape_pt_sequence"])
+            sid = row["shape_id"]
+            lat = float(row["shape_pt_lat"])
+            lon = float(row["shape_pt_lon"])
+            seq = int(row["shape_pt_sequence"])
             shapes.setdefault(sid, []).append((seq, lon, lat))
 
     # sort each list by sequence
@@ -69,10 +70,9 @@ def read_shapes_txt(txt_path: Path) -> dict[str, list[tuple[int, float, float]]]
 
     return shapes
 
+
 def filter_shapes_by_route(
-    shapes: dict[str, list[tuple[int, float, float]]],
-    route_filter: list[str],
-    gtfs_folder: Path
+    shapes: dict[str, list[tuple[int, float, float]]], route_filter: list[str], gtfs_folder: Path
 ) -> dict[str, list[tuple[int, float, float]]]:
     """Filters shapes based on associated `route_short_name` values.
 
@@ -151,14 +151,18 @@ def create_output_fc(out_folder: Path, name: str, spatial_ref: arcpy.SpatialRefe
         out_path=str(out_folder),
         out_name=name,
         geometry_type="POLYLINE",
-        spatial_reference=spatial_ref
+        spatial_reference=spatial_ref,
     )
     # Add a TEXT field for shape_id (10 is fine for most GTFS feeds; increase if needed)
     arcpy.management.AddField(out_fc, "shape_id", "TEXT", field_length=50)
     return out_fc
 
 
-def insert_shapes(out_fc: str, shapes: dict[str, list[tuple[int, float, float]]], spatial_ref: arcpy.SpatialReference) -> None:
+def insert_shapes(
+    out_fc: str,
+    shapes: dict[str, list[tuple[int, float, float]]],
+    spatial_ref: arcpy.SpatialReference,
+) -> None:
     """Inserts GTFS shapes as polyline features into the output feature class.
 
     Each entry in the `shapes` dictionary is converted into an `arcpy.Polyline`
@@ -178,9 +182,11 @@ def insert_shapes(out_fc: str, shapes: dict[str, list[tuple[int, float, float]]]
             poly = arcpy.Polyline(arr, spatial_ref)
             cursor.insertRow((sid, poly))
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Main function to execute the GTFS shapes to shapefile conversion.
@@ -215,6 +221,7 @@ def main() -> None:
     insert_shapes(out_fc, shapes, sr)
 
     print(f"✅ Done!  Shapefile saved at: {out_fc}")
+
 
 if __name__ == "__main__":
     main()
