@@ -20,6 +20,7 @@ Note:
 
 import os
 from typing import List, Optional, Union
+
 import pandas as pd
 
 # =============================================================================
@@ -72,6 +73,7 @@ SUM_ON_TIME_COLUMN = "Sum # On Time"
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def parse_time_string_to_minutes(time_str: str) -> float:
     """Convert an ``HH:MM:SS`` time string to minutes.
@@ -152,9 +154,7 @@ def filter_by_branch(
     return df_filtered
 
 
-def create_aggregations(
-    df: pd.DataFrame, group_by_direction: bool = True
-) -> pd.DataFrame:
+def create_aggregations(df: pd.DataFrame, group_by_direction: bool = True) -> pd.DataFrame:
     """Aggregate running-time and OTP metrics.
 
     Args:
@@ -217,24 +217,16 @@ def create_aggregations(
                 )
                 .reset_index()
             )
-            otp_agg["early_pct"] = (
-                otp_agg["total_early"] / otp_agg["total_trips"] * 100
-            ).round(1)
-            otp_agg["late_pct"] = (
-                otp_agg["total_late"] / otp_agg["total_trips"] * 100
-            ).round(1)
+            otp_agg["early_pct"] = (otp_agg["total_early"] / otp_agg["total_trips"] * 100).round(1)
+            otp_agg["late_pct"] = (otp_agg["total_late"] / otp_agg["total_trips"] * 100).round(1)
             otp_agg["on_time_pct"] = (
                 otp_agg["total_on_time"] / otp_agg["total_trips"] * 100
             ).round(1)
         else:
             # Compute percentages row-by-row, then average
             df_pct = df.copy()
-            df_pct["early_pct"] = (
-                df_pct[SUM_EARLY_COLUMN] / df_pct["Calculated Total Trips"] * 100
-            )
-            df_pct["late_pct"] = (
-                df_pct[SUM_LATE_COLUMN] / df_pct["Calculated Total Trips"] * 100
-            )
+            df_pct["early_pct"] = df_pct[SUM_EARLY_COLUMN] / df_pct["Calculated Total Trips"] * 100
+            df_pct["late_pct"] = df_pct[SUM_LATE_COLUMN] / df_pct["Calculated Total Trips"] * 100
             df_pct["on_time_pct"] = (
                 df_pct[SUM_ON_TIME_COLUMN] / df_pct["Calculated Total Trips"] * 100
             )
@@ -296,9 +288,11 @@ def export_individual_files(
         group.to_excel(file_path, index=False)
         print(f"Exported individual aggregated file for group {name} to: {file_path}")
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the full OTP analysis pipeline.
@@ -336,9 +330,7 @@ def main() -> None:
             parse_seconds_to_minutes
         )
     if START_DELTA_COLUMN in df.columns:
-        df["Average Start Delta (min)"] = df[START_DELTA_COLUMN].apply(
-            parse_time_string_to_minutes
-        )
+        df["Average Start Delta (min)"] = df[START_DELTA_COLUMN].apply(parse_time_string_to_minutes)
 
     # 3. Calculate total trips using the sum of early, late, and on-time counts
     otp_cols = {SUM_EARLY_COLUMN, SUM_LATE_COLUMN, SUM_ON_TIME_COLUMN}
