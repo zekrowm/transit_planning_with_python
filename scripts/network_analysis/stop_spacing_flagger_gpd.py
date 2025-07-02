@@ -40,6 +40,7 @@ SPACING_LOG_FILE: str = "short_spacing_segments.txt"
 # FUNCTIONS
 # =============================================================================
 
+
 def _ensure_output_folder(folder: str | Path) -> Path:
     """Create (if necessary) and return the output folder as a ``Path``."""
     out = Path(folder)
@@ -55,7 +56,7 @@ def _read_gtfs_tables(gtfs_path: Path) -> Dict[str, pd.DataFrame]:
     gtfs_path
         Path to either a directory containing ``*.txt`` files or a ``.zip`` GTFS.
 
-    Returns
+    Returns:
     -------
     dict
         Keys ``stops, routes, trips, stop_times, shapes`` → dataframes.
@@ -106,9 +107,7 @@ def _validate_columns(dfs: Dict[str, pd.DataFrame]) -> None:
 
     if missing_msgs:
         joined = "\n".join(" • " + msg for msg in missing_msgs)
-        raise ValueError(
-            f"GTFS validation failed – required columns not found:\n{joined}"
-        )
+        raise ValueError(f"GTFS validation failed – required columns not found:\n{joined}")
 
 
 def _filter_routes(
@@ -239,9 +238,7 @@ def _split_into_segments(
         if cand.empty:
             continue
 
-        dists = np.array(
-            [line.project(pt) for pt in cand.geometry if isinstance(pt, Point)]
-        )
+        dists = np.array([line.project(pt) for pt in cand.geometry if isinstance(pt, Point)])
         uniq_dists = np.unique(dists)
         snap_pts: list[Point] = [line.interpolate(d) for d in uniq_dists]
 
@@ -338,6 +335,7 @@ def _flag_short_spacing(
 # MAIN
 # =============================================================================
 
+
 def main() -> None:  # noqa: D401
     """Run the entire GTFS shapefile & spacing-log pipeline."""
     print("STEP 0  Reading GTFS tables …")
@@ -362,9 +360,7 @@ def main() -> None:  # noqa: D401
     _export(stops_gdf, out_dir, "stops")
 
     print("STEP 2  Building routes shapefile …")
-    routes_gdf = _build_routes_gdf(
-        dfs["shapes"], trips_df, routes_df, PROJECTED_CRS, ROUTE_UNION
-    )
+    routes_gdf = _build_routes_gdf(dfs["shapes"], trips_df, routes_df, PROJECTED_CRS, ROUTE_UNION)
     _export(routes_gdf, out_dir, "routes")
 
     print("STEP 3  Splitting routes into stop-to-stop segments …")
