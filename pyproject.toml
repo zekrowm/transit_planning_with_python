@@ -7,8 +7,8 @@
 # ruff
 # ----------------------------------------------------------------
 [tool.ruff]
-target-version = "py312"        # already implied by your mypy config
-line-length    = 100            # or whatever you prefer
+target-version = "py312"
+line-length    = 100
 
 [tool.ruff.lint]
 # I  → isort-compatible import ordering
@@ -19,9 +19,6 @@ line-length    = 100            # or whatever you prefer
 select   = ["I", "F", "D", "ANN", "TCH"]
 fixable  = ["F401", "D", "I"]
 ignore   = ["ANN401", "TC002", "TC003"]
-
-# Example: if you want to silence specific docstring rules later
-# ignore = ["D100", "D401"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
