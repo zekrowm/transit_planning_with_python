@@ -30,19 +30,21 @@ from typing import List, Tuple
 # CONFIGURATION
 # =============================================================================
 
-FILES_OR_FOLDERS: List[str] = [
-    r"C:\Path\to\Project\src",  # <<< CHANGE ME
-]
+FILES_OR_FOLDERS: List[str] = [r"C:\Path\to\Project"]  # <<< CHANGE ME
 
 SKIP_PATHS: List[str] = [
     r"C:\Path\to\Project\.venv",
-    r"C:\Path\to\Project\build",
+    r"C:\Path\to\Project\tests",
 ]
 
-OUTPUT_FOLDER: str = r"C:\Path\to\Project\qa_reports"  # <<< CHANGE ME
+OUTPUT_FOLDER: str = r"C:\Path\to\Project\Logs"  # <<< CHANGE ME
 READ_ONLY: bool = True  # False → apply fixes
 
 RUFF_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--extend-exclude", "migrations"]
+
+# Optionally, specify an absolute path to a ruff.toml or pyproject.toml file.
+# If None, ruff will search for the file as usual.
+RUFF_TOML_PATH: str | None = None  # e.g., r"C:\Path\to\Project\ruff.toml"
 
 LOG_LEVEL: int = logging.INFO
 
@@ -57,11 +59,9 @@ logging.basicConfig(
 )
 CONSOLE = logging.getLogger(__name__)
 
-
 # =============================================================================
-# HELPERS
+# FUNCTIONS
 # =============================================================================
-
 
 def _is_skipped(p: Path, skip_list: List[str]) -> bool:
     """Return *True* when *p* matches or is inside any ``skip_list`` path."""
@@ -94,11 +94,9 @@ def gather_python_files(targets: List[str], skip_list: List[str]) -> List[str]:
     # de-duplicate but keep order
     return list(dict.fromkeys(collected))
 
-
-# =============================================================================
+# -----------------------------------------------------------------------------
 # RUFF PASS
-# =============================================================================
-
+# -----------------------------------------------------------------------------
 
 def _setup_detailed_logger(out_folder: str) -> Tuple[logging.Logger, str]:
     """Create and return a file logger plus its log-file path."""
@@ -143,6 +141,8 @@ def run_ruff(files: List[str], read_only: bool) -> int:
     ruff_base_cmd: List[str] = ["ruff", "check", *RUFF_ADDITIONAL_ARGS]
     if not read_only:
         ruff_base_cmd.append("--fix")
+    if RUFF_TOML_PATH:
+        ruff_base_cmd.extend(["--config", RUFF_TOML_PATH])
 
     for idx, py in enumerate(files, start=1):
         logger.info(
@@ -191,6 +191,7 @@ def run_ruff(files: List[str], read_only: bool) -> int:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main() -> None:
     """Entrypoint – collect files, run ruff, print high-level summary."""
     files = gather_python_files(FILES_OR_FOLDERS, SKIP_PATHS)
@@ -209,11 +210,11 @@ def main() -> None:
 
     CONSOLE.info("\n" + "=" * 80)
     if failed == 0:
-        CONSOLE.info("🎉  ruff reports no outstanding issues.")
+        CONSOLE.info("🎉 ruff reports no outstanding issues.")
         sys.exit(0)
     else:
         CONSOLE.warning(
-            "⚠️  ruff detected problems in %d file(s). See the detailed log for details.",
+            "⚠️ ruff detected problems in %d file(s). See the detailed log for details.",
             failed,
         )
         sys.exit(1)
