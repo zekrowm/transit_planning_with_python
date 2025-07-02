@@ -50,7 +50,6 @@ DEG_TO_FEET = DEG_TO_MILES * 5280
 # TYPE DEFINITIONS
 # -----------------------------------------------------------------------------
 
-
 @dataclass
 class StopSnapshot:
     """Snapshot of the previous stop used for speed/gap checks.
@@ -67,11 +66,9 @@ class StopSnapshot:
     lat: float
     lon: float
 
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
 
 def read_txts(folder: Path, *names: str) -> Dict[str, pd.DataFrame]:
     """Read one or more GTFS text files from the given folder.
@@ -442,7 +439,6 @@ def bad_stop_sequences(stop_times: pd.DataFrame) -> pd.DataFrame:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main(gtfs_path: Path, out_path: Path) -> None:
     """Run all internal validation checks on the specified GTFS dataset.
