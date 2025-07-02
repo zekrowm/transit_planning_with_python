@@ -1,7 +1,7 @@
 """Analyze demographic coverage of transit service using GTFS, shapefiles, and ArcPy.
 
-This script automates the generation of service area buffers (e.g., 0.25-mile radius) 
-around transit stops, routes, or custom input geometries and calculates partial-weighted 
+This script automates the generation of service area buffers (e.g., 0.25-mile radius)
+around transit stops, routes, or custom input geometries and calculates partial-weighted
 demographic summaries based on spatial intersection with Census-based feature classes.
 
 It supports three analysis modes:
@@ -17,13 +17,15 @@ Typical outputs include:
   - Feature classes in a file geodatabase (`*.gdb`)
   - Summary Excel spreadsheets with raw and % synthetic population fields.
 
-This tool is intended to support Environmental Impact Assessments (EIA), Title VI 
+This tool is intended to support Environmental Impact Assessments (EIA), Title VI
 equity analysis, or service coverage reporting.
 """
 
-import os
 from __future__ import annotations
+
+import os
 from typing import Mapping, Sequence
+
 import arcpy
 import pandas as pd
 
@@ -76,6 +78,7 @@ GDB_NAME = "analysis.gdb"
 # FUNCTIONS
 # =============================================================================
 
+
 def ensure_gdb_exists(
     output_dir: str | os.PathLike[str],
     gdb_name: str,
@@ -107,6 +110,7 @@ def load_gtfs_data(
     calendar = pd.read_csv(os.path.join(gtfs_path, "calendar.txt"))
 
     return trips, stop_times, routes_df, stops_df, calendar
+
 
 def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
     """Return service IDs that run Monday–Friday."""
@@ -420,6 +424,7 @@ def export_summary_to_excel(
 # -----------------------------------------------------------------------------
 # ANALYSIS FUNCTIONS (GTFS)
 # -----------------------------------------------------------------------------
+
 
 def do_network_analysis(
     trips: pd.DataFrame,
@@ -760,6 +765,7 @@ def do_shapefile_analysis(
 
     xlsx_path = os.path.join(OUTPUT_DIRECTORY, "shapefile_service_buffer_data.xlsx")
     export_summary_to_excel(final_dict, xlsx_path)
+
 
 # =============================================================================
 # MAIN
