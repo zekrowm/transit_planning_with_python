@@ -761,7 +761,6 @@ def do_shapefile_analysis(
     xlsx_path = os.path.join(OUTPUT_DIRECTORY, "shapefile_service_buffer_data.xlsx")
     export_summary_to_excel(final_dict, xlsx_path)
 
-
 # =============================================================================
 # MAIN
 # =============================================================================
