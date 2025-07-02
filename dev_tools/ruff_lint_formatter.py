@@ -86,6 +86,7 @@ CONSOLE = logging.getLogger(__name__)
 # PATH UTILITIES
 # =============================================================================
 
+
 # -----------------------------------------------------------------------------
 # CLI override for FILES_OR_FOLDERS
 # -----------------------------------------------------------------------------
@@ -128,6 +129,7 @@ def _script_dir() -> Path:
 # Ruff configuration discovery
 # -----------------------------------------------------------------------------
 
+
 def _find_ruff_config(start: Path | None = None) -> Path | None:
     """Return the first Ruff config file found when walking upward."""
     root = start or _script_dir()
@@ -154,6 +156,7 @@ _SILENCED_CODES = ("ANN", "TCH")
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _default_targets() -> list[str]:
     """Return a default list of paths to scan.
@@ -289,6 +292,7 @@ def run_ruff(files: list[str], read_only: bool) -> int:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """CLI entry point."""
