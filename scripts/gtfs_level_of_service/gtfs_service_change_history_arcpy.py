@@ -141,7 +141,7 @@ def _check_files(base: str, files: list[str]) -> None:
             raise FileNotFoundError(f"Required GTFS file missing: {f} in {base}")
 
 
-def load_gtfs_basic(path: str):
+def load_gtfs_basic(path: str) -> tuple[pd.DataFrame, dict[str, set[str]]]:
     """Load the minimal stop-level tables needed for stop comparison.
 
     Args:
@@ -284,7 +284,6 @@ def load_route_metrics(path: str, schedule_type: str = "Weekday") -> pd.DataFram
 # STOP-LEVEL COMPARISON
 # --------------------------------------------------------------------------------------------------
 
-
 def compare_signups(
     name_old: str,
     name_new: str,
@@ -310,10 +309,10 @@ def compare_signups(
     common = old_ids & new_ids
     moved_rows: list[dict[str, float | str | None]] = []
     for sid in common:
-        lon_old = cast(float, idx_old.at[sid, "stop_lon"])  # ← cast + .at
-        lat_old = cast(float, idx_old.at[sid, "stop_lat"])
-        lon_new = cast(float, idx_new.at[sid, "stop_lon"])
-        lat_new = cast(float, idx_new.at[sid, "stop_lat"])
+        "lat_old": cast("float | None", idx_old.at[sid, "stop_lat"])
+        "lon_old": cast("float | None", idx_old.at[sid, "stop_lon"])
+        "lat_new": cast("float | None", idx_new.at[sid, "stop_lat"])
+        "lon_new": cast("float | None", idx_new.at[sid, "stop_lon"])
         if abs(lon_old - lon_new) > tol or abs(lat_old - lat_new) > tol:
             moved_rows.append(
                 {
@@ -411,7 +410,7 @@ def build_service_level_changes(
     for rt in common:
         p, c = prev_i.loc[rt], curr_i.loc[rt]
 
-        def dcol(col: str):
+        def dcol(col: str) -> float:
             a, b = p[col], c[col]
             return (b - a) if pd.notna(a) and pd.notna(b) else np.nan
 
