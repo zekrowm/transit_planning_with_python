@@ -70,7 +70,6 @@ DESCRIPTIONS_ROADWAY = {
 # FUNCTIONS
 # =============================================================================
 
-
 def get_crs_unit(crs_code):
     """Determine the linear unit of a CRS.
 
@@ -124,7 +123,6 @@ def convert_buffer_distance(value, from_unit, to_unit):
 # DATA LOADING FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame:
     """Validate an in-memory GTFS stops DataFrame and return a GeoDataFrame.
 
@@ -172,7 +170,6 @@ def load_roadways(roadways_path):
 # -----------------------------------------------------------------------------
 # DATA PROCESSING FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def map_roadway_columns(roadways_gdf):
     """Map the required roadway columns.
@@ -376,7 +373,6 @@ def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshol
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
@@ -457,7 +453,6 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Entry point for the GTFS stop-vs-road typo-checker script."""
