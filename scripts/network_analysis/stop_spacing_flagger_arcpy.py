@@ -37,9 +37,9 @@ import arcpy
 
 GTFS_FOLDER: str = r"Path\To\Your\GTFS_Folder"
 OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
-EPSG_CODE: int = 2248         # StatePlane Maryland (US survey feet)
-ROUTE_LEVEL: str = "shape"          # "shape" or "route" (dissolve to route_id)
-MIN_SPACING_FT: float = 400.0       # threshold for short‐spacing log
+EPSG_CODE: int = 2248  # StatePlane Maryland (US survey feet)
+ROUTE_LEVEL: str = "shape"  # "shape" or "route" (dissolve to route_id)
+MIN_SPACING_FT: float = 400.0  # threshold for short‐spacing log
 SPACING_LOG_FILE: str = "short_spacing_segments.txt"
 
 # Optional list of route_ids to process; leave empty ([]) for no filtering.
@@ -48,6 +48,7 @@ ROUTE_FILTER: List[str] = []
 # =============================================================================
 # HELPERS
 # =============================================================================
+
 
 def validate_config() -> None:
     """Ensure GTFS folder & required files exist; create output folder."""
@@ -63,29 +64,23 @@ def validate_config() -> None:
         raise FileNotFoundError(f"Missing GTFS files: {', '.join(missing)}")
     out.mkdir(parents=True, exist_ok=True)
 
+
 def make_xy_event_layer(
-    table: str, x_field: str, y_field: str,
-    out_layer: str, sr: arcpy.SpatialReference
+    table: str, x_field: str, y_field: str, out_layer: str, sr: arcpy.SpatialReference
 ) -> str:
     """Make an in‐memory XY event layer and return its name."""
     arcpy.AddMessage(f" → MakeXYEventLayer: {out_layer}")
     arcpy.MakeXYEventLayer_management(table, x_field, y_field, out_layer, sr)
     return out_layer
 
-def points_to_line(
-    point_layer: str,
-    out_line: str,
-    line_field: str,
-    sort_field: str
-) -> None:
+
+def points_to_line(point_layer: str, out_line: str, line_field: str, sort_field: str) -> None:
     """Convert points to lines, grouping by line_field and sorting by sort_field."""
     arcpy.AddMessage(" → PointsToLine")
     arcpy.PointsToLine_management(
-        point_layer,
-        out_line,
-        Line_Field=line_field,
-        Sort_Field=sort_field
+        point_layer, out_line, Line_Field=line_field, Sort_Field=sort_field
     )
+
 
 def apply_route_filter(
     raw_fc: str,
@@ -115,9 +110,13 @@ def apply_route_filter(
                 if sid:
                     mapping[sid] = row["route_id"]
         good_shapes = [sid for sid, rid in mapping.items() if rid in filter_routes]
-        where = f"shape_id IN ({','.join([f"'{s}'" for s in good_shapes])})" if good_shapes else "1=0"
+        where = (
+            f"shape_id IN ({','.join([f"'{s}'" for s in good_shapes])})" if good_shapes else "1=0"
+        )
     else:
-        where = f"route_id IN ({','.join(f"'{r}'" for r in filter_routes)})" if filter_routes else "1=1"
+        where = (
+            f"route_id IN ({','.join(f"'{r}'" for r in filter_routes)})" if filter_routes else "1=1"
+        )
 
     arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", where)
     out_lyr = "in_memory/routes_filtered"
@@ -125,20 +124,15 @@ def apply_route_filter(
     arcpy.AddMessage(f"   ✔ Filtered routes → {out_lyr}")
     return out_lyr
 
-def project_feature(
-    in_fc: str,
-    out_fc: str,
-    target_sr: arcpy.SpatialReference
-) -> None:
+
+def project_feature(in_fc: str, out_fc: str, target_sr: arcpy.SpatialReference) -> None:
     """Project a feature‐class or layer to target spatial reference."""
     arcpy.AddMessage(f" → Project → {out_fc}")
     arcpy.Project_management(in_fc, out_fc, target_sr)
 
+
 def dissolve_routes_by_route_id(
-    shapes_fc: str,
-    trips_txt: Path,
-    routes_txt: Path,
-    out_fc: str
+    shapes_fc: str, trips_txt: Path, routes_txt: Path, out_fc: str
 ) -> None:
     """Dissolve one feature per route_id."""
     arcpy.AddMessage(" → Dissolve → by route_id")
@@ -158,43 +152,47 @@ def dissolve_routes_by_route_id(
     ).getOutput(0)
     arcpy.JoinField_management(out_fc, "route_id", tmp_routes, "route_id")
 
-def create_routes_with_m(
-    in_fc: str,
-    route_id_field: str,
-    out_fc: str
-) -> None:
+
+def create_routes_with_m(in_fc: str, route_id_field: str, out_fc: str) -> None:
     """Create M-enabled routes (measure = LENGTH)."""
     arcpy.AddMessage(" → CreateRoutes (M‐enabled)")
     arcpy.CheckOutExtension("linearReferencing")
     arcpy.lr.CreateRoutes(in_fc, route_id_field, out_fc, measure_source="LENGTH")
+
 
 def locate_stops_along_routes(
     stops_fc: str,
     routes_fc: str,
     route_id_field: str,
     out_table: str,
-    search_radius: str = "100 Feet"
+    search_radius: str = "100 Feet",
 ) -> None:
     """Locate stops along M‐enabled routes, output event table."""
     arcpy.AddMessage(" → LocateFeaturesAlongRoutes")
     arcpy.lr.LocateFeaturesAlongRoutes(
-        stops_fc, routes_fc, route_id_field,
-        search_radius, out_table,
-        f"{route_id_field} POINT MEAS"
+        stops_fc,
+        routes_fc,
+        route_id_field,
+        search_radius,
+        out_table,
+        f"{route_id_field} POINT MEAS",
     )
+
 
 def build_segments(
     routes_fc: str,
     events_tbl: str,
     route_id_field: str,
     out_fc: str,
-    spat_ref: arcpy.SpatialReference
+    spat_ref: arcpy.SpatialReference,
 ) -> None:
     """Build inter‐stop segments."""
     arcpy.AddMessage(" → Building segments")
     out_folder = os.path.dirname(out_fc)
     out_name = os.path.splitext(os.path.basename(out_fc))[0]
-    arcpy.CreateFeatureclass_management(out_folder, out_name, "POLYLINE", spatial_reference=spat_ref)
+    arcpy.CreateFeatureclass_management(
+        out_folder, out_name, "POLYLINE", spatial_reference=spat_ref
+    )
     arcpy.AddField_management(out_fc, "route_id", "TEXT", 50)
     arcpy.AddField_management(out_fc, "from_stop", "TEXT", 50)
     arcpy.AddField_management(out_fc, "to_stop", "TEXT", 50)
@@ -207,7 +205,9 @@ def build_segments(
     with arcpy.da.SearchCursor(events_tbl, [route_id_field, "MEAS", "stop_id"]) as ecur:
         for rid, meas, sid in ecur:
             measures.setdefault(rid, []).append((meas, sid))
-    with arcpy.da.InsertCursor(out_fc, ["SHAPE@", "route_id", "from_stop", "to_stop", "length_ft"]) as icur:
+    with arcpy.da.InsertCursor(
+        out_fc, ["SHAPE@", "route_id", "from_stop", "to_stop", "length_ft"]
+    ) as icur:
         for rid, pts in measures.items():
             pts.sort(key=lambda x: x[0])
             line = routes[rid]
@@ -218,11 +218,8 @@ def build_segments(
                 icur.insertRow((seg, rid, s1, s2, seg.length))
     arcpy.AddMessage(f"   ✔ {out_fc}")
 
-def flag_short_spacing(
-    segments_fc: str,
-    threshold: float,
-    log_path: Path
-) -> None:
+
+def flag_short_spacing(segments_fc: str, threshold: float, log_path: Path) -> None:
     """Log all segments shorter than threshold."""
     arcpy.AddMessage(" → Flagging short‐spacing segments")
     with open(log_path, "w", encoding="utf-8") as fh:
@@ -235,9 +232,11 @@ def flag_short_spacing(
                     fh.write(f"{rid}\t{frm}\t{to}\t{length:.1f}\n")
     arcpy.AddMessage(f"   ✔ {log_path.name}")
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Executes the main workflow for generating GIS data layers and identifying short inter-stop spacings from a GTFS feed.
@@ -288,9 +287,7 @@ def main() -> None:
         stops_tbl = arcpy.TableToTable_conversion(
             os.path.join(gtfs, "stops.txt"), "in_memory", "stops_tbl"
         ).getOutput(0)
-        stops_xy = make_xy_event_layer(
-            stops_tbl, "stop_lon", "stop_lat", "stops_xy", sr_wgs84
-        )
+        stops_xy = make_xy_event_layer(stops_tbl, "stop_lon", "stop_lat", "stops_xy", sr_wgs84)
         stops_wgs = arcpy.CopyFeatures_management(stops_xy, "in_memory/stops_wgs").getOutput(0)
         full_stops = os.path.join(out, "stops_full.shp")
         project_feature(stops_wgs, full_stops, sr_target)
@@ -324,6 +321,7 @@ def main() -> None:
         arcpy.AddError("### Script failed ###")
         arcpy.AddError(traceback.format_exc())
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
