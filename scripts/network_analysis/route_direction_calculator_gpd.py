@@ -330,8 +330,8 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
                 }
             )
 
-    # 2) Within the same (route_short_name, direction_id), check multiple cardinal directions
-    def is_cardinal_direction(direct):
+    # 2) Within the same (route_short_name, direction_id), check multiple cardinal directions.
+    def is_cardinal_direction(direct: str) -> bool:
         return direct in ("NB", "SB", "EB", "WB")
 
     rd_group = summary_simplified.groupby(["route_short_name", "direction_id"])
