@@ -57,7 +57,6 @@ faker.add_provider(_StopNameProvider)
 # FUNCTIONS
 # ==================================================================================================
 
-
 def _max_decimal_places(
     s: pd.Series,
     default: int = 3,
@@ -93,7 +92,10 @@ def _is_categorical(s: pd.Series) -> bool:
 
 
 def _num_range(s: pd.Series) -> Tuple[float, float]:
-    numeric = pd.to_numeric(s, errors="coerce")
+    """Calculate the min and max of a numeric series, handling all-NaN cases."""
+    numeric = pd.to_numeric(s, errors="coerce").dropna()
+    if numeric.empty:
+        return 0.0, 1.0  # Return a default range if the series is empty of numbers
     return float(numeric.min()), float(numeric.max())
 
 
@@ -247,7 +249,6 @@ def _load_table(path: Path) -> pd.DataFrame:
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
-
 
 def main() -> None:  # noqa: D401
     """Function serves as entry point and orchestrator for the script."""
