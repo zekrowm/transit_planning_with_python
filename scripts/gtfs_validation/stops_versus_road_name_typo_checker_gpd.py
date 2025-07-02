@@ -70,7 +70,7 @@ DESCRIPTIONS_ROADWAY = {
 # FUNCTIONS
 # =============================================================================
 
-def get_crs_unit(crs_code):
+def get_crs_unit(crs_code: str) -> Optional[str]:
     """Determine the linear unit of a CRS.
 
     Args:
@@ -90,7 +90,7 @@ def get_crs_unit(crs_code):
         return None
 
 
-def convert_buffer_distance(value, from_unit, to_unit):
+def convert_buffer_distance(value: float, from_unit: str, to_unit: str) -> float:
     """Convert buffer distance from `from_unit` to `to_unit` using known conversion factors.
 
     Args:
@@ -155,7 +155,7 @@ def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame
     return gdf
 
 
-def load_roadways(roadways_path):
+def load_roadways(roadways_path: str) -> gpd.GeoDataFrame:
     """Load the roadway shapefile and return a GeoDataFrame.
 
     Args:
@@ -171,7 +171,7 @@ def load_roadways(roadways_path):
 # DATA PROCESSING FUNCTIONS
 # -----------------------------------------------------------------------------
 
-def map_roadway_columns(roadways_gdf):
+def map_roadway_columns(roadways_gdf: gpd.GeoDataFrame) -> Dict[str, str]:
     """Map the required roadway columns.
 
     Prompts the user to input the correct column names if missing.
@@ -210,7 +210,7 @@ def map_roadway_columns(roadways_gdf):
     return {k: v for k, v in column_mapping.items() if v is not None}
 
 
-def extract_modifiers(roadways_gdf, column_mapping_roadway):
+def extract_modifiers(roadways_gdf: gpd.GeoDataFrame, column_mapping_roadway: Dict[str, str]) -> Set[str]:
     """Extract unique modifier values (e.g., street types) from the roadway GeoDataFrame.
 
     Args:
@@ -233,7 +233,7 @@ def extract_modifiers(roadways_gdf, column_mapping_roadway):
     return modifiers
 
 
-def normalize_street_name(name, modifiers_set):
+def normalize_street_name(name: str, modifiers_set: Set[str]) -> str:
     """Normalize a street name by removing known modifiers, punctuation, and extra spaces.
 
     Args:
@@ -252,7 +252,7 @@ def normalize_street_name(name, modifiers_set):
     return re.sub(r"\s+", " ", name).strip().lower()
 
 
-def create_buffered_stops(stops_gdf, buffer_distance):
+def create_buffered_stops(stops_gdf: gpd.GeoDataFrame, buffer_distance: float) -> gpd.GeoDataFrame:
     """Create a buffered geometry for each stop.
 
     Args:
@@ -266,7 +266,7 @@ def create_buffered_stops(stops_gdf, buffer_distance):
     return stops_gdf.set_geometry("buffered_geometry")
 
 
-def spatial_join_stops_roadways(stops_buffered_gdf, roadways_gdf):
+def spatial_join_stops_roadways(stops_buffered_gdf: gpd.GeoDataFrame, roadways_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Spatially join the buffered stops with the roadways.
 
     Args:
@@ -284,7 +284,7 @@ def spatial_join_stops_roadways(stops_buffered_gdf, roadways_gdf):
     )
 
 
-def extract_street_names(stop_name, modifiers):
+def extract_street_names(stop_name: str, modifiers: Set[str]) -> List[str]:
     """Extract potential street names from a stop name using common separators.
 
     Args:
@@ -302,7 +302,14 @@ def extract_street_names(stop_name, modifiers):
     return [normalize_street_name(street, modifiers) for street in streets if street]
 
 
-def compare_stop_to_roads(stop_id, stop_name, stop_streets, road_names, roads_gdf, threshold):
+def compare_stop_to_roads(
+    stop_id: str,
+    stop_name: str,
+    stop_streets: List[str],
+    road_names: Set[str],
+    roads_gdf: gpd.GeoDataFrame,
+    threshold: int
+) -> List[Dict[str, Any]]:
     """Compare each portion of the stop name to known road names via fuzzy matching.
 
     Args:
@@ -340,7 +347,13 @@ def compare_stop_to_roads(stop_id, stop_name, stop_streets, road_names, roads_gd
     return potential_typos_list
 
 
-def process_typos(stops_gdf, roadways_gdf, modifiers, road_names_clean, threshold):
+def process_typos(
+    stops_gdf: gpd.GeoDataFrame,
+    roadways_gdf: gpd.GeoDataFrame,
+    modifiers: Set[str],
+    road_names_clean: Set[str],
+    threshold: int
+) -> pd.DataFrame:
     """Process each stop and perform fuzzy matching to identify potential typos.
 
     Args:
