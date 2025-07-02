@@ -1,8 +1,8 @@
-"""Process and summarize NOAA daily weather data.
+"""Process and summarize NOAA Daily Summaries GHCN weather data.
 
 The script
 
-1. loads a raw NOAA CSV file,
+1. loads a raw CSV file,
 2. cleans and renames columns,
 3. enriches the data with calendar features,
 4. flags “poor-weather” days given configurable thresholds,
@@ -19,6 +19,7 @@ import pandas as pd
 # =============================================================================
 
 FILE_PATH = "Path/To/Your/noaa_weather_data.csv"
+
 OUTPUT_FOLDER = "Path/To/Your/output_folder"
 
 # Mapping of original column names to new, PEP-8 compliant column names
@@ -71,7 +72,6 @@ POOR_WEATHER_CRITERIA = {
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
 
 def load_weather_data(file_path: str) -> pd.DataFrame:
     """Load NOAA weather data from a CSV file.
@@ -273,7 +273,6 @@ def save_dataframe(weather_df: pd.DataFrame, output_folder: str, filename: str) 
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Main function to load, process, summarize, and save NOAA weather data."""
