@@ -309,10 +309,10 @@ def compare_signups(
     common = old_ids & new_ids
     moved_rows: list[dict[str, float | str | None]] = []
     for sid in common:
-        "lat_old": cast("float | None", idx_old.at[sid, "stop_lat"])
-        "lon_old": cast("float | None", idx_old.at[sid, "stop_lon"])
-        "lat_new": cast("float | None", idx_new.at[sid, "stop_lat"])
-        "lon_new": cast("float | None", idx_new.at[sid, "stop_lon"])
+        lat_old = cast("float | None", idx_old.at[sid, "stop_lat"])
+        lon_old = cast("float | None", idx_old.at[sid, "stop_lon"])
+        lat_new = cast("float | None", idx_new.at[sid, "stop_lat"])
+        lon_new = cast("float | None", idx_new.at[sid, "stop_lon"])
         if abs(lon_old - lon_new) > tol or abs(lat_old - lat_new) > tol:
             moved_rows.append(
                 {
