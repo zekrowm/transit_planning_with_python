@@ -93,7 +93,7 @@ def classify_direction(
     return "EB" if lon_diff > 0 else "WB"
 
 
-def plot_route_shape(gdf_shape, route, direction, output_path):
+def plot_route_shape(gdf_shape: gpd.GeoDataFrame, route: str, direction: str, output_path: str) -> None:
     """Plot the given shape geometry and save as a .jpeg.
 
     Highlights the start and end of the route shape, and includes a simple
@@ -142,7 +142,7 @@ def plot_route_shape(gdf_shape, route, direction, output_path):
     plt.close()
 
 
-def read_gtfs_data():
+def read_gtfs_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Reads GTFS files and returns the dataframes as a tuple."""
     routes = pd.read_csv(os.path.join(GTFS_FOLDER, "routes.txt"))
     trips = pd.read_csv(os.path.join(GTFS_FOLDER, "trips.txt"))
@@ -361,7 +361,7 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
 # MAIN
 # =============================================================================
 
-def main():
+def main() -> None:
     """Primary entry point for GTFS direction classification.
 
     1. Reads GTFS files (routes, trips, stop_times, shapes, stops).
