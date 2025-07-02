@@ -521,6 +521,10 @@ def build_joined_table(
          language_files: Optional list of paths to tract-level language Census files.
          vehicle_files: Optional list of paths to tract-level vehicle ownership Census files.
          age_files: Optional list of paths to tract-level age Census files.
+         county_fips_filter: Optional iterable of 5-digit county FIPS codes to
+             retain in the final output.
+         _clean_columns: If ``True`` (default) drop any residual Census code
+             columns that were not renamed.
 
     Returns:
         A DataFrame containing the merged block and tract records, cleaned,
