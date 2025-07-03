@@ -439,7 +439,7 @@ def export_results(
     wb = Workbook()
     default_ws = wb.active
     if default_ws is not None:  # appease static checker
-        wb.remove(cast(Worksheet, default_ws))
+        wb.remove(cast("Worksheet", default_ws))
 
     def add_sheet(df: pd.DataFrame, title: str) -> None:
         ws = wb.create_sheet(title=title)
