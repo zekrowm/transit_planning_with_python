@@ -28,6 +28,7 @@ from pandas._libs.tslibs.nattype import NaTType  # ← NEW import
 # ==================================================================================================
 
 # Chronological GTFS snapshots to compare
+# Add two or more
 MULTIPLE_GTFS_CONFIGS = [
     {
         "name": "Jan_2025",
@@ -37,7 +38,6 @@ MULTIPLE_GTFS_CONFIGS = [
         "name": "Jun_2025",
         "path": r"Path\To\Your\GTFS_Folder",
     },
-    # add more …
 ]
 
 # Output locations & filenames
