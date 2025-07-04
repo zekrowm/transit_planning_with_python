@@ -236,6 +236,7 @@ def flag_short_spacing(segments_fc: str, threshold: float, log_path: Path) -> No
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Executes the main workflow for generating GIS data layers and identifying short inter-stop spacings from a GTFS feed.
 
