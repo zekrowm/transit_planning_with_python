@@ -62,6 +62,7 @@ BUS_STOP_CLUSTERS_STEP1 = [
 # FUNCTIONS
 # ==================================================================================================
 
+
 def validate_folders(input_path: str, output_path: str) -> None:
     """Check that the input folder exists, and ensure the output folder is created if not."""
     if not os.path.isdir(input_path):
@@ -72,6 +73,7 @@ def validate_folders(input_path: str, output_path: str) -> None:
 # --------------------------------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # --------------------------------------------------------------------------------------------------
+
 
 def time_to_minutes(time_str: str) -> int:
     """Convert 'HH:MM:SS' or 'HH:MM' to integer minutes (e.g. "26:30:00" -> 1590)."""
@@ -115,6 +117,7 @@ def find_cluster(stop_id: str, bus_stop_clusters: list[dict[str, Any]]) -> Optio
 # --------------------------------------------------------------------------------------------------
 # BRIDGING LOGIC REFACTOR
 # --------------------------------------------------------------------------------------------------
+
 
 def _status_for_same_trip(minute: int, stop_info: tuple) -> Optional[tuple]:
     """Handle same-trip logic. stop_info is a tuple."""
@@ -270,6 +273,7 @@ def get_status_for_minute(
 # --------------------------------------------------------------------------------------------------
 # MAIN BLOCK PROCESSING
 # --------------------------------------------------------------------------------------------------
+
 
 def check_for_overlapping_trips(
     block_subset: pd.DataFrame, block_id: str
