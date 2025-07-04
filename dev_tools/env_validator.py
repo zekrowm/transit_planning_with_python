@@ -24,14 +24,10 @@ from packaging.version import InvalidVersion, Version
 
 # ======================================================================
 # CONFIGURATION
-
 # ======================================================================
 
-REQUIREMENTS_FILE: Union[str, Path, None] = (
-    r"C:\Users\zach\Desktop\Zach\python_stuff\transit_planning_with_python-main"
-    r"\transit_planning_with_python-main_2025_07_02"
-    r"\transit_planning_with_python-main\requirements.txt"
-)
+REQUIREMENTS_FILE: Union[str, Path, None] = (r"C:\Path\To\Your\requirements.txt")
+
 MIN_PY_VERSION: Tuple[int, int] = (3, 9)
 
 # Typing stubs or other niceties that should NOT fail CI
