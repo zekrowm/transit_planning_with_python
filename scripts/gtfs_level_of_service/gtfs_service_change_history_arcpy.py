@@ -293,26 +293,30 @@ def compare_signups(
     routes_new: dict[str, set[str]],
     tol: float = COORD_TOLERANCE_DEG,
 ) -> dict[str, pd.DataFrame]:
-    """Builds a DataFrame comparing each route between two signups with flags."""
+    """Build stop-level change tables between two GTFS sign-ups."""
     idx_old, idx_new = df_old.set_index("stop_id"), df_new.set_index("stop_id")
     old_ids, new_ids = set(idx_old.index), set(idx_new.index)
 
-    # added / removed
-    added = new_ids - old_ids
-    removed = old_ids - new_ids
-    added_df = idx_new.loc[list(added)].reset_index()
-    added_df["change_type"] = "added"
-    removed_df = idx_old.loc[list(removed)].reset_index()
-    removed_df["change_type"] = "removed"
+    # ─── added / removed ────────────────────────────────────────────────────
+    added_df = (
+        idx_new.loc[list(new_ids - old_ids)]
+        .reset_index()
+        .assign(change_type="added")
+    )
+    removed_df = (
+        idx_old.loc[list(old_ids - new_ids)]
+        .reset_index()
+        .assign(change_type="removed")
+    )
 
-    # moved (using simple absolute-difference test)
-    common = old_ids & new_ids
+    # ─── moved ──────────────────────────────────────────────────────────────
     moved_rows: list[dict[str, float | str | None]] = []
-    for sid in common:
+    for sid in old_ids & new_ids:
         lat_old = cast("float | None", idx_old.at[sid, "stop_lat"])
         lon_old = cast("float | None", idx_old.at[sid, "stop_lon"])
         lat_new = cast("float | None", idx_new.at[sid, "stop_lat"])
         lon_new = cast("float | None", idx_new.at[sid, "stop_lon"])
+
         if abs(lon_old - lon_new) > tol or abs(lat_old - lat_new) > tol:
             moved_rows.append(
                 {
@@ -328,39 +332,41 @@ def compare_signups(
             )
     moved_df = pd.DataFrame(moved_rows)
 
-    # route-service changes
-    svc_rows: list[dict[str, str | float | None]] = []
+    # ─── route-service changes ──────────────────────────────────────────────
+    svc_rows: list[dict[str, float | str | None]] = []
     for sid in old_ids | new_ids:
         r_old = routes_old.get(sid, set())
         r_new = routes_new.get(sid, set())
         started, stopped = r_new - r_old, r_old - r_new
-        if started or stopped:
-            base = idx_new if sid in idx_new.index else idx_old
-            svc_rows.append(
-                {
-                    "stop_id": sid,
-                    "stop_code": base.at[sid, "stop_code"],
-                    "stop_name": base.at[sid, "stop_name"],
-                    "lat_old": cast(float | None, idx_old.at[sid, "stop_lat"])
-                    if sid in idx_old.index
-                    else None,
-                    "lon_old": cast(float | None, idx_old.at[sid, "stop_lon"])
-                    if sid in idx_old.index
-                    else None,
-                    "lat_new": cast(float | None, idx_new.at[sid, "stop_lat"])
-                    if sid in idx_new.index
-                    else None,
-                    "lon_new": cast(float | None, idx_new.at[sid, "stop_lon"])
-                    if sid in idx_new.index
-                    else None,
-                    "routes_started": ", ".join(sorted(started)),
-                    "routes_stopped": ", ".join(sorted(stopped)),
-                    "change_type": "route_service_change",
-                }
-            )
+        if not (started or stopped):
+            continue
+
+        base = idx_new if sid in idx_new.index else idx_old
+        svc_rows.append(
+            {
+                "stop_id": sid,
+                "stop_code": base.at[sid, "stop_code"],
+                "stop_name": base.at[sid, "stop_name"],
+                "lat_old": cast("float | None", idx_old.at[sid, "stop_lat"])
+                if sid in idx_old.index
+                else None,
+                "lon_old": cast("float | None", idx_old.at[sid, "stop_lon"])
+                if sid in idx_old.index
+                else None,
+                "lat_new": cast("float | None", idx_new.at[sid, "stop_lat"])
+                if sid in idx_new.index
+                else None,
+                "lon_new": cast("float | None", idx_new.at[sid, "stop_lon"])
+                if sid in idx_new.index
+                else None,
+                "routes_started": ", ".join(sorted(started)),
+                "routes_stopped": ", ".join(sorted(stopped)),
+                "change_type": "route_service_change",
+            }
+        )
     svc_df = pd.DataFrame(svc_rows)
 
-    # harmonize columns
+    # ─── harmonize & return ─────────────────────────────────────────────────
     base_cols = [
         "stop_id",
         "stop_code",
@@ -371,12 +377,11 @@ def compare_signups(
         "lon_new",
         "change_type",
     ]
-    added_df = added_df.reindex(columns=base_cols, fill_value=None)
+    added_df   = added_df.reindex(columns=base_cols, fill_value=None)
     removed_df = removed_df.reindex(columns=base_cols, fill_value=None)
-    moved_df = moved_df.reindex(columns=base_cols, fill_value=None)
-    svc_df = svc_df.reindex(
-        columns=base_cols + ["routes_started", "routes_stopped"], fill_value=None
-    )
+    moved_df   = moved_df.reindex(columns=base_cols, fill_value=None)
+    svc_df     = svc_df.reindex(columns=base_cols + ["routes_started", "routes_stopped"],
+                                fill_value=None)
 
     key = f"{name_old}→{name_new}"
     return {
