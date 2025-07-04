@@ -16,17 +16,18 @@ Resolution order for the requirements file:
 from __future__ import annotations
 
 import sys
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_version
 from pathlib import Path
 from typing import Dict, Tuple, Union
 
-from importlib.metadata import PackageNotFoundError, version as get_version
 from packaging.version import InvalidVersion, Version
 
 # ======================================================================
 # CONFIGURATION
 # ======================================================================
 
-REQUIREMENTS_FILE: Union[str, Path, None] = (r"C:\Path\To\Your\requirements.txt")
+REQUIREMENTS_FILE: Union[str, Path, None] = r"C:\Path\To\Your\requirements.txt"
 
 MIN_PY_VERSION: Tuple[int, int] = (3, 9)
 
@@ -39,6 +40,7 @@ _OPTIONAL_PACKAGES: set[str] = {
 # ======================================================================
 # FUNCTIONS
 # ======================================================================
+
 
 def _resolve_req_file() -> Path:
     if REQUIREMENTS_FILE is not None:
@@ -105,6 +107,7 @@ def _check_python() -> bool:
 # MAIN
 # ======================================================================
 
+
 def main() -> None:
     """Validate Python version and installed packages against requirements.
 
@@ -145,10 +148,7 @@ def main() -> None:
             label = ""
             failures += 1
 
-        print(
-            f"{pkg:<20} installed: {inst:<15} "
-            f"required: ≥ {min_ver:<10} {status} {label}"
-        )
+        print(f"{pkg:<20} installed: {inst:<15} required: ≥ {min_ver:<10} {status} {label}")
 
     if py_ok and failures == 0:
         print("\n🎉 Environment satisfies all minimum *required* versions.")
