@@ -106,6 +106,21 @@ def _check_python() -> bool:
 # ======================================================================
 
 def main() -> None:
+    """Validate Python version and installed packages against requirements.
+
+    Requirements are pulled from:
+        1. REQUIREMENTS_FILE (if set)
+        2. CLI argument
+        3. 'requirements.txt' next to this script
+
+    Packages in `_OPTIONAL_PACKAGES` are allowed to fail (⚠️ warning only).
+    All others must meet or exceed the specified version to pass.
+
+    Exit codes:
+        0 – all required versions satisfied
+        1 – one or more required checks failed
+        2 – requirements file not found
+    """
     req_file = _resolve_req_file()
     if not req_file.exists():
         print(f"Requirements file '{req_file}' not found.", file=sys.stderr)
