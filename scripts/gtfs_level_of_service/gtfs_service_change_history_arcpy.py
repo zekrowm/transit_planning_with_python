@@ -73,6 +73,7 @@ SCHEDULE_TYPES = {
 # FUNCTIONS
 # ==================================================================================================
 
+
 def _keep_changed(df: pd.DataFrame) -> pd.DataFrame:
     """Return only those routes where at least one metric actually changed."""
     mask = (
@@ -284,6 +285,7 @@ def load_route_metrics(path: str, schedule_type: str = "Weekday") -> pd.DataFram
 # STOP-LEVEL COMPARISON
 # --------------------------------------------------------------------------------------------------
 
+
 def compare_signups(
     name_old: str,
     name_new: str,
@@ -298,16 +300,8 @@ def compare_signups(
     old_ids, new_ids = set(idx_old.index), set(idx_new.index)
 
     # ─── added / removed ────────────────────────────────────────────────────
-    added_df = (
-        idx_new.loc[list(new_ids - old_ids)]
-        .reset_index()
-        .assign(change_type="added")
-    )
-    removed_df = (
-        idx_old.loc[list(old_ids - new_ids)]
-        .reset_index()
-        .assign(change_type="removed")
-    )
+    added_df = idx_new.loc[list(new_ids - old_ids)].reset_index().assign(change_type="added")
+    removed_df = idx_old.loc[list(old_ids - new_ids)].reset_index().assign(change_type="removed")
 
     # ─── moved ──────────────────────────────────────────────────────────────
     moved_rows: list[dict[str, float | str | None]] = []
@@ -377,11 +371,12 @@ def compare_signups(
         "lon_new",
         "change_type",
     ]
-    added_df   = added_df.reindex(columns=base_cols, fill_value=None)
+    added_df = added_df.reindex(columns=base_cols, fill_value=None)
     removed_df = removed_df.reindex(columns=base_cols, fill_value=None)
-    moved_df   = moved_df.reindex(columns=base_cols, fill_value=None)
-    svc_df     = svc_df.reindex(columns=base_cols + ["routes_started", "routes_stopped"],
-                                fill_value=None)
+    moved_df = moved_df.reindex(columns=base_cols, fill_value=None)
+    svc_df = svc_df.reindex(
+        columns=base_cols + ["routes_started", "routes_stopped"], fill_value=None
+    )
 
     key = f"{name_old}→{name_new}"
     return {
@@ -395,6 +390,7 @@ def compare_signups(
 # --------------------------------------------------------------------------------------------------
 # SERVICE-LEVEL METRIC COMPARISONS
 # --------------------------------------------------------------------------------------------------
+
 
 def build_service_level_changes(
     prev_df: pd.DataFrame,
@@ -426,9 +422,7 @@ def build_service_level_changes(
         trips_old = p["trips_count"]
         trips_new = c["trips_count"]
         trips_delta = (
-            (trips_new - trips_old)
-            if pd.notna(trips_old) and pd.notna(trips_new)
-            else np.nan
+            (trips_new - trips_old) if pd.notna(trips_old) and pd.notna(trips_new) else np.nan
         )
 
         hdwy_old_min = p["median_headway_min"]
@@ -469,6 +463,7 @@ def build_service_level_changes(
 # --------------------------------------------------------------------------------------------------
 # INTERLINING & DETAILED CLASSIFICATION (NO GEOMETRY)
 # --------------------------------------------------------------------------------------------------
+
 
 def _build_interlining_map(trips_df: pd.DataFrame, routes_df: pd.DataFrame) -> dict[str, str]:
     """Returns dict: route_short_name -> comma-joined list of other routes sharing the same block_id."""
@@ -531,6 +526,7 @@ def compare_signups_detailed(
 # ==================================================================================================
 # MAIN
 # ==================================================================================================
+
 
 def main() -> None:
     """Entry-point: run the full multi-signup GTFS comparison pipeline."""
