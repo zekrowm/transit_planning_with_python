@@ -3,10 +3,8 @@ pandas==2.2.3                # Data manipulation and analysis
 numpy==1.26.4                # Numerical computing
 scipy==1.15.2                # Scientific computing and optimization
 
-# Geospatial Libraries (GeoPandas stack)
-geopandas==0.14.4            # Geospatial data handling (open-source)
-shapely==2.1.1               # Geometry operations
-pyproj==3.7.1                # Coordinate reference systems and transformations
+# Network Analysis
+networkx==3.4.2              # Graph and network analysis
 
 # Visualization
 matplotlib==3.9.0           # Plotting and visualization
@@ -15,20 +13,23 @@ matplotlib==3.9.0           # Plotting and visualization
 openpyxl==3.1.5              # Read/write Excel .xlsx files
 xlrd==2.0.1                  # Read legacy Excel .xls files (no .xlsx support)
 
-# Optimization and Network Analysis
+# Optimization
 pulp==2.9.0                  # Linear programming solver interface
-networkx==3.4.2              # Graph and network analysis
 
 # String Matching and Text Utilities
 rapidfuzz==3.11.0            # Fast fuzzy string matching
 
-# Fake Data Generation
-faker==25.8.0             # For generating fake data
-
 # Development Tools
 pytest==8.3.5                # Unit testing framework
 pylint==3.1              # Code linting (development use only)
+faker==25.8.0             # For generating fake data
 
+# Geospatial Libraries (GeoPandas stack)
+geopandas==0.14.4            # Geospatial data handling (open-source)
+shapely==2.1.1               # Geometry operations
+pyproj==3.7.1                # Coordinate reference systems and transformations
+
+# Geospatial Libraries (ArcPy stack)
 # Notes on ArcPy and Dual Geospatial Support
 # This project supports two geospatial workflows:
 #   1. ArcPy-based (requires ArcGIS Pro and its Python environment)
