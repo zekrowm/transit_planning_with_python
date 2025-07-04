@@ -89,19 +89,13 @@ def apply_route_filter(
     per_shape: bool,
     filter_routes: List[str],
 ) -> str:
-    """Return an in-memory feature-class of only those routes in `filter_routes`.
-
-    If `per_shape` is True, we look up shape_id → route_id via trips.txt;
-    otherwise we filter directly on route_id.
-    """
-    import csv
-    from pathlib import Path
-
+    """Return an in-memory feature class containing only the desired routes."""
     arcpy.AddMessage(f" → Applying route filter: {filter_routes!r}")
     lyr = "routes_filter_lyr"
     arcpy.MakeFeatureLayer_management(raw_fc, lyr)
 
     if per_shape:
+        # shape_id ➜ route_id lookup
         mapping: Dict[str, str] = {}
         trips_path = Path(gtfs_folder) / "trips.txt"
         with open(trips_path, newline="", encoding="utf-8") as fh:
@@ -109,14 +103,19 @@ def apply_route_filter(
                 sid = row.get("shape_id")
                 if sid:
                     mapping[sid] = row["route_id"]
+
         good_shapes = [sid for sid, rid in mapping.items() if rid in filter_routes]
-        where = (
-            f"shape_id IN ({','.join([f"'{s}'" for s in good_shapes])})" if good_shapes else "1=0"
-        )
+        if good_shapes:
+            shape_list = ",".join(f"'{s}'" for s in good_shapes)
+            where = f"shape_id IN ({shape_list})"
+        else:
+            where = "1=0"
     else:
-        where = (
-            f"route_id IN ({','.join(f"'{r}'" for r in filter_routes)})" if filter_routes else "1=1"
-        )
+        if filter_routes:
+            route_list = ",".join(f"'{r}'" for r in filter_routes)
+            where = f"route_id IN ({route_list})"
+        else:
+            where = "1=1"
 
     arcpy.SelectLayerByAttribute_management(lyr, "NEW_SELECTION", where)
     out_lyr = "in_memory/routes_filtered"
@@ -236,7 +235,6 @@ def flag_short_spacing(segments_fc: str, threshold: float, log_path: Path) -> No
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Executes the main workflow for generating GIS data layers and identifying short inter-stop spacings from a GTFS feed.
