@@ -15,7 +15,7 @@ import logging
 import os
 import re
 from collections import Counter
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 import pandas as pd
 
