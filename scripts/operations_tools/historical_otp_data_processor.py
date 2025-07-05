@@ -88,7 +88,6 @@ LATE_COLUMN = "Sum # Late"
 # FUNCTIONS
 # =============================================================================
 
-
 def time_str_to_seconds(time_str: str) -> int | None:
     """Convert an H:MM(:SS) time string to seconds.
 
@@ -726,7 +725,6 @@ def process_otp_data() -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Execute the full pipeline based on configuration flags.
