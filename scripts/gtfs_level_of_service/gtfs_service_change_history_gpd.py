@@ -20,8 +20,7 @@ Outputs:
 """
 
 import os
-from datetime import timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union, Mapping
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import geopandas as gpd
 import pandas as pd
@@ -128,7 +127,7 @@ def load_gtfs_data(base_path: str, files: List[str]) -> Dict[str, pd.DataFrame]:
 
 
 def parse_time_blocks(
-    time_blocks_cfg: dict[str, tuple[str, str]]
+    time_blocks_cfg: dict[str, tuple[str, str]],
 ) -> dict[str, tuple[pd.Timedelta, pd.Timedelta]]:
     """Convert {name: (HH:MM, HH:MM)} into {name: (pd.Timedelta, pd.Timedelta)}."""
     parsed: dict[str, tuple[pd.Timedelta, pd.Timedelta]] = {}
@@ -249,10 +248,10 @@ def process_headways(merged_data: pd.DataFrame) -> Dict[str, Any]:
     )
 
     headway_dict: dict[str, dict[tuple[str, str, int], float | None]] = {
-    "weekday_am_headway": {},
-    "weekday_midday_headway": {},
-    "weekday_pm_headway": {},
-    "weekday_night_headway": {},
+        "weekday_am_headway": {},
+        "weekday_midday_headway": {},
+        "weekday_pm_headway": {},
+        "weekday_night_headway": {},
     }
 
     for _, row in headways.iterrows():
@@ -488,7 +487,7 @@ def process_schedule_type(
         for route_name in route_set:
             # NOTE: rename 'blk' -> 'block_id' or use _blk if truly unused
             _routes_map.setdefault(route_name, set()).update(route_set - {route_name})
-            
+
     # 9. Group by route/direction and calculate trip times
     trip_times = (
         merged_data.groupby(["route_short_name", "route_long_name", "direction_id"])
