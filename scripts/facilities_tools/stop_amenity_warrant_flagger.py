@@ -76,6 +76,7 @@ _AMENITY_ALIASES: Dict[str, str] = {
 # FUNCTIONS
 # =============================================================================
 
+
 def _standardise_yn(series: pd.Series) -> pd.Series:
     """Normalise a Y/N column to uppercase 'Y' or 'N' with no whitespace."""
     return series.fillna("N").astype(str).str.strip().str.upper()
@@ -98,9 +99,7 @@ def _prepare_amenity_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def _convert_ridership(df: pd.DataFrame) -> pd.DataFrame:
     """Cast the ridership column to int, coercing non-numerics to zero."""
-    df[RIDERSHIP_FIELD] = (
-        pd.to_numeric(df[RIDERSHIP_FIELD], errors="coerce").fillna(0).astype(int)
-    )
+    df[RIDERSHIP_FIELD] = pd.to_numeric(df[RIDERSHIP_FIELD], errors="coerce").fillna(0).astype(int)
     return df
 
 
@@ -135,18 +134,14 @@ def _compute_flags(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
     return df, flag_cols
 
 
-def _write_workbook(
-    raw_df: pd.DataFrame, processed_df: pd.DataFrame, out_path: Path
-) -> None:
+def _write_workbook(raw_df: pd.DataFrame, processed_df: pd.DataFrame, out_path: Path) -> None:
     """Write multi-sheet Excel: Raw Data, All Flags, plus one per amenity."""
     with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
         raw_df.to_excel(writer, sheet_name="Raw Data", index=False)
         processed_df.to_excel(writer, sheet_name="All Flags", index=False)
         for name in AMENITIES:
             flag_col = f"FLAG_{name.upper()}"
-            processed_df[processed_df[flag_col]].to_excel(
-                writer, sheet_name=name, index=False
-            )
+            processed_df[processed_df[flag_col]].to_excel(writer, sheet_name=name, index=False)
 
 
 def _load_amenity_data(path: Path, sheet: int | str) -> pd.DataFrame:
@@ -154,9 +149,7 @@ def _load_amenity_data(path: Path, sheet: int | str) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name=sheet, dtype=str)
     # Normalise column names and apply known aliases
     df.columns = [c.strip() for c in df.columns]
-    df = df.rename(
-        columns={k: v for k, v in _AMENITY_ALIASES.items() if k in df.columns}
-    )
+    df = df.rename(columns={k: v for k, v in _AMENITY_ALIASES.items() if k in df.columns})
     # Standardise any amenity columns present
     for cfg in AMENITIES.values():
         col = cfg["field"]
@@ -165,9 +158,7 @@ def _load_amenity_data(path: Path, sheet: int | str) -> pd.DataFrame:
     return df
 
 
-def _merge_ridership_and_amenities(
-    rider_df: pd.DataFrame, amen_df: pd.DataFrame
-) -> pd.DataFrame:
+def _merge_ridership_and_amenities(rider_df: pd.DataFrame, amen_df: pd.DataFrame) -> pd.DataFrame:
     """Left-join amenity info onto ridership on STOP_ID_FIELD ↔ AMENITY_JOIN_FIELD."""
     rider_df[STOP_ID_FIELD] = rider_df[STOP_ID_FIELD].astype(str).str.strip()
     amen_df[AMENITY_JOIN_FIELD] = amen_df[AMENITY_JOIN_FIELD].astype(str).str.strip()
@@ -194,9 +185,7 @@ def _merge_ridership_and_amenities(
     return merged
 
 
-def _write_txt_log(
-    processed_df: pd.DataFrame, flag_cols: List[str], out_path: Path
-) -> None:
+def _write_txt_log(processed_df: pd.DataFrame, flag_cols: List[str], out_path: Path) -> None:
     """Write a plain-text summary of flagged stops and counts."""
     with out_path.open("w", encoding="utf-8") as f:
         f.write(f"Run date: {pd.Timestamp.now():%Y-%m-%d %H:%M}\n\n")
@@ -214,14 +203,13 @@ def _write_txt_log(
             + [cfg["field"] for cfg in AMENITIES.values()]
             + flag_cols
         )
-        f.write(
-            processed_df[processed_df["NEEDS_IMPROVEMENT"]][cols].to_string(index=False)
-        )
+        f.write(processed_df[processed_df["NEEDS_IMPROVEMENT"]][cols].to_string(index=False))
 
 
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the ETL pipeline and produce both Excel and text outputs."""
