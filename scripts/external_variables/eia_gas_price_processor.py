@@ -41,7 +41,6 @@ DATE_FILTER_END = "2024-12-31"
 # FUNCTIONS
 # =============================================================================
 
-
 def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFrame:
     """Load the Excel file using the specified sheet and header rows.
 
@@ -115,7 +114,6 @@ def export_data(dataframe_to_export: pd.DataFrame, output_file: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Orchestrate the ETL process."""
