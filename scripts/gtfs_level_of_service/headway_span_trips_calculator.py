@@ -67,6 +67,7 @@ DISTANCE_UNIT = "meters"
 # FUNCTIONS
 # =============================================================================
 
+
 def distance_conversion_factor(unit: str) -> float:
     """Return a multiplier to convert *unit* → miles."""
     match unit.lower():
@@ -77,9 +78,7 @@ def distance_conversion_factor(unit: str) -> float:
         case "miles":
             return 1.0
         case _:
-            raise ValueError(
-                f"Unknown distance unit '{unit}'. Valid: meters, feet, miles."
-            )
+            raise ValueError(f"Unknown distance unit '{unit}'. Valid: meters, feet, miles.")
 
 
 def check_input_files(base_path: Path, files: List[str]) -> None:
@@ -148,9 +147,7 @@ def save_df_to_excel(
         ws.append(row)
 
     for idx, col_cells in enumerate(ws.columns, start=1):
-        max_len = max(
-            len(str(cell.value)) for cell in col_cells if cell.value is not None
-        )
+        max_len = max(len(str(cell.value)) for cell in col_cells if cell.value is not None)
         letter = get_column_letter(idx)
         ws.column_dimensions[letter].width = max_len + 3
         for cell in col_cells:
@@ -179,9 +176,7 @@ def build_interlining_map(trips: pd.DataFrame, routes: pd.DataFrame) -> Dict[str
         how="left",
     )
     block_map = (
-        merged.groupby("block_id")["route_short_name"]
-        .apply(lambda s: set(s.dropna()))
-        .to_dict()
+        merged.groupby("block_id")["route_short_name"].apply(lambda s: set(s.dropna())).to_dict()
     )
     interlines: Dict[str, set] = {}
     for rt_set in block_map.values():
@@ -253,12 +248,8 @@ def preprocess(
     routes = routes[~routes["route_short_name"].isin(FAKE_ROUTES)]
     LOGGER.info("%d routes remain after removing FAKE_ROUTES", len(routes))
 
-    stop_times["arrival_time"] = pd.to_timedelta(
-        stop_times["arrival_time"], errors="coerce"
-    )
-    stop_times["departure_time"] = pd.to_timedelta(
-        stop_times["departure_time"], errors="coerce"
-    )
+    stop_times["arrival_time"] = pd.to_timedelta(stop_times["arrival_time"], errors="coerce")
+    stop_times["departure_time"] = pd.to_timedelta(stop_times["departure_time"], errors="coerce")
 
     if "shape_dist_traveled" in stop_times.columns:
         stop_times["shape_dist_traveled"] *= dist_factor
@@ -327,8 +318,7 @@ def build_schedule_book(
         return
 
     st_first = stop_times[
-        stop_times["trip_id"].isin(trips_filt["trip_id"])
-        & (stop_times["stop_sequence"] == 1)
+        stop_times["trip_id"].isin(trips_filt["trip_id"]) & (stop_times["stop_sequence"] == 1)
     ].dropna(subset=["departure_time"])
 
     info = trips_filt[["trip_id", "route_id", "direction_id"]].merge(
@@ -358,9 +348,7 @@ def build_schedule_book(
 
     # Trip counts
     counts = (
-        st_first.groupby(["route_id", "direction_id", "time_block"], group_keys=False)[
-            "trip_id"
-        ]
+        st_first.groupby(["route_id", "direction_id", "time_block"], group_keys=False)["trip_id"]
         .nunique()
         .unstack("time_block", fill_value=0)
         .rename(columns=lambda c: f"{c.lower().replace(' ', '_')}_trips")
@@ -439,9 +427,7 @@ def build_schedule_book(
         "median_distance_miles",
         "avg_speed_mph",
     ]
-    cols = [c for c in desired if c in kpi.columns] + [
-        c for c in kpi.columns if c not in desired
-    ]
+    cols = [c for c in desired if c in kpi.columns] + [c for c in kpi.columns if c not in desired]
     kpi = kpi[cols]
 
     save_df_to_excel(kpi, OUTPUT_PATH / f"{sched_name}_{OUTPUT_EXCEL}")
@@ -450,6 +436,7 @@ def build_schedule_book(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entrypoint."""
