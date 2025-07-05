@@ -40,9 +40,8 @@ WORK_CRS_EPSG: int = 3857  # metres; keep consistent throughout
 # FUNCTIONS
 # =============================================================================
 
-def build_network(
-    roads: gpd.GeoDataFrame, speed_field: str, oneway_field: str
-) -> nx.DiGraph:
+
+def build_network(roads: gpd.GeoDataFrame, speed_field: str, oneway_field: str) -> nx.DiGraph:
     """Create a directed graph with travel-time (seconds) weights from road centre-lines."""
     mph_to_mps = 0.44704
     g = nx.DiGraph()
@@ -73,8 +72,7 @@ def build_network(
             if len(coords) < 2:
                 continue
             seg_lens = [
-                Point(coords[i]).distance(Point(coords[i + 1]))
-                for i in range(len(coords) - 1)
+                Point(coords[i]).distance(Point(coords[i + 1])) for i in range(len(coords) - 1)
             ]
             for i, seg_len in enumerate(seg_lens):
                 if seg_len == 0:
@@ -95,9 +93,7 @@ def isochrone_polygon(
 ) -> Polygon:
     """Return a single Polygon representing the isochrone."""
     nearest = min(graph.nodes, key=lambda n: origin.distance(Point(n)))
-    lengths = nx.single_source_dijkstra_path_length(
-        graph, nearest, cutoff_sec, weight="weight"
-    )
+    lengths = nx.single_source_dijkstra_path_length(graph, nearest, cutoff_sec, weight="weight")
     if not lengths:  # unreachable
         return Polygon()
     points = [Point(xy) for xy in lengths.keys()]
@@ -158,6 +154,7 @@ def safe_filename(text: str) -> str:
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Generate drive-time isochrones for each park-and-ride facility.
 
@@ -202,9 +199,7 @@ def main() -> None:
 
         # 4. Build *mini* graph and run Dijkstra -------------------------
         sub_graph = build_network(sub_roads, SPEED_FIELD, ONEWAY_FIELD)
-        poly = isochrone_polygon(
-            sub_graph, centre, DRIVE_TIME_MIN * 60, BUFFER_SMOOTH_M
-        )
+        poly = isochrone_polygon(sub_graph, centre, DRIVE_TIME_MIN * 60, BUFFER_SMOOTH_M)
 
         if poly.is_empty:
             print(f"  ⚠  Unreachable network for {name}.")
@@ -226,9 +221,7 @@ def main() -> None:
     for name, poly in iso_polys.items():
         if poly.is_empty:
             continue
-        gdf = gpd.GeoDataFrame(
-            {"name": [name]}, geometry=[poly], crs=f"EPSG:{WORK_CRS_EPSG}"
-        )
+        gdf = gpd.GeoDataFrame({"name": [name]}, geometry=[poly], crs=f"EPSG:{WORK_CRS_EPSG}")
         gdf.to_file(out_dir / f"{safe_filename(name)}_{DRIVE_TIME_MIN}min_iso.shp")
         combined_rows.append(gdf)
 
