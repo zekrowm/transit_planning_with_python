@@ -76,7 +76,6 @@ _AMENITY_ALIASES: Dict[str, str] = {
 # FUNCTIONS
 # =============================================================================
 
-
 def _standardise_yn(series: pd.Series) -> pd.Series:
     """Normalise a Y/N column to uppercase 'Y' or 'N' with no whitespace."""
     return series.fillna("N").astype(str).str.strip().str.upper()
@@ -223,7 +222,6 @@ def _write_txt_log(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Run the ETL pipeline and produce both Excel and text outputs."""
