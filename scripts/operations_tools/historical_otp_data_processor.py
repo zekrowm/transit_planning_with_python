@@ -88,6 +88,7 @@ LATE_COLUMN = "Sum # Late"
 # FUNCTIONS
 # =============================================================================
 
+
 def time_str_to_seconds(time_str: str) -> int | None:
     """Convert an H:MM(:SS) time string to seconds.
 
@@ -226,17 +227,13 @@ def process_runtime_data() -> None:
         print("No Route Filter Applied: Including all routes")
 
     # Parse 'Scheduled Start Time (HH:MM)' to seconds
-    df["Scheduled_Start_Seconds"] = df["Scheduled Start Time (HH:MM)"].apply(
-        parse_start_time
-    )
+    df["Scheduled_Start_Seconds"] = df["Scheduled Start Time (HH:MM)"].apply(parse_start_time)
 
     # Parse 'Average Scheduled Running Time' and 'Average Actual Running Time' to seconds
     df["Avg_Scheduled_Running_Time_sec"] = df["Average Scheduled Running Time"].apply(
         time_str_to_seconds
     )
-    df["Avg_Actual_Running_Time_sec"] = df["Average Actual Running Time"].apply(
-        time_str_to_seconds
-    )
+    df["Avg_Actual_Running_Time_sec"] = df["Average Actual Running Time"].apply(time_str_to_seconds)
 
     # Parse 'Average Start Delta' to seconds
     df["Avg_Start_Delta_sec"] = df["Average Start Delta"].apply(parse_start_delta)
@@ -247,9 +244,7 @@ def process_runtime_data() -> None:
     )
 
     # Convert deviations from seconds to minutes
-    df["Running Time Deviation (minutes)"] = (
-        df["Recalc_Running_Time_Deviation_sec"] / 60
-    )
+    df["Running Time Deviation (minutes)"] = df["Recalc_Running_Time_Deviation_sec"] / 60
     df["Start Time Deviation (minutes)"] = df["Avg_Start_Delta_sec"] / 60
 
     # Determine runtime problems (>5 mins off scheduled runtime)
@@ -264,25 +259,19 @@ def process_runtime_data() -> None:
     # Compute Pct_Early, Pct_Late, Pct_On_Time
     df["Pct_Early"] = df.apply(
         lambda row: (
-            100.0 * row["Sum # Early"] / row["Total_Trips"]
-            if row["Total_Trips"] != 0
-            else 0
+            100.0 * row["Sum # Early"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
         ),
         axis=1,
     )
     df["Pct_Late"] = df.apply(
         lambda row: (
-            100.0 * row["Sum # Late"] / row["Total_Trips"]
-            if row["Total_Trips"] != 0
-            else 0
+            100.0 * row["Sum # Late"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
         ),
         axis=1,
     )
     df["Pct_On_Time"] = df.apply(
         lambda row: (
-            100.0 * row["Sum # On Time"] / row["Total_Trips"]
-            if row["Total_Trips"] != 0
-            else 0
+            100.0 * row["Sum # On Time"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
         ),
         axis=1,
     )
@@ -477,9 +466,7 @@ def create_date_column(
     Raises:
         SystemExit: If the combined strings cannot be parsed.
     """
-    df["YY-MM"] = (
-        df[year_col].astype(str) + "-" + df[month_col].str[:3].str.capitalize()
-    )
+    df["YY-MM"] = df[year_col].astype(str) + "-" + df[month_col].str[:3].str.capitalize()
 
     try:
         # Force day = '01' for each month
@@ -549,9 +536,7 @@ def calculate_variability(
         DataFrame sorted by descending range, with columns
         ``['max', 'min', 'Range']``.
     """
-    range_df = df.groupby([route_col, direction_col])["Percent On Time"].agg(
-        ["max", "min"]
-    )
+    range_df = df.groupby([route_col, direction_col])["Percent On Time"].agg(["max", "min"])
     range_df["Range"] = range_df["max"] - range_df["min"]
     range_df = range_df.sort_values(by="Range", ascending=False)
     return range_df
@@ -678,9 +663,7 @@ def process_otp_data() -> None:
     otp_df = ensure_numeric_columns(otp_df, [ON_TIME_COLUMN, EARLY_COLUMN, LATE_COLUMN])
 
     # Create "Sum All Trips" and percentage columns
-    otp_df = calculate_sum_and_percentages(
-        otp_df, ON_TIME_COLUMN, EARLY_COLUMN, LATE_COLUMN
-    )
+    otp_df = calculate_sum_and_percentages(otp_df, ON_TIME_COLUMN, EARLY_COLUMN, LATE_COLUMN)
 
     # Create "Date" column using existing "Year" and "Month" columns
     otp_df = create_date_column(otp_df, YEAR_COLUMN, MONTH_COLUMN, DATE_FORMAT)
@@ -715,9 +698,7 @@ def process_otp_data() -> None:
 
     # Plot On-Time Percentage over Time for each Route and Direction
     for (route, direction), group in otp_df.groupby([ROUTE_COLUMN, DIRECTION_COLUMN]):
-        plot_on_time_percentage(
-            group, route, direction, plot_config, y_limits, full_range
-        )
+        plot_on_time_percentage(group, route, direction, plot_config, y_limits, full_range)
 
     print("\nOTP processing and plotting complete. Plots saved to:", OTP_OUTPUT_DIR)
 
@@ -725,6 +706,7 @@ def process_otp_data() -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Execute the full pipeline based on configuration flags.
