@@ -34,7 +34,6 @@ FILTER_OUT_ROUTE_SHORT_NAMES: list[str] = []  # e.g. ["999"]
 # FUNCTIONS
 # =============================================================================
 
-
 def compute_most_common_pattern(
     trips_df: pd.DataFrame,
     stop_times_df: pd.DataFrame,
@@ -315,7 +314,6 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Entrypoint for ad hoc execution.
