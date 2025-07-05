@@ -40,7 +40,6 @@ WORK_CRS_EPSG: int = 3857  # metres; keep consistent throughout
 # FUNCTIONS
 # =============================================================================
 
-
 def build_network(
     roads: gpd.GeoDataFrame, speed_field: str, oneway_field: str
 ) -> nx.DiGraph:
@@ -158,7 +157,6 @@ def safe_filename(text: str) -> str:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Generate drive-time isochrones for each park-and-ride facility.
