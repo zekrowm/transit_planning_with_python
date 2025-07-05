@@ -230,6 +230,7 @@ def export_patterns_by_route(result_df: pd.DataFrame, out_dir: str) -> None:
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[Sequence[str]] = None,
