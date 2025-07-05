@@ -65,6 +65,7 @@ OUTPUT_FILE_NAME = "proximity_results.csv"
 # FUNCTIONS
 # =============================================================================
 
+
 def _check_gtfs(path: str) -> None:
     for fn in ("stops.txt", "stop_times.txt", "trips.txt", "routes.txt"):
         fp = os.path.join(path, fn)
@@ -88,9 +89,7 @@ def _load_locations(
 ) -> gpd.GeoDataFrame:
     if source == "manual":
         if not manual_list:
-            raise ValueError(
-                "manual_list must be provided when LOCATION_SOURCE='manual'"
-            )
+            raise ValueError("manual_list must be provided when LOCATION_SOURCE='manual'")
         gdf = gpd.GeoDataFrame(
             manual_list,
             geometry=[Point(d["longitude"], d["latitude"]) for d in manual_list],
@@ -98,15 +97,11 @@ def _load_locations(
         )
     elif source == "shapefile":
         if not shp_path:
-            raise ValueError(
-                "shp_path must be provided when LOCATION_SOURCE='shapefile'"
-            )
+            raise ValueError("shp_path must be provided when LOCATION_SOURCE='shapefile'")
         gdf = gpd.read_file(shp_path)
         gdf = gdf[gdf.geometry.type.isin({"Point", "MultiPoint"})]
         gdf = (
-            gdf.set_crs("EPSG:4326", inplace=False)
-            if gdf.crs is None
-            else gdf.to_crs("EPSG:4326")
+            gdf.set_crs("EPSG:4326", inplace=False) if gdf.crs is None else gdf.to_crs("EPSG:4326")
         )
         if name_field in gdf.columns:
             gdf = gdf.rename(columns={name_field: "name"})
@@ -174,13 +169,11 @@ def _nearby_routes(
         )
         merged["dist"] = merged.geometry.distance(loc.geometry)
 
-        nearest = merged.groupby(
-            ["route_short_name", "direction_id"], as_index=False
-        ).apply(lambda x: x.loc[x.dist.idxmin()])
+        nearest = merged.groupby(["route_short_name", "direction_id"], as_index=False).apply(
+            lambda x: x.loc[x.dist.idxmin()]
+        )
 
-        pair_set = {
-            (r, d) for r, d in zip(nearest.route_short_name, nearest.direction_id)
-        }
+        pair_set = {(r, d) for r, d in zip(nearest.route_short_name, nearest.direction_id)}
         routes = ", ".join(sorted(f"{r} (dir {d})" for r, d in pair_set))
         stops = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
         results.append({**base, "Routes": routes, "Stops": stops})
@@ -191,6 +184,7 @@ def _nearby_routes(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Runs the main analysis based on global CONFIGURATION variables.
@@ -233,9 +227,7 @@ def main() -> None:
             if "stop_code" not in gtfs["stops"].columns:
                 print("stops.txt lacks 'stop_code' – cannot run stop_code mode.")
                 return
-            stop_ids = gtfs["stops"][
-                gtfs["stops"].stop_code.isin(STOP_CODE_FILTER)
-            ].stop_id
+            stop_ids = gtfs["stops"][gtfs["stops"].stop_code.isin(STOP_CODE_FILTER)].stop_id
             if stop_ids.empty:
                 print("No stops matched STOP_CODE_FILTER.")
                 return
@@ -250,10 +242,7 @@ def main() -> None:
             rows = []
             for sid, grp in df.groupby("stop_id"):
                 route_pairs = sorted(
-                    {
-                        f"{r} (dir {d})"
-                        for r, d in zip(grp.route_short_name, grp.direction_id)
-                    }
+                    {f"{r} (dir {d})" for r, d in zip(grp.route_short_name, grp.direction_id)}
                 )
                 rows.append({"Stop_ID": sid, "Routes": "; ".join(route_pairs)})
 
