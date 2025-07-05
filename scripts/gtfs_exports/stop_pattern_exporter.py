@@ -31,18 +31,38 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_DIR: Path = Path(r"\\Path\\To\\Your\\GTFS")  # Replace with your actual input path
-OUTPUT_DIR: Path = Path(r"\\Path\\To\\Output")  # Replace with your actual output path
+# Folder containing the raw GTFS feed (must include at least stops.txt, trips.txt,
+# stop_times.txt, and routes.txt). Use a raw string (r"") for Windows UNC paths.
+INPUT_DIR: Path = Path(r"\\Path\\To\\Your\\GTFS")
 
+# Folder where the output Excel files will be saved. Subfolders will be created
+# for each service_id based on calendar.txt (if available).
+OUTPUT_DIR: Path = Path(r"\\Path\\To\\Output")
+
+# Include only these route_short_name values. Leave empty to include all routes.
 FILTER_IN_ROUTE_SHORT_NAMES: List[str] = []
+
+# Exclude these route_short_name values from processing. Leave empty to exclude none.
 FILTER_OUT_ROUTE_SHORT_NAMES: List[str] = []
+
+# Include only these service_id values (from trips.txt). Leave empty to include all.
 FILTER_IN_CALENDAR_IDS: List[str] = []
 
-SIGNUP_NAME = "January2025Signup"
+# Used in the output Excel filename for labeling the signup period or data snapshot.
+SIGNUP_NAME = "JAN_2025_Signup"
 
+# Unit of shape_dist_traveled in GTFS feed. Choose either "meters" or "feet".
 INPUT_DISTANCE_UNIT: Literal["meters", "feet"] = "meters"
+
+# If True, convert all distance values to miles (from INPUT_DISTANCE_UNIT).
 CONVERT_TO_MILES: bool = True
+
+# If True, only include stops where timepoint == 1 in stop_times.txt.
+# Useful for focusing on scheduled timing stops rather than all intermediate stops.
 EXPORT_TIMEPOINTS_ONLY: bool = True
+
+# If True and EXPORT_TIMEPOINTS_ONLY is enabled, validate that the sum of segment
+# distances roughly matches the trip's full shape_dist_traveled (within a small margin).
 VALIDATE_TIMEPOINT_DISTANCE: bool = True
 
 # -----------------------------------------------------------------------------
