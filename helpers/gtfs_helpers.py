@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping, Sequence
-from typing import Optional, Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -20,7 +20,7 @@ import pandas as pd
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[Sequence[str]] = None,
-    dtype: str | Mapping[str, Any] = str,
+    dtype: str | type[str] | Mapping[str, Any] = str,
 ) -> dict[str, pd.DataFrame]:
     """Load one or more GTFS text files into memory.
 
