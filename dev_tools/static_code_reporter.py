@@ -76,6 +76,7 @@ CONSOLE = logging.getLogger(__name__)
 # FUNCTIONS
 # ============================================================================
 
+
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
 ) -> Tuple[logging.Logger, str]:
@@ -88,10 +89,10 @@ def setup_detailed_logger(
         level: Logging level applied to the handler. Defaults to
             ``logging.DEBUG``.
 
-    Returns
+    Returns:
     -------
     Tuple[logging.Logger, str]
-        • The configured logger instance.  
+        • The configured logger instance.
         • Absolute path to the created log file.
     """
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -148,6 +149,7 @@ def gather_python_files(paths: List[str], skip_list: List[str]) -> List[str]:
 # 1) MYPY CHECK
 # ----------------------------------------------------------------------------
 _MYPY_RE = re.compile(r"Found\s+(\d+)\s+error")
+
 
 def run_mypy(files: list[str]) -> int:
     """Run *mypy* and return the count of files with errors."""
@@ -212,6 +214,7 @@ def run_mypy(files: list[str]) -> int:
 # ----------------------------------------------------------------------------
 _VULTURE_LINE = re.compile(r"^(?:.+?:)?(\d+):\s*(.+?)\s*\((\d+%) confidence\)$")
 
+
 def run_vulture(files: list[str]) -> int:
     """Detect dead code with *vulture* and return files-with-issues count."""
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "vulture_detailed_log")
@@ -268,6 +271,7 @@ def run_vulture(files: list[str]) -> int:
 # 3) PYLINT CHECK
 # ----------------------------------------------------------------------------
 _PYLINT_ISSUE = re.compile(r":\s*[EF]\d{4}:")
+
 
 def run_pylint(files: list[str]) -> int:
     """Run *pylint* in errors-only mode and return files-with-issues count."""
@@ -360,9 +364,7 @@ def run_pydocstyle(files: list[str]) -> int:
                 errors="replace",
             )
         except FileNotFoundError:
-            CONSOLE.error(
-                "'python -m pydocstyle' not found – aborting pydocstyle pass."
-            )
+            CONSOLE.error("'python -m pydocstyle' not found – aborting pydocstyle pass.")
             return len(files)
 
         out, err = proc.stdout, proc.stderr
@@ -380,6 +382,7 @@ def run_pydocstyle(files: list[str]) -> int:
 # ============================================================================
 # MAIN
 # ============================================================================
+
 
 def main() -> None:
     """Collect files, run enabled tools, and print a summary."""
@@ -405,9 +408,7 @@ def main() -> None:
         CONSOLE.info("\n=== Running vulture pass ===")
         failures = run_vulture(files)
         if failures:
-            CONSOLE.warning(
-                "vulture found potential dead code in %d file(s).", failures
-            )
+            CONSOLE.warning("vulture found potential dead code in %d file(s).", failures)
             overall_tools_failed_files += failures
         else:
             CONSOLE.info("vulture pass: no issues found.")
