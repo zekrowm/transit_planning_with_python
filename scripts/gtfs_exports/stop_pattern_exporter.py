@@ -55,7 +55,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # FUNCTIONS
 # =============================================================================
 
-
 def is_number(value: Any) -> bool:
     """Check if the input value can be converted to a float.
 
@@ -221,7 +220,6 @@ def filter_trips(
 # -----------------------------------------------------------------------------
 # BUILD PATTERNS
 # -----------------------------------------------------------------------------
-
 
 def generate_unique_patterns(
     trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame
@@ -429,7 +427,6 @@ def assign_pattern_ids(patterns_dict: Dict[Tuple, Dict[str, Any]]) -> List[Dict[
 # EARLIEST START TIME
 # -----------------------------------------------------------------------------
 
-
 def compute_earliest_start_times(
     pattern_records: List[Dict[str, Any]], stop_times_df: pd.DataFrame
 ) -> None:
@@ -591,7 +588,6 @@ def forward_match_pattern_to_master(
 # -----------------------------------------------------------------------------
 # EXCEL EXPORT
 # -----------------------------------------------------------------------------
-
 
 def create_workbook() -> Workbook:
     """Create a new openpyxl Workbook with the default sheet removed.
@@ -893,7 +889,6 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Main script function for generating GTFS pattern exports."""
