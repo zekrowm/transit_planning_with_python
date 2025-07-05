@@ -45,9 +45,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install --pre "ruff>=0.4.0" "ty>=0.0.1a0"
 
-      - name: Install project dependencies
+      - name: Install project dependencies + type stubs
         run: |
+          # Runtime deps
           pip install -r requirements.txt
+
+          # ---- Extra PEP 561 stub wheels so `ty` can resolve imports ----
+          # These are *only* compile-time aids; they add **zero** runtime cost.
+          pip install \
+            types-pandas \
+            types-numpy \
+            types-matplotlib
 
       # Work out which .py files changed in the push/PR
       - name: Determine changed Python files
