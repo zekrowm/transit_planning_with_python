@@ -54,8 +54,6 @@ jobs:
           # These are *only* compile-time aids; they add **zero** runtime cost.
           pip install \
             pandas-stubs \
-            matplotlib-stubs \
-            numpy-stubs
 
       # Work out which .py files changed in the push/PR
       - name: Determine changed Python files
