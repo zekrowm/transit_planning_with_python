@@ -79,6 +79,7 @@ CONSOLE = logging.getLogger(__name__)
 # FUNCTIONS
 # ============================================================================
 
+
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
 ) -> Tuple[logging.Logger, str]:
@@ -386,6 +387,7 @@ def run_pydocstyle(files: list[str]) -> int:
 # ----------------------------------------------------------------------------
 _RUFF_ISSUE = re.compile(r":\d+:\d+:\s+[A-Z][0-9]{3}\s")  # e.g. foo.py:12:8: F401 ...
 
+
 def run_ruff(files: list[str]) -> int:
     """Run *ruff* (lint-only) and return the count of files with issues."""
     logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "ruff_detailed_log")
@@ -435,6 +437,7 @@ def run_ruff(files: list[str]) -> int:
 # ============================================================================
 # MAIN
 # ============================================================================
+
 
 def main() -> None:
     """Collect files, run enabled tools, and print a summary."""
