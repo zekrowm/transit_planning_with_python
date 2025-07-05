@@ -81,8 +81,7 @@ jobs:
       - name: Ty – type check
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
-          #ty check ${{ steps.changed.outputs.files }}
-          ty check ${{ steps.changed.outputs.files }} --show-stats
+          ty check ${{ steps.changed.outputs.files }}
 
       # ----- Commit any modifications back to the branch -----
       - name: Commit & push (if needed)
