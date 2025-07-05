@@ -37,19 +37,19 @@ from typing import List, Tuple
 FILES_OR_FOLDERS: List[str] = [r"C:\Path\to\Project"]  # <<< CHANGE ME
 
 SKIP_PATHS: List[str] = [
- #   r"C:\Path\to\Project\.venv",
- #   r"C:\Path\to\Project\tests",
+    #   r"C:\Path\to\Project\.venv",
+    #   r"C:\Path\to\Project\tests",
 ]
 
 OUTPUT_FOLDER: str = r"C:\Path\to\Project\Logs"  # <<< CHANGE ME
 
 READ_ONLY: bool = True  # False → apply fixes
 RUFF_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--extend-exclude", "migrations"]
-RUFF_TOML_PATH: str | None = None    # e.g. r"C:\Path\to\Project\ruff.toml"
+RUFF_TOML_PATH: str | None = None  # e.g. r"C:\Path\to\Project\ruff.toml"
 
-ENABLE_TY: bool = True           # False → skip ty altogether
-TY_ADDITIONAL_ARGS: List[str] = []       # e.g. ["--project", "src"]
-TY_TOML_PATH: str | None = None          # e.g. r"C:\Path\to\Project\ty.toml"
+ENABLE_TY: bool = True  # False → skip ty altogether
+TY_ADDITIONAL_ARGS: List[str] = []  # e.g. ["--project", "src"]
+TY_TOML_PATH: str | None = None  # e.g. r"C:\Path\to\Project\ty.toml"
 
 # -----------------------------------------------------------------------------
 # LOGGING
@@ -67,6 +67,7 @@ CONSOLE = logging.getLogger(__name__)
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _is_skipped(p: Path, skip_list: List[str]) -> bool:
     """Return True when p matches or is inside any path in skip_list."""
@@ -230,6 +231,7 @@ def run_ty(files: List[str]) -> int:
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Entrypoint – gather files, run Ruff, optionally run ty, emit summary."""
     files = gather_python_files(FILES_OR_FOLDERS, SKIP_PATHS)
@@ -256,8 +258,7 @@ def main() -> None:
         sys.exit(0)
     else:
         CONSOLE.warning(
-            "⚠️ Ruff detected problems in %d file(s). "
-            "See the detailed log for details.",
+            "⚠️ Ruff detected problems in %d file(s). See the detailed log for details.",
             failed,
         )
         sys.exit(1)
