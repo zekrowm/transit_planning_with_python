@@ -83,9 +83,10 @@ jobs:
         run: |
           ruff check ${{ steps.changed.outputs.files }} --fix
 
-      # ----- NEW: Ty static type checking -----
-      - name: Ty – type check
+      # ----- Ty static type checking -----
+      - name: Ty – type check (informational only)
         if: ${{ steps.changed.outputs.files != '' }}
+        continue-on-error: true  # Do not fail CI while Ty is still alpha
         run: |
           ty check ${{ steps.changed.outputs.files }}
 
