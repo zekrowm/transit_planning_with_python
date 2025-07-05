@@ -63,10 +63,10 @@ FAKE_ROUTES: List[str] = ["9999A", "9999B", "9999C"]
 # One of {"meters", "feet", "miles"}
 DISTANCE_UNIT = "meters"
 
-
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 def distance_conversion_factor(unit: str) -> float:
     """Return a multiplier to convert *unit* → miles."""
     match unit.lower():
@@ -450,6 +450,7 @@ def build_schedule_book(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main() -> None:
     """Entrypoint."""
     try:
