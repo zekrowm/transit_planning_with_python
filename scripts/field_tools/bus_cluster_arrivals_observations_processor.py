@@ -21,7 +21,6 @@ from typing import Dict, List, Optional, cast
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.worksheet.worksheet import Worksheet
 
 # =============================================================================
 # CONFIGURATION
