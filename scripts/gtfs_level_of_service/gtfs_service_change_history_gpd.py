@@ -21,7 +21,7 @@ Outputs:
 
 import os
 from datetime import timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Mapping
 
 import geopandas as gpd
 import pandas as pd
@@ -130,10 +130,7 @@ def load_gtfs_data(base_path: str, files: List[str]) -> Dict[str, pd.DataFrame]:
 def parse_time_blocks(
     time_blocks_cfg: dict[str, tuple[str, str]]
 ) -> dict[str, tuple[pd.Timedelta, pd.Timedelta]]:
-    """
-    Convert {name: (HH:MM, HH:MM)} into
-    {name: (pd.Timedelta, pd.Timedelta)}.
-    """
+    """Convert {name: (HH:MM, HH:MM)} into {name: (pd.Timedelta, pd.Timedelta)}."""
     parsed: dict[str, tuple[pd.Timedelta, pd.Timedelta]] = {}
     for name, (start_str, end_str) in time_blocks_cfg.items():
         sh, sm = map(int, start_str.split(":"))
