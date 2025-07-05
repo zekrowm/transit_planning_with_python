@@ -41,6 +41,7 @@ DATE_FILTER_END = "2024-12-31"
 # FUNCTIONS
 # =============================================================================
 
+
 def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFrame:
     """Load the Excel file using the specified sheet and header rows.
 
@@ -52,9 +53,7 @@ def load_data(input_file: str, sheet_name: str, header_rows: list) -> pd.DataFra
     Returns:
         pd.DataFrame: The loaded DataFrame.
     """
-    loaded_dataframe = pd.read_excel(
-        input_file, sheet_name=sheet_name, header=header_rows
-    )
+    loaded_dataframe = pd.read_excel(input_file, sheet_name=sheet_name, header=header_rows)
     print("Columns available:", loaded_dataframe.columns.tolist())
     return loaded_dataframe
 
@@ -87,9 +86,7 @@ def filter_data(
     filtered_dataframe.columns = ["Date", "Weekly Central Atlantic Price"]
 
     # Convert the 'Date' column to datetime format.
-    filtered_dataframe["Date"] = pd.to_datetime(
-        filtered_dataframe["Date"], errors="coerce"
-    )
+    filtered_dataframe["Date"] = pd.to_datetime(filtered_dataframe["Date"], errors="coerce")
 
     # Filter rows based on the date range.
     mask = (filtered_dataframe["Date"] >= pd.to_datetime(start_date)) & (
@@ -114,6 +111,7 @@ def export_data(dataframe_to_export: pd.DataFrame, output_file: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Orchestrate the ETL process."""
