@@ -48,6 +48,7 @@ ENABLE_MYPY: bool = True
 ENABLE_VULTURE: bool = True
 ENABLE_PYLINT: bool = True
 ENABLE_PYDOCSTYLE: bool = True
+ENABLE_RUFF: bool = True
 
 # mypy
 MYPY_ADDITIONAL_ARGS: List[str] = ["--ignore-missing-imports"]
@@ -60,6 +61,8 @@ PYLINT_ADDITIONAL_ARGS: list[str] = [
     "--errors-only",
     "--ignored-modules=arcpy",
 ]
+# ruff
+RUFF_ADDITIONAL_ARGS: list[str] = ["check", "--no-cache"]
 
 # ----------------------------------------------------------------------------
 # LOGGING
@@ -75,7 +78,6 @@ CONSOLE = logging.getLogger(__name__)
 # ============================================================================
 # FUNCTIONS
 # ============================================================================
-
 
 def setup_detailed_logger(
     out_folder: str, prefix: str, level: int = logging.DEBUG
@@ -379,10 +381,60 @@ def run_pydocstyle(files: list[str]) -> int:
     return files_with_issues
 
 
+# ----------------------------------------------------------------------------
+# 5) RUFF CHECK
+# ----------------------------------------------------------------------------
+_RUFF_ISSUE = re.compile(r":\d+:\d+:\s+[A-Z][0-9]{3}\s")  # e.g. foo.py:12:8: F401 ...
+
+def run_ruff(files: list[str]) -> int:
+    """Run *ruff* (lint-only) and return the count of files with issues."""
+    logger, log_fp = setup_detailed_logger(OUTPUT_FOLDER, "ruff_detailed_log")
+    CONSOLE.info("ruff log → %s", log_fp)
+
+    files_with_issues = 0
+
+    for idx, py in enumerate(files, 1):
+        logger.info(
+            "\n%s\nFILE %d/%d → %s\n%s",
+            "=" * 80,
+            idx,
+            len(files),
+            py,
+            "=" * 80,
+        )
+
+        # Note: `ruff` is a console-script entry point, not a `-m` module.
+        ruff_cmd: list[str] = ["ruff", *RUFF_ADDITIONAL_ARGS]
+        if CONFIG_TOML_PATH:
+            ruff_cmd.extend(["--config", CONFIG_TOML_PATH])
+        ruff_cmd.append(py)
+
+        try:
+            proc = subprocess.run(
+                ruff_cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        except FileNotFoundError:  # ruff not installed / PATH issue
+            CONSOLE.error("'ruff' command not found – aborting ruff pass.")
+            return len(files)
+
+        out, err = proc.stdout, proc.stderr
+        logger.info(out or "")
+        if err:
+            logger.info("\n--- ruff stderr ---\n%s", err)
+
+        if any(_RUFF_ISSUE.search(line) for line in (out or "").splitlines()):
+            files_with_issues += 1
+
+    return files_with_issues
+
+
 # ============================================================================
 # MAIN
 # ============================================================================
-
 
 def main() -> None:
     """Collect files, run enabled tools, and print a summary."""
@@ -395,6 +447,9 @@ def main() -> None:
 
     overall_tools_failed_files = 0
 
+    # --------------------------------------------------------------------- #
+    # 1) mypy
+    # --------------------------------------------------------------------- #
     if ENABLE_MYPY:
         CONSOLE.info("\n=== Running mypy pass ===")
         failures = run_mypy(files)
@@ -404,6 +459,9 @@ def main() -> None:
         else:
             CONSOLE.info("mypy pass: no issues found.")
 
+    # --------------------------------------------------------------------- #
+    # 2) vulture
+    # --------------------------------------------------------------------- #
     if ENABLE_VULTURE:
         CONSOLE.info("\n=== Running vulture pass ===")
         failures = run_vulture(files)
@@ -413,6 +471,9 @@ def main() -> None:
         else:
             CONSOLE.info("vulture pass: no issues found.")
 
+    # --------------------------------------------------------------------- #
+    # 3) pylint
+    # --------------------------------------------------------------------- #
     if ENABLE_PYLINT:
         CONSOLE.info("\n=== Running pylint pass ===")
         failures = run_pylint(files)
@@ -422,6 +483,21 @@ def main() -> None:
         else:
             CONSOLE.info("pylint pass: no issues found.")
 
+    # --------------------------------------------------------------------- #
+    # 4) ruff  (lint-only, no formatting)
+    # --------------------------------------------------------------------- #
+    if ENABLE_RUFF:
+        CONSOLE.info("\n=== Running ruff pass ===")
+        failures = run_ruff(files)
+        if failures:
+            CONSOLE.warning("ruff found issues in %d file(s).", failures)
+            overall_tools_failed_files += failures
+        else:
+            CONSOLE.info("ruff pass: no issues found.")
+
+    # --------------------------------------------------------------------- #
+    # 5) pydocstyle
+    # --------------------------------------------------------------------- #
     if ENABLE_PYDOCSTYLE:
         CONSOLE.info("\n=== Running pydocstyle pass ===")
         failures = run_pydocstyle(files)
@@ -431,10 +507,14 @@ def main() -> None:
         else:
             CONSOLE.info("pydocstyle pass: no issues found.")
 
+    # --------------------------------------------------------------------- #
+    # Summary
+    # --------------------------------------------------------------------- #
     CONSOLE.info("\n" + "=" * 80)
     if overall_tools_failed_files == 0:
         CONSOLE.info("🎉 All enabled static-analysis checks passed successfully.")
         return
+
     CONSOLE.warning(
         "⚠️ Static analysis detected issues. Total 'files with issues': %d. "
         "See individual logs for details.",
