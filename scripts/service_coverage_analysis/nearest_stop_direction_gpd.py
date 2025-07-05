@@ -65,7 +65,6 @@ OUTPUT_FILE_NAME = "proximity_results.csv"
 # FUNCTIONS
 # =============================================================================
 
-
 def _check_gtfs(path: str) -> None:
     for fn in ("stops.txt", "stop_times.txt", "trips.txt", "routes.txt"):
         fp = os.path.join(path, fn)
@@ -192,7 +191,6 @@ def _nearby_routes(
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Runs the main analysis based on global CONFIGURATION variables.
