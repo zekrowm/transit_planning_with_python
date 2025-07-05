@@ -79,7 +79,6 @@ LOGGER = logging.getLogger(__name__)
 # FUNCTIONS
 # =============================================================================
 
-
 def read_shapefile(path: str) -> gpd.GeoDataFrame:
     """Read a single shapefile as a GeoDataFrame.
 
@@ -196,7 +195,6 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Top-level workflow controller."""
