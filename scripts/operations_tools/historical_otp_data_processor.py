@@ -1,728 +1,285 @@
-"""Process historical on-time-performance (OTP) and running-time data.
+"""Process historical on-time-performance (OTP) into trend plots.
 
-The module provides a CLI-driven pipeline that
+Reads a monthly On-Time-Performance (OTP) CSV, computes basic
+percentages, and writes one JPEG trend plot per Route × Direction.
 
-* parses trip-level CSV exports,
-* flags trips whose actual running time deviates from schedule,
-* writes per-route Excel files summarising issues, and
-* (optionally) produces monthly JPEG trend plots of OTP by route and
-  direction.
-
-Typical usage is via ArcPro or standalone Python notebook.
-
-Configuration is set via the constants in the *CONFIGURATION* section.
+Typical use: run inside ArcGIS Pro’s Python or any standalone
+environment that has pandas, numpy, and matplotlib.
 
 Outputs
 -------
-└── <OUTPUT_DIR>/
-    ├── processed_runtime_data.xlsx
-    ├── runtime_problems_route_<ROUTE>.xlsx
-    └── <plot_output_dir>/  # if RUN_PLOTTING = True
-        └── <route>_<dir>_on_time_percentage.jpeg
+└── <PLOT_OUTPUT_DIR>/
+    └── <Route>_<Dir>_on_time_percentage.jpeg
 """
 
+from __future__ import annotations
+from typing import Tuple
+from io import StringIO
 import os
-import sys
 from datetime import datetime
-
-import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-# -------------------------
-#  1) Running Time Data
-# -------------------------
-INPUT_FILE = r"\\Path\To\Your\Runtime and OTP Trip Level Data.csv"
-OUTPUT_DIR = r"\\Path\To\Your\Processed\Data\Output"
+OTP_INPUT_FILE: str = r"Path\To\Your\CLEVER_Runtime_and_OTP_Trip_Level_Data.csv"
+PLOT_OUTPUT_DIR: str = r"Path\To\Your\Output\Folder"
 
-# Route Filter Configuration
-# Set to a list of routes to include (e.g., ['101', '202']) or an empty list [] for all routes.
-ROUTE_FILTER: list[str] = []  # Example usage
+FULL_RANGE_START: str = "2025-01-01"   # inclusive first month
+FULL_RANGE_END:   str = "2025-12-31"   # inclusive last  month
 
-# Threshold for Deviation in Seconds (5 minutes)
-DEVIATION_THRESHOLD_SECONDS = 5 * 60  # 300 seconds
+# -----------------------------------------------------------------------------
+# PLOTTING
+# -----------------------------------------------------------------------------
 
-# -------------------------
-#  2) OTP Data & Plotting
-# -------------------------
-RUN_PLOTTING = True  # Set to False to skip OTP plotting entirely
+ROUTE_COL      = "Route"
+DIRECTION_COL  = "Direction"
+YEAR_COL       = "Year"
+MONTH_COL      = "Month"
+ON_TIME_COL    = "Sum # On Time"
+EARLY_COL      = "Sum # Early"
+LATE_COL       = "Sum # Late"
 
-OTP_FILE_PATH = r"\\Path\To\Your\Output\Runtime and OTP Trip Level Data_processed.csv"
-OTP_OUTPUT_DIR = r"\\Path\To\Your\Plot\Output"
-
-# Date Range for Full Range of Months (for OTP plots)
-FULL_RANGE_START = "2024-01-01"
-FULL_RANGE_END = "2024-12-31"
-DATE_FORMAT = "%Y-%b-%d"  # Format for converting to datetime
-
-# Y-axis Limits Adjustment (for OTP plots)
-Y_MIN_CUTOFF = 50  # Ensure the minimum y-axis starts at 50%
-Y_MARGIN = 5  # Margin added/subtracted to y-axis limits
-
-# Percentage Thresholds for Horizontal Lines
-PERCENTAGE_LEVELS = [95, 85, 75]
-LINE_COLOR = "r"
-LINE_STYLE = "--"
-LINE_WIDTH = 0.7
-TEXT_FONT_SIZE = 9
-
-# Plot Appearance
-FIG_SIZE = (12, 6)
-MARKER_STYLE = "o"
-LINE_STYLE_PLOT = "-"
-LABEL_ROTATION = 45
-
-# Columns Configuration for OTP Data
-ROUTE_COLUMN = "Route"
-DIRECTION_COLUMN = "Direction"
-MONTH_COLUMN = "Month"
-YEAR_COLUMN = "Year"
-ON_TIME_COLUMN = "Sum # On Time"
-EARLY_COLUMN = "Sum # Early"
-LATE_COLUMN = "Sum # Late"
+# Plot look & feel
+FIG_SIZE       = (12, 6)
+ROTATION       = 45
+PERCENT_LINES  = [95, 85, 75]          # horizontal guide lines
+LINE_STYLE     = "--"
+LINE_WIDTH     = 0.7
+LINE_COLOUR    = "r"
+FONT_SIZE      = 9
+MARKER_STYLE   = "o"
+LINE_STYLE_TREND = "-"
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
+def flag_problem_routes(
+    df: pd.DataFrame,
+    *,
+    twelve_month_floor: float = 80.0,
+    six_month_drop: float = 10.0,
+    six_month_avg_floor: float = 85.0,
+) -> pd.DataFrame:
+    """Identify Route × Direction pairs with sustained or sharply worsening OTP."""
+    df = df.sort_values("Date")
+    reasons: list[tuple[str, str, str]] = []
 
-def time_str_to_seconds(time_str: str) -> int | None:
-    """Convert an H:MM(:SS) time string to seconds.
+    for (route, direction), g in df.groupby([ROUTE_COL, DIRECTION_COL]):
+        recent_12 = g.tail(12).reset_index(drop=True)
+        recent_6  = g.tail(6).reset_index(drop=True)
 
-    Args:
-        time_str: Time value in ``H:MM:SS``, ``HH:MM:SS`` or ``HH:MM``
-            format. Seconds are assumed to be ``00`` if omitted.
+        sustained_12 = (
+            len(recent_12) == 12 and
+            (recent_12["Percent On Time"] < twelve_month_floor).all()
+        )
 
-    Returns:
-        Total number of seconds represented by *time_str*, or
-        ``None`` if the value cannot be parsed.
+        trend_flag = False
+        if len(recent_6) == 6:
+            drop = recent_6["Percent On Time"].iloc[0] - recent_6["Percent On Time"].iloc[-1]
+            mean6 = recent_6["Percent On Time"].mean()
+            trend_flag = (drop >= six_month_drop) and (mean6 < six_month_avg_floor)
 
-    Examples:
-        >>> time_str_to_seconds("1:23:45")
-        5025
-        >>> time_str_to_seconds("09:15")
-        33300
-    """
-    try:
-        parts = time_str.strip().split(":")
-        if len(parts) == 3:
-            hours, minutes, seconds = parts
-        elif len(parts) == 2:
-            hours, minutes = parts
-            seconds = "0"
+        if sustained_12 or trend_flag:
+            explain = []
+            if sustained_12:
+                explain.append(f"all last 12 mo < {twelve_month_floor}%")
+            if trend_flag:
+                explain.append(
+                    f"drop ≥ {six_month_drop} pp in last 6 mo & 6-mo avg < {six_month_avg_floor}%"
+                )
+            reasons.append((route, direction, ", ".join(explain)))
+
+    return pd.DataFrame(reasons, columns=[ROUTE_COL, DIRECTION_COL, "Reason"])
+
+
+def write_problem_log(
+    problems: pd.DataFrame,
+    output_dir: str,
+    fname: str = "otp_problem_routes.txt",
+) -> str:
+    """Write *problems* DataFrame to a simple text file; return full path."""
+    log_path = os.path.join(output_dir, fname)
+    with open(log_path, "w", encoding="utf-8") as f:
+        if problems.empty:
+            f.write("No routes triggered OTP alarms.\n")
         else:
-            return None
-        return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
-    except Exception as exc:
-        print(f"Error parsing time string '{time_str}': {exc}")
-        return None
+            f.write("Routes/Directions with OTP alarms\n")
+            f.write("Generated: " + datetime.now().strftime("%Y-%m-%d %H:%M") + "\n\n")
+            for _, row in problems.iterrows():
+                f.write(f"- {row[ROUTE_COL]} / {row[DIRECTION_COL]}: {row['Reason']}\n")
+    return log_path
 
 
-def parse_start_time(time_str: str) -> int | None:
-    """Convert a scheduled ``HH:MM`` start time to seconds since midnight.
+def load_csv(path: str) -> pd.DataFrame:
+    """Return a DataFrame, or raise FileNotFoundError / ValueError."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"OTP file not found:\n{path}")
 
-    Args:
-        time_str: Scheduled start time in 24-hour ``HH:MM`` format.
+    df = pd.read_csv(path)
+    if df.empty:
+        raise ValueError(f"OTP file is empty:\n{path}")
 
-    Returns:
-        Seconds since midnight, or ``None`` when parsing fails.
-    """
-    try:
-        dt = datetime.strptime(time_str.strip(), "%H:%M")
-        return dt.hour * 3600 + dt.minute * 60
-    except Exception as exc:
-        print(f"Error parsing start time '{time_str}': {exc}")
-        return None
-
-
-def parse_start_delta(delta_str: str) -> int | None:
-    """Convert a signed start-delta string to seconds.
-
-    Args:
-        delta_str: Offset such as ``-0:02:30``, ``+00:03``, or ``4:15``.
-
-    Returns:
-        Signed number of seconds (negative for early departures), or
-        ``None`` if the format is invalid.
-    """
-    try:
-        delta_str = delta_str.strip()
-        negative = False
-        if delta_str.startswith("-"):
-            negative = True
-            delta_str = delta_str[1:]
-        parts = delta_str.split(":")
-        if len(parts) == 3:
-            hours, minutes, seconds = parts
-        elif len(parts) == 2:
-            hours, minutes = parts
-            seconds = "0"
-        else:
-            return None
-        total_seconds = int(hours) * 3600 + int(minutes) * 60 + int(seconds)
-        return -total_seconds if negative else total_seconds
-    except Exception as exc:
-        print(f"Error parsing start delta '{delta_str}': {exc}")
-        return None
-
-
-def process_runtime_data() -> None:
-    """Parse runtime CSV, flag deviations, and write Excel output.
-
-    Steps performed:
-
-    1. Load *INPUT_FILE*.
-    2. Optionally filter to routes in *ROUTE_FILTER*.
-    3. Convert schedule, actual, and delta fields to seconds.
-    4. Flag trips whose start time or running time deviates by more
-       than *DEVIATION_THRESHOLD_SECONDS*.
-    5. Compute percentage early/late/on-time statistics.
-    6. Export a per-route Excel file and a consolidated workbook.
-
-    Returns:
-        None.  Results are written to disk.
-    """
-    # Configuration references
-    input_file = INPUT_FILE
-    output_dir = OUTPUT_DIR
-    route_filter = ROUTE_FILTER
-    threshold = DEVIATION_THRESHOLD_SECONDS
-
-    # Ensure output directory exists
-    if not os.path.exists(output_dir):
-        try:
-            os.makedirs(output_dir)
-            print(f"Created output directory: {output_dir}")
-        except Exception as exc:
-            print(f"Error creating output directory '{output_dir}': {exc}")
-            return
-
-    # Check if input file exists
-    if not os.path.exists(input_file):
-        print(f"Input file does not exist: {input_file}")
-        return
-
-    # Read the CSV file
-    try:
-        df = pd.read_csv(input_file)
-    except Exception as exc:
-        print(f"Error reading CSV file '{input_file}': {exc}")
-        return
-
-    # Display initial data sample
-    print("Initial Data Sample:")
-    print(df.head())
-
-    # Apply Route Filter if specified
-    if route_filter:
-        original_count = len(df)
-        df = df[df["Route"].astype(str).isin([str(route) for route in route_filter])]
-        filtered_count = len(df)
-        print(f"Route Filter Applied: {route_filter}")
-        print(f"Rows before filter: {original_count}, after filter: {filtered_count}")
-    else:
-        print("No Route Filter Applied: Including all routes")
-
-    # Parse 'Scheduled Start Time (HH:MM)' to seconds
-    df["Scheduled_Start_Seconds"] = df["Scheduled Start Time (HH:MM)"].apply(parse_start_time)
-
-    # Parse 'Average Scheduled Running Time' and 'Average Actual Running Time' to seconds
-    df["Avg_Scheduled_Running_Time_sec"] = df["Average Scheduled Running Time"].apply(
-        time_str_to_seconds
-    )
-    df["Avg_Actual_Running_Time_sec"] = df["Average Actual Running Time"].apply(time_str_to_seconds)
-
-    # Parse 'Average Start Delta' to seconds
-    df["Avg_Start_Delta_sec"] = df["Average Start Delta"].apply(parse_start_delta)
-
-    # Recalculate deviations
-    df["Recalc_Running_Time_Deviation_sec"] = (
-        df["Avg_Actual_Running_Time_sec"] - df["Avg_Scheduled_Running_Time_sec"]
-    )
-
-    # Convert deviations from seconds to minutes
-    df["Running Time Deviation (minutes)"] = df["Recalc_Running_Time_Deviation_sec"] / 60
-    df["Start Time Deviation (minutes)"] = df["Avg_Start_Delta_sec"] / 60
-
-    # Determine runtime problems (>5 mins off scheduled runtime)
-    df["Runtime_Problem"] = df["Recalc_Running_Time_Deviation_sec"].abs() > threshold
-
-    # Determine start time problems (>5 mins off)
-    df["Start_Time_Problem"] = df["Avg_Start_Delta_sec"].abs() > threshold
-
-    # Create a new 'Total_Trips'
-    df["Total_Trips"] = df["Sum # Early"] + df["Sum # Late"] + df["Sum # On Time"]
-
-    # Compute Pct_Early, Pct_Late, Pct_On_Time
-    df["Pct_Early"] = df.apply(
-        lambda row: (
-            100.0 * row["Sum # Early"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
-        ),
-        axis=1,
-    )
-    df["Pct_Late"] = df.apply(
-        lambda row: (
-            100.0 * row["Sum # Late"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
-        ),
-        axis=1,
-    )
-    df["Pct_On_Time"] = df.apply(
-        lambda row: (
-            100.0 * row["Sum # On Time"] / row["Total_Trips"] if row["Total_Trips"] != 0 else 0
-        ),
-        axis=1,
-    )
-
-    # Round to 1 decimal place and convert to proportion
-    df["Pct_Early"] = (df["Pct_Early"].round(1)) / 100
-    df["Pct_Late"] = (df["Pct_Late"].round(1)) / 100
-    df["Pct_On_Time"] = (df["Pct_On_Time"].round(1)) / 100
-
-    # Loop through each route and save an Excel file
-    routes = df["Route"].unique()
-    for route in routes:
-        route_data = df[df["Route"] == route]
-        excel_filename = f"runtime_problems_route_{route}.xlsx"
-        excel_path = os.path.join(output_dir, excel_filename)
-
-        output_columns = [
-            "Route",
-            "Direction",
-            "Scheduled Start Time (HH:MM)",
-            "Count Trip",
-            "Sum # Early",
-            "Sum # Late",
-            "Sum # On Time",
-            "Total_Trips",
-            "Pct_Early",
-            "Pct_Late",
-            "Pct_On_Time",
-            "Average Scheduled Running Time",
-            "Average Actual Running Time",
-            "Recalc_Running_Time_Deviation_sec",
-            "Running Time Deviation (minutes)",
-            "Average Start Delta",
-            "Avg_Start_Delta_sec",
-            "Start Time Deviation (minutes)",
-            "Runtime_Problem",
-            "Start_Time_Problem",
-        ]
-
-        try:
-            route_data.to_excel(excel_path, columns=output_columns, index=False)
-            print(f"Entries for Route {route} (all trips) saved to '{excel_path}'")
-        except Exception as exc:
-            print(f"Error saving Excel file '{excel_path}': {exc}")
-
-    # Save the complete processed data to a single Excel file
-    processed_excel_filename = "processed_runtime_data.xlsx"
-    processed_excel_path = os.path.join(output_dir, processed_excel_filename)
-    try:
-        df.to_excel(processed_excel_path, index=False)
-        print(f"Processed data with deviations saved to '{processed_excel_path}'")
-    except Exception as exc:
-        print(f"Error saving processed Excel file '{processed_excel_path}': {exc}")
-
-
-# ------------------------------------------------------------------------------
-#                         HELPER FUNCTIONS (OTP DATA)
-# ------------------------------------------------------------------------------
-
-
-def load_csv(file_path: str) -> pd.DataFrame:
-    """Load a CSV file with robust error handling.
-
-    Args:
-        file_path: Absolute or relative path to the CSV file.
-
-    Returns:
-        DataFrame containing the file contents.
-
-    Raises:
-        SystemExit: If the file is missing, empty, or unreadable.
-    """
-    try:
-        df = pd.read_csv(file_path)
-        print(f"CSV file loaded successfully: {file_path}")
-        return df
-    except FileNotFoundError:
-        print(f"Error: The file was not found:\n{file_path}")
-        sys.exit(1)
-    except pd.errors.EmptyDataError:
-        print(f"Error: The file at {file_path} is empty.")
-        sys.exit(1)
-    except Exception as exc:
-        print(f"An unexpected error occurred while loading the CSV: {exc}")
-        sys.exit(1)
-
-
-def define_full_date_range(
-    start: str | pd.Timestamp,
-    end: str | pd.Timestamp,
-) -> pd.DatetimeIndex:
-    """Return a monthly DatetimeIndex spanning *start* through *end*.
-
-    Args:
-        start: First date (inclusive).
-        end:   Last date (inclusive).
-
-    Returns:
-        A ``DatetimeIndex`` with frequency ``'MS'`` (month-start).
-    """
-    return pd.date_range(start=start, end=end, freq="MS")
-
-
-def clean_route_column(df: pd.DataFrame, route_col: str) -> pd.DataFrame:
-    """Standardise the *Route* column in-place.
-
-    Removes text following the first “-” and strips whitespace, so
-    “10A-Otis St” becomes “10A”.
-
-    Args:
-        df: DataFrame containing the route column.
-        route_col: Name of the column to clean.
-
-    Returns:
-        The mutated DataFrame (returned for convenience).
-    """
-    df[route_col] = df[route_col].astype(str).str.split("-").str[0].str.strip()
+    print(f"✓ CSV loaded: {path}")
     return df
 
 
-def ensure_numeric_columns(
-    df: pd.DataFrame,
-    columns: list[str],
-) -> pd.DataFrame:
-    """Force selected columns to integer dtype, coercing errors to 0.
-
-    Args:
-        df: Input DataFrame.
-        columns: Columns to coerce.
-
-    Returns:
-        The mutated DataFrame.
-    """
-    for col in columns:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
-        else:
-            print(f"Warning: Column '{col}' not found in the DataFrame.")
+def clean_route_column(df: pd.DataFrame, col: str) -> pd.DataFrame:
+    """Trim anything after the first “-” (e.g. “10A-Otis St” → “10A”)."""
+    df[col] = df[col].astype(str).str.split("-").str[0].str.strip()
     return df
 
 
-def calculate_sum_and_percentages(
-    df: pd.DataFrame,
-    on_time: str,
-    early: str,
-    late: str,
-) -> pd.DataFrame:
-    """Add “Sum All Trips” and percentage OTP columns.
+def enforce_int(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    """Force *columns* to int—missing or bad values become 0."""
+    for c in columns:
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0).astype(int)
+    return df
 
-    Args:
-        df: DataFrame containing OTP counts.
-        on_time: Column with on-time counts.
-        early: Column with early counts.
-        late: Column with late counts.
 
-    Returns:
-        DataFrame with added *Sum All Trips*, *Percent On Time*,
-        *Percent Early*, and *Percent Late* columns.
-    """
-    df["Sum All Trips"] = df[on_time] + df[early] + df[late]
+def monthly_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Collapse to one row per Route × Direction × month and recompute %."""
+    agg_cols = [ON_TIME_COL, EARLY_COL, LATE_COL]
+    gb = df.groupby([ROUTE_COL, DIRECTION_COL, "Date"], as_index=False)[agg_cols].sum()
+    gb = add_totals_and_percents(gb)
+    gb[YEAR_COL] = gb["Date"].dt.year
+    gb[MONTH_COL] = gb["Date"].dt.month_name()
+    return gb
 
-    # Avoid division by zero by replacing 0 with NaN
-    df["Percent On Time"] = (df[on_time] / df["Sum All Trips"].replace(0, pd.NA)) * 100
-    df["Percent Early"] = (df[early] / df["Sum All Trips"].replace(0, pd.NA)) * 100
-    df["Percent Late"] = (df[late] / df["Sum All Trips"].replace(0, pd.NA)) * 100
 
-    # Fill NaN values with 0
-    df["Percent On Time"] = df["Percent On Time"].fillna(0)
-    df["Percent Early"] = df["Percent Early"].fillna(0)
-    df["Percent Late"] = df["Percent Late"].fillna(0)
+def add_totals_and_percents(df: pd.DataFrame) -> pd.DataFrame:
+    """Add Sum All Trips + %, returns the mutated df."""
+    df["Sum All Trips"] = df[ON_TIME_COL] + df[EARLY_COL] + df[LATE_COL]
+
+    for raw, pct_name in [
+        (ON_TIME_COL, "Percent On Time"),
+        (EARLY_COL,   "Percent Early"),
+        (LATE_COL,    "Percent Late"),
+    ]:
+        df[pct_name] = (
+            (df[raw] / df["Sum All Trips"].replace(0, np.nan)) * 100
+        ).fillna(0)
 
     return df
 
 
-def create_date_column(
-    df: pd.DataFrame,
-    year_col: str,
-    month_col: str,
-    date_format: str,
-) -> pd.DataFrame:
-    """Combine *Year* and *Month* into a datetime column.
-
-    Args:
-        df: DataFrame to modify.
-        year_col: Column containing four-digit year values.
-        month_col: Column containing month names or abbreviations.
-        date_format: ``strftime`` pattern used for parsing.
-
-    Returns:
-        The DataFrame with new ``'Date'`` and ``'YY-MM'`` columns.
-
-    Raises:
-        SystemExit: If the combined strings cannot be parsed.
-    """
-    df["YY-MM"] = df[year_col].astype(str) + "-" + df[month_col].str[:3].str.capitalize()
-
-    try:
-        # Force day = '01' for each month
-        df["Date"] = pd.to_datetime(df["YY-MM"] + "-01", format=date_format)
-        print("Date column created successfully.")
-    except Exception as exc:
-        print(f"Error converting 'YY-MM' to datetime: {exc}")
-        sys.exit(1)
-
-    return df
+def attach_date(df: pd.DataFrame) -> pd.DataFrame:
+    """Combine Year + Month into df['Date'] (month-start)."""
+    df["YY-MM"] = df[YEAR_COL].astype(str) + "-" + df[MONTH_COL].str[:3].str.capitalize()
+    df["Date"]  = pd.to_datetime(df["YY-MM"] + "-01", format="%Y-%b-%d")
+    return df.sort_values("Date")
 
 
-def sort_dataframe_by_date(df: pd.DataFrame, date_col: str) -> pd.DataFrame:
-    """Return *df* sorted by the specified datetime column."""
-    return df.sort_values(by=date_col)
+def y_limits(df: pd.DataFrame) -> tuple[float, float]:
+    """Global y-axis range with small padding."""
+    ymin = max(df["Percent On Time"].min() - 5, 50)
+    ymax = df["Percent On Time"].max() + 5
+    return ymin, ymax
 
 
-def determine_y_axis_limits(
-    df: pd.DataFrame,
-    y_min_cutoff: int,
-    y_margin: int,
-) -> tuple[float, float]:
-    """Compute global y-axis limits for OTP plots.
-
-    Args:
-        df: DataFrame containing ``'Percent On Time'``.
-        y_min_cutoff: Lower bound below which the axis should not start.
-        y_margin: Padding to add above and below the observed range.
-
-    Returns:
-        Tuple ``(y_min, y_max)``.
-    """
-    global_min_otp = df["Percent On Time"].min()
-    global_max_otp = df["Percent On Time"].max()
-
-    global_y_min = max(global_min_otp - y_margin, y_min_cutoff)
-    global_y_max = global_max_otp + y_margin
-    return global_y_min, global_y_max
-
-
-def create_output_directory(output_dir: str) -> None:
-    """Ensure *output_dir* exists, creating parents as needed.
-
-    Args:
-        output_dir: Directory path.
-
-    Returns:
-        None.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    print(f"Output directory is set to: {output_dir}")
-
-
-def calculate_variability(
-    df: pd.DataFrame,
-    route_col: str,
-    direction_col: str,
-) -> pd.DataFrame:
-    """Calculate OTP variability (range) by route and direction.
-
-    Args:
-        df: DataFrame with percentage OTP data.
-        route_col: Column identifying the route.
-        direction_col: Column identifying the direction.
-
-    Returns:
-        DataFrame sorted by descending range, with columns
-        ``['max', 'min', 'Range']``.
-    """
-    range_df = df.groupby([route_col, direction_col])["Percent On Time"].agg(["max", "min"])
-    range_df["Range"] = range_df["max"] - range_df["min"]
-    range_df = range_df.sort_values(by="Range", ascending=False)
-    return range_df
-
-
-def sanitize_filename(text: str) -> str:
-    """Return *text* made safe for use as a filename.
-
-    Replaces slashes and spaces with underscores.
-
-    Args:
-        text: Raw filename candidate.
-
-    Returns:
-        Sanitised filename.
-    """
+def sanitize(text: str) -> str:
+    """Make text safe as a filename."""
     return text.replace("/", "_").replace("\\", "_").replace(" ", "_")
 
 
-def plot_on_time_percentage(
-    group: pd.DataFrame,
+def _normalise_otp_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Adapt input layout to expected field names."""
+    df.dropna(how="all", inplace=True)
+
+    if "Route" not in df and "Branch" in df:
+        df["Route"] = df["Branch"].astype(str).str.strip()
+
+    if "Year" not in df and "Year Month" in df:
+        ym = pd.to_numeric(df["Year Month"], errors="coerce").dropna().astype(int)
+        df["Year"] = (ym // 100).astype(int)
+        df["Month"] = ((ym % 100).astype(int).map(lambda m: datetime(1900, m, 1).strftime("%B")))
+
+    return df
+
+
+def plot_group(
+    g: pd.DataFrame,
     route: str,
     direction: str,
-    config: dict[str, object],
-    y_limits: tuple[float, float],
+    ylims: tuple[float, float],
     full_range: pd.DatetimeIndex,
 ) -> None:
-    """Create and save a JPEG OTP trend plot for a route-direction pair.
+    """Create & save one JPEG trend plot for the group."""
+    plt.figure(figsize=FIG_SIZE)
 
-    Args:
-        group: Sub-DataFrame for one route and direction.
-        route: Route identifier.
-        direction: Direction name (e.g., “Eastbound”).
-        config: Dictionary of plotting constants.
-        y_limits: Global y-axis limits produced by
-            :func:`determine_y_axis_limits`.
-        full_range: Continuous monthly index for the x-axis.
-
-    Returns:
-        None.  The figure is written to *config['OUTPUT_DIR']*.
-    """
-    plt.figure(figsize=config["FIG_SIZE"])
-
-    # Plot the data
     plt.plot(
-        group["Date"],
-        group["Percent On Time"],
-        marker=config["MARKER_STYLE"],
-        linestyle=config["LINE_STYLE_PLOT"],
-        label=f"{route} - {direction}",
+        g["Date"],
+        g["Percent On Time"],
+        marker=MARKER_STYLE,
+        linestyle=LINE_STYLE_TREND,
     )
 
-    # Set y-axis limits
-    plt.ylim(y_limits)
-
-    # Set x-axis limits
+    plt.ylim(*ylims)
     plt.xlim(full_range[0], full_range[-1])
+    plt.xticks(full_range, [d.strftime("%b %Y") for d in full_range], rotation=ROTATION)
 
-    # Add x-axis labels
-    plt.xticks(
-        ticks=full_range,
-        labels=[date.strftime("%b %Y") for date in full_range],
-        rotation=config["LABEL_ROTATION"],
-    )
-
-    # Add horizontal lines and labels
-    for level in config["PERCENTAGE_LEVELS"]:
-        plt.axhline(
-            y=level,
-            color=config["LINE_COLOR"],
-            linestyle=config["LINE_STYLE"],
-            linewidth=config["LINE_WIDTH"],
-        )
+    for y in PERCENT_LINES:
+        plt.axhline(y, color=LINE_COLOUR, linestyle=LINE_STYLE, linewidth=LINE_WIDTH)
         plt.text(
-            full_range[-1],
-            level,
-            f"{level}%",
-            color=config["LINE_COLOR"],
-            fontsize=config["TEXT_FONT_SIZE"],
-            verticalalignment="center",
-            horizontalalignment="left",
+            full_range[-1], y, f"{y}%",
+            ha="left", va="center", fontsize=FONT_SIZE, color=LINE_COLOUR,
         )
 
-    # Set labels and title
-    plt.xlabel("Date")
+    title = f"On-Time % – Route {route} / {direction}"
+    plt.title(title)
+    plt.xlabel("Month")
     plt.ylabel("Percent On Time")
-    plt.title(f"On Time Percentage for Route {route} - Direction {direction}")
     plt.tight_layout()
 
-    # Save the plot
-    safe_route = sanitize_filename(route)
-    safe_direction = sanitize_filename(direction)
-    plot_filename = f"{safe_route}_{safe_direction}_on_time_percentage.jpeg"
-    plot_path = os.path.join(config["OUTPUT_DIR"], plot_filename)
-
-    try:
-        plt.savefig(plot_path, format="jpeg")
-        print(f"Plot saved: {plot_path}")
-    except Exception as exc:
-        print(f"Error saving plot for Route {route} - Direction {direction}: {exc}")
-    finally:
-        plt.close()
+    fname = f"{sanitize(route)}_{sanitize(direction)}_on_time_percentage.jpeg"
+    plt.savefig(os.path.join(PLOT_OUTPUT_DIR, fname), format="jpeg")
+    plt.close()
+    print(f"  • plot saved → {fname}")
 
 
-def process_otp_data() -> None:
-    """End-to-end OTP processing and plotting pipeline.
+def process_otp() -> None:
+    """End-to-end OTP load → normalise → aggregate → QC → plot."""
+    df = load_csv(OTP_INPUT_FILE)
+    df = _normalise_otp_columns(df)
+    df = clean_route_column(df, ROUTE_COL)
+    df = enforce_int(df, [ON_TIME_COL, EARLY_COL, LATE_COL])
+    df = add_totals_and_percents(df)
+    df = attach_date(df)
+    df = monthly_summary(df)
 
-    Loads OTP CSV, cleans and augments the data set, produces plots for
-    every Route/Direction combination, and prints variability rankings.
+    os.makedirs(PLOT_OUTPUT_DIR, exist_ok=True)
+    export_csv = os.path.join(PLOT_OUTPUT_DIR, "otp_monthly_summary.csv")
+    df.to_csv(export_csv, index=False)
+    print(f"✓ monthly summary written → {export_csv}")
 
-    Returns:
-        None.  Plots and console output are side-effects.
-    """
-    # Load the CSV file
-    otp_df = load_csv(OTP_FILE_PATH)
+    dupes = df.duplicated(subset=[ROUTE_COL, DIRECTION_COL, "Date"])
+    if dupes.any():
+        raise ValueError(
+            "Duplicate Route/Direction/Date rows detected:\n"
+            f"{df[dupes].head()}"
+        )
 
-    # Define the full range of months
-    full_range = define_full_date_range(FULL_RANGE_START, FULL_RANGE_END)
+    problems = flag_problem_routes(df)
+    log_file = write_problem_log(problems, PLOT_OUTPUT_DIR)
+    print(f"✓ OTP problem log written → {log_file}")
+        
+    full_range = pd.date_range(start=FULL_RANGE_START, end=FULL_RANGE_END, freq="MS")
+    ylims = y_limits(df)
 
-    # Clean the "Route" column
-    otp_df = clean_route_column(otp_df, ROUTE_COLUMN)
+    var_df = df.groupby([ROUTE_COL, DIRECTION_COL])["Percent On Time"].agg(["max", "min"])
+    var_df["Range"] = var_df["max"] - var_df["min"]
+    print("\nRoutes with highest OTP variability:")
+    print(var_df.sort_values("Range", ascending=False).head(10))
 
-    # Ensure columns used in calculations are numeric
-    otp_df = ensure_numeric_columns(otp_df, [ON_TIME_COLUMN, EARLY_COLUMN, LATE_COLUMN])
+    for (route, direction), group in df.groupby([ROUTE_COL, DIRECTION_COL]):
+        plot_group(group, route, direction, ylims, full_range)
 
-    # Create "Sum All Trips" and percentage columns
-    otp_df = calculate_sum_and_percentages(otp_df, ON_TIME_COLUMN, EARLY_COLUMN, LATE_COLUMN)
-
-    # Create "Date" column using existing "Year" and "Month" columns
-    otp_df = create_date_column(otp_df, YEAR_COLUMN, MONTH_COLUMN, DATE_FORMAT)
-
-    # Sort DataFrame by the new "Date" column
-    otp_df = sort_dataframe_by_date(otp_df, "Date")
-
-    # Determine global y-axis limits
-    y_limits = determine_y_axis_limits(otp_df, Y_MIN_CUTOFF, Y_MARGIN)
-
-    # Create output directory for plots
-    create_output_directory(OTP_OUTPUT_DIR)
-
-    # Calculate variability in OTP
-    variability_df = calculate_variability(otp_df, ROUTE_COLUMN, DIRECTION_COLUMN)
-    print("\nRoutes with the highest variability in OTP:")
-    print(variability_df)
-
-    # Configuration dictionary for plotting
-    plot_config = {
-        "FIG_SIZE": FIG_SIZE,
-        "MARKER_STYLE": MARKER_STYLE,
-        "LINE_STYLE_PLOT": LINE_STYLE_PLOT,
-        "LABEL_ROTATION": LABEL_ROTATION,
-        "PERCENTAGE_LEVELS": PERCENTAGE_LEVELS,
-        "LINE_COLOR": LINE_COLOR,
-        "LINE_STYLE": LINE_STYLE,
-        "LINE_WIDTH": LINE_WIDTH,
-        "TEXT_FONT_SIZE": TEXT_FONT_SIZE,
-        "OUTPUT_DIR": OTP_OUTPUT_DIR,
-    }
-
-    # Plot On-Time Percentage over Time for each Route and Direction
-    for (route, direction), group in otp_df.groupby([ROUTE_COLUMN, DIRECTION_COLUMN]):
-        plot_on_time_percentage(group, route, direction, plot_config, y_limits, full_range)
-
-    print("\nOTP processing and plotting complete. Plots saved to:", OTP_OUTPUT_DIR)
-
-
-# =============================================================================
-# MAIN
-# =============================================================================
-
-
-def main() -> None:
-    """Execute the full pipeline based on configuration flags.
-
-    Returns:
-        None.
-    """
-    print("=== Processing Running Time Data ===")
-    process_runtime_data()
-
-    if RUN_PLOTTING:
-        print("\n=== Processing OTP Data and Generating Plots ===")
-        process_otp_data()
-    else:
-        print("\nPlotting is disabled. Skipping OTP processing.")
+    print(f"\nDone – plots saved to: {PLOT_OUTPUT_DIR}")
 
 
 if __name__ == "__main__":
-    main()
+    process_otp()
