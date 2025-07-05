@@ -82,7 +82,6 @@ _UNFRIENDLY_COL_RE = re.compile(r"^[A-Z]{2,}\d{3,}.*")
 # FUNCTIONS
 # =============================================================================
 
-
 def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame:
     """Replace *only* numeric NaNs with *value*; leave object columns untouched.
 
@@ -441,7 +440,6 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:  # noqa: D401
 # FIPS HELPERS
 # -----------------------------------------------------------------------------
 
-
 def _ensure_fips_column(
     df: pd.DataFrame,
     *,
@@ -498,7 +496,6 @@ def _apply_fips_filter(
 # -----------------------------------------------------------------------------
 # PUBLIC API
 # -----------------------------------------------------------------------------
-
 
 def build_joined_table(
     *,
@@ -570,7 +567,6 @@ __all__ = ["build_joined_table"]
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Orchestrate join using CONFIGURATION paths and, optionally, write CSV."""
