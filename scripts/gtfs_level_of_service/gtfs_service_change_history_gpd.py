@@ -127,17 +127,22 @@ def load_gtfs_data(base_path: str, files: List[str]) -> Dict[str, pd.DataFrame]:
     return data
 
 
-def parse_time_blocks(time_blocks_str: str) -> Dict[str, Tuple[pd.Timedelta, pd.Timedelta]]:
-    """Convert the human-readable time block strings into start/end timedeltas for each named time-block."""
-    parsed_blocks = {}
-    for block_name, (start_str, end_str) in time_blocks_str.items():
-        start_h, start_m = map(int, start_str.split(":"))
-        end_h, end_m = map(int, end_str.split(":"))
-        parsed_blocks[block_name] = (
-            timedelta(hours=start_h, minutes=start_m),
-            timedelta(hours=end_h, minutes=end_m),
+def parse_time_blocks(
+    time_blocks_cfg: dict[str, tuple[str, str]]
+) -> dict[str, tuple[pd.Timedelta, pd.Timedelta]]:
+    """
+    Convert {name: (HH:MM, HH:MM)} into
+    {name: (pd.Timedelta, pd.Timedelta)}.
+    """
+    parsed: dict[str, tuple[pd.Timedelta, pd.Timedelta]] = {}
+    for name, (start_str, end_str) in time_blocks_cfg.items():
+        sh, sm = map(int, start_str.split(":"))
+        eh, em = map(int, end_str.split(":"))
+        parsed[name] = (
+            pd.Timedelta(hours=sh, minutes=sm),
+            pd.Timedelta(hours=eh, minutes=em),
         )
-    return parsed_blocks
+    return parsed
 
 
 def assign_time_block(
@@ -246,11 +251,11 @@ def process_headways(merged_data: pd.DataFrame) -> Dict[str, Any]:
         .reset_index()
     )
 
-    headway_dict = {
-        "weekday_am_headway": {},
-        "weekday_midday_headway": {},
-        "weekday_pm_headway": {},
-        "weekday_night_headway": {},
+    headway_dict: dict[str, dict[tuple[str, str, int], float | None]] = {
+    "weekday_am_headway": {},
+    "weekday_midday_headway": {},
+    "weekday_pm_headway": {},
+    "weekday_night_headway": {},
     }
 
     for _, row in headways.iterrows():
@@ -403,7 +408,10 @@ def build_coverage_polygons(
 
 
 def process_schedule_type(
-    schedule_type: str, days: List[int], data: Dict[str, pd.DataFrame], label: str
+    schedule_type: str,
+    days: list[str],
+    data: dict[str, pd.DataFrame],
+    label: str,
 ) -> None:
     """Process a single schedule type, save final results, and export Excel file."""
     calendar_df = data["calendar"]
@@ -478,12 +486,12 @@ def process_schedule_type(
     block_to_routes = (
         trip_info.groupby("block_id")["route_short_name"].apply(lambda s: set(s.dropna())).to_dict()
     )
-    _routes_map = {}
+    _routes_map: dict[str, set[str]] = {}
     for block_id, route_set in block_to_routes.items():
         for route_name in route_set:
             # NOTE: rename 'blk' -> 'block_id' or use _blk if truly unused
             _routes_map.setdefault(route_name, set()).update(route_set - {route_name})
-
+            
     # 9. Group by route/direction and calculate trip times
     trip_times = (
         merged_data.groupby(["route_short_name", "route_long_name", "direction_id"])
@@ -537,8 +545,9 @@ def process_gtfs_dataset(gtfs_path: str, label: str) -> None:
 
 
 def build_route_signatures_for_signup(
-    final_data_list: List[pd.DataFrame], coverage_dict: Dict[str, gpd.GeoDataFrame]
-) -> pd.DataFrame:
+    final_data_list: list[pd.DataFrame],
+    coverage_dict: dict[str, Polygon | MultiPolygon],
+) -> dict[str, Mapping[str, Any]]:
     """Combine schedule-based data and coverage geometry for each route into a dict."""
     combined_df = (
         pd.concat(final_data_list, ignore_index=True) if final_data_list else pd.DataFrame()
@@ -621,7 +630,7 @@ def compare_signups_detailed(
 ) -> pd.DataFrame:
     """Build a DataFrame comparing each signup to the previous one, labeling each route."""
     # Gather all routes from all signups
-    all_routes = set()
+    all_routes: set[str] = set()
     for lab in labels_in_order:
         all_routes.update(all_signups_data[lab].keys())
     all_routes = sorted(all_routes)
