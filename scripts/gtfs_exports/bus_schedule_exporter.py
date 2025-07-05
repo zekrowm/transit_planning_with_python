@@ -18,7 +18,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 import pandas as pd
 from openpyxl.styles import Alignment
