@@ -13,13 +13,13 @@ Outputs
 """
 
 from __future__ import annotations
-from typing import Tuple
-from io import StringIO
+
 import os
 from datetime import datetime
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # =============================================================================
 # CONFIGURATION
@@ -28,35 +28,36 @@ import matplotlib.pyplot as plt
 OTP_INPUT_FILE: str = r"Path\To\Your\CLEVER_Runtime_and_OTP_Trip_Level_Data.csv"
 PLOT_OUTPUT_DIR: str = r"Path\To\Your\Output\Folder"
 
-FULL_RANGE_START: str = "2025-01-01"   # inclusive first month
-FULL_RANGE_END:   str = "2025-12-31"   # inclusive last  month
+FULL_RANGE_START: str = "2025-01-01"  # inclusive first month
+FULL_RANGE_END: str = "2025-12-31"  # inclusive last  month
 
 # -----------------------------------------------------------------------------
 # PLOTTING
 # -----------------------------------------------------------------------------
 
-ROUTE_COL      = "Route"
-DIRECTION_COL  = "Direction"
-YEAR_COL       = "Year"
-MONTH_COL      = "Month"
-ON_TIME_COL    = "Sum # On Time"
-EARLY_COL      = "Sum # Early"
-LATE_COL       = "Sum # Late"
+ROUTE_COL = "Route"
+DIRECTION_COL = "Direction"
+YEAR_COL = "Year"
+MONTH_COL = "Month"
+ON_TIME_COL = "Sum # On Time"
+EARLY_COL = "Sum # Early"
+LATE_COL = "Sum # Late"
 
 # Plot look & feel
-FIG_SIZE       = (12, 6)
-ROTATION       = 45
-PERCENT_LINES  = [95, 85, 75]          # horizontal guide lines
-LINE_STYLE     = "--"
-LINE_WIDTH     = 0.7
-LINE_COLOUR    = "r"
-FONT_SIZE      = 9
-MARKER_STYLE   = "o"
+FIG_SIZE = (12, 6)
+ROTATION = 45
+PERCENT_LINES = [95, 85, 75]  # horizontal guide lines
+LINE_STYLE = "--"
+LINE_WIDTH = 0.7
+LINE_COLOUR = "r"
+FONT_SIZE = 9
+MARKER_STYLE = "o"
 LINE_STYLE_TREND = "-"
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def flag_problem_routes(
     df: pd.DataFrame,
@@ -71,11 +72,10 @@ def flag_problem_routes(
 
     for (route, direction), g in df.groupby([ROUTE_COL, DIRECTION_COL]):
         recent_12 = g.tail(12).reset_index(drop=True)
-        recent_6  = g.tail(6).reset_index(drop=True)
+        recent_6 = g.tail(6).reset_index(drop=True)
 
         sustained_12 = (
-            len(recent_12) == 12 and
-            (recent_12["Percent On Time"] < twelve_month_floor).all()
+            len(recent_12) == 12 and (recent_12["Percent On Time"] < twelve_month_floor).all()
         )
 
         trend_flag = False
@@ -157,12 +157,10 @@ def add_totals_and_percents(df: pd.DataFrame) -> pd.DataFrame:
 
     for raw, pct_name in [
         (ON_TIME_COL, "Percent On Time"),
-        (EARLY_COL,   "Percent Early"),
-        (LATE_COL,    "Percent Late"),
+        (EARLY_COL, "Percent Early"),
+        (LATE_COL, "Percent Late"),
     ]:
-        df[pct_name] = (
-            (df[raw] / df["Sum All Trips"].replace(0, np.nan)) * 100
-        ).fillna(0)
+        df[pct_name] = ((df[raw] / df["Sum All Trips"].replace(0, np.nan)) * 100).fillna(0)
 
     return df
 
@@ -170,7 +168,7 @@ def add_totals_and_percents(df: pd.DataFrame) -> pd.DataFrame:
 def attach_date(df: pd.DataFrame) -> pd.DataFrame:
     """Combine Year + Month into df['Date'] (month-start)."""
     df["YY-MM"] = df[YEAR_COL].astype(str) + "-" + df[MONTH_COL].str[:3].str.capitalize()
-    df["Date"]  = pd.to_datetime(df["YY-MM"] + "-01", format="%Y-%b-%d")
+    df["Date"] = pd.to_datetime(df["YY-MM"] + "-01", format="%Y-%b-%d")
     return df.sort_values("Date")
 
 
@@ -196,7 +194,7 @@ def _normalise_otp_columns(df: pd.DataFrame) -> pd.DataFrame:
     if "Year" not in df and "Year Month" in df:
         ym = pd.to_numeric(df["Year Month"], errors="coerce").dropna().astype(int)
         df["Year"] = (ym // 100).astype(int)
-        df["Month"] = ((ym % 100).astype(int).map(lambda m: datetime(1900, m, 1).strftime("%B")))
+        df["Month"] = (ym % 100).astype(int).map(lambda m: datetime(1900, m, 1).strftime("%B"))
 
     return df
 
@@ -225,8 +223,13 @@ def plot_group(
     for y in PERCENT_LINES:
         plt.axhline(y, color=LINE_COLOUR, linestyle=LINE_STYLE, linewidth=LINE_WIDTH)
         plt.text(
-            full_range[-1], y, f"{y}%",
-            ha="left", va="center", fontsize=FONT_SIZE, color=LINE_COLOUR,
+            full_range[-1],
+            y,
+            f"{y}%",
+            ha="left",
+            va="center",
+            fontsize=FONT_SIZE,
+            color=LINE_COLOUR,
         )
 
     title = f"On-Time % – Route {route} / {direction}"
@@ -258,15 +261,12 @@ def process_otp() -> None:
 
     dupes = df.duplicated(subset=[ROUTE_COL, DIRECTION_COL, "Date"])
     if dupes.any():
-        raise ValueError(
-            "Duplicate Route/Direction/Date rows detected:\n"
-            f"{df[dupes].head()}"
-        )
+        raise ValueError(f"Duplicate Route/Direction/Date rows detected:\n{df[dupes].head()}")
 
     problems = flag_problem_routes(df)
     log_file = write_problem_log(problems, PLOT_OUTPUT_DIR)
     print(f"✓ OTP problem log written → {log_file}")
-        
+
     full_range = pd.date_range(start=FULL_RANGE_START, end=FULL_RANGE_END, freq="MS")
     ylims = y_limits(df)
 
