@@ -40,6 +40,7 @@ pyproj==3.7.1                # Coordinate reference systems and transformations
 # which includes arcpy and most geospatial libraries by default.
 
 # ───────────── Typing stubs (temporary) ─────────────
+types-numpy>=1.26,<3
 pandas-stubs==2.2.*
 types-openpyxl>=3.1,<5
 types-networkx>=3.4,<4
