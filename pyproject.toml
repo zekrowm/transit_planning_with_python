@@ -1,0 +1,33 @@
+# pyproject.toml
+
+# ================================================================
+# FAST PRE-COMMIT HOOK
+# ================================================================
+# ----------------------------------------------------------------
+# ruff
+# ----------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length    = 100
+
+[tool.ruff.lint]
+# I  → isort-compatible import ordering
+# F  → Pyflakes-equivalent static analysis
+# D  → pydocstyle (Google-style enforced below)
+# ANN = flake8-annotations
+# TC = flake8-type-checking
+select   = ["I", "F", "D", "ANN", "TCH"]
+fixable  = ["F401", "D", "I"]
+ignore   = ["ANN401", "TC002", "TC003"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# ----------------------------------------------------------------
+# ty
+# ----------------------------------------------------------------
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.rules]
+unresolved-import = "warn"          # C-extension libs without stubs
