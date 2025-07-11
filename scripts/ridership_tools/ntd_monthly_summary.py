@@ -152,6 +152,7 @@ PLOT_STYLE: Final[dict[str, Any]] = {
 # FUNCTIONS
 # =============================================================================
 
+
 def slice_for_window(df: pd.DataFrame, window: TimeWindow) -> pd.DataFrame:
     """Return rows in *df* whose month-start date falls inside *window*."""
     if "period_dt" not in df.columns:
@@ -483,6 +484,7 @@ def generate_all_plots(df_time: pd.DataFrame) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the end-to-end NTD performance workflow.
