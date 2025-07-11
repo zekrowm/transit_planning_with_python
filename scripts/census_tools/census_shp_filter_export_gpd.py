@@ -10,18 +10,15 @@ The script:
 4.  Writes the final geometry (plus all original attributes) to the
    user-specified output feature class or shapefile.
 
-The workflow replicates the ArcPy version, but relies solely on the open-source
-stack (GeoPandas, Fiona, PyProj).  Compared with ArcPy there are limitations
-you should be aware of:
+The relies solely on the open-source stack (GeoPandas, Fiona, PyProj). There
+are several limitations users should be aware of:
 
-* **File-geodatabase output** is not supported natively.  Use a Shapefile,
+- File-geodatabase output is not supported natively.  Use a Shapefile,
   GeoPackage, or another driver supported by your GDAL build.
-* All input layers **must share the same CRS**.  The script checks and aborts
+- All input layers must share the same CRS.  The script checks and aborts
   if they do not match.
-* Shapefile column names are capped at 10 characters.  If you need full-length
+- Shapefile column names are capped at 10 characters.  If you need full-length
   attribute names, write to a GeoPackage (`.gpkg`) instead.
-
-Run inside a Python environment where `geopandas` is available.
 """
 
 from __future__ import annotations
