@@ -19,43 +19,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Check out the repo -------------------------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      # -------------------- fixed indentation here --------------------
-      - name: Cache Python dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      # ----------------------------------------------------------------
-
-      # Install tools once
-      - name: Install Ruff + Ty
-        run: |
-          python -m pip install --upgrade pip
-          pip install --pre "ruff>=0.4.0" "ty>=0.0.1a0"
-
-      - name: Install project dependencies + type stubs
-        run: |
-          # Runtime deps
-          pip install -r requirements.txt
-
-          # ---- Extra PEP 561 stub wheels so `ty` can resolve imports ----
-          # These are *only* compile-time aids; they add **zero** runtime cost.
-          pip install \
-            pandas-stubs \
-
-      # Work out which .py files changed in the push/PR
+      # 2️⃣ Figure out which *.py files changed --------------------------------
       - name: Determine changed Python files
         id: changed
         shell: bash
@@ -70,9 +40,33 @@ jobs:
 
       - name: Nothing to do
         if: ${{ steps.changed.outputs.files == '' }}
-        run: echo "No Python files changed – skipping formatting, linting and type-checking."
+        run: echo "No Python files changed – skipping formatting, linting, and type checking."
 
-      # ----- Ruff driven entirely by your TOML -----
+      # 3️⃣ Set up Python ----------------------------
+      - name: Set up Python
+        if: ${{ steps.changed.outputs.files != '' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"            # built-in wheel cache
+
+      # 4️⃣ Install tooling and project deps -----------------------------------
+      - name: Install Ruff + Ty
+        if: ${{ steps.changed.outputs.files != '' }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install --pre "ruff>=0.4.0" "ty>=0.0.1a0"
+
+      - name: Install project dependencies + type stubs
+        if: ${{ steps.changed.outputs.files != '' }}
+        run: |
+          # Runtime deps
+          pip install -r requirements.txt
+
+          # Compile-time stub wheels (PEP 561)
+          pip install pandas-stubs
+
+      # 5️⃣ Ruff formatting, linting, fixing -----------------------------------
       - name: Ruff – format
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
@@ -83,14 +77,14 @@ jobs:
         run: |
           ruff check ${{ steps.changed.outputs.files }} --fix
 
-      # ----- Ty static type checking -----
+      # 6️⃣ Ty static type checking (non-blocking) -----------------------------
       - name: Ty – type check (informational only)
         if: ${{ steps.changed.outputs.files != '' }}
-        continue-on-error: true  # Do not fail CI while Ty is still alpha
+        continue-on-error: true    # Ty is still alpha; don’t fail CI
         run: |
           ty check ${{ steps.changed.outputs.files }}
 
-      # ----- Commit any modifications back to the branch -----
+      # 7️⃣ Commit any Ruff fixes back to the branch ---------------------------
       - name: Commit & push (if needed)
         if: ${{ steps.changed.outputs.files != '' }}
         run: |
@@ -101,5 +95,4 @@ jobs:
             git push
           else
             echo "Nothing to commit – changed files already tidy."
-          fi
-  
+    
