@@ -152,7 +152,6 @@ PLOT_STYLE: Final[dict[str, Any]] = {
 # FUNCTIONS
 # =============================================================================
 
-
 def slice_for_window(df: pd.DataFrame, window: TimeWindow) -> pd.DataFrame:
     """Return rows in *df* whose month-start date falls inside *window*."""
     if "period_dt" not in df.columns:
@@ -485,9 +484,16 @@ def generate_all_plots(df_time: pd.DataFrame) -> None:
 # MAIN
 # =============================================================================
 
-
 def main() -> None:
-    """Run the end-to-end NTD performance workflow."""
+    """Run the end-to-end NTD performance workflow.
+
+    Export policy
+    -------------
+    * “Complete” tables (all periods combined, or any full fiscal-year slice)
+      → **CSV only** – lightweight and ready for BI/plotting ingestion.
+    * All other deliverables (route-level, service-type, monthly workbooks, etc.)
+      → **XLSX only** – analyst-friendly, no redundant CSV versions.
+    """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # === STEP 1: READ EXCEL FILES ============================================
@@ -513,21 +519,21 @@ def main() -> None:
     if not unknown.empty:
         print("Unclassified routes:", ", ".join(unknown))
 
-    # === STEP 3: EXPORT WORKBOOKS (FULL FY-25) ===============================
-    print("\n=== STEP 3: EXPORT WORKBOOKS ===")
-    with pd.ExcelWriter(OUTPUT_DIR / "DetailedAllPeriods_andMonthlySheets.xlsx") as xw:
-        all_data.to_excel(xw, sheet_name="DetailedAllPeriods", index=False)
+    # === STEP 3: EXPORT COMPLETE DATASETS ====================================
+    print("\n=== STEP 3: EXPORT COMPLETE DATASETS ===")
+
+    # 3.1  Master CSV (all periods) – single file for pipelines
+    all_data.to_csv(
+        OUTPUT_DIR / "DetailedAllPeriods_for_plotting.csv",
+        index=False,
+    )
+    print("Combined CSV exported.")
+
+    # 3.2  Convenience workbook – one sheet per month (no giant sheet)
+    with pd.ExcelWriter(OUTPUT_DIR / "MonthlySheets.xlsx") as xw:
         for period in ORDERED_PERIODS:
             data_dict[period].to_excel(xw, sheet_name=period, index=False)
-    print("Detailed workbook exported.")
-
-    with pd.ExcelWriter(OUTPUT_DIR / "AggByServiceType.xlsx") as xw:
-        aggregate_by_service_type(all_data).to_excel(xw, sheet_name="YTD", index=False)
-        for period in ORDERED_PERIODS:
-            aggregate_by_service_type(data_dict[period]).to_excel(
-                xw, sheet_name=period, index=False
-            )
-    print("Service-type workbook exported.")
+    print("Monthly workbook exported.")
 
     # === STEP 4: ROUTE-LEVEL SUMMARIES (FULL FY-25) ==========================
     print("\n=== STEP 4: ROUTE-LEVEL SUMMARIES ===")
@@ -543,12 +549,12 @@ def main() -> None:
             out.to_excel(xw, sheet_name=f"{label}_Route_Level", index=False)
         print(f"{label} summary exported.")
 
-    # === STEP 5: TIME-SERIES PLOTS ==========================================
+    # === STEP 5: TIME-SERIES PLOTS ===========================================
     print("\n=== STEP 5: TIME-SERIES PLOTS ===")
     ts = build_monthly_timeseries(all_data)
     generate_all_plots(ts)
 
-    # === STEP 6: USER-DEFINED TIME WINDOWS ==================================
+    # === STEP 6: USER-DEFINED TIME WINDOWS ===================================
     print("\n=== STEP 6: TIME-WINDOW OUTPUTS ===")
     for tw in TIME_WINDOWS:
         w_dir = OUTPUT_DIR / tw.label
@@ -559,10 +565,13 @@ def main() -> None:
             print(f"⚠︎ {tw.label}: no rows inside {tw.start:%Y-%m-%d} → {tw.end:%Y-%m-%d}")
             continue
 
-        # 6.1  Raw slice for future plotting
-        subset.to_csv(w_dir / f"detailed_{tw.label}_for_plotting.csv", index=False)
+        # 6.1  Raw slice (complete FY etc.) → CSV only
+        subset.to_csv(
+            w_dir / f"detailed_{tw.label}_for_plotting.csv",
+            index=False,
+        )
 
-        # 6.2  Route-level summaries: Combined + three day-type splits
+        # 6.2  Route-level summaries (Combined + day-type splits) → XLSX only
         subsets_tw = {
             "Combined": subset,
             "Weekday": subset[subset["SERVICE_PERIOD"] == "Weekday"],
@@ -571,14 +580,17 @@ def main() -> None:
         }
         for lbl, df_sub in subsets_tw.items():
             rl = route_level_summary(df_sub)
-            base = f"RouteLevelSummary_{lbl}"
-            rl.to_excel(w_dir / f"{base}.xlsx", index=False)
-            rl.to_csv(w_dir / f"{base}.csv", index=False)
+            rl.to_excel(
+                w_dir / f"RouteLevelSummary_{lbl}.xlsx",
+                index=False,
+            )
 
-        # 6.3  Service-type aggregation for the window
+        # 6.3  Service-type aggregation for the window → XLSX only
         st = aggregate_by_service_type(subset)
-        st.to_excel(w_dir / f"AggByServiceType_{tw.label}.xlsx", index=False)
-        st.to_csv(w_dir / f"AggByServiceType_{tw.label}.csv", index=False)
+        st.to_excel(
+            w_dir / f"AggByServiceType_{tw.label}.xlsx",
+            index=False,
+        )
 
         print(f"{tw.label}: {len(subset):,} rows → {w_dir.relative_to(OUTPUT_DIR)}")
 
