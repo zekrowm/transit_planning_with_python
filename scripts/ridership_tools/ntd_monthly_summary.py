@@ -13,13 +13,13 @@ Features:
 """
 
 from __future__ import annotations
-import os
+
 import re
-import sys
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
-from datetime import datetime
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -27,7 +27,7 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-DATA_ROOT: Final[Path] = Path(r"Path\To\Your\NTD_Folder")      # input files
+DATA_ROOT: Final[Path] = Path(r"Path\To\Your\NTD_Folder")  # input files
 OUTPUT_DIR: Final[Path] = Path(r"Path\To\Your\Output\Folder")  # results
 
 REQUIRED_NUMERIC_COLS: Final[list[str]] = [
@@ -39,44 +39,50 @@ REQUIRED_NUMERIC_COLS: Final[list[str]] = [
     "REV_MILES",
 ]
 
-# ----------------------------------------------------------------------------- 
-#  Workbook catalogue                                                     
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+#  Workbook catalogue
+# -----------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class PeriodSpec:
     """Workbook name and destination sheet."""
+
     filename: str
     sheet: str
 
+
 PERIODS: Final[dict[str, PeriodSpec]] = {
-    "Jul-2024": PeriodSpec("JULY 2024 NTD RIDERSHIP BY ROUTE.xlsx",          "Temporary_Query_N"),
+    "Jul-2024": PeriodSpec("JULY 2024 NTD RIDERSHIP BY ROUTE.xlsx", "Temporary_Query_N"),
     "Aug-2024": PeriodSpec("AUGUST 2024  NTD RIDERSHIP REPORT BY ROUTE.xlsx", "Temporary_Query_N"),
-    "Sep-2024": PeriodSpec("SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.xlsx",     "Sep.2024 Finals"),
-    "Oct-2024": PeriodSpec("NTD RIDERSHIP BY ROUTE _ OCTOBER _2024.xlsx",       "Temporary_Query_N"),
-    "Nov-2024": PeriodSpec("NTD RIDERSHIP BY ROUTE-NOVEMBER 2024.xlsx",      "Temporary_Query_N"),
-    "Dec-2024": PeriodSpec("NTD RIDERSHIP BY MONTH_DECEMBER 2024.xlsx",      "Dec. 2024"),
-    "Jan-2025": PeriodSpec("NTD RIDERSHIP BY MONTH-JANUARY 2025.xlsx",       "Jan. 2025"),
-    "Feb-2025": PeriodSpec("NTD RIDERSHIP BY MONTH-FEBRUARY 2025.xlsx",      "Feb. 2025"),
-    "Mar-2025": PeriodSpec("MARCH 2025 NTD MONTHLY RIDERSHIP.xlsx",         "March 2025"),
-    "Apr-2025": PeriodSpec("APRIL 2025 NTD MONTHLY RIDERSHIP.xlsx",         "April 2025"),
-    "May-2025": PeriodSpec("May 2025 NTD MONTHLY RIDERSHIP.xlsx",           "May 2025"),
+    "Sep-2024": PeriodSpec("SEPTEMBER 2024 NTD RIDERSHIP BY ROUTE.xlsx", "Sep.2024 Finals"),
+    "Oct-2024": PeriodSpec("NTD RIDERSHIP BY ROUTE _ OCTOBER _2024.xlsx", "Temporary_Query_N"),
+    "Nov-2024": PeriodSpec("NTD RIDERSHIP BY ROUTE-NOVEMBER 2024.xlsx", "Temporary_Query_N"),
+    "Dec-2024": PeriodSpec("NTD RIDERSHIP BY MONTH_DECEMBER 2024.xlsx", "Dec. 2024"),
+    "Jan-2025": PeriodSpec("NTD RIDERSHIP BY MONTH-JANUARY 2025.xlsx", "Jan. 2025"),
+    "Feb-2025": PeriodSpec("NTD RIDERSHIP BY MONTH-FEBRUARY 2025.xlsx", "Feb. 2025"),
+    "Mar-2025": PeriodSpec("MARCH 2025 NTD MONTHLY RIDERSHIP.xlsx", "March 2025"),
+    "Apr-2025": PeriodSpec("APRIL 2025 NTD MONTHLY RIDERSHIP.xlsx", "April 2025"),
+    "May-2025": PeriodSpec("May 2025 NTD MONTHLY RIDERSHIP.xlsx", "May 2025"),
     # "Jun-2025": PeriodSpec("JUNE 2025 NTD RIDERSHIP BY MONTH.xlsx",          "Jun. 2025"),
 }
 ORDERED_PERIODS: Final[list[str]] = list(PERIODS)
 SERVICE_PERIODS: Final[list[str]] = ["Weekday", "Saturday", "Sunday"]
-    
-# ----------------------------------------------------------------------------- 
-#  Optional user-defined time windows                                    
-# ----------------------------------------------------------------------------- 
+
+# -----------------------------------------------------------------------------
+#  Optional user-defined time windows
+# -----------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class TimeWindow:
     """Named span of dates over which to aggregate results."""
-    label: str          # e.g. "FY25" or "Summer2024"
-    start: datetime     # inclusive
-    end: datetime       # inclusive
-        
+
+    label: str  # e.g. "FY25" or "Summer2024"
+    start: datetime  # inclusive
+    end: datetime  # inclusive
+
+
 # Analysts can edit or append to this list without touching code elsewhere.
 TIME_WINDOWS: Final[list[TimeWindow]] = [
     TimeWindow("FY21", datetime(2020, 7, 1), datetime(2021, 6, 30)),
@@ -87,22 +93,26 @@ TIME_WINDOWS: Final[list[TimeWindow]] = [
     # TimeWindow("Summer2024", datetime(2024, 6, 1), datetime(2024, 8, 31)),
 ]
 
-# ----------------------------------------------------------------------------- 
-#  Classification dictionaries                                            
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+#  Classification dictionaries
+# -----------------------------------------------------------------------------
 
 SERVICE_TYPE_DICT: Final[dict[str, list[str]]] = {
     "local": [
-        "101", "202",
+        "101",
+        "202",
     ],
     "express": [
-        "303", "404",
+        "303",
+        "404",
     ],
     "circulator": [
-        "505", "606",
+        "505",
+        "606",
     ],
     "feeder": [
-        "707", "808",
+        "707",
+        "808",
     ],
 }
 
@@ -113,42 +123,41 @@ CORRIDOR_DICT: Final[dict[str, list[str]]] = {
     "i_4_corridor": ["707", "808"],
 }
 
-# ----------------------------------------------------------------------------- 
-#  Plot behaviour                                                       
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+#  Plot behaviour
+# -----------------------------------------------------------------------------
 
 PLOT_CONFIG: Final[dict[str, bool]] = {
     "plot_total_ridership": False,
-    "plot_weekday_avg":     True,
-    "plot_saturday_avg":    False,
-    "plot_sunday_avg":      False,
-    "plot_revenue_hours":   False,
-    "plot_trips":           False,
-    "plot_revenue_miles":   False,
-    "plot_pph":             False,
-    "plot_ppt":             False,
-    "plot_ppm":             False,
+    "plot_weekday_avg": True,
+    "plot_saturday_avg": False,
+    "plot_sunday_avg": False,
+    "plot_revenue_hours": False,
+    "plot_trips": False,
+    "plot_revenue_miles": False,
+    "plot_pph": False,
+    "plot_ppt": False,
+    "plot_ppm": False,
 }
 
 PLOT_STYLE: Final[dict[str, Any]] = {
-    "figsize":  (9, 5),
-    "marker":   "o",
+    "figsize": (9, 5),
+    "marker": "o",
     "linestyle": "-",
     "rotation": 45,
-    "grid":     True,
+    "grid": True,
 }
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
+
 def slice_for_window(df: pd.DataFrame, window: TimeWindow) -> pd.DataFrame:
     """Return rows in *df* whose month-start date falls inside *window*."""
     if "period_dt" not in df.columns:
         # Parse once – assumes "Jul-2024", "Aug-2024", …
-        df = df.assign(
-            period_dt=pd.to_datetime(df["period"], format="%b-%Y", errors="coerce")
-        )
+        df = df.assign(period_dt=pd.to_datetime(df["period"], format="%b-%Y", errors="coerce"))
     mask = (df["period_dt"] >= window.start) & (df["period_dt"] <= window.end)
     return df.loc[mask].copy()
 
@@ -181,12 +190,7 @@ def safe_div(
 def normalise_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Upper-case, trim, and replace spaces with underscores in columns."""
     df = df.copy()
-    df.columns = (
-        df.columns.astype(str)
-        .str.strip()
-        .str.upper()
-        .str.replace(" ", "_", regex=False)
-    )
+    df.columns = df.columns.astype(str).str.strip().str.upper().str.replace(" ", "_", regex=False)
     return df
 
 
@@ -286,9 +290,7 @@ def aggregate_by_service_type(df: pd.DataFrame) -> pd.DataFrame:
 
     grouped["BOARDS_PER_HOUR"] = safe_div_vec(grouped["MTH_BOARD"], grouped["MTH_REV_HOURS"])
     grouped["PASSENGERS_PER_TRIP"] = safe_div_vec(grouped["MTH_BOARD"], grouped["TOTAL_TRIPS"])
-    grouped["PASSENGERS_PER_MILE"] = safe_div_vec(
-        grouped["MTH_BOARD"], grouped["MTH_REV_MILES"], 3
-    )
+    grouped["PASSENGERS_PER_MILE"] = safe_div_vec(grouped["MTH_BOARD"], grouped["MTH_REV_MILES"], 3)
 
     totals = grouped[
         ["MTH_BOARD", "MTH_REV_HOURS", "MTH_PASS_MILES", "MTH_REV_MILES", "TOTAL_TRIPS"]
@@ -431,8 +433,7 @@ def plot_metric_over_time(df_time: pd.DataFrame, metric: str) -> None:
     for route in sorted(df_m["route"].unique()):
         df_r = df_m[df_m["route"] == route]
         y_vals = [
-            df_r.loc[df_r["period"] == p, metric].squeeze()
-            if p in df_r["period"].values else None
+            df_r.loc[df_r["period"] == p, metric].squeeze() if p in df_r["period"].values else None
             for p in ORDERED_PERIODS
         ]
         if all(v is None or pd.isna(v) for v in y_vals):
@@ -447,7 +448,7 @@ def plot_metric_over_time(df_time: pd.DataFrame, metric: str) -> None:
         )
         plt.title(f"{metric.replace('_', ' ').title()} – Route {route}")
         plt.xlabel("Month")
-        plt.ylabel(metric.replace('_', ' ').title())
+        plt.ylabel(metric.replace("_", " ").title())
         plt.xticks(rotation=PLOT_STYLE["rotation"])
         plt.grid(PLOT_STYLE["grid"])
 
@@ -464,15 +465,15 @@ def generate_all_plots(df_time: pd.DataFrame) -> None:
     """Iterate over :pydata:`PLOT_CONFIG` and generate enabled plots."""
     metric_map = {
         "plot_total_ridership": "total_ridership",
-        "plot_weekday_avg":     "weekday_avg",
-        "plot_saturday_avg":    "saturday_avg",
-        "plot_sunday_avg":      "sunday_avg",
-        "plot_revenue_hours":   "revenue_hours",
-        "plot_trips":           "trips",
-        "plot_revenue_miles":   "revenue_miles",
-        "plot_pph":             "pph",
-        "plot_ppt":             "ppt",
-        "plot_ppm":             "ppm",
+        "plot_weekday_avg": "weekday_avg",
+        "plot_saturday_avg": "saturday_avg",
+        "plot_sunday_avg": "sunday_avg",
+        "plot_revenue_hours": "revenue_hours",
+        "plot_trips": "trips",
+        "plot_revenue_miles": "revenue_miles",
+        "plot_pph": "pph",
+        "plot_ppt": "ppt",
+        "plot_ppm": "ppm",
     }
     for flag, col in metric_map.items():
         if PLOT_CONFIG.get(flag, False):
@@ -483,6 +484,7 @@ def generate_all_plots(df_time: pd.DataFrame) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the end-to-end NTD performance workflow."""
@@ -531,9 +533,9 @@ def main() -> None:
     print("\n=== STEP 4: ROUTE-LEVEL SUMMARIES ===")
     subsets = {
         "Combined": all_data,
-        "Weekday":  all_data[all_data["SERVICE_PERIOD"] == "Weekday"],
+        "Weekday": all_data[all_data["SERVICE_PERIOD"] == "Weekday"],
         "Saturday": all_data[all_data["SERVICE_PERIOD"] == "Saturday"],
-        "Sunday":   all_data[all_data["SERVICE_PERIOD"] == "Sunday"],
+        "Sunday": all_data[all_data["SERVICE_PERIOD"] == "Sunday"],
     }
     for label, subset in subsets.items():
         out = route_level_summary(subset)
@@ -563,20 +565,20 @@ def main() -> None:
         # 6.2  Route-level summaries: Combined + three day-type splits
         subsets_tw = {
             "Combined": subset,
-            "Weekday":  subset[subset["SERVICE_PERIOD"] == "Weekday"],
+            "Weekday": subset[subset["SERVICE_PERIOD"] == "Weekday"],
             "Saturday": subset[subset["SERVICE_PERIOD"] == "Saturday"],
-            "Sunday":   subset[subset["SERVICE_PERIOD"] == "Sunday"],
+            "Sunday": subset[subset["SERVICE_PERIOD"] == "Sunday"],
         }
         for lbl, df_sub in subsets_tw.items():
             rl = route_level_summary(df_sub)
             base = f"RouteLevelSummary_{lbl}"
             rl.to_excel(w_dir / f"{base}.xlsx", index=False)
-            rl.to_csv  (w_dir / f"{base}.csv",  index=False)
+            rl.to_csv(w_dir / f"{base}.csv", index=False)
 
         # 6.3  Service-type aggregation for the window
         st = aggregate_by_service_type(subset)
         st.to_excel(w_dir / f"AggByServiceType_{tw.label}.xlsx", index=False)
-        st.to_csv  (w_dir / f"AggByServiceType_{tw.label}.csv",  index=False)
+        st.to_csv(w_dir / f"AggByServiceType_{tw.label}.csv", index=False)
 
         print(f"{tw.label}: {len(subset):,} rows → {w_dir.relative_to(OUTPUT_DIR)}")
 
@@ -585,4 +587,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
- 
