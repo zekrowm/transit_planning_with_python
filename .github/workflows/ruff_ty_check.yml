@@ -5,10 +5,11 @@ on:
   push:
     branches: ["main"]
   pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write          # needed for auto‑format commits (push events only)
   pull-requests: write
 
 jobs:
@@ -19,83 +20,111 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Check out the repo -------------------------------------------------
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          # For pull requests, check out the head ref (the source branch).
-          # For other events (like push), check out the event's ref.
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
-          fetch-depth: 0
+    # --------------------------------------------------------------------- #
+    # 1️⃣  Check out the repo                                               #
+    # --------------------------------------------------------------------- #
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        # PRs → head branch ; pushes → current ref
+        ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+        fetch-depth: 0
 
-      # 2️⃣ Figure out which *.py files changed --------------------------------
-      - name: Determine changed Python files
-        id: changed
-        shell: bash
-        run: |
+    # --------------------------------------------------------------------- #
+    # 2️⃣  Figure out which *.py files changed                               #
+    # --------------------------------------------------------------------- #
+    - name: Determine changed Python files
+      id: changed
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        else
           BASE_SHA="${{ github.event.before }}"
-          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+          # First push of a new branch/tag → event.before is all zeros
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0{40}$ ]]; then
             BASE_SHA="$(git rev-parse HEAD~1)"
           fi
           BASE_SHA="$(git merge-base "$BASE_SHA" "$GITHUB_SHA")"
-          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- '*.py' | sort -u | tr '\n' ' ')
-          echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
+          HEAD_SHA="$GITHUB_SHA"
+        fi
 
-      - name: Nothing to do
-        if: ${{ steps.changed.outputs.files == '' }}
-        run: echo "No Python files changed – skipping formatting, linting, and type checking."
+        CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- '*.py' \
+                        | sort -u | tr '\n' ' ')
+        echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
 
-      # 3️⃣ Set up Python ----------------------------
-      - name: Set up Python
-        if: ${{ steps.changed.outputs.files != '' }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"            # built-in wheel cache
+    - name: Nothing to do
+      if: ${{ steps.changed.outputs.files == '' }}
+      run: echo "No Python files changed – skipping formatting, linting, and type checking."
 
-      # 4️⃣ Install tooling and project deps -----------------------------------
-      - name: Install Ruff + Ty
-        if: ${{ steps.changed.outputs.files != '' }}
-        run: |
-          python -m pip install --upgrade pip
-          pip install --pre "ruff>=0.4.0" "ty>=0.0.1a0"
+    # --------------------------------------------------------------------- #
+    # 3️⃣  Set up Python                                                    #
+    # --------------------------------------------------------------------- #
+    - name: Set up Python
+      if: ${{ steps.changed.outputs.files != '' }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: "pip"
 
-      - name: Install project dependencies + type stubs
-        if: ${{ steps.changed.outputs.files != '' }}
-        run: |
-          # Runtime deps
+    # --------------------------------------------------------------------- #
+    # 4️⃣  Install tooling and project deps                                 #
+    # --------------------------------------------------------------------- #
+    - name: Install Ruff + Ty
+      if: ${{ steps.changed.outputs.files != '' }}
+      run: |
+        python -m pip install --upgrade pip
+        # Latest pre‑release Ty (no version pin)
+        pip install --pre "ruff>=0.4.0" ty
+
+    - name: Install project dependencies + type stubs
+      if: ${{ steps.changed.outputs.files != '' }}
+      run: |
+        # Runtime deps (if present)
+        if [[ -f requirements.txt ]]; then
           pip install -r requirements.txt
+        else
+          echo "requirements.txt not found – skipping."
+        fi
 
-          # Compile-time stub wheels (PEP 561)
-          pip install pandas-stubs
+        # Compile‑time stub wheels (PEP 561)
+        pip install pandas-stubs
 
-      # 5️⃣ Ruff formatting, linting, fixing -----------------------------------
-      - name: Ruff – format
-        if: ${{ steps.changed.outputs.files != '' }}
-        run: |
-          ruff format ${{ steps.changed.outputs.files }}
+    # --------------------------------------------------------------------- #
+    # 5️⃣  Ruff formatting, linting, fixing                                 #
+    # --------------------------------------------------------------------- #
+    - name: Ruff – format
+      if: ${{ steps.changed.outputs.files != '' }}
+      run: |
+        ruff format ${{ steps.changed.outputs.files }}
 
-      - name: Ruff – lint & auto-fix
-        if: ${{ steps.changed.outputs.files != '' }}
-        run: |
-          ruff check ${{ steps.changed.outputs.files }} --fix
+    - name: Ruff – lint & auto‑fix
+      if: ${{ steps.changed.outputs.files != '' }}
+      run: |
+        ruff check ${{ steps.changed.outputs.files }} --fix
 
-      # 6️⃣ Ty static type checking (non-blocking) -----------------------------
-      - name: Ty – type check (informational only)
-        if: ${{ steps.changed.outputs.files != '' }}
-        continue-on-error: true    # Ty is still alpha; don’t fail CI
-        run: |
-          ty check ${{ steps.changed.outputs.files }}
+    # --------------------------------------------------------------------- #
+    # 6️⃣  Ty static type checking (non‑blocking)                           #
+    # --------------------------------------------------------------------- #
+    - name: Ty – type check (informational only)
+      if: ${{ steps.changed.outputs.files != '' }}
+      continue-on-error: true        # Ty is still alpha; don’t fail CI
+      run: |
+        ty check ${{ steps.changed.outputs.files }}
 
-      # 7️⃣ Commit any Ruff fixes back to the branch ---------------------------
-      - name: Commit & push (if needed)
-        if: ${{ steps.changed.outputs.files != '' }}
-        run: |
-          if [[ $(git status --porcelain) ]]; then
-            git config user.name  "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -am "style: auto-format changed files with ruff [skip ci]"
-            git push
-          else
-            echo "Nothing to commit – changed files already tidy."
-          fi
+    # --------------------------------------------------------------------- #
+    # 7️⃣  Commit any Ruff fixes back to the branch (push events only)      #
+    # --------------------------------------------------------------------- #
+    - name: Commit & push (if needed)
+      if: ${{ github.event_name == 'push' && steps.changed.outputs.files != '' }}
+      run: |
+        if [[ $(git status --porcelain) ]]; then
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "style: auto‑format changed files with ruff [skip ci]"
+          git push
+        else
+          echo "Nothing to commit – changed files already tidy."
+        fi
