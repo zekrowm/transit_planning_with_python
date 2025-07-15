@@ -16,6 +16,7 @@ Configuration constants are grouped in the *CONFIGURATION* section below.
 """
 
 from __future__ import annotations
+
 import ast
 import copy
 import datetime as _dt
@@ -45,6 +46,7 @@ AUTO_FIX: bool = False
 # INTERNAL TYPES
 # -----------------------------------------------------------------------------
 
+
 class CanonicalFunc(NamedTuple):
     """Container holding canonical function data."""
 
@@ -58,9 +60,11 @@ class AuditResult(NamedTuple):
     identical: List[Path]
     mismatched: List[Path]
 
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _normalise(node: ast.AST) -> ast.AST:
     """Return *node* with all positional attributes zeroed for stable comparison."""
@@ -206,6 +210,7 @@ def _audit_single_function(
 # LOGGING
 # -----------------------------------------------------------------------------
 
+
 def _setup_logging() -> None:
     """Configure console + file logging."""
     Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
@@ -225,6 +230,7 @@ def _setup_logging() -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entry point."""
