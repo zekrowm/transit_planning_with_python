@@ -68,6 +68,18 @@ INDEX_COLS: Final[list[str]] = ["ROUTE_NUMBER", "DIRECTION_NAME", "TRIP_KEY"]
 # =============================================================================
 
 def read_and_clean(filepath: str | pathlib.Path) -> pd.DataFrame:
+    """Load a Ridecheck export and apply minimal cleaning.
+
+    * Normalises ``TRIP_START_TIME`` to 24‑hour ``HH:MM`` text.
+    * Builds a compact ``SEGMENT_LABEL`` as
+      ``<TIMEPOINT_NAME_1>-<TIMEPOINT_NAME_2>``.
+
+    Args:
+        filepath: Path to the Excel file to ingest (absolute or relative).
+
+    Returns:
+        Cleaned long‑format :class:`pandas.DataFrame` ready for pivoting.
+    """
     df = pd.read_excel(filepath, engine="openpyxl")
 
     # Clean TRIP_START_TIME → HH:MM 24‑hr
@@ -108,6 +120,18 @@ def pivot_one_metric(
     metric: str,
     segment_order: dict[str, int],
 ) -> pd.DataFrame:
+    """Pivot a single runtime metric to wide trip‑segment format.
+
+    Args:
+        df: Long‑format data for **one** route and direction.
+        metric: Runtime column to pivot (e.g. ``"RUNNING_TIME_ACT"``).
+        segment_order: Mapping ``SEGMENT_LABEL → SORT_ORDER_1`` that
+            preserves the correct left‑to‑right column order.
+
+    Returns:
+        Wide‑format :class:`pandas.DataFrame` with one row per trip and
+        one column per segment, plus optional total column.
+    """
     wide = (
         df.pivot_table(
             index=INDEX_COLS + ["TRIP_START_TIME"],
@@ -128,6 +152,17 @@ def pivot_one_metric(
 
 
 def slugify(text: str) -> str:
+    """Convert free‑form text to a filesystem‑safe slug.
+
+    Collapses whitespace to underscores and removes any character that is
+    **not** ``A–Z``, ``a–z``, ``0–9``, ``.``, ``_`` or ``-``.
+
+    Args:
+        text: Arbitrary string (route, direction, etc.).
+
+    Returns:
+        Sanitised slug suitable for use in file names.
+    """
     return re.sub(r"[^A-Za-z0-9._-]", "", re.sub(r"\s+", "_", text.strip()))
 
 
@@ -259,6 +294,7 @@ def export_tables_and_log(
 # =============================================================================
 
 def main() -> None:
+    """Entry‑point when the module is executed as a script."""
     try:
         df = read_and_clean(INPUT_PATH)
     except FileNotFoundError as err:
