@@ -2,14 +2,13 @@
 name: ruff_ty_check
 
 on:
-  push:
-    branches: ["main"]
+  # Run only on PRs that target `main` (and when manually triggered)
   pull_request:
     branches: ["main"]
   workflow_dispatch:
 
 permissions:
-  contents: write          # needed for auto‑format commits (push events only)
+  contents: write          # allows the bot to commit to the PR’s head branch
   pull-requests: write
 
 jobs:
@@ -20,36 +19,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # --------------------------------------------------------------------- #
-    # 1️⃣  Check out the repo                                               #
-    # --------------------------------------------------------------------- #
+    # --------------------------------------------------------------------- 
+    # 1️⃣  Check out the PR’s head branch                                   
+    # --------------------------------------------------------------------- 
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        # PRs → head branch ; pushes → current ref
-        ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+        ref: ${{ github.head_ref }}   # default is fine, but explicit for clarity
         fetch-depth: 0
 
-    # --------------------------------------------------------------------- #
-    # 2️⃣  Figure out which *.py files changed                               #
-    # --------------------------------------------------------------------- #
+    # --------------------------------------------------------------------- 
+    # 2️⃣  Figure out which *.py files changed                               
+    # --------------------------------------------------------------------- 
     - name: Determine changed Python files
       id: changed
       shell: bash
       run: |
         set -euo pipefail
-        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-        else
-          BASE_SHA="${{ github.event.before }}"
-          # First push of a new branch/tag → event.before is all zeros
-          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0{40}$ ]]; then
-            BASE_SHA="$(git rev-parse HEAD~1)"
-          fi
-          BASE_SHA="$(git merge-base "$BASE_SHA" "$GITHUB_SHA")"
-          HEAD_SHA="$GITHUB_SHA"
-        fi
+        BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        HEAD_SHA="${{ github.event.pull_request.head.sha }}"
 
         CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- '*.py' \
                         | sort -u | tr '\n' ' ')
@@ -59,9 +47,9 @@ jobs:
       if: ${{ steps.changed.outputs.files == '' }}
       run: echo "No Python files changed – skipping formatting, linting, and type checking."
 
-    # --------------------------------------------------------------------- #
-    # 3️⃣  Set up Python                                                    #
-    # --------------------------------------------------------------------- #
+    # --------------------------------------------------------------------- 
+    # 3️⃣  Set up Python                                                    
+    # --------------------------------------------------------------------- 
     - name: Set up Python
       if: ${{ steps.changed.outputs.files != '' }}
       uses: actions/setup-python@v5
@@ -69,32 +57,28 @@ jobs:
         python-version: "3.12"
         cache: "pip"
 
-    # --------------------------------------------------------------------- #
-    # 4️⃣  Install tooling and project deps                                 #
-    # --------------------------------------------------------------------- #
+    # --------------------------------------------------------------------- 
+    # 4️⃣  Install tooling and project deps                                 
+    # --------------------------------------------------------------------- 
     - name: Install Ruff + Ty
       if: ${{ steps.changed.outputs.files != '' }}
       run: |
         python -m pip install --upgrade pip
-        # Latest pre‑release Ty (no version pin)
         pip install --pre "ruff>=0.4.0" ty
 
     - name: Install project dependencies + type stubs
       if: ${{ steps.changed.outputs.files != '' }}
       run: |
-        # Runtime deps (if present)
         if [[ -f requirements.txt ]]; then
           pip install -r requirements.txt
         else
           echo "requirements.txt not found – skipping."
         fi
-
-        # Compile‑time stub wheels (PEP 561)
         pip install pandas-stubs
 
-    # --------------------------------------------------------------------- #
-    # 5️⃣  Ruff formatting, linting, fixing                                 #
-    # --------------------------------------------------------------------- #
+    # --------------------------------------------------------------------- 
+    # 5️⃣  Ruff formatting, linting, fixing                                 
+    # --------------------------------------------------------------------- 
     - name: Ruff – format
       if: ${{ steps.changed.outputs.files != '' }}
       run: |
@@ -105,20 +89,21 @@ jobs:
       run: |
         ruff check ${{ steps.changed.outputs.files }} --fix
 
-    # --------------------------------------------------------------------- #
-    # 6️⃣  Ty static type checking (non‑blocking)                           #
-    # --------------------------------------------------------------------- #
+    # --------------------------------------------------------------------- 
+    # 6️⃣  Ty static type checking (non‑blocking)                           
+    # --------------------------------------------------------------------- 
     - name: Ty – type check (informational only)
       if: ${{ steps.changed.outputs.files != '' }}
-      continue-on-error: true        # Ty is still alpha; don’t fail CI
+      continue-on-error: true
       run: |
         ty check ${{ steps.changed.outputs.files }}
 
-    # --------------------------------------------------------------------- #
-    # 7️⃣  Commit any Ruff fixes back to the branch (push events only)      #
-    # --------------------------------------------------------------------- #
-    - name: Commit & push (if needed)
-      if: ${{ github.event_name == 'push' && steps.changed.outputs.files != '' }}
+    # --------------------------------------------------------------------- 
+    # 7️⃣  Commit any Ruff fixes back to the PR branch                      
+    # --------------------------------------------------------------------- 
+    - name: Commit & push Ruff fixes
+      # Runs ONLY on pull_request events, not on `main`
+      if: ${{ github.event_name == 'pull_request' && steps.changed.outputs.files != '' }}
       run: |
         if [[ $(git status --porcelain) ]]; then
           git config user.name  "github-actions[bot]"
