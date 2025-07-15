@@ -1,0 +1,50 @@
+# .github/workflows/helper_audit.yml
+name: helper_audit
+
+on:
+  pull_request:
+    paths:                     # optional — limit to Python changes
+      - '**/*.py'
+      - '.github/workflows/helper-audit.yml'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🛎️  Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍  Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'     # keep in sync with your runtime
+
+      - name: 📦  Install dependencies (if any)
+        run: |
+          python -m pip install --upgrade pip
+          # pip install -r requirements.txt  # uncomment if you rely on deps
+
+      - name: 🔍  Run helper‑function consistency audit
+        id: audit
+        run: |
+          set -e
+          EXIT_CODE=0
+          python helpers_audit.py || EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+          # surface a warning so reviewers notice
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "::warning file=helpers_audit.py,line=1::Helper‑function divergences detected (see logs)."
+          fi
+          exit 0                      # always succeed – for now
+        # remove the line above (or `continue-on-error`) to make failures fatal
+
+      - name: 📝  Add summary for PR
+        if: steps.audit.outputs.exit_code != '0'
+        run: |
+          {
+            echo "### ⚠️ Helper‑function divergences detected"
+            echo ""
+            echo "The audit script spotted at least one non‑canonical copy of a helper function."
+            echo "Merge is **not** blocked, but please review the *Run helper‑function consistency audit* step for details."
+          } >> "$GITHUB_STEP_SUMMARY"
