@@ -16,7 +16,6 @@ Configuration constants are grouped in the *CONFIGURATION* section below.
 """
 
 from __future__ import annotations
-
 import ast
 import copy
 import datetime as _dt
