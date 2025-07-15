@@ -30,11 +30,10 @@ jobs:
         run: |
           set -e
           EXIT_CODE=0
-          python helpers_audit.py || EXIT_CODE=$?
+          python dev_tools/audit_helper_functions.py || EXIT_CODE=$?
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
-          # surface a warning so reviewers notice
           if [ "$EXIT_CODE" -ne 0 ]; then
-            echo "::warning file=helpers_audit.py,line=1::Helper‑function divergences detected (see logs)."
+            echo "::warning file=dev_tools/audit_helper_functions.py,line=1::Helper‑function divergences detected (see logs)."
           fi
           exit 0                      # always succeed – for now
         # remove the line above (or `continue-on-error`) to make failures fatal
