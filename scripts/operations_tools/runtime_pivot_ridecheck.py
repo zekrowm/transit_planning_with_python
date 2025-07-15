@@ -30,7 +30,7 @@ from __future__ import annotations
 import pathlib
 import re
 import sys
-from typing import Final, Iterable, List
+from typing import Final, Iterable
 
 import pandas as pd
 
@@ -38,7 +38,7 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-INPUT_PATH: Final = (r"\\Path\To\Your\RUNTIME_SUMMARY_BY_ROUTE_AND_DIRECTION_(CHART).XLSX")
+INPUT_PATH: Final = r"\\Path\To\Your\RUNTIME_SUMMARY_BY_ROUTE_AND_DIRECTION_(CHART).XLSX"
 OUTPUT_DIR: Final = pathlib.Path(r"\\Path\To\Your\Output\Folder")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -56,9 +56,9 @@ TOTAL_NAMES: Final[dict[str, str]] = {
     "RUNNING_TIME_DIFF": "TOTAL_DIFF",
 }
 
-WRITE_LOG: Final[bool] = True         # master switch
-THRESH_MINUTES: Final[float] = 10.0   # minutes
-THRESH_PCT: Final[float] = 0.10       # 10 %
+WRITE_LOG: Final[bool] = True  # master switch
+THRESH_MINUTES: Final[float] = 10.0  # minutes
+THRESH_PCT: Final[float] = 0.10  # 10 %
 LOG_FILENAME: Final[str] = "runtime_anomalies.txt"
 
 INDEX_COLS: Final[list[str]] = ["ROUTE_NUMBER", "DIRECTION_NAME", "TRIP_KEY"]
@@ -66,6 +66,7 @@ INDEX_COLS: Final[list[str]] = ["ROUTE_NUMBER", "DIRECTION_NAME", "TRIP_KEY"]
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def read_and_clean(filepath: str | pathlib.Path) -> pd.DataFrame:
     """Load a Ridecheck export and apply minimal cleaning.
@@ -95,9 +96,7 @@ def read_and_clean(filepath: str | pathlib.Path) -> pd.DataFrame:
 
     # Create human‑readable segment label
     df["SEGMENT_LABEL"] = (
-        df["TIMEPOINT_NAME_1"].str.strip()
-        + "-"
-        + df["TIMEPOINT_NAME_2"].str.strip()
+        df["TIMEPOINT_NAME_1"].str.strip() + "-" + df["TIMEPOINT_NAME_2"].str.strip()
     )
     return df
 
@@ -195,10 +194,7 @@ def export_tables_and_log(
         output_dir: Folder where all output files and the log are written.
     """
     if WRITE_LOG and not ADD_TOTAL_COLUMNS:
-        print(
-            "⚠  WRITE_LOG is True but ADD_TOTAL_COLUMNS is False – "
-            "logging disabled."
-        )
+        print("⚠  WRITE_LOG is True but ADD_TOTAL_COLUMNS is False – logging disabled.")
         log_entries: list[str] = []
     else:
         log_entries: list[str] = []
@@ -239,38 +235,30 @@ def export_tables_and_log(
 
             # Join TOTAL_SCH, TOTAL_ACT, TOTAL_DIFF into a single table
             totals = (
-                sch[
-                    INDEX_COLS + ["TRIP_START_TIME", TOTAL_NAMES["RUNNING_TIME_SCH"]]
-                ]
+                sch[INDEX_COLS + ["TRIP_START_TIME", TOTAL_NAMES["RUNNING_TIME_SCH"]]]
                 .rename(columns={TOTAL_NAMES["RUNNING_TIME_SCH"]: "TOTAL_SCH"})
                 .merge(
-                    act[
-                        INDEX_COLS
-                        + ["TRIP_START_TIME", TOTAL_NAMES["RUNNING_TIME_ACT"]]
-                    ].rename(columns={TOTAL_NAMES["RUNNING_TIME_ACT"]: "TOTAL_ACT"}),
+                    act[INDEX_COLS + ["TRIP_START_TIME", TOTAL_NAMES["RUNNING_TIME_ACT"]]].rename(
+                        columns={TOTAL_NAMES["RUNNING_TIME_ACT"]: "TOTAL_ACT"}
+                    ),
                     on=INDEX_COLS + ["TRIP_START_TIME"],
                     how="inner",
                 )
                 .merge(
-                    diff[
-                        INDEX_COLS
-                        + ["TRIP_START_TIME", TOTAL_NAMES["RUNNING_TIME_DIFF"]]
-                    ].rename(columns={TOTAL_NAMES["RUNNING_TIME_DIFF"]: "TOTAL_DIFF"}),
+                    diff[INDEX_COLS + ["TRIP_START_TIME", TOTAL_NAMES["RUNNING_TIME_DIFF"]]].rename(
+                        columns={TOTAL_NAMES["RUNNING_TIME_DIFF"]: "TOTAL_DIFF"}
+                    ),
                     on=INDEX_COLS + ["TRIP_START_TIME"],
                     how="inner",
                 )
             )
 
             # Flag rows exceeding either threshold
-            mask = totals.apply(
-                lambda r: _row_exceeds_threshold(r.TOTAL_SCH, r.TOTAL_DIFF), axis=1
-            )
+            mask = totals.apply(lambda r: _row_exceeds_threshold(r.TOTAL_SCH, r.TOTAL_DIFF), axis=1)
             flagged = totals.loc[mask]
 
             # NEW — robust list‑building (avoids the .tolist() AttributeError)
-            log_entries.extend(
-                _format_log_line(row) for _, row in flagged.iterrows()
-            )
+            log_entries.extend(_format_log_line(row) for _, row in flagged.iterrows())
 
     # ------------------------------------------------------------------ #
     # 2.  Write the consolidated log file
@@ -278,8 +266,7 @@ def export_tables_and_log(
     if WRITE_LOG and ADD_TOTAL_COLUMNS and log_entries:
         log_path = output_dir / LOG_FILENAME
         header = (
-            "ROUTE_NUMBER,DIRECTION_NAME,TRIP_KEY,TRIP_START_TIME,"
-            "TOTAL_SCH,TOTAL_ACT,TOTAL_DIFF\n"
+            "ROUTE_NUMBER,DIRECTION_NAME,TRIP_KEY,TRIP_START_TIME,TOTAL_SCH,TOTAL_ACT,TOTAL_DIFF\n"
         )
         with open(log_path, "w", encoding="utf-8") as fh:
             fh.write(header)
@@ -292,6 +279,7 @@ def export_tables_and_log(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entry‑point when the module is executed as a script."""
