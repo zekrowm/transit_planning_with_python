@@ -1,4 +1,5 @@
 transit_planning_with_python-main/
+├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md
 ├── directory_structure.txt
@@ -6,20 +7,28 @@ transit_planning_with_python-main/
 ├── requirements.txt
 ├── .github/
 │   └── workflows/
-│       └── ruff_ty_check.yml
+|       ├── helper_audit.yml
+|       ├── ruff_ty_check.yml
+│       └── ruff_ty_weekly.yml
+├── dev_tools/
+|   ├── audit_helper_functions.py
+│   └── print_repo_file_tree.py
 ├── helpers/
 │   └── gtfs_helpers.py
 └── scripts/
+    ├── census_tools/
+    │   └── census_shp_filter_export_gpd.py
     ├── gtfs_exports/
     │   └── bus_schedule_exporter.py
+    ├── gtfs_validation/
+    │   ├── stops_vs_roadname_checker_arcpy.py
+    │   └── stops_vs_roadname_checker_gpd.py
     ├── network_analysis/
-    │   └── stop_spacing_flagger_arcpy.py
+    │   ├── route_direction_classifier.py
+    │   └── stop_spacing_flagger_gpd.py
     ├── operations_tools/
-    │   ├── historical_otp_data_processor.py
-    │   ├── otp_per_trip_processor.py
-    │   ├── runtime_per_trip_processor.py
-    │   └── segment_runtime_processor.py
+    │   └── runtime_pivot_ridecheck.py
     └── ridership_tools/
         ├── data_request_by_stop_processor.py
+        ├── ntd_monthly_summary.py
         └── stops_ridership_joiner_arcpy.py
-  
