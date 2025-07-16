@@ -27,7 +27,7 @@ import logging
 import os
 import sys
 from typing import List, Sequence
-
+from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
@@ -35,12 +35,14 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-# Full paths to TABBLOCK20 (or similar) shapefiles
-BLOCK_SHP_FILES: List[str] = [
-    r"C:\full\path\to\tl_2023_11_tabblock20.shp",
-    r"C:\full\path\to\tl_2023_24_tabblock20.shp",
-    r"C:\full\path\to\tl_2023_51_tabblock20.shp",
-]
+#: Root folder that contains one or more TIGER/Line shapefiles.
+#: Path can be absolute or relative; sub‑folders are searched automatically.
+INPUT_DIR: str = r"C:\path\to\your\tiger_shapefiles"
+
+#: Unix‑style glob that must match the **.shp** filenames you want.
+#: Typical TIGER naming examples:  tl_2023_11_tabblock20.shp,
+# Currently generic, takes tabblock, bg, tract
+INPUT_GLOB = "tl_*_*_*.shp"     # or simply "*.shp"
 
 # Optional FIPS filter — leave empty ([]) to export everything
 FIPS_TO_FILTER: List[str] = [
@@ -75,6 +77,33 @@ LOGGER = logging.getLogger(__name__)
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
+def discover_shapefiles(root_dir: str | Path, pattern: str = "*.shp") -> List[str]:
+    """Recursively find every shapefile under *root_dir* that matches *pattern*.
+
+    Args:
+        root_dir: Directory to search (sub‑directories are included).
+        pattern:  Glob pattern (passed to :pymeth:`pathlib.Path.rglob`).
+
+    Returns:
+        A sorted list of absolute paths to *.shp* files.
+
+    Raises:
+        NotADirectoryError: *root_dir* does not exist or is not a directory.
+        FileNotFoundError:  No matching shapefiles were found.
+    """
+    root = Path(root_dir).expanduser().resolve()
+    if not root.is_dir():
+        raise NotADirectoryError(f"{root} is not a valid directory")
+
+    matches = sorted(str(p) for p in root.rglob(pattern))
+    if not matches:
+        raise FileNotFoundError(
+            f"No shapefiles matching '{pattern}' were found under {root}"
+        )
+
+    LOGGER.info("Discovered %d shapefile(s) beneath %s", len(matches), root)
+    return matches
 
 
 def read_shapefile(path: str) -> gpd.GeoDataFrame:
@@ -195,10 +224,11 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
 
 
 def main() -> None:
-    """Top-level workflow controller."""
+    """Top‑level workflow controller."""
     try:
-        # 1. Merge input layers
-        merged = merge_shapefiles(BLOCK_SHP_FILES)
+        # 1. Discover and merge input layers  ←‑‑‑‑‑‑ CHANGED
+        shp_paths = discover_shapefiles(INPUT_DIR, INPUT_GLOB)
+        merged = merge_shapefiles(shp_paths)
 
         # 2. Make sure we have a FIPS field
         ensure_fips_column(merged)
@@ -212,7 +242,6 @@ def main() -> None:
         LOGGER.info("Finished successfully")
 
     except Exception:  # noqa: BLE001
-        # Never swallow exceptions silently in a batch script
         LOGGER.exception("Processing failed")
         sys.exit(1)
 
