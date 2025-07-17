@@ -22,7 +22,8 @@ are several limitations users should be aware of:
 """
 
 from __future__ import annotations
-
+from collections import OrderedDict
+import re
 import logging
 import os
 import sys
@@ -78,32 +79,72 @@ LOGGER = logging.getLogger(__name__)
 # FUNCTIONS
 # =============================================================================
 
-def discover_shapefiles(root_dir: str | Path, pattern: str = "*.shp") -> List[str]:
-    """Recursively find every shapefile under *root_dir* that matches *pattern*.
+def discover_tiger_datasets(
+    root_dir: str | Path,
+    pattern: str = "tl_*_*_*.shp",
+    *,
+    prefer: str = "shp",                # "shp" → use plain files when both exist, "zip" → the reverse
+) -> List[str]:
+    """Return absolute paths to TIGER shapefiles, plain or zipped.
+
+    The search is recursive.  ``pattern`` is applied to both *.shp* and *.zip*
+    names (e.g. ``tl_2023_11_tabblock20.shp`` ⟷ ``tl_2023_11_tabblock20.zip``).
+
+    Fiona/GeoPandas can open zipped shapefiles transparently when the *vfs*
+    virtual‑filesystem prefix is supplied (``zip://``).
 
     Args:
-        root_dir: Directory to search (sub‑directories are included).
-        pattern:  Glob pattern (passed to :pymeth:`pathlib.Path.rglob`).
+        root_dir: Directory to crawl.
+        pattern:  Glob matching the **shapefile name** (not the extension).
+        prefer:   Which copy wins if both a *.shp* and *.zip* are found.
 
-    Returns:
-        A sorted list of absolute paths to *.shp* files.
-
-    Raises:
-        NotADirectoryError: *root_dir* does not exist or is not a directory.
-        FileNotFoundError:  No matching shapefiles were found.
+    Returns
+    -------
+    list[str]
+        Sorted list of paths ready for :pyfunc:`geopandas.read_file`.
+        Zipped archives are returned as ``"zip://full/path/to/file.zip"`` so
+        no extra kwargs are needed downstream.
     """
     root = Path(root_dir).expanduser().resolve()
     if not root.is_dir():
         raise NotADirectoryError(f"{root} is not a valid directory")
 
-    matches = sorted(str(p) for p in root.rglob(pattern))
-    if not matches:
-        raise FileNotFoundError(
-            f"No shapefiles matching '{pattern}' were found under {root}"
-        )
+    # ------------------------------------------------------------------ gather candidates
+    shp_paths = list(root.rglob(pattern))
+    # Derive the equivalent *.zip glob by replacing only the final ".shp"
+    zip_glob  = re.sub(r"\.shp$", ".zip", pattern, flags=re.IGNORECASE)
+    zip_paths = list(root.rglob(zip_glob))
 
-    LOGGER.info("Discovered %d shapefile(s) beneath %s", len(matches), root)
-    return matches
+    # ------------------------------------------------------------------ de‑duplicate
+    chosen: "OrderedDict[str, Path]" = OrderedDict()          # key = stem, value = Path
+    for p in sorted(shp_paths + zip_paths):
+        stem = p.stem                                         # tl_2023_11_tabblock20
+        ext  = p.suffix.lower()                               # .shp or .zip
+
+        if stem in chosen:
+            # Keep or replace based on *prefer* rule
+            keep_zip = (prefer == "zip")
+            if   keep_zip and ext == ".zip": chosen[stem] = p          # replace *.shp* with *.zip*
+            elif not keep_zip and ext == ".shp": chosen[stem] = p      # replace *.zip* with *.shp*
+            # else: ignore
+        else:
+            chosen[stem] = p
+
+    if not chosen:
+        raise FileNotFoundError(f"No datasets matching '{pattern}' were found under {root}")
+
+    LOGGER.info(
+        "Discovered %d dataset(s) (%d plain, %d zipped)",
+        len(chosen), sum(p.suffix == '.shp' for p in chosen.values()),
+        sum(p.suffix == '.zip' for p in chosen.values())
+    )
+
+    # ------------------------------------------------------------------ add 'zip://' VFS prefix
+    final_paths: list[str] = []
+    for p in chosen.values():
+        final_paths.append(f"zip://{p}" if p.suffix.lower() == ".zip" else str(p))
+
+    return sorted(final_paths)
 
 
 def read_shapefile(path: str) -> gpd.GeoDataFrame:
@@ -226,7 +267,7 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
 def main() -> None:
     """Top‑level workflow controller."""
     try:
-        # 1. Discover and merge input layers  ←‑‑‑‑‑‑ CHANGED
+        shp_paths = discover_tiger_datasets(INPUT_DIR, INPUT_GLOB, prefer="shp")
         shp_paths = discover_shapefiles(INPUT_DIR, INPUT_GLOB)
         merged = merge_shapefiles(shp_paths)
 
