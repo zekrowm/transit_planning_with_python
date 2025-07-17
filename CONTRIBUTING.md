@@ -70,6 +70,32 @@ Most formatting issues (indentation, line length, spacing) are auto-corrected by
   - Then copy that helper into any script that uses it.
 - Do **not** import functions from one script into another or from `helpers/` at runtime.
 
+## 🌳 GitHub Contribution Workflow
+
+Follow these instructions when contributing code via GitHub:
+
+1. **Fork the repository.**
+   - Click the "Fork" button on GitHub to create your own copy.
+2. **Clone the repository locally.**
+   ```bash
+   git clone https://github.com/<YOUR-USERNAME>/<REPO-NAME>.git
+   cd <REPO-NAME>
+   ```
+3. **Create a feature branch.**
+   ```bash
+   git checkout -b feature/your-descriptive-feature-name
+   ```
+4. **Make your changes.**
+   - Keep commits small and clearly described with [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+5. **Push your branch to your fork.**
+   ```bash
+   git push -u origin feature/your-descriptive-feature-name
+   ```
+6. **Open a Pull Request.**
+   - Clearly describe your changes, referencing any related issues.
+7. **Respond to feedback.**
+   - Update your PR with suggested changes until your contribution is approved.
+
 ---
 
 For further details, contact the repository maintainer.
