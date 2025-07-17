@@ -32,31 +32,39 @@ import pandas as pd
 
 #: Folder that holds every Census download (plain CSV, *.csv.gz*, or ZIPs).
 #: Sub-directories are searched automatically.
-ROOT_DATA_DIR: str | Path = r"Path\To\Your\Census_Table_Data_Files"          # <<< EDIT ME
+ROOT_DATA_DIR: str | Path = r"Path\To\Your\Census_Table_Data_Files"  # <<< EDIT ME
 
 #: Optional output CSV (set to None to skip writing)
 CSV_OUTPUT_PATH: str | None = r"Path\To\Your\Output_Folder\joined_blocks.csv"
 
 #: Optional county FIPS filter (5-digit codes, e.g. ["11001", "51059"])
 COUNTY_FIPS_FILTER: list[str] = [
-    "11001", "24031", "24033",
-    "51683", "51685", "51059",
-    "51013", "51510", "51600",
-    "51610", "51107", "51153",
+    "11001",
+    "24031",
+    "24033",
+    "51683",
+    "51685",
+    "51059",
+    "51013",
+    "51510",
+    "51600",
+    "51610",
+    "51107",
+    "51153",
 ]
 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
 # Signatures that map a file name to a *topic* variable.  ALL tokens listed for
 # a topic must appear in the file name (case-insensitive).
 TOPIC_SIGNATURES: dict[str, Sequence[str] | str] = {
-    "POP_FILES":        ("P1",),
-    "HH_FILES":         ("H9",),
-    "JOBS_FILES":       ("_S000_JT00_",),   # LODES WAC
-    "INCOME_FILES":     ("B19001",),
-    "ETHNICITY_FILES":  ("P9",),
-    "LANGUAGE_FILES":   ("C16001",),
-    "VEHICLE_FILES":    ("B08201",),
-    "AGE_FILES":        ("B01001",),
+    "POP_FILES": ("P1",),
+    "HH_FILES": ("H9",),
+    "JOBS_FILES": ("_S000_JT00_",),  # LODES WAC
+    "INCOME_FILES": ("B19001",),
+    "ETHNICITY_FILES": ("P9",),
+    "LANGUAGE_FILES": ("C16001",),
+    "VEHICLE_FILES": ("B08201",),
+    "AGE_FILES": ("B01001",),
 }
 
 # -----------------------------------------------------------------------------
@@ -73,6 +81,7 @@ LOGGER = logging.getLogger(__name__)
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _token_match(name: str, tokens: Sequence[str] | str) -> bool:
     """Return *True* if **all** tokens occur in *name* (case-insensitive)."""
@@ -92,7 +101,7 @@ def discover_census_files(
     * ZIPs are returned as the ZIP path itself – content is handled later.
     * File order is sorted for determinism.
 
-    Returns
+    Returns:
     -------
     dict[str, list[str]]
         Keys mirror *signatures* and align with downstream variable names.
@@ -131,12 +140,14 @@ def _read_csv_any(path: str | Path, **read_kwargs: Any) -> pd.DataFrame:
 
     return pd.read_csv(p, **read_kwargs)
 
+
 # -----------------------------------------------------------------------------
 # DATA-PROCESSING CONSTANTS & REGEXES
 # -----------------------------------------------------------------------------
 
 GEO_ID_COL = "GEO_ID"
 _UNFRIENDLY_COL_RE = re.compile(r"^[A-Z]{2,}\d{3,}.*")
+
 
 def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame:
     """Replace *only* numeric NaNs with *value*; leave object columns untouched."""
@@ -149,10 +160,10 @@ def _clean_name_cols(df: pd.DataFrame) -> None:
     """Sanitise NAME‑like columns in place (remove CR/LF/TAB)."""
     for col in df.filter(regex=r"^NAME").columns:
         df[col] = (
-            df[col]                       # Series
-            .astype(str)                  # ensure string dtype
+            df[col]  # Series
+            .astype(str)  # ensure string dtype
             .str.replace(r"[\r\n\t]+", " ", regex=True)  # collapse control chars
-            .str.strip()                  # trim leading/trailing spaces
+            .str.strip()  # trim leading/trailing spaces
         )
 
 
@@ -178,12 +189,12 @@ def _load_and_concat(
     skiprows, dtype, usecols, rename, compression :
         Passed straight through to :func:`pandas.read_csv`; see pandas docs.
 
-    Returns
+    Returns:
     -------
     pd.DataFrame
         Concatenated frame (empty if *files* is empty).
 
-    Notes
+    Notes:
     -----
     * ZIP archives are handled transparently via ``_read_csv_any``.
     * Column renaming occurs **before** we prune columns via *usecols*
@@ -590,6 +601,7 @@ __all__ = ["build_joined_table"]
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Orchestrate discovery, join, and optional CSV export."""

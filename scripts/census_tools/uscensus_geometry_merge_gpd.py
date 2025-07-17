@@ -25,13 +25,15 @@ Helpful links:
 """
 
 from __future__ import annotations
-from collections import OrderedDict
-import re
+
 import logging
 import os
+import re
 import sys
-from typing import List, Sequence
+from collections import OrderedDict
 from pathlib import Path
+from typing import List, Sequence
+
 import geopandas as gpd
 import pandas as pd
 
@@ -46,14 +48,22 @@ INPUT_DIR: str = r"C:\path\to\your\tiger_shapefiles"
 #: Unix‑style glob that must match the **.shp** filenames you want.
 #: Typical TIGER naming examples:  tl_2023_11_tabblock20.shp,
 # Currently generic, takes tabblock, bg, tract
-INPUT_GLOB = "tl_*_*_*.shp"     # or simply "*.shp"
+INPUT_GLOB = "tl_*_*_*.shp"  # or simply "*.shp"
 
 # Optional FIPS filter — leave empty ([]) to export everything
 FIPS_TO_FILTER: List[str] = [
-    "11001", "24031", "24033",
-    "51683", "51685", "51059",
-    "51013", "51510", "51600",
-    "51610", "51107", "51153",
+    "11001",
+    "24031",
+    "24033",
+    "51683",
+    "51685",
+    "51059",
+    "51013",
+    "51510",
+    "51600",
+    "51610",
+    "51107",
+    "51153",
 ]
 
 # Output file (Shapefile *.shp, GeoPackage *.gpkg, etc.)
@@ -74,11 +84,12 @@ LOGGER = logging.getLogger(__name__)
 # FUNCTIONS
 # =============================================================================
 
+
 def discover_tiger_datasets(
     root_dir: str | Path,
     pattern: str = "tl_*_*_*.shp",
     *,
-    prefer: str = "shp",                # "shp" → use plain files when both exist, "zip" → the reverse
+    prefer: str = "shp",  # "shp" → use plain files when both exist, "zip" → the reverse
 ) -> List[str]:
     """Return absolute paths to TIGER shapefiles, plain or zipped.
 
@@ -93,7 +104,7 @@ def discover_tiger_datasets(
         pattern:  Glob matching the **shapefile name** (not the extension).
         prefer:   Which copy wins if both a *.shp* and *.zip* are found.
 
-    Returns
+    Returns:
     -------
     list[str]
         Sorted list of paths ready for :pyfunc:`geopandas.read_file`.
@@ -107,20 +118,22 @@ def discover_tiger_datasets(
     # ------------------------------------------------------------------ gather candidates
     shp_paths = list(root.rglob(pattern))
     # Derive the equivalent *.zip glob by replacing only the final ".shp"
-    zip_glob  = re.sub(r"\.shp$", ".zip", pattern, flags=re.IGNORECASE)
+    zip_glob = re.sub(r"\.shp$", ".zip", pattern, flags=re.IGNORECASE)
     zip_paths = list(root.rglob(zip_glob))
 
     # ------------------------------------------------------------------ de‑duplicate
-    chosen: "OrderedDict[str, Path]" = OrderedDict()          # key = stem, value = Path
+    chosen: "OrderedDict[str, Path]" = OrderedDict()  # key = stem, value = Path
     for p in sorted(shp_paths + zip_paths):
-        stem = p.stem                                         # tl_2023_11_tabblock20
-        ext  = p.suffix.lower()                               # .shp or .zip
+        stem = p.stem  # tl_2023_11_tabblock20
+        ext = p.suffix.lower()  # .shp or .zip
 
         if stem in chosen:
             # Keep or replace based on *prefer* rule
-            keep_zip = (prefer == "zip")
-            if   keep_zip and ext == ".zip": chosen[stem] = p          # replace *.shp* with *.zip*
-            elif not keep_zip and ext == ".shp": chosen[stem] = p      # replace *.zip* with *.shp*
+            keep_zip = prefer == "zip"
+            if keep_zip and ext == ".zip":
+                chosen[stem] = p  # replace *.shp* with *.zip*
+            elif not keep_zip and ext == ".shp":
+                chosen[stem] = p  # replace *.zip* with *.shp*
             # else: ignore
         else:
             chosen[stem] = p
@@ -130,8 +143,9 @@ def discover_tiger_datasets(
 
     LOGGER.info(
         "Discovered %d dataset(s) (%d plain, %d zipped)",
-        len(chosen), sum(p.suffix == '.shp' for p in chosen.values()),
-        sum(p.suffix == '.zip' for p in chosen.values())
+        len(chosen),
+        sum(p.suffix == ".shp" for p in chosen.values()),
+        sum(p.suffix == ".zip" for p in chosen.values()),
     )
 
     # ------------------------------------------------------------------ add 'zip://' VFS prefix
@@ -257,6 +271,7 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Top‑level workflow controller."""
