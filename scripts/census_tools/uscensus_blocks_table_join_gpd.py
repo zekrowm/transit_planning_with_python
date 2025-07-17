@@ -75,28 +75,18 @@ def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
 
 
 def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
-    """Read attribute CSV produced by the tabular script.
+    df = pd.read_csv(csv_path, dtype=str)
 
-    If *key* is missing, derive it from *DERIVATION_SRC* by
-    slicing the last 15 characters (standard block FIPS length).
+    if key in df.columns:
+        # Always normalize to 15-digit FIPS
+        df[key] = df[key].str[-15:]
+    elif DERIVATION_SRC in df.columns:
+        df[key] = df[DERIVATION_SRC].str[-15:]
+    else:
+        raise KeyError(
+            f"Neither '{key}' nor '{DERIVATION_SRC}' found in {csv_path}."
+        )
 
-    Raises:
-    ------
-    KeyError
-        If neither *key* nor *DERIVATION_SRC* is present.
-    """
-    LOGGER.info("Reading attribute table: %s", csv_path)
-    df: DataFrame = pd.read_csv(csv_path, dtype=str)  # read everything as str
-
-    if key not in df.columns:
-        if DERIVATION_SRC in df.columns:
-            df[key] = df[DERIVATION_SRC].str[-15:]
-            LOGGER.info("Derived %s from %s by taking last 15 chars", key, DERIVATION_SRC)
-        else:
-            raise KeyError(
-                f"Neither '{key}' nor '{DERIVATION_SRC}' found in {csv_path}. "
-                f"Available columns: {list(df.columns)}"
-            )
     return df
 
 
