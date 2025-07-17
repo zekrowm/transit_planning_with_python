@@ -1,7 +1,20 @@
 # Contributing to This Repository
 
-We value clarity, consistency, and usability in our scripts. Please adhere to the following principles when contributing:
+This project is built for transit planners, transit analysts, and civic technologists who want readable,
+self-contained Python scripts for transportation planning. We value clarity, consistency, and usability
+in our scripts to make them usable by a wider audience. Please follow these principles when contributing:
 
+## 👥 How to Contribute
+
+Participation is welcome from anyone, whether you’re new to coding, an experienced GitHub user, or a seasoned developer:
+- **Beginners:**  
+  - Feel free to copy, modify, and use scripts without any expectation of interaction.
+- **Intermediate Users:**  
+  - Create a GitHub Issue to report bugs, request new features, or ask questions.
+  - Clearly describe your issue, including error messages, expected vs. actual results, and steps to reproduce the issue.
+- **Advanced Users:**  
+  - Submit Pull Requests (PRs) with proposed improvements or fixes.
+  - Follow the instructions below to ensure your PRs meet project standards.
 
 ## 🧱 Code Structure
 
@@ -10,40 +23,78 @@ We value clarity, consistency, and usability in our scripts. Please adhere to th
   - Prefer inline variable configuration over `argparse`.
 - Use intuitive success messages at the end of script execution.
   - e.g., `print("Script completed successfully.")` or equivalent `logging` call.
-- **Do not import shared helper functions** from external modules like `gtfs_helpers.py`.
-  - Instead, **reproduce the minimal helper function directly in the script** where it's used.
-  - This makes each script self-contained and easier for beginners to read, copy, and modify without needing to navigate the whole repo.
+- Do **not import** functions from the shared `helpers/` directory at runtime.
+  - Instead, **copy the relevant helper functions** into your script.
+  - This keeps each script self-contained and easier for beginners to understand, run, and modify.
+- The `helpers/` directory holds the **canonical version** of shared functions. Any differences between a script’s local copy and the canonical version will be flagged in CI.
 
 ## ⚙️ Runtime Behavior
 
 - Prefer the `logging` module over `print()` for diagnostics or warnings.
 - Implement **graceful, actionable error handling** — no cryptic tracebacks.
-- Use placeholder filenames that are clean, minimal, and safe to run (e.g., no real paths or usernames).
+- Use placeholder filenames that are clean, minimal, and safe to run (e.g., r"Path\\To\\Output_Folder", "input_data.csv").
 - Default to:
   - **Washington, DC CRS** unless otherwise noted.
   - **Imperial units** (feet/miles), with metric options clearly noted when used.
 
 ## 🧪 Testing & Review
 
-- **Manual testing is required** before committing. There are no automated tests (yet).
-- All commits must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+- **Manual testing is required** before submitting a pull request. There are no automated tests yet.
+- All commits must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
+- All pull requests are automatically tested for:
+  - Style and formatting using `ruff`.
+  - Static typing using `ty`.
+- You **do not** need to run linters or type checkers manually, but you **must fix** any issues flagged by the CI pipeline before requesting a review.
 
 ## 🧼 Code Style
 
-Most formatting and style issues are enforced automatically via **Ruff** and checked in CI. This includes:
+This project uses `ruff` to enforce formatting, linting, and docstring style, and `ty` for non-blocking type checks.
 
-- PEP 8 compliance
-- Import order
-- Blank lines, indentation, etc.
-- Google-style docstrings (via `pydocstyle`)
-- Avoiding use of `print()` (warned via `T201`)
+Most formatting issues (indentation, line length, spacing) are auto-corrected by Ruff on PRs.
 
-You do **not** need to manually run linters before committing, but you should review CI feedback if it fails.
+- The following are enforced in CI:
+  - PEP 8 layout and formatting
+  - The enforced line length is **100 characters**
+  - Google-style docstrings
+  - Consistent import ordering (`isort`-compatible)
+  - Type annotations (with some leniency for `Any`)
+  - Avoiding `print()` (via Ruff rule `T201`) — use `logging` instead        
+
+**Note:** Ruff auto-fixes are pushed back to your PR branch automatically by the GitHub Actions workflow.
 
 ## 📁 File Organization
 
 - Add new scripts to the appropriate subfolder within `scripts/`, based on function (e.g., `ridership_tools/`, `gtfs_exports/`).
-- Any reusable helper functions should be added to `helpers/gtfs_helpers.py`, not copied into individual scripts.
+- If you create a helper that’s reused across multiple scripts:
+  - Add the canonical version to the appropriate file under `helpers/`.
+  - Then copy that helper into any script that uses it.
+- Do **not** import functions from one script into another or from `helpers/` at runtime.
+
+## 🌳 GitHub Contribution Workflow
+
+Follow these instructions when contributing code via GitHub:
+
+1. **Fork the repository.**
+   - Click the "Fork" button on GitHub to create your own copy.
+2. **Clone the repository locally.**
+   ```bash
+   git clone https://github.com/<YOUR-USERNAME>/<REPO-NAME>.git
+   cd <REPO-NAME>
+   ```
+3. **Create a feature branch.**
+   ```bash
+   git checkout -b feature/your-descriptive-feature-name
+   ```
+4. **Make your changes.**
+   - Keep commits small and clearly described with [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+5. **Push your branch to your fork.**
+   ```bash
+   git push -u origin feature/your-descriptive-feature-name
+   ```
+6. **Open a Pull Request.**
+   - Clearly describe your changes, referencing any related issues.
+7. **Respond to feedback.**
+   - Update your PR with suggested changes until your contribution is approved.
 
 ---
 
