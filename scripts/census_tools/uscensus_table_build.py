@@ -116,7 +116,7 @@ def discover_census_files(
     return buckets
 
 
-def _read_csv_any(path: str | Path, **read_kwargs) -> pd.DataFrame:
+def _read_csv_any(path: str | Path, **read_kwargs: Any) -> pd.DataFrame:
     """Read a CSV/CSV.GZ directly *or* the first “-Data.csv” member in a ZIP."""
     p = Path(path)
     suf = p.suffix.lower()
