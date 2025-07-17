@@ -2,8 +2,7 @@
 
 This project is built for transit planners, transit analysts, and civic technologists who want readable,
 self-contained Python scripts for transportation planning. We value clarity, consistency, and usability
-in our scripts to make them usable by a wider audience. Please adhere to the following principles when
-contributing:
+in our scripts to make them usable by a wider audience. Please follow the following principles when contributing:
 
 
 ## 🧱 Code Structure
@@ -21,7 +20,7 @@ contributing:
 
 - Prefer the `logging` module over `print()` for diagnostics or warnings.
 - Implement **graceful, actionable error handling** — no cryptic tracebacks.
-- Use placeholder filenames that are clean, minimal, and safe to run (e.g., r"Path\To\Your\Output_Folder", "input_data.csv").
+- Use placeholder filenames that are clean, minimal, and safe to run (e.g., r"Path\\To\\Output_Folder", "input_data.csv").
 - Default to:
   - **Washington, DC CRS** unless otherwise noted.
   - **Imperial units** (feet/miles), with metric options clearly noted when used.
@@ -33,7 +32,7 @@ contributing:
 - All pull requests are automatically tested for:
   - Style and formatting using `ruff`.
   - Static typing using `ty`.
-- You **do not** need to run linters or type checkers manually, but you **should fix any issues** flagged by the CI pipeline before requesting a review.
+- You **do not** need to run linters or type checkers manually, but you **must fix** any issues flagged by the CI pipeline before requesting a review.
 
 ## 🧼 Code Style
 
@@ -43,6 +42,7 @@ Most formatting issues (indentation, line length, spacing) are auto-corrected by
 
 - The following are enforced in CI:
   - PEP 8 layout and formatting
+  - The enforced line length is **100 characters**
   - Google-style docstrings
   - Consistent import ordering (`isort`-compatible)
   - Type annotations (with some leniency for `Any`)
