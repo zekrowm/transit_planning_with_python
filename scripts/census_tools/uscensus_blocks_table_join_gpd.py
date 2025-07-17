@@ -98,9 +98,7 @@ def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
     elif DERIVATION_SRC in df.columns:
         df[key] = df[DERIVATION_SRC].str[-15:]
     else:
-        raise KeyError(
-            f"Neither '{key}' nor '{DERIVATION_SRC}' found in {csv_path}."
-        )
+        raise KeyError(f"Neither '{key}' nor '{DERIVATION_SRC}' found in {csv_path}.")
 
     return df
 
