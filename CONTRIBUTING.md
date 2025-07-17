@@ -12,9 +12,10 @@ in our scripts to make them usable by a wider audience. Please follow the follow
   - Prefer inline variable configuration over `argparse`.
 - Use intuitive success messages at the end of script execution.
   - e.g., `print("Script completed successfully.")` or equivalent `logging` call.
-- **Do not import shared helper functions** from external modules like `gtfs_helpers.py`.
-  - Instead, **reproduce the minimal helper function directly in the script** where it's used.
-  - This makes each script self-contained and easier for beginners to read, copy, and modify without needing to navigate the whole repo.
+- Do **not import** functions from the shared `helpers/` directory at runtime.
+  - Instead, **copy the relevant helper functions** into your script.
+  - This keeps each script self-contained and easier for beginners to understand, run, and modify.
+- The `helpers/` directory holds the **canonical version** of shared functions. Any differences between a script’s local copy and the canonical version will be flagged in CI.
 
 ## ⚙️ Runtime Behavior
 
@@ -53,7 +54,10 @@ Most formatting issues (indentation, line length, spacing) are auto-corrected by
 ## 📁 File Organization
 
 - Add new scripts to the appropriate subfolder within `scripts/`, based on function (e.g., `ridership_tools/`, `gtfs_exports/`).
-- Any reusable helper functions should be added to `helpers`, and copied into individual scripts.
+- If you create a helper that’s reused across multiple scripts:
+  - Add the canonical version to the appropriate file under `helpers/`.
+  - Then copy that helper into any script that uses it.
+- Do **not** import functions from one script into another or from `helpers/` at runtime.
 
 ---
 
