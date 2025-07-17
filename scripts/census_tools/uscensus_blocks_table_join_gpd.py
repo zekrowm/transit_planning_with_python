@@ -75,6 +75,21 @@ def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
 
 
 def load_attributes(csv_path: str, key: str = RIGHT_KEY) -> DataFrame:
+    """Read the attribute CSV and normalize the join key.
+
+    Args:
+        csv_path: Path to the CSV containing block‑level attributes.
+        key: Name of the column expected to hold the 15‑digit block FIPS
+            identifier (defaults to ``RIGHT_KEY``).
+
+    Returns:
+        DataFrame with a guaranteed 15‑digit *key* column suitable for
+        joining to block geometry.
+
+    Raises:
+        KeyError: If neither *key* nor *DERIVATION_SRC* is found in
+            *csv_path*.
+    """
     df = pd.read_csv(csv_path, dtype=str)
 
     if key in df.columns:
