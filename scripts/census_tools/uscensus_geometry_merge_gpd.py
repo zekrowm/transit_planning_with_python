@@ -19,13 +19,19 @@ are several limitations users should be aware of:
   if they do not match.
 - Shapefile column names are capped at 10 characters.  If you need full-length
   attribute names, write to a GeoPackage (`.gpkg`) instead.
+
+Helpful links:
+    https://www.census.gov/cgi-bin/geo/shapefiles/index.php
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 import sys
+from collections import OrderedDict
+from pathlib import Path
 from typing import List, Sequence
 
 import geopandas as gpd
@@ -35,12 +41,14 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-# Full paths to TABBLOCK20 (or similar) shapefiles
-BLOCK_SHP_FILES: List[str] = [
-    r"C:\full\path\to\tl_2023_11_tabblock20.shp",
-    r"C:\full\path\to\tl_2023_24_tabblock20.shp",
-    r"C:\full\path\to\tl_2023_51_tabblock20.shp",
-]
+#: Root folder that contains one or more TIGER/Line shapefiles.
+#: Path can be absolute or relative; sub‑folders are searched automatically.
+INPUT_DIR: str = r"C:\path\to\your\tiger_shapefiles"
+
+#: Unix‑style glob that must match the **.shp** filenames you want.
+#: Typical TIGER naming examples:  tl_2023_11_tabblock20.shp,
+# Currently generic, takes tabblock, bg, tract
+INPUT_GLOB = "tl_*_*_*.shp"  # or simply "*.shp"
 
 # Optional FIPS filter — leave empty ([]) to export everything
 FIPS_TO_FILTER: List[str] = [
@@ -75,6 +83,77 @@ LOGGER = logging.getLogger(__name__)
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
+
+def discover_tiger_datasets(
+    root_dir: str | Path,
+    pattern: str = "tl_*_*_*.shp",
+    *,
+    prefer: str = "shp",  # "shp" → use plain files when both exist, "zip" → the reverse
+) -> List[str]:
+    """Return absolute paths to TIGER shapefiles, plain or zipped.
+
+    The search is recursive.  ``pattern`` is applied to both *.shp* and *.zip*
+    names (e.g. ``tl_2023_11_tabblock20.shp`` ⟷ ``tl_2023_11_tabblock20.zip``).
+
+    Fiona/GeoPandas can open zipped shapefiles transparently when the *vfs*
+    virtual‑filesystem prefix is supplied (``zip://``).
+
+    Args:
+        root_dir: Directory to crawl.
+        pattern:  Glob matching the **shapefile name** (not the extension).
+        prefer:   Which copy wins if both a *.shp* and *.zip* are found.
+
+    Returns:
+    -------
+    list[str]
+        Sorted list of paths ready for :pyfunc:`geopandas.read_file`.
+        Zipped archives are returned as ``"zip://full/path/to/file.zip"`` so
+        no extra kwargs are needed downstream.
+    """
+    root = Path(root_dir).expanduser().resolve()
+    if not root.is_dir():
+        raise NotADirectoryError(f"{root} is not a valid directory")
+
+    # ------------------------------------------------------------------ gather candidates
+    shp_paths = list(root.rglob(pattern))
+    # Derive the equivalent *.zip glob by replacing only the final ".shp"
+    zip_glob = re.sub(r"\.shp$", ".zip", pattern, flags=re.IGNORECASE)
+    zip_paths = list(root.rglob(zip_glob))
+
+    # ------------------------------------------------------------------ de‑duplicate
+    chosen: "OrderedDict[str, Path]" = OrderedDict()  # key = stem, value = Path
+    for p in sorted(shp_paths + zip_paths):
+        stem = p.stem  # tl_2023_11_tabblock20
+        ext = p.suffix.lower()  # .shp or .zip
+
+        if stem in chosen:
+            # Keep or replace based on *prefer* rule
+            keep_zip = prefer == "zip"
+            if keep_zip and ext == ".zip":
+                chosen[stem] = p  # replace *.shp* with *.zip*
+            elif not keep_zip and ext == ".shp":
+                chosen[stem] = p  # replace *.zip* with *.shp*
+            # else: ignore
+        else:
+            chosen[stem] = p
+
+    if not chosen:
+        raise FileNotFoundError(f"No datasets matching '{pattern}' were found under {root}")
+
+    LOGGER.info(
+        "Discovered %d dataset(s) (%d plain, %d zipped)",
+        len(chosen),
+        sum(p.suffix == ".shp" for p in chosen.values()),
+        sum(p.suffix == ".zip" for p in chosen.values()),
+    )
+
+    # ------------------------------------------------------------------ add 'zip://' VFS prefix
+    final_paths: list[str] = []
+    for p in chosen.values():
+        final_paths.append(f"zip://{p}" if p.suffix.lower() == ".zip" else str(p))
+
+    return sorted(final_paths)
 
 
 def read_shapefile(path: str) -> gpd.GeoDataFrame:
@@ -195,10 +274,10 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
 
 
 def main() -> None:
-    """Top-level workflow controller."""
+    """Top‑level workflow controller."""
     try:
-        # 1. Merge input layers
-        merged = merge_shapefiles(BLOCK_SHP_FILES)
+        shp_paths = discover_tiger_datasets(INPUT_DIR, INPUT_GLOB, prefer="shp")
+        merged = merge_shapefiles(shp_paths)
 
         # 2. Make sure we have a FIPS field
         ensure_fips_column(merged)
@@ -212,7 +291,6 @@ def main() -> None:
         LOGGER.info("Finished successfully")
 
     except Exception:  # noqa: BLE001
-        # Never swallow exceptions silently in a batch script
         LOGGER.exception("Processing failed")
         sys.exit(1)
 
