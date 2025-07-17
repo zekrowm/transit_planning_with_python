@@ -262,7 +262,6 @@ def main() -> None:
     """Top‑level workflow controller."""
     try:
         shp_paths = discover_tiger_datasets(INPUT_DIR, INPUT_GLOB, prefer="shp")
-        shp_paths = discover_shapefiles(INPUT_DIR, INPUT_GLOB)
         merged = merge_shapefiles(shp_paths)
 
         # 2. Make sure we have a FIPS field
