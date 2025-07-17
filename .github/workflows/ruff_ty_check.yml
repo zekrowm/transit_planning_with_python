@@ -108,7 +108,7 @@ jobs:
         if [[ $(git status --porcelain) ]]; then
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -am "style: auto‑format changed files with ruff [skip ci]"
+          git commit -am "style: Auto‑format changed files with ruff [skip ci]"
           git push
         else
           echo "Nothing to commit – changed files already tidy."
