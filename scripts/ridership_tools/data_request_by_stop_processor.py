@@ -41,12 +41,12 @@ STOP_IDS: List[int] = []  # keep these (empty → keep all)
 
 # Optional TIME_PERIOD aggregation list
 TIME_PERIODS: List[str] = [
-    "AM EARLY",
+#    "AM EARLY",
     "AM PEAK",
-    "MIDDAY",
+#    "MIDDAY",
     "PM PEAK",
-    "PM LATE",
-    "PM NITE",
+#    "PM LATE",
+#    "PM NITE",
 ]  # empty ⇒ skip time-period breakdown
 
 # If True → round ridership columns in "Original" sheet and (if bins are off)
