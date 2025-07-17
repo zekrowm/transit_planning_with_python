@@ -2,11 +2,11 @@
 
 Transit Planning Tools for Medium-Sized Agencies
 
-Welcome to the transit_planning_with_python repository! This collection of off-the-shelf Python scripts is designed to assist transit planners at medium-sized agencies. Each tool focuses on accomplishing a common task or solving a common challenge in transit analysis and planning. The most common input is static ***General Transit Feed Specification (GTFS)*** data, but shapefile roadway centerlines, roadway polygons, bus route shapes, Census blocks, and others are also commonly used.
+Welcome to **Transit Planning With Python**, a toolkit of off‑the‑shelf Python scripts designed for data‑driven transit planning at medium‑sized agencies. Each tool focuses on accomplishing a common task or solving a common challenge in transit analysis and planning. The most common input is static ***General Transit Feed Specification (GTFS)*** data, but shapefile roadway centerlines, roadway polygons, bus route shapes, Census blocks, and others are also commonly used.
 
 ## 🚀 Features
 
-Our Python scripts automate complex transit analysis tasks, making data-driven planning easier and faster. Key features include:
+Our scripts automate complex transit analysis. The current modules and data types supported include:
 
 Data Preparation and Visualization
 
