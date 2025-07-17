@@ -1,6 +1,9 @@
 # Contributing to This Repository
 
-We value clarity, consistency, and usability in our scripts. Please adhere to the following principles when contributing:
+This project is built for transit planners, transit analysts, and civic technologists who want readable,
+self-contained Python scripts for transportation planning. We value clarity, consistency, and usability
+in our scripts to make them usable by a wider audience. Please adhere to the following principles when
+contributing:
 
 
 ## 🧱 Code Structure
@@ -18,32 +21,39 @@ We value clarity, consistency, and usability in our scripts. Please adhere to th
 
 - Prefer the `logging` module over `print()` for diagnostics or warnings.
 - Implement **graceful, actionable error handling** — no cryptic tracebacks.
-- Use placeholder filenames that are clean, minimal, and safe to run (e.g., no real paths or usernames).
+- Use placeholder filenames that are clean, minimal, and safe to run (e.g., r"Path\To\Your\Output_Folder", "input_data.csv").
 - Default to:
   - **Washington, DC CRS** unless otherwise noted.
   - **Imperial units** (feet/miles), with metric options clearly noted when used.
 
 ## 🧪 Testing & Review
 
-- **Manual testing is required** before committing. There are no automated tests (yet).
-- All commits must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+- **Manual testing is required** before submitting a pull request. There are no automated tests yet.
+- All commits must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
+- All pull requests are automatically tested for:
+  - Style and formatting using `ruff`.
+  - Static typing using `ty`.
+- You **do not** need to run linters or type checkers manually, but you **should fix any issues** flagged by the CI pipeline before requesting a review.
 
 ## 🧼 Code Style
 
-Most formatting and style issues are enforced automatically via **Ruff** and checked in CI. This includes:
+This project uses `ruff` to enforce formatting, linting, and docstring style, and `ty` for non-blocking type checks.
 
-- PEP 8 compliance
-- Import order
-- Blank lines, indentation, etc.
-- Google-style docstrings (via `pydocstyle`)
-- Avoiding use of `print()` (warned via `T201`)
+Most formatting issues (indentation, line length, spacing) are auto-corrected by Ruff on PRs.
 
-You do **not** need to manually run linters before committing, but you should review CI feedback if it fails.
+- The following are enforced in CI:
+  - PEP 8 layout and formatting
+  - Google-style docstrings
+  - Consistent import ordering (`isort`-compatible)
+  - Type annotations (with some leniency for `Any`)
+  - Avoiding `print()` (via Ruff rule `T201`) — use `logging` instead        
+
+**Note:** Ruff auto-fixes are pushed back to your PR branch automatically by the GitHub Actions workflow.
 
 ## 📁 File Organization
 
 - Add new scripts to the appropriate subfolder within `scripts/`, based on function (e.g., `ridership_tools/`, `gtfs_exports/`).
-- Any reusable helper functions should be added to `helpers/gtfs_helpers.py`, not copied into individual scripts.
+- Any reusable helper functions should be added to `helpers`, and copied into individual scripts.
 
 ---
 
