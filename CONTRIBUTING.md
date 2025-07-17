@@ -2,7 +2,7 @@
 
 This project is built for transit planners, transit analysts, and civic technologists who want readable,
 self-contained Python scripts for transportation planning. We value clarity, consistency, and usability
-in our scripts to make them usable by a wider audience. Please follow the following principles when contributing:
+in our scripts to make them usable by a wider audience. Please follow these principles when contributing:
 
 
 ## 🧱 Code Structure
