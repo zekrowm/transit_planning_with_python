@@ -19,6 +19,9 @@ are several limitations users should be aware of:
   if they do not match.
 - Shapefile column names are capped at 10 characters.  If you need full-length
   attribute names, write to a GeoPackage (`.gpkg`) instead.
+
+Helpful links:
+    https://www.census.gov/cgi-bin/geo/shapefiles/index.php
 """
 
 from __future__ import annotations
@@ -47,18 +50,10 @@ INPUT_GLOB = "tl_*_*_*.shp"     # or simply "*.shp"
 
 # Optional FIPS filter — leave empty ([]) to export everything
 FIPS_TO_FILTER: List[str] = [
-    "11001",
-    "24031",
-    "24033",
-    "51683",
-    "51685",
-    "51059",
-    "51013",
-    "51510",
-    "51600",
-    "51610",
-    "51107",
-    "51153",
+    "11001", "24031", "24033",
+    "51683", "51685", "51059",
+    "51013", "51510", "51600",
+    "51610", "51107", "51153",
 ]
 
 # Output file (Shapefile *.shp, GeoPackage *.gpkg, etc.)
@@ -262,7 +257,6 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
-
 
 def main() -> None:
     """Top‑level workflow controller."""
