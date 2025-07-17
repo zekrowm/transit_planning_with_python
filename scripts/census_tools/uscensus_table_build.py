@@ -192,7 +192,11 @@ def _load_and_concat(
     frames: list[pd.DataFrame] = []
 
     for path in files:
-        read_kwargs: dict[str, Any] = {"compression": compression}
+        # Let pandas decide the right decompression unless the caller
+        # explicitly overrides it.
+        read_kwargs: dict[str, Any] = {}
+        if compression is not None:
+            read_kwargs["compression"] = compression
         if skiprows is not None:
             read_kwargs["skiprows"] = skiprows
         if dtype is not None:
@@ -202,7 +206,7 @@ def _load_and_concat(
 
         # --- read, then sanitise ---
         df = _read_csv_any(path, **read_kwargs)
-        _clean_name_cols(df)  # ← fix #1 applied here
+        _clean_name_cols(df)
 
         # --- optional column renaming & pruning ---
         if rename:
