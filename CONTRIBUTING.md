@@ -4,6 +4,17 @@ This project is built for transit planners, transit analysts, and civic technolo
 self-contained Python scripts for transportation planning. We value clarity, consistency, and usability
 in our scripts to make them usable by a wider audience. Please follow these principles when contributing:
 
+## 👥 How to Contribute
+
+Participation is welcome from anyone, whether you’re new to coding, an experienced GitHub user, or a seasoned developer:
+- **Beginners:**  
+  - Feel free to copy, modify, and use scripts without any expectation of interaction.
+- **Intermediate Users:**  
+  - Create a GitHub Issue to report bugs, request new features, or ask questions.
+  - Clearly describe your issue, including error messages, expected vs. actual results, and steps to reproduce the issue.
+- **Advanced Users:**  
+  - Submit Pull Requests (PRs) with proposed improvements or fixes.
+  - Follow the instructions below to ensure your PRs meet project standards.
 
 ## 🧱 Code Structure
 
