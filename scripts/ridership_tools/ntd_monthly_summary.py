@@ -43,7 +43,6 @@ REQUIRED_NUMERIC_COLS: Final[list[str]] = [
 #  Workbook catalogue
 # -----------------------------------------------------------------------------
 
-
 @dataclass(frozen=True)
 class PeriodSpec:
     """Workbook name and destination sheet."""
@@ -72,7 +71,6 @@ SERVICE_PERIODS: Final[list[str]] = ["Weekday", "Saturday", "Sunday"]
 # -----------------------------------------------------------------------------
 #  Optional user-defined time windows
 # -----------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class TimeWindow:
@@ -121,6 +119,23 @@ CORRIDOR_DICT: Final[dict[str, list[str]]] = {
     "i_2_corridor": ["303", "404"],
     "route_three_corridor": ["505", "606"],
     "i_4_corridor": ["707", "808"],
+}
+
+# -----------------------------------------------------------------------------
+#  Trend‑analysis settings
+# -----------------------------------------------------------------------------
+
+ROLLING_WINDOW: int = 12          # months in the baseline
+MIN_COVERAGE: float = 0.75        # ≥ 75 % of window must be valid
+DECLINE_THRESH_PCT: float = 10.0  # % drop vs. baseline that triggers a flag
+REQUIRE_TWO_MONTHS: bool = True   # True = need latest AND prev month below baseline
+
+# Months to ignore (e.g. strikes, data outages).
+# Keys are "MMM-YYYY" strings; values are "*" for all routes
+# or a list/tuple of specific route names.
+EXCLUDE_DATA: dict[str, str | Iterable[str]] = {
+    # "Sep-2024": "*",                    # entire system
+    # "Jan-2025": ["101", "202", "303"], # only listed routes
 }
 
 # -----------------------------------------------------------------------------
