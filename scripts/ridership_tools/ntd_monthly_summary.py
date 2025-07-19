@@ -43,6 +43,7 @@ REQUIRED_NUMERIC_COLS: Final[list[str]] = [
 #  Workbook catalogue
 # -----------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class PeriodSpec:
     """Workbook name and destination sheet."""
@@ -71,6 +72,7 @@ SERVICE_PERIODS: Final[list[str]] = ["Weekday", "Saturday", "Sunday"]
 # -----------------------------------------------------------------------------
 #  Optional user-defined time windows
 # -----------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class TimeWindow:
@@ -125,10 +127,10 @@ CORRIDOR_DICT: Final[dict[str, list[str]]] = {
 #  Trend‑analysis settings
 # -----------------------------------------------------------------------------
 
-ROLLING_WINDOW: int = 12          # months in the baseline
-MIN_COVERAGE: float = 0.75        # ≥ 75 % of window must be valid
+ROLLING_WINDOW: int = 12  # months in the baseline
+MIN_COVERAGE: float = 0.75  # ≥ 75 % of window must be valid
 DECLINE_THRESH_PCT: float = 10.0  # % drop vs. baseline that triggers a flag
-REQUIRE_TWO_MONTHS: bool = True   # True = need latest AND prev month below baseline
+REQUIRE_TWO_MONTHS: bool = True  # True = need latest AND prev month below baseline
 
 # Months to ignore (e.g. strikes, data outages).
 # Keys are "MMM-YYYY" strings; values are "*" for all routes
@@ -167,14 +169,15 @@ PLOT_STYLE: Final[dict[str, Any]] = {
 # FUNCTIONS
 # =============================================================================
 
+
 def _is_excluded(period: str, route: str) -> bool:
     """Return True if (*period*, *route*) is in EXCLUDE_DATA."""
     spec = EXCLUDE_DATA.get(period)
-    if spec is None:                       # period not excluded
+    if spec is None:  # period not excluded
         return False
-    if spec == "*":                        # whole system excluded
+    if spec == "*":  # whole system excluded
         return True
-    return route in spec                   # route‑specific exclusion
+    return route in spec  # route‑specific exclusion
 
 
 def slice_for_window(df: pd.DataFrame, window: TimeWindow) -> pd.DataFrame:
@@ -380,17 +383,17 @@ def detect_negative_trends_12m(
             vals = pd.to_numeric(grp[metric], errors="coerce")
 
             # Build exclusion mask
-            excl_mask = [ _is_excluded(p, route) for p in periods ]
-            vals = vals.mask(excl_mask)              # convert excluded to NaN
+            excl_mask = [_is_excluded(p, route) for p in periods]
+            vals = vals.mask(excl_mask)  # convert excluded to NaN
 
             if vals.notna().sum() < window + 1:
                 continue  # not enough data overall
 
             latest = vals.iloc[-1]
-            prev   = vals.iloc[-2]
+            prev = vals.iloc[-2]
 
             # Rolling baseline excludes latest month
-            baseline_window = vals.iloc[-(window + 1):-1]  # previous 12
+            baseline_window = vals.iloc[-(window + 1) : -1]  # previous 12
             valid_fraction = baseline_window.notna().mean()
 
             if latest is None or pd.isna(latest) or valid_fraction < min_coverage:
@@ -400,9 +403,8 @@ def detect_negative_trends_12m(
             pct_change = 100 * (latest - baseline_mean) / baseline_mean
 
             # Optionally require previous month below baseline too
-            prev_ok = (
-                not confirm_prev
-                or (prev is not None and not pd.isna(prev) and prev < baseline_mean)
+            prev_ok = not confirm_prev or (
+                prev is not None and not pd.isna(prev) and prev < baseline_mean
             )
 
             if pct_change <= -pct_threshold and prev_ok:
@@ -432,8 +434,7 @@ def write_trend_log(df_flags: pd.DataFrame, output_dir: Path = OUTPUT_DIR) -> Pa
 
     lines: list[str] = []
     header = (
-        "# Routes flagged for negative trends\n"
-        f"# Generated {datetime.now():%Y-%m-%d %H:%M}\n\n"
+        f"# Routes flagged for negative trends\n# Generated {datetime.now():%Y-%m-%d %H:%M}\n\n"
     )
     lines.append(header)
 
@@ -679,7 +680,7 @@ def main() -> None:
     print("\n=== TREND FLAGGING (12‑mo baseline) ===")
     flags = detect_negative_trends_12m(ts)
     write_trend_log(flags)
-    
+
     # === STEP 6: USER-DEFINED TIME WINDOWS ===================================
     print("\n=== STEP 6: TIME-WINDOW OUTPUTS ===")
     for tw in TIME_WINDOWS:
