@@ -152,6 +152,15 @@ PLOT_STYLE: Final[dict[str, Any]] = {
 # FUNCTIONS
 # =============================================================================
 
+def _is_excluded(period: str, route: str) -> bool:
+    """Return True if (*period*, *route*) is in EXCLUDE_DATA."""
+    spec = EXCLUDE_DATA.get(period)
+    if spec is None:                       # period not excluded
+        return False
+    if spec == "*":                        # whole system excluded
+        return True
+    return route in spec                   # route‑specific exclusion
+
 
 def slice_for_window(df: pd.DataFrame, window: TimeWindow) -> pd.DataFrame:
     """Return rows in *df* whose month-start date falls inside *window*."""
