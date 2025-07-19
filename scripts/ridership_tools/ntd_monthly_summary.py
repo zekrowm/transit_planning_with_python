@@ -333,6 +333,38 @@ def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
     return totals
 
 
+def write_trend_log(df_flags: pd.DataFrame, output_dir: Path = OUTPUT_DIR) -> Path:
+    """Write a plain‑text summary of flagged routes. Return the file path."""
+    out_path = output_dir / "NegativeTrendFlags.txt"
+
+    if df_flags.empty:
+        print("No negative trends detected.")
+        # create/overwrite an empty file to avoid downstream errors
+        out_path.write_text("# No negative trends detected.\n", encoding="utf-8")
+        return out_path
+
+    lines: list[str] = []
+    header = (
+        "# Routes flagged for negative trends\n"
+        f"# Generated {datetime.now():%Y-%m-%d %H:%M}\n\n"
+    )
+    lines.append(header)
+
+    for route, grp in df_flags.groupby("route"):
+        lines.append(f"Route {route}:")
+        for _, row in grp.iterrows():
+            lines.append(
+                f"  • {row['metric']} ↓ {abs(row['pct_change']):.1f}% "
+                f"(latest = {row['latest_value']:.1f}, "
+                f"baseline = {row['baseline_mean']:.1f})"
+            )
+        lines.append("")  # blank line between routes
+
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"Trend log written → {out_path}")
+    return out_path
+
+
 def build_monthly_timeseries(all_data: pd.DataFrame) -> pd.DataFrame:
     """Convert the year-to-date table into a plotting-ready time series.
 
