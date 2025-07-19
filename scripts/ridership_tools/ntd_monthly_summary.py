@@ -333,6 +333,69 @@ def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
     return totals
 
 
+def detect_negative_trends_12m(
+    df_time: pd.DataFrame,
+    window: int = ROLLING_WINDOW,
+    pct_threshold: float = DECLINE_THRESH_PCT,
+    min_coverage: float = MIN_COVERAGE,
+    confirm_prev: bool = REQUIRE_TWO_MONTHS,
+) -> pd.DataFrame:
+    """Flag routes with two‑month declines vs. 12‑month baseline.
+
+    Returns one row per route flagged.
+    """
+    flags: list[dict[str, Any]] = []
+
+    metrics = ["weekday_avg", "pph", "ppt", "ppm"]  # adjust if desired
+    periods = ORDERED_PERIODS  # already chronologically sorted
+
+    for route, grp in df_time.groupby("route"):
+        grp = grp.set_index("period").reindex(periods)  # align to master timeline
+
+        for metric in metrics:
+            vals = pd.to_numeric(grp[metric], errors="coerce")
+
+            # Build exclusion mask
+            excl_mask = [ _is_excluded(p, route) for p in periods ]
+            vals = vals.mask(excl_mask)              # convert excluded to NaN
+
+            if vals.notna().sum() < window + 1:
+                continue  # not enough data overall
+
+            latest = vals.iloc[-1]
+            prev   = vals.iloc[-2]
+
+            # Rolling baseline excludes latest month
+            baseline_window = vals.iloc[-(window + 1):-1]  # previous 12
+            valid_fraction = baseline_window.notna().mean()
+
+            if latest is None or pd.isna(latest) or valid_fraction < min_coverage:
+                continue  # insufficient baseline
+
+            baseline_mean = baseline_window.mean(skipna=True)
+            pct_change = 100 * (latest - baseline_mean) / baseline_mean
+
+            # Optionally require previous month below baseline too
+            prev_ok = (
+                not confirm_prev
+                or (prev is not None and not pd.isna(prev) and prev < baseline_mean)
+            )
+
+            if pct_change <= -pct_threshold and prev_ok:
+                flags.append(
+                    {
+                        "route": route,
+                        "metric": metric,
+                        "latest_value": latest,
+                        "baseline_mean": baseline_mean,
+                        "pct_change": pct_change,
+                        "window_months": int(baseline_window.notna().sum()),
+                    }
+                )
+
+    return pd.DataFrame(flags)
+
+
 def write_trend_log(df_flags: pd.DataFrame, output_dir: Path = OUTPUT_DIR) -> Path:
     """Write a plain‑text summary of flagged routes. Return the file path."""
     out_path = output_dir / "NegativeTrendFlags.txt"
