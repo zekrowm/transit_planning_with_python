@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Iterable
 
 import matplotlib.pyplot as plt
 import pandas as pd
