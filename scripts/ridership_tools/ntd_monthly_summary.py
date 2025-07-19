@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Iterable
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -124,6 +124,23 @@ CORRIDOR_DICT: Final[dict[str, list[str]]] = {
 }
 
 # -----------------------------------------------------------------------------
+#  Trend‑analysis settings
+# -----------------------------------------------------------------------------
+
+ROLLING_WINDOW: int = 12  # months in the baseline
+MIN_COVERAGE: float = 0.75  # ≥ 75 % of window must be valid
+DECLINE_THRESH_PCT: float = 10.0  # % drop vs. baseline that triggers a flag
+REQUIRE_TWO_MONTHS: bool = True  # True = need latest AND prev month below baseline
+
+# Months to ignore (e.g. strikes, data outages).
+# Keys are "MMM-YYYY" strings; values are "*" for all routes
+# or a list/tuple of specific route names.
+EXCLUDE_DATA: dict[str, str | Iterable[str]] = {
+    # "Sep-2024": "*",                    # entire system
+    # "Jan-2025": ["101", "202", "303"], # only listed routes
+}
+
+# -----------------------------------------------------------------------------
 #  Plot behaviour
 # -----------------------------------------------------------------------------
 
@@ -151,6 +168,16 @@ PLOT_STYLE: Final[dict[str, Any]] = {
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
+
+def _is_excluded(period: str, route: str) -> bool:
+    """Return True if (*period*, *route*) is in EXCLUDE_DATA."""
+    spec = EXCLUDE_DATA.get(period)
+    if spec is None:  # period not excluded
+        return False
+    if spec == "*":  # whole system excluded
+        return True
+    return route in spec  # route‑specific exclusion
 
 
 def slice_for_window(df: pd.DataFrame, window: TimeWindow) -> pd.DataFrame:
@@ -331,6 +358,99 @@ def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
 
     totals.sort_values(["ROUTE_NAME", "service_type"], inplace=True, ignore_index=True)
     return totals
+
+
+def detect_negative_trends_12m(
+    df_time: pd.DataFrame,
+    window: int = ROLLING_WINDOW,
+    pct_threshold: float = DECLINE_THRESH_PCT,
+    min_coverage: float = MIN_COVERAGE,
+    confirm_prev: bool = REQUIRE_TWO_MONTHS,
+) -> pd.DataFrame:
+    """Flag routes with two‑month declines vs. 12‑month baseline.
+
+    Returns one row per route flagged.
+    """
+    flags: list[dict[str, Any]] = []
+
+    metrics = ["weekday_avg", "pph", "ppt", "ppm"]  # adjust if desired
+    periods = ORDERED_PERIODS  # already chronologically sorted
+
+    for route, grp in df_time.groupby("route"):
+        grp = grp.set_index("period").reindex(periods)  # align to master timeline
+
+        for metric in metrics:
+            vals = pd.to_numeric(grp[metric], errors="coerce")
+
+            # Build exclusion mask
+            excl_mask = [_is_excluded(p, route) for p in periods]
+            vals = vals.mask(excl_mask)  # convert excluded to NaN
+
+            if vals.notna().sum() < window + 1:
+                continue  # not enough data overall
+
+            latest = vals.iloc[-1]
+            prev = vals.iloc[-2]
+
+            # Rolling baseline excludes latest month
+            baseline_window = vals.iloc[-(window + 1) : -1]  # previous 12
+            valid_fraction = baseline_window.notna().mean()
+
+            if latest is None or pd.isna(latest) or valid_fraction < min_coverage:
+                continue  # insufficient baseline
+
+            baseline_mean = baseline_window.mean(skipna=True)
+            pct_change = 100 * (latest - baseline_mean) / baseline_mean
+
+            # Optionally require previous month below baseline too
+            prev_ok = not confirm_prev or (
+                prev is not None and not pd.isna(prev) and prev < baseline_mean
+            )
+
+            if pct_change <= -pct_threshold and prev_ok:
+                flags.append(
+                    {
+                        "route": route,
+                        "metric": metric,
+                        "latest_value": latest,
+                        "baseline_mean": baseline_mean,
+                        "pct_change": pct_change,
+                        "window_months": int(baseline_window.notna().sum()),
+                    }
+                )
+
+    return pd.DataFrame(flags)
+
+
+def write_trend_log(df_flags: pd.DataFrame, output_dir: Path = OUTPUT_DIR) -> Path:
+    """Write a plain‑text summary of flagged routes. Return the file path."""
+    out_path = output_dir / "NegativeTrendFlags.txt"
+
+    if df_flags.empty:
+        print("No negative trends detected.")
+        # create/overwrite an empty file to avoid downstream errors
+        out_path.write_text("# No negative trends detected.\n", encoding="utf-8")
+        return out_path
+
+    lines: list[str] = []
+    header = (
+        f"# Routes flagged for negative trends\n# Generated {datetime.now():%Y-%m-%d %H:%M}\n\n"
+    )
+    lines.append(header)
+
+    for route, grp in df_flags.groupby("route"):
+        lines.append(f"Route {route}:")
+        for _, row in grp.iterrows():
+            lines.append(
+                f"  • {row['metric']} ↓ {abs(row['pct_change']):.1f}% "
+                f"(latest = {row['latest_value']:.1f}, "
+                f"baseline = {row['baseline_mean']:.1f})"
+            )
+        lines.append("")  # blank line between routes
+
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"Trend log written → {out_path}")
+    return out_path
 
 
 def build_monthly_timeseries(all_data: pd.DataFrame) -> pd.DataFrame:
@@ -555,6 +675,11 @@ def main() -> None:
     print("\n=== STEP 5: TIME-SERIES PLOTS ===")
     ts = build_monthly_timeseries(all_data)
     generate_all_plots(ts)
+
+    # === STEP 5B: TREND FLAGGING (12‑mo baseline) ============================
+    print("\n=== TREND FLAGGING (12‑mo baseline) ===")
+    flags = detect_negative_trends_12m(ts)
+    write_trend_log(flags)
 
     # === STEP 6: USER-DEFINED TIME WINDOWS ===================================
     print("\n=== STEP 6: TIME-WINDOW OUTPUTS ===")
