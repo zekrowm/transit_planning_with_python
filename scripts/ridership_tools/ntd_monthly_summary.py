@@ -675,6 +675,11 @@ def main() -> None:
     ts = build_monthly_timeseries(all_data)
     generate_all_plots(ts)
 
+    # === STEP 5B: TREND FLAGGING (12‑mo baseline) ============================
+    print("\n=== TREND FLAGGING (12‑mo baseline) ===")
+    flags = detect_negative_trends_12m(ts)
+    write_trend_log(flags)
+    
     # === STEP 6: USER-DEFINED TIME WINDOWS ===================================
     print("\n=== STEP 6: TIME-WINDOW OUTPUTS ===")
     for tw in TIME_WINDOWS:
