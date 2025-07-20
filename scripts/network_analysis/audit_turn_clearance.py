@@ -31,13 +31,14 @@ Workflow:
 """
 
 from __future__ import annotations
-
 import sys
 import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, Sequence, Tuple
-
+import re
+from shapely.geometry import box
+from shapely.ops import substring
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -412,12 +413,6 @@ def _flag_left_turn_spacing(
     return gpd.GeoDataFrame(flagged, crs=stops_gdf.crs)
 
 
-import re
-
-from shapely.geometry import box
-from shapely.ops import substring
-
-
 def _export_flagged_pngs(
     flagged_gdf: gpd.GeoDataFrame,
     routes_gdf: gpd.GeoDataFrame,
@@ -539,6 +534,7 @@ def _export_flagged_pngs(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 def main() -> None:  # noqa: D401
     """Run the GTFS left‑turn clearance QA pipeline."""
     # -------------------------------------------------------------
