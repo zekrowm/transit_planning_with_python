@@ -30,72 +30,69 @@ Workflow:
         - PNG figures showing a zoomed-in context map with stop, turn, route, and roads.
 """
 
-import numpy as np
-from shapely.geometry import LineString, Point
-import matplotlib.pyplot as plt
 from __future__ import annotations
+
 import sys
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Tuple
-import matplotlib.pyplot as plt
+from typing import Any, Dict, Sequence, Tuple
+
 import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from shapely.geometry import LineString, MultiPoint, Point
-from shapely.ops import split as split_line
-from shapely.ops import split as split_line
 from shapely.geometry import LineString, Point
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-GTFS_PATH: str = r"Path\To\Your\GTFS_Folder"          # folder or .zip
+GTFS_PATH: str = r"Path\To\Your\GTFS_Folder"  # folder or .zip
 OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
 ROAD_CENTERLINE_SHP: str | None = r"Path\To\Your\Roadway_Centerlines.shp"  # ← set to None to skip
 
-INCLUDE_ROUTE_IDS: list[str] = []              # empty = keep all
-EXCLUDE_ROUTE_IDS: list[str] = ["9999A", "9999B", "9999C"]              # e.g. ["9999A"]
+INCLUDE_ROUTE_IDS: list[str] = []  # empty = keep all
+EXCLUDE_ROUTE_IDS: list[str] = ["9999A", "9999B", "9999C"]  # e.g. ["9999A"]
 
-PROJECTED_CRS: str = "EPSG:2263"               # feet
-SIMPLIFY_FT: float = 5.0                       # pre‑simplify shapes (0 = off)
+PROJECTED_CRS: str = "EPSG:2263"  # feet
+SIMPLIFY_FT: float = 5.0  # pre‑simplify shapes (0 = off)
 
 # Left‑turn detection parameters
-MIN_DEFLECTION_DEG: float = 55.0               # ≥ this angle ⇒ ‘turn’
-MIN_LEG_FT: float = 30.0                       # each incident segment ≥
-MIN_CLEARANCE_FT: float = 60.0                 # spacing threshold (stop→turn)
+MIN_DEFLECTION_DEG: float = 55.0  # ≥ this angle ⇒ ‘turn’
+MIN_LEG_FT: float = 30.0  # each incident segment ≥
+MIN_CLEARANCE_FT: float = 60.0  # spacing threshold (stop→turn)
 
 LOG_FILENAME: str = "left_turn_spacing.txt"
-EXPORT_FLAGGED_SHP: bool = True                # also write a shapefile
+EXPORT_FLAGGED_SHP: bool = True  # also write a shapefile
 FLAGGED_SHP_NAME: str = "left_turn_flags.shp"
 
 # optional plots
-EXPORT_FLAGGED_PNGS: bool = True          # ⇦ turn on/off
-PNG_SUBDIR: str = "left_turn_figures"     # folder inside OUTPUT_FOLDER
-PNG_DPI: int = 150                        # resolution
-PNG_WINDOW_FT: float = 400.0              # half‑width of zoom window around stop
+EXPORT_FLAGGED_PNGS: bool = True  # ⇦ turn on/off
+PNG_SUBDIR: str = "left_turn_figures"  # folder inside OUTPUT_FOLDER
+PNG_DPI: int = 150  # resolution
+PNG_WINDOW_FT: float = 400.0  # half‑width of zoom window around stop
 
 # -----------------------------------------------------------------------------
 # optional roadway backdrop
 PLOT_ROAD_CENTERLINES: bool = True
-ROAD_SIMPLIFY_FT: float = 0.0            # >0  ⇒ geometry.simplify() before use
+ROAD_SIMPLIFY_FT: float = 0.0  # >0  ⇒ geometry.simplify() before use
 
-TURN_STOP_BUFFER_FT: float = 15.0        # ignore ‘turns’ within this many feet of a stop
+TURN_STOP_BUFFER_FT: float = 15.0  # ignore ‘turns’ within this many feet of a stop
 
 # -----------------------------------------------------------------------------
 # ‘wiggle’ suppression
-LOOK_AHEAD_FT: float = 40.0            # how far before/after the vertex to sample
-MIN_LATERAL_OFFSET_FT: float = 10.0    # must exceed this to be a real turn
+LOOK_AHEAD_FT: float = 40.0  # how far before/after the vertex to sample
+MIN_LATERAL_OFFSET_FT: float = 10.0  # must exceed this to be a real turn
 
 # -----------------------------------------------------------------------------
 # direction‑arrow settings
-ARROW_SPACING_FT: float = 100.0     # distance between arrow heads along the line
-ARROW_SIZE: float = 10.0           # matplotlib arrow head size (points)
+ARROW_SPACING_FT: float = 100.0  # distance between arrow heads along the line
+ARROW_SIZE: float = 10.0  # matplotlib arrow head size (points)
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _ensure_output(folder: str | Path) -> Path:
     """Create *folder* (if needed) and return it as a ``Path``."""
@@ -112,7 +109,7 @@ def _read_gtfs(gtfs_path: Path) -> Dict[str, pd.DataFrame]:
     gtfs_path
         Directory containing *.txt files or a *.zip* GTFS bundle.
 
-    Returns
+    Returns:
     -------
     dict
         Keys ``stops, routes, trips, stop_times, shapes`` → DataFrames.
@@ -178,6 +175,7 @@ def _load_road_centerlines(
 # -----------------------------------------------------------------------------
 # BUILD SPATIAL LAYERS
 # -----------------------------------------------------------------------------
+
 
 def _filter_routes(
     routes: pd.DataFrame,
@@ -267,6 +265,7 @@ def _build_routes_gdf(
 # LEFT‑TURN DETECTION & QA
 # -----------------------------------------------------------------------------
 
+
 def _find_left_turns(
     line: LineString,
     *,
@@ -284,7 +283,7 @@ def _find_left_turns(
     min_leg_ft
         Each incident segment must be at least this long.
 
-    Returns
+    Returns:
     -------
     list[tuple[float, float]]
         ``[(dist_along, angle_deg), …]`` for every qualifying left turn,
@@ -334,9 +333,7 @@ def _flag_left_turn_spacing(
     flagged: list[dict[str, Any]] = []
 
     with log_path.open("w", encoding="utf-8") as fh:
-        fh.write(
-            "route_id\tdirection_id\tstop_id\tstop_name\tspacing_ft\tturn_angle_deg\n"
-        )
+        fh.write("route_id\tdirection_id\tstop_id\tstop_name\tspacing_ft\tturn_angle_deg\n")
 
         for _, r in routes_gdf.iterrows():
             rid: str = str(r.route_id)
@@ -370,9 +367,7 @@ def _flag_left_turn_spacing(
                 turn_pt = line.interpolate(d_turn)
 
                 # 1) curb‑poke filter
-                min_stop_dist_ft = (
-                    min(turn_pt.distance(pt) for pt in served.geometry) * ft_factor
-                )
+                min_stop_dist_ft = min(turn_pt.distance(pt) for pt in served.geometry) * ft_factor
                 if min_stop_dist_ft <= TURN_STOP_BUFFER_FT:
                     continue
 
@@ -380,18 +375,13 @@ def _flag_left_turn_spacing(
                 look = LOOK_AHEAD_FT / ft_factor
                 d0 = max(d_turn - look, 0.0)
                 d1 = min(d_turn + look, line.length)
-                chord = LineString(
-                    [line.interpolate(d0), line.interpolate(d1)]
-                )
+                chord = LineString([line.interpolate(d0), line.interpolate(d1)])
                 offset_ft = turn_pt.distance(chord) * ft_factor
                 if offset_ft < MIN_LATERAL_OFFSET_FT:
                     continue
 
                 # find last upstream stop
-                while (
-                    stop_idx + 1 < len(served)
-                    and served.iloc[stop_idx + 1].dist_along < d_turn
-                ):
+                while stop_idx + 1 < len(served) and served.iloc[stop_idx + 1].dist_along < d_turn:
                     stop_idx += 1
                 stop_row = served.iloc[stop_idx]
 
@@ -423,6 +413,7 @@ def _flag_left_turn_spacing(
 
 
 import re
+
 from shapely.geometry import box
 from shapely.ops import substring
 
