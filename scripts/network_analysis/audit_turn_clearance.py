@@ -31,18 +31,19 @@ Workflow:
 """
 
 from __future__ import annotations
+
+import re
 import sys
 import tempfile
 import zipfile
 from pathlib import Path
 from typing import Any, Dict, Sequence, Tuple
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from shapely.geometry import LineString, Point
-import re
-from shapely.geometry import box
+from shapely.geometry import LineString, Point, box
 from shapely.ops import substring
 
 # =============================================================================
@@ -534,6 +535,7 @@ def _export_flagged_pngs(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:  # noqa: D401
     """Run the GTFS left‑turn clearance QA pipeline."""
