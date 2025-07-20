@@ -30,9 +30,8 @@ Workflow:
         - PNG figures showing a zoomed-in context map with stop, turn, route, and roads.
 """
 
-import re
 import numpy as np
-from shapely.geometry import box, LineString, Point
+from shapely.geometry import LineString, Point
 from shapely.ops import substring
 import matplotlib.pyplot as plt
 from __future__ import annotations
@@ -47,7 +46,6 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import split as split_line
-from shapely.ops import substring
 from shapely.ops import substring, split as split_line
 from shapely.geometry import LineString, Point, box
 
