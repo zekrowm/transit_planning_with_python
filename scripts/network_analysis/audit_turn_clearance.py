@@ -32,7 +32,6 @@ Workflow:
 
 import numpy as np
 from shapely.geometry import LineString, Point
-from shapely.ops import substring
 import matplotlib.pyplot as plt
 from __future__ import annotations
 import sys
@@ -46,8 +45,8 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import split as split_line
-from shapely.ops import substring, split as split_line
-from shapely.geometry import LineString, Point, box
+from shapely.ops import split as split_line
+from shapely.geometry import LineString, Point
 
 # =============================================================================
 # CONFIGURATION
