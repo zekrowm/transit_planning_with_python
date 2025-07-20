@@ -105,7 +105,6 @@ REQUIRED_GTFS_FILES = [
 # FUNCTIONS
 # =============================================================================
 
-
 def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
     """Return service_ids for routes that run Monday through Friday.
 
@@ -676,7 +675,6 @@ def apply_fips_filter(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
-
 def load_gtfs_data(
     gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: type = str
 ) -> dict[str, pd.DataFrame]:
@@ -762,7 +760,6 @@ def load_gtfs_data(
 # MAIN
 # =============================================================================
 
-
 def main() -> None:
     """Run the catchment-area analysis."""
     # ------------------------------------------------------------------
@@ -775,9 +772,9 @@ def main() -> None:
     )
 
     try:
-        # ==============================================================
-        # 1) LOAD GTFS --------------------------------------------------
-        # ==============================================================
+        # --------------------------------------------------------------
+        # 1) LOAD GTFS
+        # --------------------------------------------------------------
         gtfs_raw = load_gtfs_data(
             str(GTFS_DATA_PATH),
             files=REQUIRED_GTFS_FILES,
@@ -788,9 +785,9 @@ def main() -> None:
         routes_df = gtfs_raw["routes"]
         stops_df = gtfs_raw["stops"]
 
-        # ==============================================================
-        # 2) OPTIONAL CALENDAR FILTER ----------------------------------
-        # ==============================================================
+        # --------------------------------------------------------------
+        # 2) OPTIONAL CALENDAR FILTER
+        # --------------------------------------------------------------
         if SERVICE_IDS_TO_INCLUDE:  # e.g. ["1", "2", "3"]
             before = len(trips)
             trips = trips[trips["service_id"].isin(SERVICE_IDS_TO_INCLUDE)]
@@ -802,10 +799,10 @@ def main() -> None:
             )
         else:
             logging.info("No calendar filter applied; using all %d trips.", len(trips))
-
-        # ==============================================================
-        # 3) DEMOGRAPHICS LAYER ----------------------------------------
-        # ==============================================================
+            
+        # --------------------------------------------------------------
+        # 3) DEMOGRAPHICS LAYER
+        # --------------------------------------------------------------
         demographics_path = Path(DEMOGRAPHICS_SHP_PATH)
         if not demographics_path.is_file():
             raise FileNotFoundError(f"Demographics shapefile not found: {demographics_path}")
@@ -814,9 +811,9 @@ def main() -> None:
         demographics_gdf = apply_fips_filter(demographics_gdf, FIPS_FILTER)
         demographics_gdf = demographics_gdf.to_crs(epsg=CRS_EPSG_CODE)
 
-        # ==============================================================
-        # 4) ANALYSIS DISPATCH -----------------------------------------
-        # ==============================================================
+        # --------------------------------------------------------------
+        # 4) ANALYSIS DISPATCH
+        # --------------------------------------------------------------
         mode = ANALYSIS_MODE.lower()
         if mode == "network":
             do_network_analysis(
