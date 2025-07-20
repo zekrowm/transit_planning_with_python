@@ -51,9 +51,6 @@ from shapely.geometry import box
 from shapely.ops import substring
 from shapely.geometry import box
 from shapely.ops import substring
-import re
-from shapely.geometry import box
-from shapely.ops import substring
 from shapely.ops import substring, split as split_line
 from shapely.geometry import LineString, Point, box
 
