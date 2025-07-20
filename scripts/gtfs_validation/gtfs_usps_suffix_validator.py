@@ -6,11 +6,12 @@ modification of the exemption file and every time an error report CSV
 is written.
 """
 
-from pathlib import Path
 import logging
-import sys
 import re
+import sys
+from pathlib import Path
 from typing import Iterable, List, Set
+
 import pandas as pd
 
 # =============================================================================
@@ -18,7 +19,9 @@ import pandas as pd
 # =============================================================================
 
 STOPS_FILE = Path(r"Path\To\Your\GTFS_Folder\stops.txt")
-EXEMPT_FILE = Path(r"Path\To\Your\approved_words.txt") # Set for both existing file or desired file location and name
+EXEMPT_FILE = Path(
+    r"Path\To\Your\approved_words.txt"
+)  # Set for both existing file or desired file location and name
 OUTPUT_CSV = Path(r"Path\To\Your\stop_name_suffix_errors.csv")
 
 INTERACTIVE = True  # Ask about unknown words?
@@ -48,32 +51,215 @@ MIN_LEN = 2
 MAX_LEN = 4
 
 USPS_ABBREVIATIONS: tuple[str, ...] = (
-    "ALY", "ANX", "ARC", "AVE", "BYU", "BCH", "BND", "BLF", "BLFS", "BTM", "BLVD",
-    "BR", "BRG", "BRK", "BRKS", "BG", "BGS", "BYP", "CP", "CYN", "CPE", "CSWY",
-    "CTR", "CTRS", "CIR", "CIRS", "CLF", "CLFS", "CLB", "CMN", "CMNS", "COR",
-    "CORS", "CRSE", "CT", "CTS", "CV", "CVS", "CRK", "CRES", "CRST", "XING",
-    "XRD", "XRDS", "CURV", "DL", "DM", "DV", "DR", "DRS", "EST", "ESTS", "EXPY",
-    "EXT", "EXTS", "FALL", "FLS", "FRY", "FLD", "FLDS", "FLT", "FLTS", "FRD",
-    "FRDS", "FRST", "FRG", "FRGS", "FRK", "FRKS", "FT", "FWY", "GDN", "GDNS",
-    "GTWY", "GLN", "GLNS", "GRN", "GRNS", "GRV", "GRVS", "HBR", "HBRS", "HVN",
-    "HTS", "HWY", "HL", "HLS", "HOLW", "INLT", "IS", "ISS", "ISLE", "JCT", "JCTS",
-    "KY", "KYS", "KNL", "KNLS", "LK", "LKS", "LAND", "LNDG", "LN", "LGT", "LGTS",
-    "LF", "LCK", "LCKS", "LDG", "LOOP", "MALL", "MNR", "MNRS", "MDW", "MDWS",
-    "MEWS", "ML", "MLS", "MSN", "MTWY", "MT", "MTN", "MTNS", "NCK", "ORCH",
-    "OVAL", "OPAS", "PARK", "PKWY", "PASS", "PSGE", "PATH", "PIKE", "PNE", "PNES",
-    "PL", "PLN", "PLNS", "PLZ", "PT", "PTS", "PRT", "PRTS", "PR", "RADL", "RAMP",
-    "RNCH", "RPD", "RPDS", "RST", "RDG", "RDGS", "RIV", "RD", "RDS", "RTE", "ROW",
-    "RUE", "RUN", "SHL", "SHLS", "SHR", "SHRS", "SKWY", "SPG", "SPGS", "SPUR",
-    "SQ", "SQS", "STA", "STRA", "STRM", "ST", "STS", "SMT", "TER", "TRWY", "TRCE",
-    "TRAK", "TRFY", "TRL", "TRLR", "TUNL", "TPKE", "UPAS", "UN", "UNS", "VLY",
-    "VLYS", "VIA", "VW", "VWS", "VLG", "VLGS", "VL", "VIS", "WALK", "WALL", "WAY",
-    "WAYS", "WL", "WLS",
+    "ALY",
+    "ANX",
+    "ARC",
+    "AVE",
+    "BYU",
+    "BCH",
+    "BND",
+    "BLF",
+    "BLFS",
+    "BTM",
+    "BLVD",
+    "BR",
+    "BRG",
+    "BRK",
+    "BRKS",
+    "BG",
+    "BGS",
+    "BYP",
+    "CP",
+    "CYN",
+    "CPE",
+    "CSWY",
+    "CTR",
+    "CTRS",
+    "CIR",
+    "CIRS",
+    "CLF",
+    "CLFS",
+    "CLB",
+    "CMN",
+    "CMNS",
+    "COR",
+    "CORS",
+    "CRSE",
+    "CT",
+    "CTS",
+    "CV",
+    "CVS",
+    "CRK",
+    "CRES",
+    "CRST",
+    "XING",
+    "XRD",
+    "XRDS",
+    "CURV",
+    "DL",
+    "DM",
+    "DV",
+    "DR",
+    "DRS",
+    "EST",
+    "ESTS",
+    "EXPY",
+    "EXT",
+    "EXTS",
+    "FALL",
+    "FLS",
+    "FRY",
+    "FLD",
+    "FLDS",
+    "FLT",
+    "FLTS",
+    "FRD",
+    "FRDS",
+    "FRST",
+    "FRG",
+    "FRGS",
+    "FRK",
+    "FRKS",
+    "FT",
+    "FWY",
+    "GDN",
+    "GDNS",
+    "GTWY",
+    "GLN",
+    "GLNS",
+    "GRN",
+    "GRNS",
+    "GRV",
+    "GRVS",
+    "HBR",
+    "HBRS",
+    "HVN",
+    "HTS",
+    "HWY",
+    "HL",
+    "HLS",
+    "HOLW",
+    "INLT",
+    "IS",
+    "ISS",
+    "ISLE",
+    "JCT",
+    "JCTS",
+    "KY",
+    "KYS",
+    "KNL",
+    "KNLS",
+    "LK",
+    "LKS",
+    "LAND",
+    "LNDG",
+    "LN",
+    "LGT",
+    "LGTS",
+    "LF",
+    "LCK",
+    "LCKS",
+    "LDG",
+    "LOOP",
+    "MALL",
+    "MNR",
+    "MNRS",
+    "MDW",
+    "MDWS",
+    "MEWS",
+    "ML",
+    "MLS",
+    "MSN",
+    "MTWY",
+    "MT",
+    "MTN",
+    "MTNS",
+    "NCK",
+    "ORCH",
+    "OVAL",
+    "OPAS",
+    "PARK",
+    "PKWY",
+    "PASS",
+    "PSGE",
+    "PATH",
+    "PIKE",
+    "PNE",
+    "PNES",
+    "PL",
+    "PLN",
+    "PLNS",
+    "PLZ",
+    "PT",
+    "PTS",
+    "PRT",
+    "PRTS",
+    "PR",
+    "RADL",
+    "RAMP",
+    "RNCH",
+    "RPD",
+    "RPDS",
+    "RST",
+    "RDG",
+    "RDGS",
+    "RIV",
+    "RD",
+    "RDS",
+    "RTE",
+    "ROW",
+    "RUE",
+    "RUN",
+    "SHL",
+    "SHLS",
+    "SHR",
+    "SHRS",
+    "SKWY",
+    "SPG",
+    "SPGS",
+    "SPUR",
+    "SQ",
+    "SQS",
+    "STA",
+    "STRA",
+    "STRM",
+    "ST",
+    "STS",
+    "SMT",
+    "TER",
+    "TRWY",
+    "TRCE",
+    "TRAK",
+    "TRFY",
+    "TRL",
+    "TRLR",
+    "TUNL",
+    "TPKE",
+    "UPAS",
+    "UN",
+    "UNS",
+    "VLY",
+    "VLYS",
+    "VIA",
+    "VW",
+    "VWS",
+    "VLG",
+    "VLGS",
+    "VL",
+    "VIS",
+    "WALK",
+    "WALL",
+    "WAY",
+    "WAYS",
+    "WL",
+    "WLS",
 )
 USPS_SET = set(USPS_ABBREVIATIONS)
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def tokenize(text: str) -> List[str]:
     """Split *text* into purely alphabetic tokens."""
@@ -84,9 +270,7 @@ def load_word_list(path: Path | None) -> Set[str]:
     """Return a set of uppercase words contained (one per line) in *path*."""
     if path is None or not path.exists():
         return set()
-    return {
-        ln.strip().upper() for ln in path.read_text("utf-8").splitlines() if ln.strip()
-    }
+    return {ln.strip().upper() for ln in path.read_text("utf-8").splitlines() if ln.strip()}
 
 
 def interactive_classify(tokens: Iterable[str]) -> Set[str]:
@@ -114,9 +298,7 @@ def append_words(path: Path, words: Iterable[str]) -> None:
 
     path.parent.mkdir(parents=True, exist_ok=True)
     action = "CREATED" if not path.exists() else "UPDATED"
-    LOGGER.info(
-        "%s %s with %d new word(s): %s", action, path, len(new), ", ".join(new)
-    )
+    LOGGER.info("%s %s with %d new word(s): %s", action, path, len(new), ", ".join(new))
 
     with path.open("a", encoding="utf-8") as fh:
         for w in new:
@@ -153,11 +335,7 @@ def run_validation(
     valid_set = USPS_SET | exempt
 
     if interactive:
-        unknown = {
-            tok
-            for name in df["stop_name"]
-            for tok in find_offending_words(name, valid_set)
-        }
+        unknown = {tok for name in df["stop_name"] for tok in find_offending_words(name, valid_set)}
         if unknown:
             print(f"{len(unknown)} unknown short words need review …")
             approved = interactive_classify(unknown)
@@ -188,9 +366,11 @@ def run_validation(
 
     return errs
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the stop‑name validation workflow."""
