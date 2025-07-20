@@ -105,6 +105,7 @@ REQUIRED_GTFS_FILES = [
 # FUNCTIONS
 # =============================================================================
 
+
 def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
     """Return service_ids for routes that run Monday through Friday.
 
@@ -675,6 +676,7 @@ def apply_fips_filter(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: type = str
 ) -> dict[str, pd.DataFrame]:
@@ -760,6 +762,7 @@ def load_gtfs_data(
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Run the catchment-area analysis."""
     # ------------------------------------------------------------------
@@ -799,7 +802,7 @@ def main() -> None:
             )
         else:
             logging.info("No calendar filter applied; using all %d trips.", len(trips))
-            
+
         # --------------------------------------------------------------
         # 3) DEMOGRAPHICS LAYER
         # --------------------------------------------------------------

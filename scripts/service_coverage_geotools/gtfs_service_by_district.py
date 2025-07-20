@@ -59,6 +59,7 @@ DISTRICT_FIELD = "DISTRICT"
 # FUNCTIONS
 # =============================================================================
 
+
 def create_projected_stops_gdf(
     stops_df: pd.DataFrame,
     epsg_out: int,
@@ -219,6 +220,7 @@ def write_dataframe_to_excel(
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[list[str]] = None,
@@ -299,6 +301,7 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the full route-to-district matrix generation workflow.
