@@ -47,9 +47,6 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, MultiPoint, Point
 from shapely.ops import split as split_line
-from shapely.geometry import box
-from shapely.ops import substring
-from shapely.geometry import box
 from shapely.ops import substring
 from shapely.ops import substring, split as split_line
 from shapely.geometry import LineString, Point, box
