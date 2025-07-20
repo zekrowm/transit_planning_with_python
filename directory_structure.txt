@@ -16,19 +16,30 @@ transit_planning_with_python-main/
 ├── helpers/
 │   └── gtfs_helpers.py
 └── scripts/
+    ├── block_and_bay_tools/
+    │   ├── bay_usage_analyzer.py
+    │   └── gtfs_block_status_timeline.py
     ├── census_tools/
-    │   └── census_shp_filter_export_gpd.py
+    │   ├── uscensus_blocks_merge_gpd.py
+    │   ├── uscensus_blocks_table_join_gpd.py
+    │   └── uscensus_table_build.py
     ├── gtfs_exports/
     │   └── bus_schedule_exporter.py
     ├── gtfs_validation/
-    │   ├── stops_vs_roadname_checker_arcpy.py
-    │   └── stops_vs_roadname_checker_gpd.py
+    │   ├── gtfs_usps_suffix_validator.py
+    │   ├── stop_vs_roadname_checker.py
+    │   └── stop_vs_roadname_checker_arcpy.py
     ├── network_analysis/
+    │   ├── audit_turn_clearance.py
     │   ├── route_direction_classifier.py
     │   └── stop_spacing_flagger_gpd.py
     ├── operations_tools/
     │   └── runtime_pivot_ridecheck.py
-    └── ridership_tools/
-        ├── data_request_by_stop_processor.py
-        ├── ntd_monthly_summary.py
-        └── stops_ridership_joiner_arcpy.py
+    ├── ridership_tools/
+    │   ├── data_request_by_stop_processor.py
+    │   ├── ntd_monthly_summary.py
+    │   └── stops_ridership_joiner_arcpy.py
+    └── service_coverage_geotools/
+        ├── gtfs_census_catchment_analysis.py
+        ├── gtfs_service_by_district.py
+        └── transit_site_access_audit.py
