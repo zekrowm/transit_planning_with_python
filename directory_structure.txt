@@ -24,11 +24,11 @@ transit_planning_with_python-main/
     │   ├── uscensus_blocks_table_join_gpd.py
     │   └── uscensus_table_build.py
     ├── gtfs_exports/
-    │   ├── bus_schedule_exporter.py
     │   ├── gtfs_to_shapefile.py
     │   ├── segment_speed_exporter.py
     │   ├── stop_pattern_exporter.py
-    │   └── time_band_exporter.py
+    │   ├── time_band_exporter.py
+    │   └── timepoint_schedule_exporter.py
     ├── gtfs_validation/
     │   ├── gtfs_usps_suffix_validator.py
     │   ├── stop_vs_roadname_checker.py
