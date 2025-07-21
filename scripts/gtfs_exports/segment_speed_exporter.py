@@ -73,6 +73,7 @@ SpeedRecord = Dict[str, Union[SegSpeeds, float]]
 # FUNCTIONS
 # =============================================================================
 
+
 def hhmmss_to_minutes(time_literal: Optional[str]) -> Optional[int]:
     """Convert an ``HH:MM[:SS]`` string to minutes past midnight.
 
@@ -429,6 +430,7 @@ def export_excel(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """CLI entry-point – orchestrates GTFS load, processing, and Excel export."""

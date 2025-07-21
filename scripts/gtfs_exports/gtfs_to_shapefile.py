@@ -41,6 +41,7 @@ DEFAULT_OUTPUT_DIR: Optional[Path] = Path(r"/path/to/your/default_output_folder"
 # FUNCTIONS
 # ===========================================================================
 
+
 def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
     """Reads GTFS 'stops.txt' file into a Point GeoDataFrame.
 
@@ -298,6 +299,7 @@ def gtfs_to_shapefiles(
 # ===========================================================================
 # MAIN
 # ===========================================================================
+
 
 def main() -> None:
     """Runs example scenarios for the GTFS to Shapefile conversion.
