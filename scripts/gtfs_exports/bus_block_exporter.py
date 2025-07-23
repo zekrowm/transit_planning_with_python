@@ -22,9 +22,8 @@ filters (e.g. selected `service_id`s, maximum trips per block, or specific
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Mapping, Optional
 
 import pandas as pd
 
@@ -35,22 +34,23 @@ import pandas as pd
 GTFS_FOLDER_PATH: str = r"Path\To\Your\GTFS_Folder"
 OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
 
-ROUTE_SHORTNAME_FILTER: list[str] = []          # e.g. ["350", "353"]; [] = all
-AGGREGATE_BY_ROUTE_DIR: bool = False             # False → block XLSX; True → route/dir XLSX
+ROUTE_SHORTNAME_FILTER: list[str] = []  # e.g. ["350", "353"]; [] = all
+AGGREGATE_BY_ROUTE_DIR: bool = False  # False → block XLSX; True → route/dir XLSX
 
 CALENDAR_SERVICE_IDS: list[str] = ["3"]
 DEFAULT_HOURS: int = 26
 TIME_INTERVAL_MIN: int = 1
 
-DWELL_THRESHOLD: int = 3                        # minutes
-LAYOVER_THRESHOLD: int = 20                     # minutes
+DWELL_THRESHOLD: int = 3  # minutes
+LAYOVER_THRESHOLD: int = 20  # minutes
 MAX_TRIPS_PER_BLOCK: int = 150
 
-LOG_LEVEL: str = "INFO"                         # DEBUG / INFO / WARNING / ERROR
+LOG_LEVEL: str = "INFO"  # DEBUG / INFO / WARNING / ERROR
 
 # ==============================================================================
 # FUNCTIONS
 # ==============================================================================
+
 
 def time_to_minutes(time_str: str) -> int:
     """Convert HH:MM[:SS] → integer minutes (supports 24 + hours)."""
@@ -75,6 +75,7 @@ def validate_folders(input_path: Path, output_path: Path) -> None:
 # ------------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # ------------------------------------------------------------------------------
+
 
 def load_gtfs_data(
     gtfs_folder_path: Path,
@@ -108,6 +109,7 @@ def load_gtfs_data(
 # STOP‑CLUSTER TOOLING
 # ------------------------------------------------------------------------------
 
+
 def find_cluster(stop_id: str, clusters: list[dict[str, Any]]) -> Optional[str]:
     """Return cluster name containing the given stop ID, if any."""
     for cluster_item in clusters:
@@ -119,6 +121,7 @@ def find_cluster(stop_id: str, clusters: list[dict[str, Any]]) -> Optional[str]:
 # ------------------------------------------------------------------------------
 # STOP TIME AUGMENTERS
 # ------------------------------------------------------------------------------
+
 
 def mark_first_and_last_stops(df_in: pd.DataFrame) -> pd.DataFrame:
     """Mark first and last stops per trip using boolean flags."""
@@ -134,6 +137,7 @@ def mark_first_and_last_stops(df_in: pd.DataFrame) -> pd.DataFrame:
 # ------------------------------------------------------------------------------
 # STATUS LOGIC (unchanged from your original script)
 # ------------------------------------------------------------------------------
+
 
 def _status_for_same_trip(minute: int, stop_info: tuple[Any, ...]) -> Optional[tuple[Any, ...]]:
     (arr, dep, s_id, s_name, t_id, is_first, is_last, s_seq, t_val) = stop_info
@@ -206,7 +210,7 @@ def _status_for_different_trip(
     next_stop_id
         Stop ID of the next trip’s first stop.
 
-    Returns
+    Returns:
     -------
     tuple[str, str, str]
         Status string plus the stop‑ID and stop‑name that the fill‑row
@@ -296,6 +300,7 @@ def get_status_for_minute(
 # BLOCK‑BUILDING UTILITIES
 # ------------------------------------------------------------------------------
 
+
 def _create_trips_summary(block_subset: pd.DataFrame) -> list[dict[str, Any]]:
     """Summarize every trip in one block for quick look‑ups.
 
@@ -334,7 +339,7 @@ def _create_trips_summary(block_subset: pd.DataFrame) -> list[dict[str, Any]]:
             {
                 "trip_id": trip_id,
                 "start": start_time,
-                "start_str": start_str,            # ← added field
+                "start_str": start_str,  # ← added field
                 "end": end_time,
                 "stop_times_sequence": sequence,
                 "route_id": t_sorted.iloc[0]["route_short_name"],
@@ -346,15 +351,13 @@ def _create_trips_summary(block_subset: pd.DataFrame) -> list[dict[str, Any]]:
     return trips_summary
 
 
-
 def _status_for_active_trips(
     minute: int,
     active_trips: list[dict[str, Any]],
 ) -> tuple[Optional[dict[str, Any]], tuple[Any, ...]]:
     """Choose the most appropriate status among concurrently active trips."""
     candidates: list[tuple[dict[str, Any], tuple[Any, ...]]] = [
-        (trip, get_status_for_minute(minute, trip["stop_times_sequence"]))
-        for trip in active_trips
+        (trip, get_status_for_minute(minute, trip["stop_times_sequence"])) for trip in active_trips
     ]
 
     valid = [c for c in candidates if c[1][0] != "EMPTY"]
@@ -394,16 +397,12 @@ def _row_for_inactive(minute: int, block_id: str, trips: list[dict[str, Any]]) -
     else:
         status = "INACTIVE"
 
-    if (
-        next_trip
-        and next_trip["start"] == minute + 1
-        and status in {"DWELL", "LAYOVER"}
-    ):
+    if next_trip and next_trip["start"] == minute + 1 and status in {"DWELL", "LAYOVER"}:
         status = "LOADING"
 
     return {
         "Timestamp": minutes_to_hhmm(minute),
-        "Trip Start Time": "",            # NEW – keep schema stable
+        "Trip Start Time": "",  # NEW – keep schema stable
         "Block": block_id,
         "Route": "",
         "Direction": "",
@@ -476,7 +475,7 @@ def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame) -> pd.DataFrame
     return df_out
 
 
-def _build_schedule_rows(                       # type: ignore[override]
+def _build_schedule_rows(  # type: ignore[override]
     trips_summary: list[dict[str, Any]],
     timeline: range,
     block_id: str,
@@ -513,41 +512,42 @@ def _build_schedule_rows(                       # type: ignore[override]
                 if status in {"DWELL", "LAYOVER"}:
                     nxt_min = minute + TIME_INTERVAL_MIN
                     if nxt_min <= chosen_trip["end"]:
-                        if get_status_for_minute(
-                            nxt_min, chosen_trip["stop_times_sequence"]
-                        )[0] == "DEPART":
+                        if (
+                            get_status_for_minute(nxt_min, chosen_trip["stop_times_sequence"])[0]
+                            == "DEPART"
+                        ):
                             status = "LOADING"
 
                 row: dict[str, Any] = {
-                    "Timestamp":      minutes_to_hhmm(minute),
-                    "Trip Start Time": chosen_trip["start_str"],   # ← ★ keeps column
-                    "Block":          block_id,
-                    "Route":          chosen_trip["route_id"],
-                    "Direction":      chosen_trip["direction_id"],
-                    "Trip ID":        stat_trip_id or "",
-                    "Stop ID":        stop_id or "",
-                    "Stop Name":      stop_name or "",
-                    "Stop Sequence":  stop_seq or "",
-                    "Arrival Time":   arr_str or "",
+                    "Timestamp": minutes_to_hhmm(minute),
+                    "Trip Start Time": chosen_trip["start_str"],  # ← ★ keeps column
+                    "Block": block_id,
+                    "Route": chosen_trip["route_id"],
+                    "Direction": chosen_trip["direction_id"],
+                    "Trip ID": stat_trip_id or "",
+                    "Stop ID": stop_id or "",
+                    "Stop Name": stop_name or "",
+                    "Stop Sequence": stop_seq or "",
+                    "Arrival Time": arr_str or "",
                     "Departure Time": dep_str or "",
-                    "Status":         status,
-                    "Timepoint":      tp_val,
+                    "Status": status,
+                    "Timepoint": tp_val,
                 }
             else:  # unreachable but keeps schema intact
                 row = {
-                    "Timestamp":      minutes_to_hhmm(minute),
+                    "Timestamp": minutes_to_hhmm(minute),
                     "Trip Start Time": "",
-                    "Block":          block_id,
-                    "Route":          "",
-                    "Direction":      "",
-                    "Trip ID":        "",
-                    "Stop ID":        "",
-                    "Stop Name":      "",
-                    "Stop Sequence":  "",
-                    "Arrival Time":   "",
+                    "Block": block_id,
+                    "Route": "",
+                    "Direction": "",
+                    "Trip ID": "",
+                    "Stop ID": "",
+                    "Stop Name": "",
+                    "Stop Sequence": "",
+                    "Arrival Time": "",
                     "Departure Time": "",
-                    "Status":         "TRAVELING BETWEEN STOPS",
-                    "Timepoint":      0,
+                    "Status": "TRAVELING BETWEEN STOPS",
+                    "Timepoint": 0,
                 }
         else:
             row = _row_for_inactive(minute, block_id, trips_summary)
@@ -577,7 +577,7 @@ def process_block(
         block_id:     The block identifier.
         timeline:     ``range`` object covering every minute to evaluate.
 
-    Returns
+    Returns:
     -------
         A fully populated :class:`pandas.DataFrame` ready for Excel export or
         aggregation.
@@ -597,6 +597,7 @@ def process_block(
 # MERGE + FILTER PRIMARY DATASET
 # ------------------------------------------------------------------------------
 
+
 def _merge_and_filter_data(
     trips_df: pd.DataFrame,
     stop_times_df: pd.DataFrame,
@@ -614,9 +615,7 @@ def _merge_and_filter_data(
         stops_df["stop_code"] = None
 
     merged = stop_times_df.merge(trips_df, on="trip_id", how="left")
-    merged = merged.merge(
-        stops_df[["stop_id", "stop_name", "stop_code"]], on="stop_id", how="left"
-    )
+    merged = merged.merge(stops_df[["stop_id", "stop_name", "stop_code"]], on="stop_id", how="left")
 
     merged = mark_first_and_last_stops(merged)
 
@@ -646,8 +645,7 @@ def _status_for_active_trips(
 ) -> tuple[Optional[dict[str, Any]], tuple[Any, ...]]:
     """Choose the most appropriate status among concurrently active trips."""
     candidates: list[tuple[dict[str, Any], tuple[Any, ...]]] = [
-        (trip, get_status_for_minute(minute, trip["stop_times_sequence"]))
-        for trip in active_trips
+        (trip, get_status_for_minute(minute, trip["stop_times_sequence"])) for trip in active_trips
     ]
 
     valid = [c for c in candidates if c[1][0] != "EMPTY"]
@@ -666,10 +664,10 @@ def _status_for_active_trips(
     return valid[0]
 
 
-
 # ------------------------------------------------------------------------------
 # AGGREGATION TO ROUTE/DIRECTION
 # ------------------------------------------------------------------------------
+
 
 def _aggregate_by_route_dir(
     block_frames: list[pd.DataFrame],
@@ -679,7 +677,7 @@ def _aggregate_by_route_dir(
 
     keep = [
         "Timestamp",
-        "Trip Start Time",   # ← new column retained
+        "Trip Start Time",  # ← new column retained
         "Block",
         "Route",
         "Direction",
@@ -701,6 +699,7 @@ def _aggregate_by_route_dir(
 # ==============================================================================
 # MAIN
 # ==============================================================================
+
 
 def run() -> None:
     """End‑to‑end pipeline: load GTFS, build per‑block schedules, write XLSX."""
@@ -750,8 +749,7 @@ def run() -> None:
         # determine interlined routes for this block
         route_set = set(block_df["Route"].dropna())
         interlined_map = {
-            r: ",".join(sorted(route_set - {r})) if len(route_set) > 1 else ""
-            for r in route_set
+            r: ",".join(sorted(route_set - {r})) if len(route_set) > 1 else "" for r in route_set
         }
         block_df["Interlined Route"] = block_df["Route"].map(interlined_map).fillna("")
 
