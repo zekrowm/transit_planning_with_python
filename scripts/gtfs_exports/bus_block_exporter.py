@@ -66,6 +66,7 @@ def minutes_to_hhmm(total: int) -> str:
 
 
 def validate_folders(input_path: Path, output_path: Path) -> None:
+    """Ensure input is a directory and create output directory if needed."""
     if not input_path.is_dir():
         raise NotADirectoryError(f"{input_path} is not a directory.")
     output_path.mkdir(parents=True, exist_ok=True)
@@ -80,6 +81,7 @@ def load_gtfs_data(
     files: Optional[list[str]] = None,
     dtype: str | Mapping[str, Any] = str,
 ) -> dict[str, pd.DataFrame]:
+    """Load GTFS text files into pandas DataFrames."""
     if files is None:
         files = [
             "stops.txt",
@@ -107,6 +109,7 @@ def load_gtfs_data(
 # ------------------------------------------------------------------------------
 
 def find_cluster(stop_id: str, clusters: list[dict[str, Any]]) -> Optional[str]:
+    """Return cluster name containing the given stop ID, if any."""
     for cluster_item in clusters:
         if stop_id in cluster_item["stops"]:
             return cluster_item["name"]
@@ -118,6 +121,7 @@ def find_cluster(stop_id: str, clusters: list[dict[str, Any]]) -> Optional[str]:
 # ------------------------------------------------------------------------------
 
 def mark_first_and_last_stops(df_in: pd.DataFrame) -> pd.DataFrame:
+    """Mark first and last stops per trip using boolean flags."""
     df_out = df_in.sort_values(["trip_id", "stop_sequence"]).copy()
     df_out["is_first_stop"] = False
     df_out["is_last_stop"] = False
