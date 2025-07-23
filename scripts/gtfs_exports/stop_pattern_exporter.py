@@ -16,6 +16,7 @@ Outputs:
     - Excel files written to OUTPUT_DIR with subfolders for each service_id.
 """
 
+from __future__ import annotations
 import logging
 import os
 from collections import defaultdict
