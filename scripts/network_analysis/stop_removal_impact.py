@@ -13,18 +13,19 @@ Key Features:
 """
 
 from __future__ import annotations
+
 import logging
-import math
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
-from pyproj import CRS
+from typing import Dict, List, Tuple
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+from pyproj import CRS
 from scipy.spatial import cKDTree
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import LineString, Point
 from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
@@ -52,6 +53,7 @@ LOG_LEVEL = logging.INFO
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def build_pedestrian_network(
     sidewalks_gdf: gpd.GeoDataFrame,
@@ -125,7 +127,7 @@ def snap_stops_and_update_graph(
     """
     tree = STRtree(segments_gdf.geometry)
     stop_to_node_map = {}
-    
+
     # Create a copy of the geometry column to avoid SettingWithCopyWarning
     segments_geoms = segments_gdf.geometry.copy()
 
@@ -135,12 +137,12 @@ def snap_stops_and_update_graph(
 
         # Find the index of the nearest segment geometry
         nearest_geom_idx = tree.nearest(stop_geom)
-        
+
         # Get the full segment information using the index
         edge_geom = segments_geoms.iloc[nearest_geom_idx]
         segment_info = segments_gdf.iloc[nearest_geom_idx]
         u, v = segment_info["u"], segment_info["v"]
-        
+
         snap_pt = edge_geom.interpolate(edge_geom.project(stop_geom))
         snap_node = (snap_pt.x, snap_pt.y)
 
@@ -160,7 +162,7 @@ def snap_stops_and_update_graph(
         graph.add_node(snap_node)
         graph.add_edge(u, snap_node, weight=Point(u).distance(snap_pt))
         graph.add_edge(snap_node, v, weight=snap_pt.distance(Point(v)))
-        
+
         stop_to_node_map[stop_id] = snap_node
 
     return stop_to_node_map
@@ -216,9 +218,9 @@ def network_distances(
 
         src_connector_dist = connector_distances.get(sid, 0)
         idxs = kd.query_ball_point([src_geom.x, src_geom.y], r=BUFFER_FT)
-        
-        best_total_ft = float('inf')
-        best_lin_ft = float('inf')
+
+        best_total_ft = float("inf")
+        best_lin_ft = float("inf")
         best_stop_id = None
         best_path_nodes = []
 
@@ -230,19 +232,17 @@ def network_distances(
 
                 if tgt_node is None or not graph.has_node(tgt_node):
                     continue
-                
+
                 try:
                     # 1. Calculate on-network path distance
-                    network_ft = nx.shortest_path_length(
-                        graph, src_node, tgt_node, weight="weight"
-                    )
+                    network_ft = nx.shortest_path_length(graph, src_node, tgt_node, weight="weight")
 
                     # 2. Get target stop's connector distance
                     tgt_connector_dist = connector_distances.get(tgt_sid, 0)
-                    
+
                     # 3. Sum the three parts for the total walking distance
                     total_ft = src_connector_dist + network_ft + tgt_connector_dist
-                    
+
                     if total_ft < best_total_ft:
                         best_total_ft = total_ft
                         best_lin_ft = src_geom.distance(tgt_row.geometry)
@@ -253,7 +253,7 @@ def network_distances(
 
                 except (nx.NetworkXNoPath, nx.NodeNotFound):
                     continue
-        
+
         results[sid] = {
             "stop_name": row.stop_name,
             "stop_id": sid,
@@ -261,9 +261,13 @@ def network_distances(
             "x": src_geom.x,
             "y": src_geom.y,
             "nearest_stop_id": best_stop_id,
-            "linear_dist_miles": round(best_lin_ft / FT_PER_MILE, 4) if best_lin_ft != float('inf') else "> 0.25",
+            "linear_dist_miles": round(best_lin_ft / FT_PER_MILE, 4)
+            if best_lin_ft != float("inf")
+            else "> 0.25",
             # NOTE: This field now represents the TOTAL walking distance
-            "network_dist_miles": round(best_total_ft / FT_PER_MILE, 4) if best_total_ft != float('inf') else "> 0.25",
+            "network_dist_miles": round(best_total_ft / FT_PER_MILE, 4)
+            if best_total_ft != float("inf")
+            else "> 0.25",
             # The path geometry remains the on-network portion for visualization
             "path_geom": LineString(best_path_nodes) if best_path_nodes else None,
         }
@@ -279,23 +283,23 @@ def export_outputs(
     out_dir.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(results.values())
     df.to_csv(out_dir / "deleted_stops_distances.csv", index=False)
-    
+
     # Paths Shapefile
     ok = df[df.path_geom.notna()]
     if not ok.empty:
         gpd.GeoDataFrame(
             ok.drop(columns=["x", "y", "path_geom"]), geometry=ok.path_geom, crs=crs
         ).to_file(out_dir / "deleted_to_nearest_paths.shp")
-    
+
     # Points Shapefile
     gpd.GeoDataFrame(
         df.drop(columns=["x", "y", "path_geom"]),
-        geometry=[Point(xy) for xy in zip(df.x, df.y)], crs=crs,
+        geometry=[Point(xy) for xy in zip(df.x, df.y)],
+        crs=crs,
     ).to_file(out_dir / "deleted_stops.shp")
 
-def export_stop_maps(
-    stops: gpd.GeoDataFrame, results: Dict, crs: int, out_dir: Path
-) -> None:
+
+def export_stop_maps(stops: gpd.GeoDataFrame, results: Dict, crs: int, out_dir: Path) -> None:
     """Save a simple .png map for each removed stop, including connector lines.
 
     The map shows:
@@ -332,20 +336,14 @@ def export_stop_maps(
         fig, ax = plt.subplots(figsize=(4, 4), dpi=200)
 
         # Plot on-network path (solid blue)
-        gpd.GeoSeries([path], crs=crs).plot(
-            ax=ax, linewidth=2, color="steelblue", zorder=2
-        )
+        gpd.GeoSeries([path], crs=crs).plot(ax=ax, linewidth=2, color="steelblue", zorder=2)
         # Plot connector lines (dashed gray)
         gpd.GeoSeries([connector_start, connector_end], crs=crs).plot(
             ax=ax, linewidth=1.5, color="gray", linestyle="--", zorder=1
         )
         # Plot stop points
-        gpd.GeoSeries([removed_pt], crs=crs).plot(
-            ax=ax, color="red", markersize=35, zorder=3
-        )
-        gpd.GeoSeries([kept_pt], crs=crs).plot(
-            ax=ax, color="green", markersize=35, zorder=3
-        )
+        gpd.GeoSeries([removed_pt], crs=crs).plot(ax=ax, color="red", markersize=35, zorder=3)
+        gpd.GeoSeries([kept_pt], crs=crs).plot(ax=ax, color="green", markersize=35, zorder=3)
 
         ax.set_aspect("equal")
         ax.set_axis_off()
@@ -355,9 +353,11 @@ def export_stop_maps(
         fig.savefig(map_dir / f"{sid}.png", dpi=200, bbox_inches="tight", pad_inches=0.05)
         plt.close(fig)
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the complete analysis."""
@@ -372,7 +372,7 @@ def main() -> None:
     logging.info("Clipping sidewalk data to search envelope …")
     search_dist = BUFFER_FT * 1.20  # 20% slack
     envelope = stops.unary_union.buffer(search_dist)
-    
+
     # Use a spatial index for efficient clipping
     sidewalks_full = gpd.read_file(SIDEWALK_SHP).to_crs(TARGET_CRS)
     possible_matches_index = list(sidewalks_full.sindex.intersection(envelope.bounds))
@@ -387,7 +387,9 @@ def main() -> None:
     # 4. Snap stops to the graph, splitting edges where necessary
     logging.info("Snapping stops to graph and splitting edges …")
     stop_nodes = snap_stops_and_update_graph(stops, graph, segments_gdf)
-    logging.info(f"Snapping complete. Graph nodes: {graph.number_of_nodes()} | edges: {graph.number_of_edges()}")
+    logging.info(
+        f"Snapping complete. Graph nodes: {graph.number_of_nodes()} | edges: {graph.number_of_edges()}"
+    )
 
     # 5. Coverage polygons & lost area
     logging.info("Calculating coverage polygons and lost area …")
@@ -406,9 +408,12 @@ def main() -> None:
     logging.info("Exporting results …")
     export_outputs(results, TARGET_CRS, OUTPUT_DIR)
     export_stop_maps(stops, results, TARGET_CRS, OUTPUT_DIR)
-    gpd.GeoDataFrame(geometry=[lost_cov_geom], crs=TARGET_CRS).to_file(OUTPUT_DIR / "lost_coverage.shp")
+    gpd.GeoDataFrame(geometry=[lost_cov_geom], crs=TARGET_CRS).to_file(
+        OUTPUT_DIR / "lost_coverage.shp"
+    )
 
     logging.info("Done ✔")
+
 
 if __name__ == "__main__":
     main()
