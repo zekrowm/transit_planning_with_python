@@ -107,17 +107,21 @@ def build_pedestrian_network(
 def snap_stops_and_update_graph(
     stops_gdf: gpd.GeoDataFrame, graph: nx.Graph, segments_gdf: gpd.GeoDataFrame
 ) -> dict[str, tuple[float, float]]:
-    """Snaps stops to the nearest network segment, splitting the segment and
-    updating the graph with a new node at the snap point.
+    """Snap stops to the nearest network segment and update the graph.
+
+    Splits the corresponding segment at the snap location, inserts a new
+    node at that point, and returns a mapping from ``stop_id`` to the
+    coordinate tuple of the created (or reused) graph node.
 
     Args:
         stops_gdf: A GeoDataFrame of GTFS stops.
         graph: The NetworkX graph to be modified.
         segments_gdf: A GeoDataFrame of the simple, two-point segments
-                      that constitute the graph's edges.
+            that constitute the graph's edges.
 
     Returns:
-        A dictionary mapping each stop_id to its corresponding node coordinate tuple.
+        A dictionary mapping each stop_id to its corresponding node
+        coordinate tuple.
     """
     tree = STRtree(segments_gdf.geometry)
     stop_to_node_map = {}
