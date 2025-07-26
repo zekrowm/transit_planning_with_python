@@ -117,11 +117,7 @@ def _prepare_route_buffers(
     shapes_df.sort_values(["shape_id", "shape_pt_sequence"], inplace=True)
     lines = (
         shapes_df.groupby("shape_id")
-        .apply(
-            lambda grp: LineString(
-                grp[["shape_pt_lon", "shape_pt_lat"]].to_numpy(dtype=float)
-            )
-        )
+        .apply(lambda grp: LineString(grp[["shape_pt_lon", "shape_pt_lat"]].to_numpy(dtype=float)))
         .to_frame(name="geometry")
     )
     shapes_gdf = gpd.GeoDataFrame(lines, geometry="geometry", crs="EPSG:4326")
@@ -192,7 +188,7 @@ def _load_layers(
         layer_specs: Tuples of (filename, id_column).
         shp_dir: Root directory to search.
 
-    Returns
+    Returns:
     -------
     dict[str, gpd.GeoDataFrame]
         Mapping of the *original* filename to its loaded GeoDataFrame.
@@ -201,9 +197,7 @@ def _load_layers(
 
     for filename, id_col in layer_specs:
         # Case‑insensitive recursive search for the .shp
-        matches = sorted(
-            p for p in shp_dir.rglob("*.shp") if p.name.lower() == filename.lower()
-        )
+        matches = sorted(p for p in shp_dir.rglob("*.shp") if p.name.lower() == filename.lower())
 
         if not matches:
             log.warning("Layer %s NOT FOUND anywhere under %s", filename, shp_dir)
@@ -267,17 +261,13 @@ def _count_features(
             for fname, _ in layer_specs
             if fname in layers
         ]
-        pd.DataFrame(csv_rows).to_csv(
-            output_dir / f"{route_id}_feature_summary.csv", index=False
-        )
+        pd.DataFrame(csv_rows).to_csv(output_dir / f"{route_id}_feature_summary.csv", index=False)
 
         # Plot quick map
         fig, ax = plt.subplots(figsize=(6, 6), dpi=PLOT_FIG_DPI)
         gpd.GeoSeries([buf_geom]).plot(ax=ax, facecolor="none", edgecolor="black")
         for fname in feature_name_lists:
-            layers[fname][layers[fname].intersects(buf_geom)].plot(
-                ax=ax, label=fname.split(".")[0]
-            )
+            layers[fname][layers[fname].intersects(buf_geom)].plot(ax=ax, label=fname.split(".")[0])
         ax.set_title(f"Route {route_id} buffer & intersecting features")
         ax.axis("off")
         ax.legend()
@@ -288,9 +278,7 @@ def _count_features(
         summary_records.append(per_route_counts)
         log.info("Processed route %s – PNG & CSV written", route_id)
 
-    summary_df = (
-        pd.DataFrame(summary_records).set_index("route_id").fillna(0).astype(int)
-    )
+    summary_df = pd.DataFrame(summary_records).set_index("route_id").fillna(0).astype(int)
     return summary_df
 
 
