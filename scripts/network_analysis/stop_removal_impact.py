@@ -13,12 +13,11 @@ Key Features:
 """
 
 from __future__ import annotations
-
 import logging
 import math
 from pathlib import Path
-from typing import Dict, List, Tuple
-
+from typing import Dict, List, Tuple, Union
+from pyproj import CRS
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -57,8 +56,7 @@ LOG_LEVEL = logging.INFO
 def build_pedestrian_network(
     sidewalks_gdf: gpd.GeoDataFrame,
 ) -> tuple[nx.Graph, gpd.GeoDataFrame]:
-    """
-    Builds a physical pedestrian network graph from sidewalk/road centerlines.
+    """Builds a physical pedestrian network graph from sidewalk/road centerlines.
 
     Each complex LineString is decomposed into simple, two-point segments,
     and each segment becomes an edge in the graph.
@@ -109,8 +107,7 @@ def build_pedestrian_network(
 def snap_stops_and_update_graph(
     stops_gdf: gpd.GeoDataFrame, graph: nx.Graph, segments_gdf: gpd.GeoDataFrame
 ) -> dict[str, tuple[float, float]]:
-    """
-    Snaps stops to the nearest network segment, splitting the segment and
+    """Snaps stops to the nearest network segment, splitting the segment and
     updating the graph with a new node at the snap point.
 
     Args:
@@ -165,7 +162,10 @@ def snap_stops_and_update_graph(
     return stop_to_node_map
 
 
-def load_gtfs_stops(gtfs_dir: Path, target_crs) -> gpd.GeoDataFrame:
+def load_gtfs_stops(
+    gtfs_dir: Path,
+    target_crs: int | str | CRS,
+) -> gpd.GeoDataFrame:
     """Return GTFS stops as GeoDataFrame in *target_crs* (dedup by id)."""
     df = pd.read_csv(gtfs_dir / "stops.txt", dtype=str).drop_duplicates("stop_id")
     return gpd.GeoDataFrame(
@@ -181,8 +181,7 @@ def network_distances(
     stop_nodes: Dict[str, Tuple[float, float]],
     graph: nx.Graph,
 ) -> Dict[str, Dict[str, object]]:
-    """
-    Calculates distances from each deleted stop to its nearest kept stop.
+    """Calculates distances from each deleted stop to its nearest kept stop.
 
     The total walking distance is the sum of three parts:
     1. The "access" connector from the deleted stop to the network.
@@ -267,7 +266,11 @@ def network_distances(
     return results
 
 
-def export_outputs(results: Dict, crs, out_dir: Path) -> None:
+def export_outputs(
+    results: Dict,
+    crs: int | str | CRS,
+    out_dir: Path,
+) -> None:
     """Dump CSV + QA shapefiles."""
     out_dir.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame(results.values())
@@ -289,8 +292,7 @@ def export_outputs(results: Dict, crs, out_dir: Path) -> None:
 def export_stop_maps(
     stops: gpd.GeoDataFrame, results: Dict, crs: int, out_dir: Path
 ) -> None:
-    """
-    Save a simple .png map for each removed stop, including connector lines.
+    """Save a simple .png map for each removed stop, including connector lines.
 
     The map shows:
         - Removed stop (red point)
