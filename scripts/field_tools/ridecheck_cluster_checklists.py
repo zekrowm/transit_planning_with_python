@@ -96,6 +96,7 @@ SPECIAL_ROUTES = [
 # FUNCTIONS
 # =============================================================================
 
+
 def validate_input_directory(base_input_path: str, gtfs_files: List[str]) -> None:
     """Verify that *all* required GTFS files exist in the given directory.
 
@@ -599,6 +600,7 @@ def generate_gtfs_checklists() -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Script entry point: simply calls :pyfunc:`generate_gtfs_checklists`."""

@@ -50,6 +50,7 @@ CORE_EVENT_COLS: list[str] = [
 # FUNCTIONS
 # =============================================================================
 
+
 def list_observed_files(base_path: str) -> List[Path]:
     """Return every ``.xlsx`` or ``.csv`` file in *base_path*.
 
@@ -136,6 +137,7 @@ def compute_diff(actual: pd.Series, scheduled: pd.Series) -> pd.Series:
 # -----------------------------------------------------------------------------
 # PUNCTUALITY CLASSIFICATION & FLAGS
 # -----------------------------------------------------------------------------
+
 
 def classify_punctuality(diff: float | int | None) -> str | None:
     """Label an event as ``'early'``, ``'on_time'`` or ``'late'``.
@@ -322,6 +324,7 @@ def longify_events(df: pd.DataFrame) -> pd.DataFrame:
 # PUNCTUALITY SUMMARY
 # -----------------------------------------------------------------------------
 
+
 def summarise_punctuality(
     df: pd.DataFrame,
     group_cols: Optional[List[str]] = None,
@@ -370,6 +373,7 @@ def summarise_punctuality(
 # Valid vs. invalid splitter (for diagnostics)
 # -----------------------------------------------------------------------------
 
+
 def split_valid_invalid(events_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Partition *events_df* into valid and invalid subsets.
 
@@ -388,6 +392,7 @@ def split_valid_invalid(events_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataF
 # -----------------------------------------------------------------------------
 # EXPORT HELPERS
 # -----------------------------------------------------------------------------
+
 
 def ensure_output_folder(path: str) -> None:
     """Create *path* and its parents if they do not already exist.
@@ -469,6 +474,7 @@ def export_results(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Command-line entry point."""

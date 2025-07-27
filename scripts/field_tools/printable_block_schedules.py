@@ -58,6 +58,7 @@ MAX_COLUMN_WIDTH = 35
 # FUNCTIONS
 # =============================================================================
 
+
 def time_to_seconds(time_str: str) -> Union[float, int]:
     """Convert a ``HH:MM`` or ``HH:MM:SS`` string to total seconds.
 
@@ -105,6 +106,7 @@ def format_hhmm(total_seconds: Union[int, float]) -> str:
 # -----------------------------------------------------------------------------
 # OTHER FUNCTIONS
 # -----------------------------------------------------------------------------
+
 
 def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
     """Write *data_frame* to an Excel file with basic styling.
@@ -443,6 +445,7 @@ def load_gtfs_data(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Command-line entry point.
