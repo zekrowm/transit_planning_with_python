@@ -16,13 +16,13 @@ transit_planning_with_python-main/
 ├── helpers/
 │   └── gtfs_helpers.py
 └── scripts/
+    ├── block_and_bay_tools/
+    │   ├── bay_usage_analyzer.py
+    │   └── gtfs_block_status_timeline.py
     ├── field_tools/
     │   ├── printable_block_schedules.py
     │   ├── ridecheck_cluster_checklists.py
     │   └── ridecheck_results_processor.py
-    ├── block_and_bay_tools/
-    │   ├── bay_usage_analyzer.py
-    │   └── gtfs_block_status_timeline.py
     ├── census_tools/
     │   ├── uscensus_blocks_merge_gpd.py
     │   ├── uscensus_blocks_table_join_gpd.py
