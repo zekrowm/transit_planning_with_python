@@ -40,7 +40,7 @@ jobs:
     - name: Create/Update PR with fixes
       uses: peter-evans/create-pull-request@v7
       with:
-        commit-message: "style: weekly Ruff auto‑format [skip ci]"
+        commit-message: "style: Auto‑format changed files with ruff [skip ci]"
         branch: chore/ruff-weekly-fixes
         base: main              # PR will always target main
         title: "chore: weekly Ruff auto‑format"
