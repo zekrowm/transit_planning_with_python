@@ -483,6 +483,64 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
     plt.close()
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# OUTLIER‑PERSISTENCE HELPER
+# ──────────────────────────────────────────────────────────────────────────────
+def export_trimmed_outliers(
+    df: pd.DataFrame,
+    *,
+    group_key: str = TIME_COL_NAME,
+    runtime_col: str = "actual_runtime_min",
+    frac: float = TRIM_FRAC,
+) -> None:
+    """Write a CSV containing trips removed by the ±*frac* quantile filter.
+
+    The thresholds are *computed independently for each* ``group_key`` value
+    (mirroring the per‑start‑time logic used by ``_trim_pct`` inside the
+    runtime‑stats functions).  All offending rows are concatenated and saved.
+
+    Parameters
+    ----------
+    df :
+        The fully filtered route‑level dataframe **before** any trimming.
+    group_key :
+        Column that defines each peer group.  Default is ``TIME_COL_NAME`` so
+        every HH:MM token gets its own ±1 % envelope.
+    runtime_col :
+        Name of the column containing the numeric runtime values.
+    frac :
+        Fraction to trim from each tail (same constant that drives analysis).
+
+    Notes
+    -----
+    * Skips I/O if **no** rows cross the thresholds.
+    * Honors the global ``OUTPUT_DIR`` path that is already route‑specific.
+    """
+    if df.empty or frac <= 0:
+        return
+
+    keep_frames: list[pd.DataFrame] = []
+
+    for _, sub in df.groupby(group_key, sort=False):
+        runtimes = sub[runtime_col]
+        if runtimes.empty:
+            continue
+        lo, hi = runtimes.quantile([frac, 1 - frac])
+        mask = (runtimes < lo) | (runtimes > hi)
+        if mask.any():
+            keep_frames.append(sub.loc[mask])
+
+    if not keep_frames:
+        return  # nothing was trimmed – no file emitted
+
+    outliers = pd.concat(keep_frames, ignore_index=True)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    fname = OUTPUT_DIR / f"trimmed_outliers_{_day_tag()}.csv"
+    outliers.to_csv(fname, index=False)
+    print(f"   ⤷ {len(outliers):,} trimmed outliers captured ➜ {fname.name}")
+
+
 def log_low_sample_start_times(
     df: pd.DataFrame,
     thresh_frac: float = LOW_SAMPLE_FRAC,
@@ -780,6 +838,10 @@ def main() -> None:  # pragma: no cover
         global OUTPUT_DIR, PLOTS_DIR
         OUTPUT_DIR = OUTPUT_ROOT_DIR / route
         PLOTS_DIR = OUTPUT_DIR / "plots"
+
+        # ── persist rows that will be dropped by the ±1 % runtime trimming ──
+        if TRIM_OUTLIERS:
+            export_trimmed_outliers(df)
 
         # ── row‑level CSV, summary XLSX, time‑band XLSX ─────────────────
         write_row_level(df)
