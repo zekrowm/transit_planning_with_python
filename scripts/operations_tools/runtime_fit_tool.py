@@ -34,13 +34,13 @@ import seaborn as sns
 # CONFIGURATION
 # =============================================================================
 
-INPUT_ROOT_DIR: Final[Path] = Path(r"Path\To\Your\individual_trip_observations_folder")
+INPUT_ROOT_DIR: Final[Path] = Path(r"Path\To\Your\Data_Folder_with_observed_trips")
 OUTPUT_ROOT_DIR: Final[Path] = Path(r"Path\To\Your\Output_Folder")
 
 ROUTES_TO_INCLUDE: Final[set[str]] = {"101", "202"}  # optional whitelist
 
 DATE_START: Final[pd.Timestamp] = pd.Timestamp("2024-06-30")
-DATE_END: Final[pd.Timestamp] = pd.Timestamp("2025-07-24")
+DATE_END:   Final[pd.Timestamp] = pd.Timestamp("2025-07-24")
 
 LOW_SAMPLE_FRAC: Final[float] = 0.20  # 20 % of the median n_events
 
@@ -400,24 +400,24 @@ def log_low_sample_start_times(
     Save a CSV listing start‑times that have *unusually few* observations.
 
     A start‑time (e.g. “06:15”) is flagged when its row count is **below
-    `thresh_frac × median(row counts)`** across all start‑times in *df*.
+    thresh_frac × median(row counts)** across all start‑times in *df*.
 
     The CSV (one per route) lives alongside the other artefacts and
     contains:
 
-    * ``trip_start_time`` – HH:MM string extracted earlier
-    * ``n_obs``            – observations for that token after filtering
-    * ``dates_run``        – comma‑separated YYYY‑MM‑DD values
+    * `trip_start_time – HH:MM string extracted earlier
+    * `n_obs            – observations for that token after filtering
+    * `dates_run        – comma‑separated YYYY‑MM‑DD values
 
     Parameters
     ----------
     df : pandas.DataFrame
         The fully filtered route‑level dataframe.
-    thresh_frac : float, default ``LOW_SAMPLE_FRAC``
+    thresh_frac : float, default `LOW_SAMPLE_FRAC
         Fraction of the median observation count below which a
         start‑time is considered under‑sampled.
     exclude_dates : Iterable[str] | None, optional
-        Your current ``EXCLUDE_DATES`` list (YYYY‑MM‑DD strings).
+        Your current `EXCLUDE_DATES list (YYYY‑MM‑DD strings).
         Supplying it lets the function tell you which flagged dates are
         *not yet* excluded.
     """
@@ -525,6 +525,30 @@ def _fisher_jenks(values: Sequence[float], k: int) -> List[int]:
     return sorted(bkpts)  # len == k‑1
 
 
+def _hhmm_to_minutes(s: pd.Series) -> pd.Series:
+    """Convert an `HH:MM string to minutes after midnight.
+
+    Accepts hours `00 through 29 so that after‑midnight tokens
+    such as `"24:05" parse without error.  Any value that cannot be
+    interpreted returns `NaN (float) so it can be removed later with
+    `dropna().
+
+    Parameters
+    ----------
+    s : pandas.Series
+        Series of strings in *HH:MM* format.
+
+    Returns
+    -------
+    pandas.Series
+        Numeric minutes after midnight (float); invalid inputs → NaN.
+    """
+    parts = s.str.split(":", n=1, expand=True)
+    h = pd.to_numeric(parts[0], errors="coerce")
+    m = pd.to_numeric(parts[1], errors="coerce")
+    return h * 60 + m
+
+
 # -----------------------------------------------------------------------------
 #  PUBLIC API
 # -----------------------------------------------------------------------------
@@ -535,31 +559,26 @@ def suggest_time_bands(
     enforce_min_size: bool = ENFORCE_MIN_BAND_SIZE,
     min_band_size: int = MIN_BAND_SIZE,
 ) -> pd.DataFrame:
-    """Return contiguous time‑of‑day bands from `runtime_p85_min`.
+    """Create Fisher–Jenks time‑of‑day bands from the 85th‑percentile runtime.
 
-    The DataFrame *summary* must contain ``trip_start_time`` (HH:MM str)
-    and ``runtime_p85_min``.  ``max_bands=None`` ⇒ no hard cap.
-    ``enforce_min_size=False`` skips the small‑band merge entirely.
+    Handles start‑time tokens up to 29:59 and works with older pandas
+    versions that lack `reset_index(names=...).
     """
     need = {"trip_start_time", "runtime_p85_min"}
     miss = need - set(summary.columns)
     if miss:
         raise KeyError(f"summary missing columns {miss}")
 
+    # ── 1. prepare ordered DF with numeric surrogate _t ──────────────
     df = (
-        summary.loc[:, ["trip_start_time", "runtime_p85_min"]]
-        .dropna()
-        .assign(
-            _t=lambda x: pd.to_datetime(
-                x["trip_start_time"], format="%H:%M", errors="coerce"
-            )
-            .dt.hour.mul(60)
-            .add(pd.to_datetime(x["trip_start_time"], format="%H:%M").dt.minute)
-        )
+        summary[["trip_start_time", "runtime_p85_min"]]
+        .assign(_t=_hhmm_to_minutes(summary["trip_start_time"]))
+        .dropna(subset=["_t", "runtime_p85_min"])
         .sort_values("_t", kind="mergesort")
         .reset_index(drop=True)
     )
 
+    # ── 2. Fisher–Jenks segmentation ─────────────────────────────────
     n = len(df)
     k0 = max(int(np.ceil(np.sqrt(n))), 2)
     k = k0 if max_bands is None or max_bands <= 0 else min(k0, max_bands)
@@ -571,7 +590,7 @@ def suggest_time_bands(
         labels[b:] += 1
     df["_band"] = labels
 
-    # ── optional merge of undersized bands ──────────────────────────────
+    # ── 3. optional merge of undersized bands ─────────────────────────
     if enforce_min_size and min_band_size > 1:
         changed = True
         while changed:
@@ -599,20 +618,25 @@ def suggest_time_bands(
                     opts.append((right, diff))
                 merge_into = min(opts, key=lambda t: t[1])[0]
                 df.loc[df["_band"] == bid, "_band"] = merge_into
+
+            # re‑number after merges
             remap = {old: new for new, old in enumerate(sorted(df["_band"].unique()))}
             df["_band"] = df["_band"].map(remap)
 
+    # ── 4. assemble output table (pandas ≤1.5 compatible) ─────────────
     bands = (
         df.groupby("_band", sort=True, observed=True)
-        .agg(
-            start_time=("trip_start_time", "first"),
-            end_time=("trip_start_time", "last"),
-            n_tokens=("trip_start_time", "size"),
-            p85_mean_min=("runtime_p85_min", "mean"),
-        )
-        .reset_index(names="band_id")
-        .assign(band_id=lambda x: x["band_id"] + 1)
+          .agg(
+              start_time=("trip_start_time", "first"),
+              end_time=("trip_start_time", "last"),
+              n_tokens=("trip_start_time", "size"),
+              p85_mean_min=("runtime_p85_min", "mean"),
+          )
+          .reset_index()                    # '_band' -> column
+          .rename(columns={"_band": "band_id"})
+          .assign(band_id=lambda x: x["band_id"] + 1)
     )
+
     return bands
 
 
@@ -648,13 +672,26 @@ def main() -> None:  # pragma: no cover
             print("   ⚠  No rows left after filtering; skipping route.")
             continue
 
+        # ── NEW: flag unusually sparse start‑time tokens ────────────────
+        print(
+            "   observation median:",
+            df.groupby(TIME_COL_NAME)["Actual Start Time"].count().median(),
+        )
+        log_low_sample_start_times(
+            df,
+            thresh_frac=LOW_SAMPLE_FRAC,
+            exclude_dates=EXCLUDE_DATES,
+        )
+
+        # ── set up output paths specific to the current route ───────────
         global OUTPUT_DIR, PLOTS_DIR
         OUTPUT_DIR = OUTPUT_ROOT_DIR / route
         PLOTS_DIR = OUTPUT_DIR / "plots"
 
+        # ── row‑level CSV, summary XLSX, time‑band XLSX ─────────────────
         write_row_level(df)
-        summary = write_summary_table(df)  # ← returns DataFrame
-        bands = suggest_time_bands(summary)  # ← generate time‑bands
+        summary = write_summary_table(df)            # returns DataFrame
+        bands = suggest_time_bands(summary)          # generate time‑bands
         bands.to_excel(
             OUTPUT_DIR / f"time_bands_{_day_tag()}.xlsx",
             index=False,
@@ -662,7 +699,7 @@ def main() -> None:  # pragma: no cover
         )
         print(f"   → Suggested {len(bands)} time bands saved.")
 
-        # ── plotting (skip gracefully if a function is missing) ──
+        # ── plotting (skip gracefully if a function is missing) ────────
         plot_funcs = [
             "plot_start_dev_shaded",
             "plot_start_dev_plain",
