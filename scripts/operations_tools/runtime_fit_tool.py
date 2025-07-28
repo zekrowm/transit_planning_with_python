@@ -390,6 +390,99 @@ def write_summary_table(df: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
+def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
+    """Bar‐plot scheduled vs. 85th‑percentile runtime for each start time.
+
+    The function computes, for every distinct ``trip_start_time`` token:
+
+    * **Scheduled runtime** – the modal (most common) scheduled runtime
+      across trips starting at that time (with ambiguity warnings via
+      ``_sched_mode_with_warning``).
+
+    * **85th‑percentile actual runtime** – calculated on actual runtimes
+      after optional outlier trimming (controlled by ``TRIM_OUTLIERS`` and
+      ``TRIM_FRAC``).
+
+    A grouped bar chart is saved to
+    ``PLOTS_DIR / "bar_runtime_p85_vs_sched.png"``.  It visually highlights
+    start‑times where the observed P85 runtime exceeds the scheduled value.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Fully filtered trip‑level data for a single route.
+
+    Notes
+    -----
+    * Relies on the global constants ``TIME_COL_NAME``, ``TRIM_OUTLIERS``,
+      and ``TRIM_FRAC`` defined earlier in the module.
+    * Uses the helper ``_sched_mode_with_warning`` for scheduled runtimes
+      and ``_trim_pct`` for optional outlier removal.
+    """
+    if df.empty:
+        print("   ⚠  No rows after filters; skipping plots.")
+        return
+
+    # ── 1.  Aggregate per start‑time token ────────────────────────────
+    grp = df.groupby(TIME_COL_NAME, sort=False)
+
+    sched_runtime = grp["scheduled_runtime_min"].apply(
+        lambda s: _sched_mode_with_warning(s, trip_id=s.name)
+    )
+
+    def _p85(series: pd.Series) -> float:
+        data = _trim_pct(series, TRIM_FRAC) if TRIM_OUTLIERS else series
+        return data.quantile(0.85)
+
+    p85_runtime = grp["actual_runtime_min"].apply(_p85)
+
+    summary = (
+        pd.DataFrame(
+            {
+                "trip_start_time": sched_runtime.index,
+                "scheduled_min": sched_runtime.values,
+                "p85_min": p85_runtime.values,
+            }
+        )
+        .dropna(subset=["scheduled_min", "p85_min"])
+    )
+
+    if summary.empty:
+        print("   ⚠  No valid data for runtime P85 vs. scheduled plot.")
+        return
+
+    # ── 2.  Reshape to long format for seaborn ────────────────────────
+    tidy = summary.melt(
+        id_vars="trip_start_time",
+        value_vars=["scheduled_min", "p85_min"],
+        var_name="type",
+        value_name="runtime_min",
+    )
+
+    # ── 3.  Plot ──────────────────────────────────────────────────────
+    n_tokens = summary.shape[0]
+    fig_w = max(12, n_tokens * 0.45)  # widen for many start‑times
+    plt.figure(figsize=(fig_w, 6))
+    sns.barplot(
+        data=tidy,
+        x="trip_start_time",
+        y="runtime_min",
+        hue="type",
+        dodge=True,
+    )
+
+    plt.title("Scheduled vs. 85th‑percentile runtime by trip start time")
+    plt.xlabel("Scheduled trip start (HH:MM)")
+    plt.ylabel("Runtime (minutes)")
+    plt.xticks(rotation=90)
+    plt.legend(title="", labels=["Scheduled", "85th‑percentile"], loc="upper right")
+    plt.tight_layout()
+
+    _ensure_plot_dirs()
+    plt.savefig(PLOTS_DIR / "bar_runtime_p85_vs_sched.png", dpi=150)
+    plt.close()
+
+
 def log_low_sample_start_times(
     df: pd.DataFrame,
     thresh_frac: float = LOW_SAMPLE_FRAC,
