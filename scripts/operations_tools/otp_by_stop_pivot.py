@@ -1,5 +1,19 @@
 """Calculate OTP percentages by stop and publish user‑friendly outputs.
 
+This script processes a raw OTP CSV export and generates user-friendly outputs
+including:
+  - Recalculated OTP percentages (% On Time, % Early, % Late)
+  - Route/direction-wide pivot tables of OTP and counts by stop
+  - Stop-level summary tables of OTP performance
+  - Optional filtering by route, direction, and timepoint
+
+It supports override of stop order using a custom JSON configuration file and
+ensures all configured stops appear in output tables, even if missing from the
+input dataset.
+
+Outputs are written to a user-specified directory, with clear filenames for each
+(route, direction) combination.
+
 TODO (future): GTFS‑synced visualizations (see stub at bottom).
 """
 
