@@ -38,10 +38,20 @@ jobs:
         set -euo pipefail
         BASE_SHA="${{ github.event.pull_request.base.sha }}"
         HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+       
+        # 1. Get added / copied / modified / renamed / type‑changed *.py files.
+        CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT \
+                           "$BASE_SHA" "$HEAD_SHA" -- '*.py' | sort -u)
 
-        CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- '*.py' \
-                        | sort -u | tr '\n' ' ')
-        echo "files=$CHANGED_FILES" >> "$GITHUB_OUTPUT"
+        # 2. Keep only those paths that still exist after the checkout.
+        EXISTING_FILES=""
+        for f in $CHANGED_FILES; do
+          [[ -f "$f" ]] && EXISTING_FILES+="$f "
+        done
+
+        # 3. Publish the filtered list (trim any trailing space).
+        EXISTING_FILES=${EXISTING_FILES%% }
+        echo "files=$EXISTING_FILES" >> "$GITHUB_OUTPUT"
 
     - name: Nothing to do
       if: ${{ steps.changed.outputs.files == '' }}
