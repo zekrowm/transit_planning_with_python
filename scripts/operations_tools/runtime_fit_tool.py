@@ -103,7 +103,12 @@ def _trim_pct(series: pd.Series, frac: float = TRIM_FRAC) -> pd.Series:
 
 
 def _safe_plot(plot_func, df: pd.DataFrame) -> None:
-    """Only call *plot_func* when *df* is non‑empty."""
+    """Safely call a plotting function if the DataFrame is not empty.
+
+    Args:
+        plot_func: A function that takes a DataFrame and produces a plot.
+        df: Data to plot. If empty, the plot function is not called.
+    """
     if not df.empty:
         plot_func(df)
     else:
@@ -181,6 +186,14 @@ def _discover_route_csvs(
 
 
 def load_trip_files(files: Iterable[Path]) -> pd.DataFrame:
+    """Load and concatenate observed trip CSV files.
+
+    Args:
+        files: List of file paths to read.
+
+    Returns:
+        Combined DataFrame with parsed time columns and unified schema.
+    """
     frames = [
         pd.read_csv(p, sep=_detect_sep(p), dtype=str, low_memory=False) for p in files
     ]
@@ -196,16 +209,42 @@ def load_trip_files(files: Iterable[Path]) -> pd.DataFrame:
 
 
 def extract_trip_start_time(df: pd.DataFrame, trip_col: str = "Trip") -> pd.DataFrame:
+    """Extract trip start time (HH:MM) from a Trip column.
+
+    Args:
+        df: Trip data with a string-based Trip column.
+        trip_col: Name of the Trip column to extract time from.
+
+    Returns:
+        Copy of input DataFrame with a new 'trip_start_time' column.
+    """
     df = df.copy()
     df[TIME_COL_NAME] = df[trip_col].str.extract(r"^\s*([0-2]?\d:[0-5]\d)")[0]
     return df
 
 
 def filter_date_range(df: pd.DataFrame) -> pd.DataFrame:
+    """Filter trips to only those within the configured date range.
+
+    Args:
+        df: Trip records with 'Scheduled Start Time' as datetime.
+
+    Returns:
+        Filtered DataFrame with rows inside DATE_START and DATE_END.
+    """
     return df.loc[df["Scheduled Start Time"].between(DATE_START, DATE_END)].copy()
 
 
 def filter_routes(df: pd.DataFrame, wanted: set[str]) -> pd.DataFrame:
+    """Filter trips to only those matching desired route IDs.
+
+    Args:
+        df: Trip data with a 'Route' column.
+        wanted: Canonical route IDs (1–4 digits, leading zeros removed).
+
+    Returns:
+        Subset of DataFrame containing only wanted route IDs.
+    """
     wanted_canon = {str(x).lstrip("0") for x in wanted}
     route_num = (
         df["Route"].astype(str).str.extract(r"^\s*([0-9]{1,4})")[0].str.lstrip("0")
@@ -214,11 +253,29 @@ def filter_routes(df: pd.DataFrame, wanted: set[str]) -> pd.DataFrame:
 
 
 def filter_holidays(df: pd.DataFrame, dates: Iterable[str]) -> pd.DataFrame:
+    """Remove trips that occur on excluded holiday dates.
+
+    Args:
+        df: Trip data with 'Scheduled Start Time' as datetime.
+        dates: Iterable of holiday dates as YYYY-MM-DD strings.
+
+    Returns:
+        DataFrame excluding rows on the given dates.
+    """
     bad = {pd.to_datetime(d).date() for d in dates}
     return df.loc[~df["Scheduled Start Time"].dt.date.isin(bad)].copy()
 
 
 def filter_service_day(df: pd.DataFrame, which: str | None) -> pd.DataFrame:
+    """Filter trips by service day: WEEKDAY, SATURDAY, or SUNDAY.
+
+    Args:
+        df: Trip data with 'Scheduled Start Time' as datetime.
+        which: Day type to keep. Must be 'WEEKDAY', 'SATURDAY', 'SUNDAY', or None.
+
+    Returns:
+        DataFrame filtered to the selected day type.
+    """
     if which not in _DOW_CHOICES:
         raise ValueError("SERVICE_DAY_FILTER must be WEEKDAY, SATURDAY, SUNDAY or None")
     if not which:
@@ -233,6 +290,14 @@ def filter_service_day(df: pd.DataFrame, which: str | None) -> pd.DataFrame:
 
 
 def add_deviation_cols(df: pd.DataFrame) -> pd.DataFrame:
+    """Add schedule vs. actual time deviation columns to the DataFrame.
+
+    Args:
+        df: Trip data with scheduled and actual time columns.
+
+    Returns:
+        DataFrame with new columns for start/finish/runtime deviations.
+    """
     df = df.copy()
     df["start_dev_min"] = (
         df["Actual Start Time"] - df["Scheduled Start Time"]
@@ -251,6 +316,14 @@ def add_deviation_cols(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_otp_flag(df: pd.DataFrame) -> pd.DataFrame:
+    """Add an 'on_time' boolean column based on deviation thresholds.
+
+    Args:
+        df: Trip data with 'start_dev_min' column.
+
+    Returns:
+        DataFrame with a new 'on_time' flag indicating OTP compliance.
+    """
     on_time = df["start_dev_min"].between(OTP_EARLY_MIN, OTP_LATE_MIN, inclusive="both")
     return df.assign(on_time=on_time)
 
@@ -279,6 +352,11 @@ def _box_by_trip(
 
 
 def plot_start_dev_shaded(df: pd.DataFrame) -> None:
+    """Create a boxplot of start-time deviations with OTP shading.
+
+    Args:
+        df: Trip data with 'start_dev_min' and 'trip_start_time' columns.
+    """
     _box_by_trip(
         df,
         "start_dev_min",
@@ -330,6 +408,11 @@ def _day_tag() -> str:
 
 
 def write_row_level(df: pd.DataFrame) -> None:
+    """Export filtered row-level data with deviation and OTP fields.
+
+    Args:
+        df: Trip-level DataFrame with calculated deviation and OTP columns.
+    """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     lead = ["Route", "Direction", "TripID", TIME_COL_NAME]
     ordered = df[lead + [c for c in df.columns if c not in lead]].sort_values(
