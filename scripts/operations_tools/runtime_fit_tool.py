@@ -23,7 +23,7 @@ import re
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Final, Iterable, List, Sequence, Callable, TypeAlias
+from typing import Callable, Final, Iterable, List, Sequence, TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -40,7 +40,7 @@ OUTPUT_ROOT_DIR: Final[Path] = Path(r"Path\To\Your\Output_Folder")
 ROUTES_TO_INCLUDE: Final[set[str]] = {"101", "202"}  # optional whitelist
 
 DATE_START: Final[pd.Timestamp] = pd.Timestamp("2024-06-30")
-DATE_END:   Final[pd.Timestamp] = pd.Timestamp("2025-07-24")
+DATE_END: Final[pd.Timestamp] = pd.Timestamp("2025-07-24")
 
 LOW_SAMPLE_FRAC: Final[float] = 0.20  # 20 % of the median n_events
 
@@ -90,6 +90,7 @@ PlotFunc: TypeAlias = Callable[[pd.DataFrame], None]
 # FUNCTIONS
 # =============================================================================
 
+
 def _detect_sep(path: Path) -> str:
     """Return delimiter based on extension (csv → comma, others → tab)."""
     return "," if path.suffix.lower() == ".csv" else "\t"
@@ -137,11 +138,8 @@ def _clean_route_id(raw: str | float | int) -> str:
     return m.group(1).lstrip("0") or "0"
 
 
-def _discover_route_csvs(
-    root: Path, wanted: set[str] | None = None
-) -> dict[str, list[Path]]:
-    """
-    Crawl *root* recursively and build {route → [files]}.
+def _discover_route_csvs(root: Path, wanted: set[str] | None = None) -> dict[str, list[Path]]:
+    """Crawl *root* recursively and build {route → [files]}.
 
     * A file is linked to **every** route ID that appears in its Route column,
       so mixed files get processed by each relevant route run.
@@ -200,9 +198,7 @@ def load_trip_files(files: Iterable[Path]) -> pd.DataFrame:
     Returns:
         Combined DataFrame with parsed time columns and unified schema.
     """
-    frames = [
-        pd.read_csv(p, sep=_detect_sep(p), dtype=str, low_memory=False) for p in files
-    ]
+    frames = [pd.read_csv(p, sep=_detect_sep(p), dtype=str, low_memory=False) for p in files]
     df = pd.concat(frames, ignore_index=True)
     for col in (
         "Scheduled Start Time",
@@ -252,9 +248,7 @@ def filter_routes(df: pd.DataFrame, wanted: set[str]) -> pd.DataFrame:
         Subset of DataFrame containing only wanted route IDs.
     """
     wanted_canon = {str(x).lstrip("0") for x in wanted}
-    route_num = (
-        df["Route"].astype(str).str.extract(r"^\s*([0-9]{1,4})")[0].str.lstrip("0")
-    )
+    route_num = df["Route"].astype(str).str.extract(r"^\s*([0-9]{1,4})")[0].str.lstrip("0")
     return df.loc[route_num.isin(wanted_canon)].copy()
 
 
@@ -287,11 +281,7 @@ def filter_service_day(df: pd.DataFrame, which: str | None) -> pd.DataFrame:
     if not which:
         return df
     dow = df["Scheduled Start Time"].dt.dayofweek
-    keep = (
-        (dow <= 4)
-        if which == "WEEKDAY"
-        else (dow == 5 if which == "SATURDAY" else dow == 6)
-    )
+    keep = (dow <= 4) if which == "WEEKDAY" else (dow == 5 if which == "SATURDAY" else dow == 6)
     return df.loc[keep].copy()
 
 
@@ -522,7 +512,7 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
     df : pandas.DataFrame
         Fully filtered trip‑level data for a single route.
 
-    Notes
+    Notes:
     -----
     * Relies on the global constants ``TIME_COL_NAME``, ``TRIM_OUTLIERS``,
       and ``TRIM_FRAC`` defined earlier in the module.
@@ -546,16 +536,13 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
 
     p85_runtime = grp["actual_runtime_min"].apply(_p85)
 
-    summary = (
-        pd.DataFrame(
-            {
-                "trip_start_time": sched_runtime.index,
-                "scheduled_min": sched_runtime.values,
-                "p85_min": p85_runtime.values,
-            }
-        )
-        .dropna(subset=["scheduled_min", "p85_min"])
-    )
+    summary = pd.DataFrame(
+        {
+            "trip_start_time": sched_runtime.index,
+            "scheduled_min": sched_runtime.values,
+            "p85_min": p85_runtime.values,
+        }
+    ).dropna(subset=["scheduled_min", "p85_min"])
 
     if summary.empty:
         print("   ⚠  No valid data for runtime P85 vs. scheduled plot.")
@@ -621,7 +608,7 @@ def export_trimmed_outliers(
     frac :
         Fraction to trim from each tail (same constant that drives analysis).
 
-    Notes
+    Notes:
     -----
     * Skips I/O if **no** rows cross the thresholds.
     * Honors the global ``OUTPUT_DIR`` path that is already route‑specific.
@@ -657,8 +644,7 @@ def log_low_sample_start_times(
     *,
     exclude_dates: Iterable[str] | None = None,
 ) -> None:
-    """
-    Save a CSV listing start‑times that have *unusually few* observations.
+    """Save a CSV listing start‑times that have *unusually few* observations.
 
     A start‑time (e.g. “06:15”) is flagged when its row count is **below
     thresh_frac × median(row counts)** across all start‑times in *df*.
@@ -700,11 +686,7 @@ def log_low_sample_start_times(
     warned_df = (
         df[df[TIME_COL_NAME].isin(sparse_tokens.index)]
         .loc[:, [TIME_COL_NAME, "Scheduled Start Time"]]
-        .assign(
-            n_obs=lambda x: x.groupby(TIME_COL_NAME)["Scheduled Start Time"].transform(
-                "size"
-            )
-        )
+        .assign(n_obs=lambda x: x.groupby(TIME_COL_NAME)["Scheduled Start Time"].transform("size"))
     )
 
     out = (
@@ -713,9 +695,7 @@ def log_low_sample_start_times(
             n_obs=("n_obs", "first"),
             dates_run=(
                 "Scheduled Start Time",
-                lambda s: ", ".join(
-                    sorted({d.strftime("%Y-%m-%d") for d in s.dt.date})
-                ),
+                lambda s: ", ".join(sorted({d.strftime("%Y-%m-%d") for d in s.dt.date})),
             ),
         )
         .reset_index()
@@ -799,7 +779,7 @@ def _hhmm_to_minutes(s: pd.Series) -> pd.Series:
     s : pandas.Series
         Series of strings in *HH:MM* format.
 
-    Returns
+    Returns:
     -------
     pandas.Series
         Numeric minutes after midnight (float); invalid inputs → NaN.
@@ -887,15 +867,15 @@ def suggest_time_bands(
     # ── 4. assemble output table (pandas ≤1.5 compatible) ─────────────
     bands = (
         df.groupby("_band", sort=True, observed=True)
-          .agg(
-              start_time=("trip_start_time", "first"),
-              end_time=("trip_start_time", "last"),
-              n_tokens=("trip_start_time", "size"),
-              p85_mean_min=("runtime_p85_min", "mean"),
-          )
-          .reset_index()                    # '_band' -> column
-          .rename(columns={"_band": "band_id"})
-          .assign(band_id=lambda x: x["band_id"] + 1)
+        .agg(
+            start_time=("trip_start_time", "first"),
+            end_time=("trip_start_time", "last"),
+            n_tokens=("trip_start_time", "size"),
+            p85_mean_min=("runtime_p85_min", "mean"),
+        )
+        .reset_index()  # '_band' -> column
+        .rename(columns={"_band": "band_id"})
+        .assign(band_id=lambda x: x["band_id"] + 1)
     )
 
     return bands
@@ -905,11 +885,10 @@ def suggest_time_bands(
 # MAIN
 # =============================================================================
 
+
 def main() -> None:  # pragma: no cover
     """Process each route folder, export row‑level, summary, and band tables."""
-    whitelist = (
-        {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
-    )
+    whitelist = {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
     print(f"→ Crawling {INPUT_ROOT_DIR} for CSVs …")
     route_files = _discover_route_csvs(INPUT_ROOT_DIR, whitelist)
     if not route_files:
@@ -955,8 +934,8 @@ def main() -> None:  # pragma: no cover
 
         # ── row‑level CSV, summary XLSX, time‑band XLSX ─────────────────
         write_row_level(df)
-        summary = write_summary_table(df)            # returns DataFrame
-        bands = suggest_time_bands(summary)          # generate time‑bands
+        summary = write_summary_table(df)  # returns DataFrame
+        bands = suggest_time_bands(summary)  # generate time‑bands
         bands.to_excel(
             OUTPUT_DIR / f"time_bands_{_day_tag()}.xlsx",
             index=False,

@@ -32,8 +32,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-CSV_PATH: Path | str = (r"Path\To\Your\OTP by Timepoint.csv")
-OUTPUT_DIR: Path | str = (r"Path\To\Your\Output_Folder")
+CSV_PATH: Path | str = r"Path\To\Your\OTP by Timepoint.csv"
+OUTPUT_DIR: Path | str = r"Path\To\Your\Output_Folder"
 
 OUT_SUFFIX: str = "_processed"
 
@@ -75,10 +75,11 @@ logging.basicConfig(
 # FUNCTIONS
 # =============================================================================
 
+
 def build_argparser() -> argparse.ArgumentParser:
     """Create and configure the CLI argument parser.
 
-    Returns
+    Returns:
     -------
     argparse.ArgumentParser
         A parser pre‑populated with all command‑line options supported by the
@@ -90,24 +91,44 @@ def build_argparser() -> argparse.ArgumentParser:
         description="Recalculate OTP percentages, apply optional filters, and "
         "output pivot+summary tables."
     )
-    p.add_argument("-i", "--input", default=CSV_PATH,
-                   help="Path to the input CSV.")
-    p.add_argument("-t", "--timepoints", nargs="*", default=TIMEPOINT_FILTER,
-                   metavar="ID", help="Time‑point IDs to keep.")
-    p.add_argument("-r", "--routes", nargs="*", default=SHORT_ROUTE_FILTER,
-                   metavar="SHORT_ROUTE", help="Short Route codes to keep.")
+    p.add_argument("-i", "--input", default=CSV_PATH, help="Path to the input CSV.")
     p.add_argument(
-        "-g", "--rdt", default="", type=str,
-        help=("Route,Direction,Time‑point triples separated by ';', "
-              "e.g. '151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES'.")
+        "-t",
+        "--timepoints",
+        nargs="*",
+        default=TIMEPOINT_FILTER,
+        metavar="ID",
+        help="Time‑point IDs to keep.",
     )
-    p.add_argument("-d", "--outdir", default=OUTPUT_DIR,
-                   help="Folder for all output files.")
-    p.add_argument("-o", "--output", default=None,
-                   help="Explicit output CSV path for the long table.")
-    p.add_argument("--pattern-file", default=TIMEPOINT_ORDER_FILE, type=str,
-                   metavar="JSON",
-                   help="JSON file overriding TIMEPOINT_ORDER.")
+    p.add_argument(
+        "-r",
+        "--routes",
+        nargs="*",
+        default=SHORT_ROUTE_FILTER,
+        metavar="SHORT_ROUTE",
+        help="Short Route codes to keep.",
+    )
+    p.add_argument(
+        "-g",
+        "--rdt",
+        default="",
+        type=str,
+        help=(
+            "Route,Direction,Time‑point triples separated by ';', "
+            "e.g. '151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES'."
+        ),
+    )
+    p.add_argument("-d", "--outdir", default=OUTPUT_DIR, help="Folder for all output files.")
+    p.add_argument(
+        "-o", "--output", default=None, help="Explicit output CSV path for the long table."
+    )
+    p.add_argument(
+        "--pattern-file",
+        default=TIMEPOINT_ORDER_FILE,
+        type=str,
+        metavar="JSON",
+        help="JSON file overriding TIMEPOINT_ORDER.",
+    )
     return p
 
 
@@ -115,7 +136,7 @@ def parse_rdt_arg(arg: str) -> List[Tuple[str, str, str]]:
     """Parse the `--rdt` option into a list of *(route, direction, timepoint)* triples.
 
     The CLI accepts a semicolon‑delimited string such as
-    `"151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES"`.  
+    `"151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES"`.
     Each triple is validated for three comma‑separated parts.
 
     Parameters
@@ -123,13 +144,13 @@ def parse_rdt_arg(arg: str) -> List[Tuple[str, str, str]]:
     arg
         Raw string from the command line.
 
-    Returns
+    Returns:
     -------
     list[tuple[str, str, str]]
         Parsed triples. If the user supplied an empty string the default
         ``RDT_FILTER`` constant is returned.
 
-    Raises
+    Raises:
     ------
     SystemExit
         If a chunk does not contain exactly three comma‑separated fields.
@@ -140,10 +161,7 @@ def parse_rdt_arg(arg: str) -> List[Tuple[str, str, str]]:
     for chunk in arg.split(";"):
         parts = [p.strip() for p in chunk.split(",")]
         if len(parts) != 3:
-            sys.exit(
-                f"ERROR: bad --rdt chunk '{chunk}'. "
-                "Use ROUTE,DIRECTION,TIMEPOINT."
-            )
+            sys.exit(f"ERROR: bad --rdt chunk '{chunk}'. Use ROUTE,DIRECTION,TIMEPOINT.")
         triples.append(tuple(parts))  # type: ignore[arg-type]
     return triples
 
@@ -159,23 +177,19 @@ def recalc_percentages(df: pd.DataFrame) -> pd.DataFrame:
     The function works in‑place but also returns the modified DataFrame to allow
     chaining.
     """
-    df["Total Counts"] = (
-        df["Sum # On Time"] + df["Sum # Early"] + df["Sum # Late"]
-    ).astype("Int64")
+    df["Total Counts"] = (df["Sum # On Time"] + df["Sum # Early"] + df["Sum # Late"]).astype(
+        "Int64"
+    )
     for pct_col, cnt_col in (
         ("% On Time", "Sum # On Time"),
         ("% Early", "Sum # Early"),
         ("% Late", "Sum # Late"),
     ):
-        df[pct_col] = (
-            df[cnt_col] / df["Total Counts"].replace(0, pd.NA) * 100
-        ).round(2)
+        df[pct_col] = (df[cnt_col] / df["Total Counts"].replace(0, pd.NA) * 100).round(2)
     return df
 
 
-def filter_basic(df: pd.DataFrame,
-                 timepoints: List[str],
-                 routes: List[str]) -> pd.DataFrame:
+def filter_basic(df: pd.DataFrame, timepoints: List[str], routes: List[str]) -> pd.DataFrame:
     """Sub‑set the DataFrame by *Timepoint ID* and *Short Route*."""
     if timepoints:
         df = df[df["Timepoint ID"].isin(timepoints)]
@@ -184,8 +198,7 @@ def filter_basic(df: pd.DataFrame,
     return df
 
 
-def filter_rdt(df: pd.DataFrame,
-               triples: List[Tuple[str, str, str]]) -> pd.DataFrame:
+def filter_rdt(df: pd.DataFrame, triples: List[Tuple[str, str, str]]) -> pd.DataFrame:
     """Return only rows whose *(route, direction, timepoint)* matches `triples`."""
     if not triples:
         return df
@@ -199,9 +212,7 @@ def filter_rdt(df: pd.DataFrame,
     return df[mask]
 
 
-def construct_output_path(inp: Path,
-                          outdir: str | Path,
-                          explicit: str | None) -> Path:
+def construct_output_path(inp: Path, outdir: str | Path, explicit: str | None) -> Path:
     """Resolve the path for the long‑table CSV output."""
     if explicit:
         return Path(explicit)
@@ -232,12 +243,10 @@ def load_timepoint_order(path: str | Path | None) -> Dict[str, List[str]]:
     return {k.upper(): list(map(str, v)) for k, v in obj.items()}
 
 
-def enforce_timepoint_order(df: pd.DataFrame,
-                            order_map: Dict[str, List[str]]) -> pd.DataFrame:
+def enforce_timepoint_order(df: pd.DataFrame, order_map: Dict[str, List[str]]) -> pd.DataFrame:
     """Filter out rows with stops not present in the configured order list."""
     mask = df.apply(
-        lambda row: row["Timepoint Description"]
-        in order_map.get(row["Direction"], []),
+        lambda row: row["Timepoint Description"] in order_map.get(row["Direction"], []),
         axis=1,
     )
     if not mask.all():
@@ -259,8 +268,7 @@ def pivot_route_direction(
     metric: str,
     order_map: Dict[str, List[str]],
 ) -> Dict[Tuple[str, str], pd.DataFrame]:
-    """
-    Wide table for one metric.  Guarantees every configured stop exists.
+    """Wide table for one metric.  Guarantees every configured stop exists.
 
     Returns { (route, direction): DataFrame } with columns:
       TripStart | Trip | <stops…>
@@ -288,9 +296,7 @@ def pivot_route_direction(
 
         # Merge full Trip ID
         trip_lookup = (
-            g[["TripStart", "Trip"]]
-            .drop_duplicates(subset="TripStart")
-            .set_index("TripStart")
+            g[["TripStart", "Trip"]].drop_duplicates(subset="TripStart").set_index("TripStart")
         )
         wide = trip_lookup.join(pivot)
 
@@ -300,7 +306,9 @@ def pivot_route_direction(
             wide[missing_cols] = pd.NA
             logging.warning(
                 "[%s %s] No OTP data for stops: %s",
-                route, direction_uc, "; ".join(missing_cols),
+                route,
+                direction_uc,
+                "; ".join(missing_cols),
             )
 
         # Order columns
@@ -316,8 +324,7 @@ def summary_route_direction(
     df: pd.DataFrame,
     order_map: Dict[str, List[str]],
 ) -> Dict[Tuple[str, str], pd.DataFrame]:
-    """
-    Create a stop‑level summary for each (route, direction).
+    """Create a stop‑level summary for each (route, direction).
 
     Columns
     -------
@@ -336,8 +343,8 @@ def summary_route_direction(
         summ = (
             g.groupby("Timepoint Description")
             .agg(
-                AvgPct=("% On Time", "mean"),        # simple average
-                Count=("Total Counts", "sum"),       # ← FIXED
+                AvgPct=("% On Time", "mean"),  # simple average
+                Count=("Total Counts", "sum"),  # ← FIXED
             )
             .reindex(cfg)
         )
@@ -346,7 +353,9 @@ def summary_route_direction(
         if missing:
             logging.warning(
                 "[%s %s] No OTP data for stops: %s",
-                route, direction_uc, "; ".join(missing),
+                route,
+                direction_uc,
+                "; ".join(missing),
             )
             summ.loc[missing, ["AvgPct", "Count"]] = [pd.NA, 0]
 
@@ -358,6 +367,7 @@ def summary_route_direction(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entry‑point guarded by ``if __name__ == "__main__"``."""
