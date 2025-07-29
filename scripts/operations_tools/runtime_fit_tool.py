@@ -23,7 +23,7 @@ import re
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Final, Iterable, List, Sequence
+from typing import Final, Iterable, List, Sequence, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -80,6 +80,12 @@ TRIM_FRAC: Final[float] = 0.01  # drop shortest & longest 1 %
 OUTPUT_DIR: Path = OUTPUT_ROOT_DIR
 PLOTS_DIR: Path = OUTPUT_DIR / "plots"
 
+# ---------------------------------------------------------------------
+# TYPE ALIASES
+# ---------------------------------------------------------------------
+
+PlotFunc: TypeAlias = Callable[[pd.DataFrame], None]
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -102,7 +108,7 @@ def _trim_pct(series: pd.Series, frac: float = TRIM_FRAC) -> pd.Series:
     return series[(series >= lo) & (series <= hi)]
 
 
-def _safe_plot(plot_func, df: pd.DataFrame) -> None:
+def _safe_plot(plot_func: PlotFunc, df: pd.DataFrame) -> None:
     """Safely call a plotting function if the DataFrame is not empty.
 
     Args:
@@ -367,6 +373,12 @@ def plot_start_dev_shaded(df: pd.DataFrame) -> None:
 
 
 def plot_start_dev_plain(df: pd.DataFrame) -> None:
+    """Box‑plot start‑time deviation without OTP shading.
+
+    Args:
+        df: Fully filtered trip‑level data containing
+            ``'start_dev_min'`` and ``'trip_start_time'`` columns.
+    """
     _box_by_trip(
         df,
         "start_dev_min",
@@ -376,6 +388,11 @@ def plot_start_dev_plain(df: pd.DataFrame) -> None:
 
 
 def plot_finish_dev_shaded(df: pd.DataFrame) -> None:
+    """Box‑plot finish‑time deviation with the OTP window shaded.
+
+    Args:
+        df: Trip‑level DataFrame with ``'finish_dev_min'`` present.
+    """
     _box_by_trip(
         df,
         "finish_dev_min",
@@ -386,6 +403,11 @@ def plot_finish_dev_shaded(df: pd.DataFrame) -> None:
 
 
 def plot_finish_dev_plain(df: pd.DataFrame) -> None:
+    """Box‑plot finish‑time deviation without shading.
+
+    Args:
+        df: Trip‑level DataFrame with ``'finish_dev_min'`` present.
+    """
     _box_by_trip(
         df,
         "finish_dev_min",
@@ -395,6 +417,11 @@ def plot_finish_dev_plain(df: pd.DataFrame) -> None:
 
 
 def plot_runtime_dev(df: pd.DataFrame) -> None:
+    """Box‑plot runtime deviation (actual – scheduled) by trip.
+
+    Args:
+        df: Trip‑level DataFrame with ``'runtime_dev_min'`` present.
+    """
     _box_by_trip(
         df,
         "runtime_dev_min",
