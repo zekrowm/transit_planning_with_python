@@ -76,6 +76,16 @@ logging.basicConfig(
 # =============================================================================
 
 def build_argparser() -> argparse.ArgumentParser:
+    """Create and configure the CLI argument parser.
+
+    Returns
+    -------
+    argparse.ArgumentParser
+        A parser pre‑populated with all command‑line options supported by the
+        script. The parser **does not** parse the arguments yet; call
+        :py:meth:`parse_known_args` or :py:meth:`parse_args` on the returned
+        object.
+    """
     p = argparse.ArgumentParser(
         description="Recalculate OTP percentages, apply optional filters, and "
         "output pivot+summary tables."
@@ -102,6 +112,28 @@ def build_argparser() -> argparse.ArgumentParser:
 
 
 def parse_rdt_arg(arg: str) -> List[Tuple[str, str, str]]:
+    """Parse the `--rdt` option into a list of *(route, direction, timepoint)* triples.
+
+    The CLI accepts a semicolon‑delimited string such as
+    `"151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES"`.  
+    Each triple is validated for three comma‑separated parts.
+
+    Parameters
+    ----------
+    arg
+        Raw string from the command line.
+
+    Returns
+    -------
+    list[tuple[str, str, str]]
+        Parsed triples. If the user supplied an empty string the default
+        ``RDT_FILTER`` constant is returned.
+
+    Raises
+    ------
+    SystemExit
+        If a chunk does not contain exactly three comma‑separated fields.
+    """
     if not arg.strip():
         return RDT_FILTER
     triples: List[Tuple[str, str, str]] = []
@@ -117,10 +149,16 @@ def parse_rdt_arg(arg: str) -> List[Tuple[str, str, str]]:
 
 
 def make_short_route(route_str: str) -> str:
+    """Return the *short route* code (portion before the first dash, no spaces)."""
     return route_str.split("-", 1)[0].replace(" ", "").strip()
 
 
 def recalc_percentages(df: pd.DataFrame) -> pd.DataFrame:
+    """Add *Total Counts* and %‑columns derived from raw on‑time/early/late counts.
+
+    The function works in‑place but also returns the modified DataFrame to allow
+    chaining.
+    """
     df["Total Counts"] = (
         df["Sum # On Time"] + df["Sum # Early"] + df["Sum # Late"]
     ).astype("Int64")
@@ -138,6 +176,7 @@ def recalc_percentages(df: pd.DataFrame) -> pd.DataFrame:
 def filter_basic(df: pd.DataFrame,
                  timepoints: List[str],
                  routes: List[str]) -> pd.DataFrame:
+    """Sub‑set the DataFrame by *Timepoint ID* and *Short Route*."""
     if timepoints:
         df = df[df["Timepoint ID"].isin(timepoints)]
     if routes:
@@ -147,6 +186,7 @@ def filter_basic(df: pd.DataFrame,
 
 def filter_rdt(df: pd.DataFrame,
                triples: List[Tuple[str, str, str]]) -> pd.DataFrame:
+    """Return only rows whose *(route, direction, timepoint)* matches `triples`."""
     if not triples:
         return df
     mask = False
@@ -162,12 +202,14 @@ def filter_rdt(df: pd.DataFrame,
 def construct_output_path(inp: Path,
                           outdir: str | Path,
                           explicit: str | None) -> Path:
+    """Resolve the path for the long‑table CSV output."""
     if explicit:
         return Path(explicit)
     return Path(outdir) / f"{inp.stem}{OUT_SUFFIX}{inp.suffix}"
 
 
 def dedupe_apparent_trips(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop duplicate rows that represent the *same* trip at the same stop."""
     df["TripStart"] = df["Trip"].str.split().str[0]
     sort_cols = ["Short Route", "Direction", "Timepoint ID", "TripStart"]
     df = df.sort_values("Total Counts", ascending=False)
@@ -175,6 +217,7 @@ def dedupe_apparent_trips(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_timepoint_order(path: str | Path | None) -> Dict[str, List[str]]:
+    """Load a JSON file that maps directions to an ordered list of stops."""
     if path is None:
         return {k.upper(): v for k, v in TIMEPOINT_ORDER.items()}
     fp = Path(path)
@@ -191,6 +234,7 @@ def load_timepoint_order(path: str | Path | None) -> Dict[str, List[str]]:
 
 def enforce_timepoint_order(df: pd.DataFrame,
                             order_map: Dict[str, List[str]]) -> pd.DataFrame:
+    """Filter out rows with stops not present in the configured order list."""
     mask = df.apply(
         lambda row: row["Timepoint Description"]
         in order_map.get(row["Direction"], []),
@@ -316,6 +360,7 @@ def summary_route_direction(
 # =============================================================================
 
 def main() -> None:
+    """Entry‑point guarded by ``if __name__ == "__main__"``."""
     parser = build_argparser()
     args, _unknown = parser.parse_known_args()
 
