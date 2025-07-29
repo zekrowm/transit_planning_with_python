@@ -37,7 +37,7 @@ OUTPUT_DIR: Path | str = (r"Path\To\Your\Output_Folder")
 
 OUT_SUFFIX: str = "_processed"
 
-SHORT_ROUTE_FILTER: List[str] = []
+SHORT_ROUTE_FILTER: List[str] = ["101"]
 
 TIMEPOINT_FILTER: List[str] = []
 RDT_FILTER: List[Tuple[str, str, str]] = []
