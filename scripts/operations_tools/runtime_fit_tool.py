@@ -90,7 +90,6 @@ PlotFunc: TypeAlias = Callable[[pd.DataFrame], None]
 # FUNCTIONS
 # =============================================================================
 
-
 def _detect_sep(path: Path) -> str:
     """Return delimiter based on extension (csv → comma, others → tab)."""
     return "," if path.suffix.lower() == ".csv" else "\t"
@@ -127,7 +126,6 @@ def _safe_plot(plot_func: PlotFunc, df: pd.DataFrame) -> None:
 # -----------------------------------------------------------------------------
 
 _route_token_re = re.compile(r"([0-9]{1,4})")
-
 
 def _clean_route_id(raw: str | float | int) -> str:
     """Canonical 1‑to‑4 digit route ID from a Route cell."""
@@ -579,10 +577,38 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
     plt.savefig(PLOTS_DIR / "bar_runtime_p85_vs_sched.png", dpi=150)
     plt.close()
 
+# -----------------------------------------------------------------------------
+# DIRECTION HELPER
+# -----------------------------------------------------------------------------
 
-# ──────────────────────────────────────────────────────────────────────────────
-# OUTLIER‑PERSISTENCE HELPER
-# ──────────────────────────────────────────────────────────────────────────────
+_DIR_SLUG_RE: Final[re.Pattern[str]] = re.compile(r"[^a-z0-9]+", flags=re.I)
+
+def _dir_slug(value: str | int | float | None) -> str:
+    """Return a filesystem‑safe slug for *value* (e.g., `0_Westbound`)."""
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return "unknown"
+
+    txt = str(value).strip()
+    # Common English labels → deterministic slugs so that 0/1 and text agree
+    canonical = {
+        "0": "0_Westbound",
+        "1": "1_Eastbound",
+        "2": "2_Northbound",
+        "3": "3_Southbound",
+        "WESTBOUND": "0_Westbound",
+        "EASTBOUND": "1_Eastbound",
+        "NORTHBOUND": "2_Northbound",
+        "SOUTHBOUND": "3_Southbound",
+    }.get(txt.upper())
+
+    if canonical:
+        return canonical
+
+    # Fallback – strip junk and collapse whitespace to “safe” slug
+    clean = _DIR_SLUG_RE.sub("_", txt).strip("_")
+    return clean or "unknown"
+
+
 def export_trimmed_outliers(
     df: pd.DataFrame,
     *,
@@ -885,10 +911,11 @@ def suggest_time_bands(
 # MAIN
 # =============================================================================
 
-
 def main() -> None:  # pragma: no cover
-    """Process each route folder, export row‑level, summary, and band tables."""
-    whitelist = {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
+    """Process each route folder, **separating directions into sub‑folders**."""
+    whitelist = (
+        {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
+    )
     print(f"→ Crawling {INPUT_ROOT_DIR} for CSVs …")
     route_files = _discover_route_csvs(INPUT_ROOT_DIR, whitelist)
     if not route_files:
@@ -897,7 +924,7 @@ def main() -> None:  # pragma: no cover
     for route, paths in sorted(route_files.items()):
         print(f"— Processing route {route} ({len(paths)} files) …")
 
-        df = (
+        df_all = (
             load_trip_files(paths)
             .pipe(extract_trip_start_time)
             .pipe(filter_date_range)
@@ -905,62 +932,58 @@ def main() -> None:  # pragma: no cover
             .pipe(filter_holidays, EXCLUDE_DATES)
             .pipe(filter_service_day, SERVICE_DAY_FILTER)
             .pipe(add_deviation_cols)
-            .pipe(add_otp_flag)
+            .pipe(add_schedule_flag)
         )
 
-        if df.empty:
+        if df_all.empty:
             print("   ⚠  No rows left after filtering; skipping route.")
             continue
 
-        # ── NEW: flag unusually sparse start‑time tokens ────────────────
-        print(
-            "   observation median:",
-            df.groupby(TIME_COL_NAME)["Actual Start Time"].count().median(),
-        )
-        log_low_sample_start_times(
-            df,
-            thresh_frac=LOW_SAMPLE_FRAC,
-            exclude_dates=EXCLUDE_DATES,
-        )
+        # ── NEW: split by Direction and process each slice independently ── #
+        for dir_value, df in df_all.groupby("Direction", dropna=False, sort=False):
+            dir_slug = _dir_slug(dir_value)
+            print(f"   ↳ Direction {dir_value!r} ➜ sub‑folder {dir_slug!s}")
 
-        # ── set up output paths specific to the current route ───────────
-        global OUTPUT_DIR, PLOTS_DIR
-        OUTPUT_DIR = OUTPUT_ROOT_DIR / route
-        PLOTS_DIR = OUTPUT_DIR / "plots"
+            # Re‑point output paths to route/dir specific folder
+            global OUTPUT_DIR, PLOTS_DIR
+            OUTPUT_DIR = OUTPUT_ROOT_DIR / route / dir_slug
+            PLOTS_DIR = OUTPUT_DIR / "plots"
 
-        # ── persist rows that will be dropped by the ±1 % runtime trimming ──
-        if TRIM_OUTLIERS:
-            export_trimmed_outliers(df)
+            # Stats on observation counts before any trimming
+            print(
+                "      observation median:",
+                df.groupby(TIME_COL_NAME)["Actual Start Time"].count().median(),
+            )
+            log_low_sample_start_times(
+                df,
+                thresh_frac=LOW_SAMPLE_FRAC,
+                exclude_dates=EXCLUDE_DATES,
+            )
 
-        # ── row‑level CSV, summary XLSX, time‑band XLSX ─────────────────
-        write_row_level(df)
-        summary = write_summary_table(df)  # returns DataFrame
-        bands = suggest_time_bands(summary)  # generate time‑bands
-        bands.to_excel(
-            OUTPUT_DIR / f"time_bands_{_day_tag()}.xlsx",
-            index=False,
-            engine="openpyxl",
-        )
-        print(f"   → Suggested {len(bands)} time bands saved.")
+            if TRIM_OUTLIERS:
+                export_trimmed_outliers(df)
 
-        # ── plotting (skip gracefully if a function is missing) ────────
-        plot_funcs = [
-            "plot_start_dev_shaded",
-            "plot_start_dev_plain",
-            "plot_finish_dev_shaded",
-            "plot_finish_dev_plain",
-            "plot_runtime_dev",
-            "plot_obs_counts",
-            "plot_start_time_categories",
-            "plot_runtime_p85_vs_sched",
-            "plot_runtime_deviation_scatter",
-        ]
-        for name in plot_funcs:
-            func = globals().get(name)
-            if callable(func):
+            write_row_level(df)
+            summary = write_summary_table(df)
+            bands = suggest_time_bands(summary)
+            bands.to_excel(
+                OUTPUT_DIR / f"time_bands_{_day_tag()}.xlsx",
+                index=False,
+                engine="openpyxl",
+            )
+            print(f"      → Suggested {len(bands)} time bands saved.")
+
+            for func in (
+                plot_start_dev_shaded,
+                plot_start_dev_plain,
+                plot_finish_dev_shaded,
+                plot_finish_dev_plain,
+                plot_runtime_dev,
+                plot_runtime_p85_vs_sched,
+            ):
                 _safe_plot(func, df)
-            else:
-                print(f"   ⚠  Skipping {name}: not defined in this session.")
+
+            print(f"   ✓ Finished direction {dir_value!r}")
 
         print(f"✓ Finished route {route}")
 
