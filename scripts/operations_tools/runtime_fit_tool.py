@@ -912,19 +912,39 @@ def suggest_time_bands(
 # =============================================================================
 
 def main() -> None:  # pragma: no cover
-    """Process each route folder, **separating directions into sub‑folders**."""
-    whitelist = (
-        {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
-    )
+    """Run the end‑to‑end analysis for every route and direction.
+
+    Workflow
+    --------
+    1. Discover every CSV under ``INPUT_ROOT_DIR`` and map them
+       to one or more route IDs based on the *Route* column.
+    2. For each **route**:
+         • Read, clean, and filter the combined data frame.
+    3. For each **Direction** value within that route:
+         • Re‑point ``OUTPUT_DIR`` and ``PLOTS_DIR`` to a sub‑folder
+           ``<OUTPUT_ROOT_DIR>/<route>/<direction‑slug>/``.
+         • Export row‑level CSV, summary XLSX, time‑band XLSX,
+           outlier records, and all diagnostic plots *independently*
+           for that direction.
+    """
+    # ------------------------------------------------------------------
+    # 0.  Build a whitelist, if requested, and locate all candidate CSVs
+    # ------------------------------------------------------------------
+    whitelist = {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
     print(f"→ Crawling {INPUT_ROOT_DIR} for CSVs …")
     route_files = _discover_route_csvs(INPUT_ROOT_DIR, whitelist)
+
     if not route_files:
         raise FileNotFoundError("No CSV files found under the supplied folder.")
 
-    for route, paths in sorted(route_files.items()):
+    # ------------------------------------------------------------------
+    # 1.  Process each route independently
+    # ------------------------------------------------------------------
+    for route, paths in sorted(route_files.items(), key=lambda t: int(t[0])):
         print(f"— Processing route {route} ({len(paths)} files) …")
 
-        df_all = (
+        # ── 1 a.  Load + global filters (shared before direction split) ──
+        base_df = (
             load_trip_files(paths)
             .pipe(extract_trip_start_time)
             .pipe(filter_date_range)
@@ -932,39 +952,55 @@ def main() -> None:  # pragma: no cover
             .pipe(filter_holidays, EXCLUDE_DATES)
             .pipe(filter_service_day, SERVICE_DAY_FILTER)
             .pipe(add_deviation_cols)
-            .pipe(add_schedule_flag)
+            .pipe(add_otp_flag)
         )
 
-        if df_all.empty:
+        if base_df.empty:
             print("   ⚠  No rows left after filtering; skipping route.")
             continue
 
-        # ── NEW: split by Direction and process each slice independently ── #
-        for dir_value, df in df_all.groupby("Direction", dropna=False, sort=False):
-            dir_slug = _dir_slug(dir_value)
-            print(f"   ↳ Direction {dir_value!r} ➜ sub‑folder {dir_slug!s}")
+        # ------------------------------------------------------------------
+        # 2.  Split by Direction and export each slice to its own sub‑folder
+        # ------------------------------------------------------------------
+        if "Direction" not in base_df.columns:
+            print("   ⚠  'Direction' column missing; treating all rows as one direction.")
+            base_df["Direction"] = "unknown"
 
-            # Re‑point output paths to route/dir specific folder
+        for dir_val, dir_df in base_df.groupby("Direction", sort=False):
+            if dir_df.empty:
+                continue
+
+            # ---- 2 a.  Sanitise direction label for safe folder names -----
+            dir_slug = re.sub(r"[^0-9A-Za-z_-]+", "_", str(dir_val)).strip("_") or "unknown"
+
+            # ---- 2 b.  Point all writers/plotters to route/<direction>/ ---
             global OUTPUT_DIR, PLOTS_DIR
             OUTPUT_DIR = OUTPUT_ROOT_DIR / route / dir_slug
             PLOTS_DIR = OUTPUT_DIR / "plots"
 
-            # Stats on observation counts before any trimming
+            print(
+                f"   ↳ Direction {dir_val!r}: {len(dir_df):,} rows "
+                f"➜ {OUTPUT_DIR.relative_to(OUTPUT_ROOT_DIR)}"
+            )
+
+            # ---- 2 c.  Diagnostics: low‑sample start times ---------------
             print(
                 "      observation median:",
-                df.groupby(TIME_COL_NAME)["Actual Start Time"].count().median(),
+                dir_df.groupby(TIME_COL_NAME)["Actual Start Time"].count().median(),
             )
             log_low_sample_start_times(
-                df,
+                dir_df,
                 thresh_frac=LOW_SAMPLE_FRAC,
                 exclude_dates=EXCLUDE_DATES,
             )
 
+            # ---- 2 d.  Persist outliers before trimming ------------------
             if TRIM_OUTLIERS:
-                export_trimmed_outliers(df)
+                export_trimmed_outliers(dir_df)
 
-            write_row_level(df)
-            summary = write_summary_table(df)
+            # ---- 2 e.  Core exports --------------------------------------
+            write_row_level(dir_df)
+            summary = write_summary_table(dir_df)
             bands = suggest_time_bands(summary)
             bands.to_excel(
                 OUTPUT_DIR / f"time_bands_{_day_tag()}.xlsx",
@@ -973,17 +1009,20 @@ def main() -> None:  # pragma: no cover
             )
             print(f"      → Suggested {len(bands)} time bands saved.")
 
-            for func in (
+            # ---- 2 f.  Plots --------------------------------------------
+            plot_funcs = [
                 plot_start_dev_shaded,
                 plot_start_dev_plain,
                 plot_finish_dev_shaded,
                 plot_finish_dev_plain,
                 plot_runtime_dev,
                 plot_runtime_p85_vs_sched,
-            ):
-                _safe_plot(func, df)
+                # add/remove plot helpers as needed
+            ]
+            for func in plot_funcs:
+                _safe_plot(func, dir_df)
 
-            print(f"   ✓ Finished direction {dir_value!r}")
+            print(f"      ✓ Direction {dir_val!r} done.")
 
         print(f"✓ Finished route {route}")
 
