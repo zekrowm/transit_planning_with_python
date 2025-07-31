@@ -48,8 +48,8 @@ MAX_TIME_BANDS: Final[int | None] = 6  # None ⇒ no hard cap
 ENFORCE_MIN_BAND_SIZE: Final[bool] = True  # toggle merging on/off
 MIN_BAND_SIZE: Final[int] = 2  # ignored when above is False
 
-WRITE_EXCLUSIONS:     Final[bool] = True   # write events_excluded_*.csv
-SPLIT_BY_DIRECTION:   Final[bool] = True   # keep current folder depth; False → flat
+WRITE_EXCLUSIONS: Final[bool] = True  # write events_excluded_*.csv
+SPLIT_BY_DIRECTION: Final[bool] = True  # keep current folder depth; False → flat
 
 # Paired stems so all writers reference one source of truth
 _RETAINED_STEM: Final[str] = "events_retained"
@@ -97,6 +97,7 @@ PlotFunc: TypeAlias = Callable[[pd.DataFrame], None]
 # FUNCTIONS
 # =============================================================================
 
+
 def _detect_sep(path: Path) -> str:
     """Return delimiter based on extension (csv → comma, others → tab)."""
     return "," if path.suffix.lower() == ".csv" else "\t"
@@ -133,6 +134,7 @@ def _safe_plot(plot_func: PlotFunc, df: pd.DataFrame) -> None:
 # -----------------------------------------------------------------------------
 
 _route_token_re = re.compile(r"([0-9]{1,4})")
+
 
 def _clean_route_id(raw: str | float | int) -> str:
     """Canonical 1‑to‑4 digit route ID from a Route cell."""
@@ -434,12 +436,9 @@ def write_row_level(df: pd.DataFrame) -> None:
     """CSV of events retained for analysis (after all filters)."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     lead = ["Route", "Direction", "TripID", TIME_COL_NAME]
-    ordered = (
-        df[lead + [c for c in df.columns if c not in lead]]
-        .sort_values(
-            by=["Route", "Direction", TIME_COL_NAME, "TripID"],
-            ignore_index=True,
-        )
+    ordered = df[lead + [c for c in df.columns if c not in lead]].sort_values(
+        by=["Route", "Direction", TIME_COL_NAME, "TripID"],
+        ignore_index=True,
     )
     ordered.to_csv(
         OUTPUT_DIR / f"{_RETAINED_STEM}_{_day_tag()}.csv",
@@ -486,9 +485,7 @@ def write_summary_table(df: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
-    summary = summary.join(
-        trip_grp["actual_runtime_min"].apply(_runtime_stats).unstack()
-    )
+    summary = summary.join(trip_grp["actual_runtime_min"].apply(_runtime_stats).unstack())
 
     # New, clearer columns kept in parallel for one cycle
     summary["pct_within_window"] = summary["otp_pct"]
@@ -596,11 +593,13 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
     plt.savefig(PLOTS_DIR / "bar_runtime_p85_vs_sched.png", dpi=150)
     plt.close()
 
+
 # -----------------------------------------------------------------------------
 # DIRECTION HELPER
 # -----------------------------------------------------------------------------
 
 _DIR_SLUG_RE: Final[re.Pattern[str]] = re.compile(r"[^a-z0-9]+", flags=re.I)
+
 
 def _dir_slug(value: str | int | float | None) -> str:
     """Return a filesystem‑safe slug for *value* (e.g., `0_Westbound`)."""
@@ -908,6 +907,7 @@ def suggest_time_bands(
 # MAIN
 # =============================================================================
 
+
 def main() -> None:  # pragma: no cover
     """Run the end-to-end analysis for every route.
 
@@ -942,7 +942,7 @@ def main() -> None:  # pragma: no cover
             .pipe(filter_holidays, EXCLUDE_DATES)
             .pipe(filter_service_day, SERVICE_DAY_FILTER)
             .pipe(add_deviation_cols)
-            .pipe(add_otp_flag)          # adds both on_time & within_window
+            .pipe(add_otp_flag)  # adds both on_time & within_window
         )
 
         if base_df.empty:
