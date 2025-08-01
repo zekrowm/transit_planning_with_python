@@ -433,98 +433,146 @@ def process_stops_for_single_run() -> None:
 # MAIN
 # =============================================================================
 
-
 def main() -> None:
-    """Main entry point for the script.
+    """Generate GIS layers and flag short inter-stop spacings.
 
-    Either processes all routes at once (creating a single shapefile) or splits
-    by route (creating multiple shapefiles), depending on SPLIT_BY_ROUTE.
+    Key change ➡ the GTFS **route filter is applied _before_ any projection**.
+    This prevents bogus or out-of-extent shapes from ever reaching
+    `arcpy.Project_management`, eliminating the ERROR 999999 you hit.
     """
-    # >>>>> NEW BRANCHING LOGIC <<<<<
-    if not SPLIT_BY_ROUTE:
-        # ---- Original single-run approach ----
-        print("SPLIT_BY_ROUTE = False. Running single shapefile process.")
-        process_stops_for_single_run()
+    # ---------------------------------------------------------------------
+    # 1.  House-keeping + constant objects
+    # ---------------------------------------------------------------------
+    validate_config()
+    arcpy.env.overwriteOutput = True
+    arcpy.env.workspace = arcpy.env.scratchGDB
 
-    else:
-        # ---- Per-route approach (from the second script) ----
-        print("SPLIT_BY_ROUTE = True. Creating one shapefile per route.")
+    gtfs_dir: str = str(Path(GTFS_FOLDER))
+    out_dir: str = str(Path(OUTPUT_FOLDER))
 
-        # Step 1: Create or identify the bus stops feature class
-        bus_stops_fc, fields_to_export = create_bus_stops_feature_class()
+    sr_wgs84 = arcpy.SpatialReference(4326)
+    sr_target = arcpy.SpatialReference(EPSG_CODE)
 
-        # Step 2: Spatial Join (Optional) -> also exports CSV
-        current_fc = spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export)
+    per_shape: bool = ROUTE_LEVEL.lower() == "shape"
+    route_field: str = "shape_id" if per_shape else "route_id"
 
-        # Step 3: Read ridership data from Excel & optionally filter by routes
-        df_excel = read_and_filter_ridership_data()
+    try:
+        # -----------------------------------------------------------------
+        # 2.  ROUTES / SHAPES  (filter ➜ *then* project)
+        # -----------------------------------------------------------------
+        arcpy.AddMessage("\n=== Routes / Shapes ===")
 
-        # Identify unique routes
-        unique_routes = df_excel["ROUTE_NAME"].unique()
-        print(f"Found the following unique routes: {unique_routes}")
+        # 2-A  Build WGS-84 polylines straight from shapes.txt
+        shapes_tbl = arcpy.TableToTable_conversion(
+            os.path.join(gtfs_dir, "shapes.txt"), "in_memory", "shapes_tbl"
+        ).getOutput(0)
 
-        # For each route, merge, filter, and export a shapefile
-        for route in unique_routes:
-            print(f"\n=== Processing route: {route} ===")
-            df_route = df_excel[df_excel["ROUTE_NAME"] == route].copy()
-            if df_route.empty:
-                print(f"No ridership data for route {route}. Skipping.")
-                continue
+        shapes_xy = make_xy_event_layer(
+            shapes_tbl,
+            x_field="shape_pt_lon",
+            y_field="shape_pt_lat",
+            out_layer="shapes_xy",
+            sr=sr_wgs84,
+        )
 
-            # Merge data
-            df_joined, key_field = merge_ridership_and_csv(df_route, fields_to_export)
-            if df_joined.empty:
-                print(f"No matched bus stops found for route {route}. Skipping.")
-                continue
+        shapes_line_wgs = "in_memory/shapes_line_wgs"
+        points_to_line(
+            point_layer=shapes_xy,
+            out_line=shapes_line_wgs,
+            line_field="shape_id",
+            sort_field="shape_pt_sequence",
+        )
 
-            # Create a route-specific feature class path
-            route_output_fc = os.path.join(OUTPUT_FOLDER, f"BusStops_{route}.shp")
-
-            # We'll replicate the filtering logic from the second script
-            # in a more direct manner. We do not re-use filter_matched_bus_stops
-            # with the single "MATCHED_JOINED_FC" because we need distinct outputs.
-            # Instead, we do a partial version:
-            matched_keys = df_joined[key_field].dropna().unique().tolist()
-            if not matched_keys:
-                print("No matched bus stops found. Skipping this route.")
-                continue
-
-            arcpy.MakeFeatureLayer_management(current_fc, "joined_lyr_route")
-            field_delimited = arcpy.AddFieldDelimiters(current_fc, key_field)
-
-            # We have to chunk keys to avoid 'IN' clause limit
-            chunk_size = 999
-            where_clauses = []
-            for i in range(0, len(matched_keys), chunk_size):
-                chunk = matched_keys[i : i + chunk_size]
-                # Quote or not quote based on field type if needed.
-                # Here we'll assume string type for simplicity:
-                chunk_str = ", ".join(f"'{k}'" for k in chunk)
-                where_clauses.append(f"{field_delimited} IN ({chunk_str})")
-
-            route_where_clause = " OR ".join(where_clauses)
-            arcpy.SelectLayerByAttribute_management(
-                "joined_lyr_route", "NEW_SELECTION", route_where_clause
+        # 2-B  Apply optional route filter **while still in WGS-84**
+        if ROUTE_FILTER:
+            routes_wgs = apply_route_filter(
+                raw_fc=shapes_line_wgs,
+                gtfs_folder=GTFS_FOLDER,
+                route_field=route_field,
+                per_shape=per_shape,
+                filter_routes=ROUTE_FILTER,
             )
+            arcpy.AddMessage(
+                f"   ✔ Filter retained {len(ROUTE_FILTER)} route(s) in WGS-84"
+            )
+        else:
+            routes_wgs = shapes_line_wgs
+            arcpy.AddMessage("   ✔ No route filter applied (all shapes kept)")
 
-            selected_count = int(arcpy.GetCount_management("joined_lyr_route").getOutput(0))
-            if selected_count == 0:
-                print(f"No bus stops found in FC for route {route}. Skipping.")
-                continue
+        # 2-C  Now project the *already-filtered* routes
+        routes_raw = os.path.join(out_dir, "routes_raw.shp")  # scratch name
+        project_feature(routes_wgs, routes_raw, sr_target)
 
-            arcpy.CopyFeatures_management("joined_lyr_route", route_output_fc)
-            print(f"Route-specific shapefile created at: {route_output_fc}")
+        # 2-D  Copy to final name for clarity
+        routes_fc = os.path.join(out_dir, "routes.shp")
+        arcpy.CopyFeatures_management(routes_raw, routes_fc)
+        arcpy.AddMessage(f"   ✔ Projected routes → {routes_fc}")
 
-            # Now update ridership fields
-            update_bus_stops_ridership(route_output_fc, df_joined, key_field)
+        # -----------------------------------------------------------------
+        # 3.  STOPS  (unchanged, but intersect with projected routes_fc)
+        # -----------------------------------------------------------------
+        arcpy.AddMessage("\n=== Stops ===")
 
-        # After all routes are processed, optionally aggregate if you want
-        # aggregated polygon results across *all* stops (regardless of route).
-        # If you only want polygons by route, you'd do a per-route polygon join.
-        # For simplicity, we show it once for the entire dataset:
-        aggregate_ridership(df_excel)
+        stops_tbl = arcpy.TableToTable_conversion(
+            os.path.join(gtfs_dir, "stops.txt"), "in_memory", "stops_tbl"
+        ).getOutput(0)
 
-        print("Per-route process complete.")
+        stops_xy = make_xy_event_layer(
+            stops_tbl, "stop_lon", "stop_lat", "stops_xy", sr_wgs84
+        )
+
+        stops_wgs = arcpy.CopyFeatures_management(
+            stops_xy, "in_memory/stops_wgs"
+        ).getOutput(0)
+
+        full_stops = os.path.join(out_dir, "stops_full.shp")
+        project_feature(stops_wgs, full_stops, sr_target)
+
+        if ROUTE_FILTER:
+            arcpy.MakeFeatureLayer_management(full_stops, "stops_lyr")
+            arcpy.SelectLayerByLocation_management(
+                "stops_lyr", "INTERSECT", routes_fc
+            )
+            stops_fc = os.path.join(out_dir, "stops.shp")
+            arcpy.CopyFeatures_management("stops_lyr", stops_fc)
+            arcpy.AddMessage(f"   ✔ Filtered stops → {stops_fc}")
+        else:
+            stops_fc = full_stops
+            arcpy.AddMessage(f"   ✔ All stops → {stops_fc}")
+
+        # -----------------------------------------------------------------
+        # 4.  SEGMENTS  (unchanged)
+        # -----------------------------------------------------------------
+        arcpy.AddMessage("\n=== Inter-stop Segments ===")
+
+        routes_m = "in_memory/routes_m"
+        create_routes_with_m(routes_fc, route_field, routes_m)
+
+        events_tbl = "in_memory/stops_events"
+        locate_stops_along_routes(stops_fc, routes_m, route_field, events_tbl)
+
+        segments_fc = os.path.join(out_dir, "segments.shp")
+        build_segments(
+            routes_m,
+            events_tbl,
+            route_field,
+            segments_fc,
+            spat_ref=sr_target,
+        )
+        arcpy.AddMessage(f"   ✔ Segments → {segments_fc}")
+
+        # -----------------------------------------------------------------
+        # 5.  SHORT-SPACING LOG  (unchanged)
+        # -----------------------------------------------------------------
+        log_path = Path(out_dir) / SPACING_LOG_FILE
+        flag_short_spacing(segments_fc, MIN_SPACING_FT, log_path)
+
+        arcpy.AddMessage("\nAll outputs created successfully!")
+
+    except Exception:
+        arcpy.AddError("### Script failed ###")
+        arcpy.AddError(traceback.format_exc())
+        sys.exit(1)
 
 
 if __name__ == "__main__":
