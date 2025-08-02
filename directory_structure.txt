@@ -28,6 +28,7 @@ transit_planning_with_python-main/
     │   ├── ridecheck_cluster_checklists.py
     │   └── ridecheck_results_processor.py
     ├── gtfs_exports/
+    │   ├── bus_block_exporter.py
     │   ├── gtfs_to_shapefile.py
     │   ├── segment_speed_exporter.py
     │   ├── stop_pattern_exporter.py
@@ -43,6 +44,8 @@ transit_planning_with_python-main/
     │   ├── stop_removal_impact.py
     │   └── stop_spacing_flagger_gpd.py
     ├── operations_tools/
+    │   ├── otp_by_stop_pivot.py
+    │   ├── runtime_fit_tool.py
     │   └── runtime_pivot_ridecheck.py
     ├── ridership_tools/
     │   ├── data_request_by_stop_processor.py
