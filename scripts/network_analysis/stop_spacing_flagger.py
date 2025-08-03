@@ -537,62 +537,76 @@ def _build_stop_layers(
 # MAIN
 # =============================================================================
 
-def main() -> None:
-    """Run the full route-to-district matrix generation workflow.
+def main() -> None:  # noqa: D401
+    """Run the entire GTFS-to-GIS pipeline with both spacing QA checks."""
+    # -----------------------------------------------------------------
+    # STEP 0  Read GTFS tables and validate
+    # -----------------------------------------------------------------
+    print("STEP 0  Reading GTFS tables …")
+    gtfs_path = Path(GTFS_PATH)
+    dfs = _read_gtfs_tables(gtfs_path)
 
-    Steps:
-        1. Configure logging.
-        2. Load GTFS data.
-        3. Read and reproject district polygons.
-        4. Convert GTFS stops to GeoDataFrame and project.
-        5. Buffer the stops and intersect with districts.
-        6. Build route-vs-district matrix.
-        7. Write result to Excel.
-    """
-    # ------------------------------------------------------------------ 1 — LOGGING
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s — %(levelname)s — %(message)s",
-    )
-
-    # ------------------------------------------------------------------ 2 — GTFS
     try:
-        gtfs_data = load_gtfs_data(
-            GTFS_DIR,
-            files=GTFS_FILES,  # ["routes.txt", "stops.txt", "trips.txt", "stop_times.txt"]
-            dtype=str,
-        )
-    except (OSError, ValueError, RuntimeError) as exc:
-        logging.error("Failed to load GTFS data: %s", exc)
-        raise
+        _validate_columns(dfs)
+    except ValueError as err:
+        print("\nERROR – invalid GTFS feed:\n" + str(err))
+        sys.exit(1)
 
-    # ------------------------------------------------------------------ 3 — DISTRICTS
-    districts_gdf = gpd.read_file(DISTRICTS_SHP)
-    if districts_gdf.crs is None or districts_gdf.crs.to_epsg() != TARGET_EPSG:
-        logging.info("Re-projecting districts to EPSG:%s", TARGET_EPSG)
-        districts_gdf = districts_gdf.to_crs(epsg=TARGET_EPSG)
-
-    # ------------------------------------------------------------------ 4 — STOPS → GDF
-    stops_projected_gdf = create_projected_stops_gdf(
-        stops_df=gtfs_data["stops"],
-        epsg_out=TARGET_EPSG,
+    # -----------------------------------------------------------------
+    # 0·1  Route / trip filtering
+    # -----------------------------------------------------------------
+    routes_df, trips_df = _filter_routes(
+        dfs["routes"], dfs["trips"], INCLUDE_ROUTE_IDS, FILTER_OUT_LIST
     )
 
-    # ------------------------------------------------------------------ 5 — BUFFER + INTERSECT
-    stops_buffer_gdf = buffer_stops_gdf(stops_projected_gdf, BUFFER_DISTANCE)
-    intersect_gdf = intersect_districts_gdf(stops_buffer_gdf, districts_gdf)
+    out_dir = _ensure_output_folder(OUTPUT_FOLDER)
 
-    # ------------------------------------------------------------------ 6 — MATRIX
-    df_matrix = build_route_district_matrix(
-        gtfs_data=gtfs_data,
-        intersect_gdf=intersect_gdf,
-        district_field=DISTRICT_FIELD,
+    # -----------------------------------------------------------------
+    # STEP 1  Build stop layers
+    # -----------------------------------------------------------------
+    print("STEP 1  Building stop layers …")
+    all_stops_gdf, stops_gdf = _build_stop_layers(dfs, trips_df, routes_df, PROJECTED_CRS)
+    _export(stops_gdf, out_dir, "stops")  # export only the filtered set
+
+    # -----------------------------------------------------------------
+    # STEP 2  Build route polylines
+    # -----------------------------------------------------------------
+    print("STEP 2  Building routes shapefile …")
+    routes_gdf = _build_routes_gdf(dfs["shapes"], trips_df, routes_df, PROJECTED_CRS, ROUTE_UNION)
+    _export(routes_gdf, out_dir, "routes")
+
+    # -----------------------------------------------------------------
+    # STEP 3  Split polylines into stop-to-stop segments
+    # -----------------------------------------------------------------
+    print("STEP 3  Splitting routes into stop-to-stop segments …")
+    segs_gdf = _split_into_segments(routes_gdf, stops_gdf, PROJECTED_CRS)
+    _export(segs_gdf, out_dir, "segments")  # master file
+    _export_segments_by_route_dir(segs_gdf, out_dir)  # per-route files
+
+    # -----------------------------------------------------------------
+    # STEP 4  Short-spacing QA
+    # -----------------------------------------------------------------
+    print("STEP 4  Flagging closely-spaced stops …")
+    _flag_short_spacing(
+        routes_gdf,
+        stops_gdf,  # filtered layer
+        MIN_SPACING_FT,
+        out_dir / SPACING_LOG_FILE,
     )
 
-    # ------------------------------------------------------------------ 7 — OUTPUT
-    os.makedirs(os.path.dirname(OUTPUT_EXCEL), exist_ok=True)
-    write_dataframe_to_excel(df_matrix, OUTPUT_EXCEL)
-    logging.info("Done! Excel written to: %s", OUTPUT_EXCEL)
+    # -----------------------------------------------------------------
+    # STEP 5  Long-spacing QA (needs *all* stops) – CSV export
+    # -----------------------------------------------------------------
+    print("STEP 5  Flagging long-spacing segments …")
+    _flag_long_spacing_csv(
+        routes_gdf,
+        all_stops_gdf,  # unfiltered layer
+        LONG_SPACING_FT,
+        NEAR_BUFFER_FT,
+        out_dir / LONG_SPACING_CSV_FILE,
+    )
+
+    print("\nAll done! Outputs in:", out_dir)
 
 
 if __name__ == "__main__":
