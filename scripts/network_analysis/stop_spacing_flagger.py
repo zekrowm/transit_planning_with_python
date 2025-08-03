@@ -537,77 +537,146 @@ def _build_stop_layers(
 # MAIN
 # =============================================================================
 
+def main() -> None:
+    """Generate GIS layers and flag short inter-stop spacings.
 
-def main() -> None:  # noqa: D401
-    """Run the entire GTFS-to-GIS pipeline with both spacing QA checks."""
-    # -----------------------------------------------------------------
-    # STEP 0  Read GTFS tables and validate
-    # -----------------------------------------------------------------
-    print("STEP 0  Reading GTFS tables …")
-    gtfs_path = Path(GTFS_PATH)
-    dfs = _read_gtfs_tables(gtfs_path)
+    Key change ➡ the GTFS **route filter is applied _before_ any projection**.
+    This prevents bogus or out-of-extent shapes from ever reaching
+    `arcpy.Project_management`, eliminating the ERROR 999999 you hit.
+    """
+    # ---------------------------------------------------------------------
+    # 1.  House-keeping + constant objects
+    # ---------------------------------------------------------------------
+    validate_config()
+    arcpy.env.overwriteOutput = True
+    arcpy.env.workspace = arcpy.env.scratchGDB
+
+    gtfs_dir: str = str(Path(GTFS_FOLDER))
+    out_dir: str = str(Path(OUTPUT_FOLDER))
+
+    sr_wgs84 = arcpy.SpatialReference(4326)
+    sr_target = arcpy.SpatialReference(EPSG_CODE)
+
+    per_shape: bool = ROUTE_LEVEL.lower() == "shape"
+    route_field: str = "shape_id" if per_shape else "route_id"
 
     try:
-        _validate_columns(dfs)
-    except ValueError as err:
-        print("\nERROR – invalid GTFS feed:\n" + str(err))
+        # -----------------------------------------------------------------
+        # 2.  ROUTES / SHAPES  (filter ➜ *then* project)
+        # -----------------------------------------------------------------
+        arcpy.AddMessage("\n=== Routes / Shapes ===")
+
+        # 2-A  Build WGS-84 polylines straight from shapes.txt
+        shapes_tbl = arcpy.TableToTable_conversion(
+            os.path.join(gtfs_dir, "shapes.txt"), "in_memory", "shapes_tbl"
+        ).getOutput(0)
+
+        shapes_xy = make_xy_event_layer(
+            shapes_tbl,
+            x_field="shape_pt_lon",
+            y_field="shape_pt_lat",
+            out_layer="shapes_xy",
+            sr=sr_wgs84,
+        )
+
+        shapes_line_wgs = "in_memory/shapes_line_wgs"
+        points_to_line(
+            point_layer=shapes_xy,
+            out_line=shapes_line_wgs,
+            line_field="shape_id",
+            sort_field="shape_pt_sequence",
+        )
+
+        # 2-B  Apply optional route filter **while still in WGS-84**
+        if ROUTE_FILTER:
+            routes_wgs = apply_route_filter(
+                raw_fc=shapes_line_wgs,
+                gtfs_folder=GTFS_FOLDER,
+                route_field=route_field,
+                per_shape=per_shape,
+                filter_routes=ROUTE_FILTER,
+            )
+            arcpy.AddMessage(
+                f"   ✔ Filter retained {len(ROUTE_FILTER)} route(s) in WGS-84"
+            )
+        else:
+            routes_wgs = shapes_line_wgs
+            arcpy.AddMessage("   ✔ No route filter applied (all shapes kept)")
+
+        # 2-C  Now project the *already-filtered* routes
+        routes_raw = os.path.join(out_dir, "routes_raw.shp")  # scratch name
+        project_feature(routes_wgs, routes_raw, sr_target)
+
+        # 2-D  Copy to final name for clarity
+        routes_fc = os.path.join(out_dir, "routes.shp")
+        arcpy.CopyFeatures_management(routes_raw, routes_fc)
+        arcpy.AddMessage(f"   ✔ Projected routes → {routes_fc}")
+
+        # -----------------------------------------------------------------
+        # 3.  STOPS  (unchanged, but intersect with projected routes_fc)
+        # -----------------------------------------------------------------
+        arcpy.AddMessage("\n=== Stops ===")
+
+        stops_tbl = arcpy.TableToTable_conversion(
+            os.path.join(gtfs_dir, "stops.txt"), "in_memory", "stops_tbl"
+        ).getOutput(0)
+
+        stops_xy = make_xy_event_layer(
+            stops_tbl, "stop_lon", "stop_lat", "stops_xy", sr_wgs84
+        )
+
+        stops_wgs = arcpy.CopyFeatures_management(
+            stops_xy, "in_memory/stops_wgs"
+        ).getOutput(0)
+
+        full_stops = os.path.join(out_dir, "stops_full.shp")
+        project_feature(stops_wgs, full_stops, sr_target)
+
+        if ROUTE_FILTER:
+            arcpy.MakeFeatureLayer_management(full_stops, "stops_lyr")
+            arcpy.SelectLayerByLocation_management(
+                "stops_lyr", "INTERSECT", routes_fc
+            )
+            stops_fc = os.path.join(out_dir, "stops.shp")
+            arcpy.CopyFeatures_management("stops_lyr", stops_fc)
+            arcpy.AddMessage(f"   ✔ Filtered stops → {stops_fc}")
+        else:
+            stops_fc = full_stops
+            arcpy.AddMessage(f"   ✔ All stops → {stops_fc}")
+
+        # -----------------------------------------------------------------
+        # 4.  SEGMENTS  (unchanged)
+        # -----------------------------------------------------------------
+        arcpy.AddMessage("\n=== Inter-stop Segments ===")
+
+        routes_m = "in_memory/routes_m"
+        create_routes_with_m(routes_fc, route_field, routes_m)
+
+        events_tbl = "in_memory/stops_events"
+        locate_stops_along_routes(stops_fc, routes_m, route_field, events_tbl)
+
+        segments_fc = os.path.join(out_dir, "segments.shp")
+        build_segments(
+            routes_m,
+            events_tbl,
+            route_field,
+            segments_fc,
+            spat_ref=sr_target,
+        )
+        arcpy.AddMessage(f"   ✔ Segments → {segments_fc}")
+
+        # -----------------------------------------------------------------
+        # 5.  SHORT-SPACING LOG  (unchanged)
+        # -----------------------------------------------------------------
+        log_path = Path(out_dir) / SPACING_LOG_FILE
+        flag_short_spacing(segments_fc, MIN_SPACING_FT, log_path)
+
+        arcpy.AddMessage("\nAll outputs created successfully!")
+
+    except Exception:
+        arcpy.AddError("### Script failed ###")
+        arcpy.AddError(traceback.format_exc())
         sys.exit(1)
-
-    # -----------------------------------------------------------------
-    # 0·1  Route / trip filtering
-    # -----------------------------------------------------------------
-    routes_df, trips_df = _filter_routes(
-        dfs["routes"], dfs["trips"], INCLUDE_ROUTE_IDS, FILTER_OUT_LIST
-    )
-
-    out_dir = _ensure_output_folder(OUTPUT_FOLDER)
-
-    # -----------------------------------------------------------------
-    # STEP 1  Build stop layers
-    # -----------------------------------------------------------------
-    print("STEP 1  Building stop layers …")
-    all_stops_gdf, stops_gdf = _build_stop_layers(dfs, trips_df, routes_df, PROJECTED_CRS)
-    _export(stops_gdf, out_dir, "stops")  # export only the filtered set
-
-    # -----------------------------------------------------------------
-    # STEP 2  Build route polylines
-    # -----------------------------------------------------------------
-    print("STEP 2  Building routes shapefile …")
-    routes_gdf = _build_routes_gdf(dfs["shapes"], trips_df, routes_df, PROJECTED_CRS, ROUTE_UNION)
-    _export(routes_gdf, out_dir, "routes")
-
-    # -----------------------------------------------------------------
-    # STEP 3  Split polylines into stop-to-stop segments
-    # -----------------------------------------------------------------
-    print("STEP 3  Splitting routes into stop-to-stop segments …")
-    segs_gdf = _split_into_segments(routes_gdf, stops_gdf, PROJECTED_CRS)
-    _export(segs_gdf, out_dir, "segments")  # master file
-    _export_segments_by_route_dir(segs_gdf, out_dir)  # per-route files
-
-    # -----------------------------------------------------------------
-    # STEP 4  Short-spacing QA
-    # -----------------------------------------------------------------
-    print("STEP 4  Flagging closely-spaced stops …")
-    _flag_short_spacing(
-        routes_gdf,
-        stops_gdf,  # filtered layer
-        MIN_SPACING_FT,
-        out_dir / SPACING_LOG_FILE,
-    )
-
-    # -----------------------------------------------------------------
-    # STEP 5  Long-spacing QA (needs *all* stops) – CSV export
-    # -----------------------------------------------------------------
-    print("STEP 5  Flagging long-spacing segments …")
-    _flag_long_spacing_csv(
-        routes_gdf,
-        all_stops_gdf,  # unfiltered layer
-        LONG_SPACING_FT,
-        NEAR_BUFFER_FT,
-        out_dir / LONG_SPACING_CSV_FILE,
-    )
-
-    print("\nAll done! Outputs in:", out_dir)
 
 
 if __name__ == "__main__":
