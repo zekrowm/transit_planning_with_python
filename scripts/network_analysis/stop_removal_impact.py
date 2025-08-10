@@ -46,7 +46,7 @@ GTFS_DIR = Path(r"Path\To\Your\GTFS_Folder")  # folder path must contain stops.t
 OUTPUT_DIR = Path(r"Path\To\Your\Output_Folder")
 
 # Plotting-only backdrop (not used for analysis)
-PLOT_SIDEWALKS_SHP: Optional[Path] = Path(r"Path\To\Your\Sidewalks_Centerline.shp") file does not 
+PLOT_SIDEWALKS_SHP: Optional[Path] = Path(r"Path\To\Your\Sidewalks_Centerline.shp") 
 SIDEWALK_BACKDROP_PAD_FT: float = 300.0  # how far to expand the map view when clipping
 
 IDENTIFIER_PRIORITY: Tuple[str, str] = ("stop_code", "stop_id")
