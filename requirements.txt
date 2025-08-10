@@ -1,14 +1,14 @@
 # ------------- Libraries available in ArcPro and from pip install -----------
 # Core Data Science Libraries
 pandas==2.2.3                # Data manipulation and analysis
-numpy==1.26.4                # Numerical computing
+numpy==2.3.2                 # Numerical computing
 scipy==1.15.2                # Scientific computing and optimization
 
 # Network Analysis
 networkx==3.4.2              # Graph and network analysis
 
 # Visualization
-matplotlib==3.9.0           # Plotting and visualization
+matplotlib==3.9.0            # Plotting and visualization
 
 # Excel File Support
 openpyxl==3.1.5              # Read/write Excel .xlsx files
@@ -24,10 +24,10 @@ faker==25.8.0                # For generating fake data
 pulp==2.9.0                  # Linear programming solver interface
 
 # String Matching and Text Utilities
-rapidfuzz==3.11.0            # Fast fuzzy string matching
+rapidfuzz==3.13.0            # Fast fuzzy string matching
 
 # Geospatial Libraries (GeoPandas stack)
-geopandas==0.14.4            # Geospatial data handling (open-source)
+geopandas==1.1.1             # Geospatial data handling (open-source)
 shapely==2.1.1               # Geometry operations
 pyproj==3.7.1                # Coordinate reference systems and transformations
 
@@ -50,3 +50,4 @@ types-openpyxl>=3.1,<5
 types-networkx>=3.4,<4
 #types-faker>=25,<26
 #types-rapidfuzz>=3.11,<4
+
