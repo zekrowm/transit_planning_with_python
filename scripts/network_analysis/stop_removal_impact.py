@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import math
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import geopandas as gpd
 import networkx as nx
@@ -41,12 +41,12 @@ from shapely.strtree import STRtree
 # CONFIGURATION
 # =============================================================================
 
-SIDEWALK_SHP = Path(r"Path\To\Your\Sidewalks_Centerline.shp") # Must be a functional network
+SIDEWALK_SHP = Path(r"Path\To\Your\Sidewalks_Centerline.shp")  # Must be a functional network
 GTFS_DIR = Path(r"Path\To\Your\GTFS_Folder")  # folder path must contain stops.txt
 OUTPUT_DIR = Path(r"Path\To\Your\Output_Folder")
 
 # Plotting-only backdrop (not used for analysis)
-PLOT_SIDEWALKS_SHP: Optional[Path] = Path(r"Path\To\Your\Sidewalks_Centerline.shp") 
+PLOT_SIDEWALKS_SHP: Optional[Path] = Path(r"Path\To\Your\Sidewalks_Centerline.shp")
 SIDEWALK_BACKDROP_PAD_FT: float = 300.0  # how far to expand the map view when clipping
 
 IDENTIFIER_PRIORITY: Tuple[str, str] = ("stop_code", "stop_id")
@@ -62,9 +62,9 @@ MAX_SNAP_FT: float = 1500.0  # skip stops farther than this from the network
 NODE_GRID_FT: float = 5.0  # merge endpoints within ~±2.5 ft
 
 # “Across-the-street” sanity guard
-ACROSS_STREET_MAX_FT: float = 120.0          # straight-line threshold to consider “across street”
-ACROSS_STREET_RATIO: float = 8.0             # network/linear ratio considered absurd
-ACROSS_STREET_ABS_FT: float = 2000.0         # or absolute detour threshold
+ACROSS_STREET_MAX_FT: float = 120.0  # straight-line threshold to consider “across street”
+ACROSS_STREET_RATIO: float = 8.0  # network/linear ratio considered absurd
+ACROSS_STREET_ABS_FT: float = 2000.0  # or absolute detour threshold
 
 # Stop selection for analysis
 DELETED_STOP_IDS: List[str] = ["1001", "1002"]
@@ -85,6 +85,7 @@ EdgeID = int
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _load_backdrop_layer_for_plots(
     path: Optional[Path], target_crs: int | str
@@ -246,6 +247,7 @@ def linestring_substring(line: LineString, start_m: float, end_m: float) -> Line
 # DATA LOADING
 # -----------------------------------------------------------------------------
 
+
 def load_centerlines(path: Path, target_crs: int | str) -> gpd.GeoDataFrame:
     """Load centerlines and reproject to target CRS."""
     gdf = gpd.read_file(path)
@@ -313,6 +315,7 @@ def load_gtfs_stops(gtfs_dir: Path, target_crs: int | str) -> gpd.GeoDataFrame:
 # -----------------------------------------------------------------------------
 # SNAP LOGIC (VIRTUAL CONNECTORS)
 # -----------------------------------------------------------------------------
+
 
 def snap_stops_to_segments(
     stops: gpd.GeoDataFrame,
@@ -463,9 +466,7 @@ def _concat_lines(lines: Sequence[LineString]) -> LineString:
     return LineString(coords)
 
 
-def _ensure_oriented(
-    lines: Sequence[LineString], nodes: Sequence[NodeKey]
-) -> List[LineString]:
+def _ensure_oriented(lines: Sequence[LineString], nodes: Sequence[NodeKey]) -> List[LineString]:
     """Orient each edge geometry to follow the node sequence."""
     out: List[LineString] = []
     for (u, v), ln in zip(zip(nodes[:-1], nodes[1:]), lines):
@@ -495,7 +496,9 @@ def _build_path_geometry(
     L_a = linestring_length(a_seg)
     L_b = linestring_length(b_seg)
 
-    a_part = linestring_substring(a_seg, a_s, 0.0) if a_to_u else linestring_substring(a_seg, a_s, L_a)  # noqa: E501
+    a_part = (
+        linestring_substring(a_seg, a_s, 0.0) if a_to_u else linestring_substring(a_seg, a_s, L_a)
+    )  # noqa: E501
 
     fulls: List[LineString] = []
     for u, v in zip(node_path[:-1], node_path[1:]):
@@ -506,7 +509,9 @@ def _build_path_geometry(
             geom = LineString(list(reversed(gcoords)))
         fulls.append(geom)
 
-    b_part = linestring_substring(b_seg, 0.0, b_s) if b_from_u else linestring_substring(b_seg, L_b, b_s)  # noqa: E501
+    b_part = (
+        linestring_substring(b_seg, 0.0, b_s) if b_from_u else linestring_substring(b_seg, L_b, b_s)
+    )  # noqa: E501
 
     return _concat_lines([a_part, *_ensure_oriented(fulls, node_path), b_part])
 
@@ -577,15 +582,18 @@ def stop_to_stop_network(
 # COVERAGE (FEET-BASED CRS)
 # -----------------------------------------------------------------------------
 
+
 def coverage_polygon(stops: gpd.GeoDataFrame, buffer_miles: float) -> gpd.GeoDataFrame:
     """Dissolved coverage polygon using feet buffers (CRS in US ft)."""
     radius_ft = buffer_miles * FT_PER_MILE
     dissolved = stops.buffer(radius_ft).union_all()
     return gpd.GeoDataFrame(geometry=[dissolved], crs=stops.crs)
 
+
 # -----------------------------------------------------------------------------
 # EXPORTS
 # -----------------------------------------------------------------------------
+
 
 def export_results(
     results: Dict[str, Dict[str, object]],
@@ -687,6 +695,7 @@ def export_stop_maps(  # noqa: ANN001
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Analyze sidewalk-access impacts using a virtual-connector network."""
     logging.basicConfig(level=LOG_LEVEL, format="%(levelname)s | %(message)s")
@@ -718,7 +727,7 @@ def main() -> None:
 
     # Resolve the human-entered identifiers to canonical stop_ids and mark a boolean.
     logging.info("Resolving deleted identifiers …")
-    prefer_stop_code = (IDENTIFIER_PRIORITY[0] == "stop_code")
+    prefer_stop_code = IDENTIFIER_PRIORITY[0] == "stop_code"
     resolved_ids, _match_map = resolve_deleted_stop_ids(
         stops, DELETED_STOP_IDS, prefer_stop_code=prefer_stop_code
     )
@@ -735,7 +744,11 @@ def main() -> None:
 
     if kept_stops.empty:
         logging.warning("No kept stops; skipping network distances.")
-    kept_coords = np.array([(p.x, p.y) for p in kept_stops.geometry]) if not kept_stops.empty else np.empty((0, 2))  # noqa: E501
+    kept_coords = (
+        np.array([(p.x, p.y) for p in kept_stops.geometry])
+        if not kept_stops.empty
+        else np.empty((0, 2))
+    )  # noqa: E501
     kd = cKDTree(kept_coords) if kept_coords.size else None
 
     results: Dict[str, Dict[str, object]] = {}
@@ -798,7 +811,8 @@ def main() -> None:
             # Across-the-street sanity override
             flag = None
             if lin_ft <= ACROSS_STREET_MAX_FT and (
-                math.isinf(net_ft) or net_ft > max(ACROSS_STREET_ABS_FT, ACROSS_STREET_RATIO * lin_ft)  # noqa: E501
+                math.isinf(net_ft)
+                or net_ft > max(ACROSS_STREET_ABS_FT, ACROSS_STREET_RATIO * lin_ft)  # noqa: E501
             ):
                 path_geom = LineString([(x, y), (float(tgt.geometry.x), float(tgt.geometry.y))])
                 net_ft = lin_ft
@@ -816,7 +830,9 @@ def main() -> None:
                 x=x,
                 y=y,
                 nearest_stop_id=None,
-                linear_dist_miles=round(float(lin_ft) / FT_PER_MILE, 4) if lin_ft is not None else None,  # noqa: E501
+                linear_dist_miles=round(float(lin_ft) / FT_PER_MILE, 4)
+                if lin_ft is not None
+                else None,  # noqa: E501
                 network_dist_miles="> 0.25",
                 path_geom=None,
                 sanity_flag=flag,
