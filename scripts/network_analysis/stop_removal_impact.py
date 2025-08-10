@@ -114,7 +114,7 @@ def _load_backdrop_layer_for_plots(
 
 
 def _plot_backdrop_within_bounds(
-    ax,
+    ax: Any,
     backdrop: Optional[gpd.GeoDataFrame],
     bounds: Tuple[float, float, float, float],
     crs: int | str,
@@ -222,7 +222,7 @@ def linestring_length(line: LineString) -> float:
     return float(line.length)
 
 
-def safe_nearest(seg_index: STRtree, pt: Point):
+def safe_nearest(seg_index: STRtree, pt: Point) -> int | LineString:
     """Return the nearest result from an STRtree (Shapely 2.x or pygeos style)."""
     try:
         return seg_index.nearest(pt)
