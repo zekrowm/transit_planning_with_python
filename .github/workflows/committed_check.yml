@@ -1,0 +1,28 @@
+# .github/workflows/committed_check.yml
+name: committed_check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: committed-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  committed:
+    name: Lint commit messages
+    if: github.event.pull_request.draft == false && !endsWith(github.actor, '[bot]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required so Committed can see all commits in the PR
+
+      - name: Run Committed
+        uses: astral-sh/committed-action@v1
