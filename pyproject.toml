@@ -1,7 +1,7 @@
 # pyproject.toml
 
 # ================================================================
-# FAST PRE-COMMIT HOOK
+# PYTHON LINTING, FORMATTING & TYPE CHECKING
 # ================================================================
 # ----------------------------------------------------------------
 # ruff
@@ -30,4 +30,23 @@ convention = "google"
 python-version = "3.12"
 
 [tool.ty.rules]
-unresolved-import = "warn"          # C-extension libs without stubs
+unresolved-import = "warn"        # C-extension libs without stubs
+
+# ================================================================
+# COMMIT MESSAGE LINTING
+# ================================================================
+# ----------------------------------------------------------------
+# committed
+# ----------------------------------------------------------------
+[tool.committed]
+convention = "conventional"
+types = [
+  "build", "chore", "ci", "docs", "feat",
+  "fix", "perf", "refactor", "revert", "style", "test"
+]
+scope_required = false
+scope_case = "kebab-case"
+subject_capitalized = true
+subject_length = 72
+subject_full_stop = false
+breaking_change_token = "BREAKING CHANGE"
