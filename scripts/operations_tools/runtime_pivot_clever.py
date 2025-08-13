@@ -15,7 +15,7 @@ Run the script from ArcGIS Pro’s Python window or a Jupyter notebook.
 from __future__ import annotations
 
 import os
-from typing import List, Mapping, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, Union
 
 import pandas as pd
 
@@ -129,28 +129,20 @@ def convert_time_columns(
 
 
 def parse_trip_time(trip_str: str) -> Optional[int]:
-    """Parse the *HH:MM* portion of a CLEVER *Trip* string.
-
-    Example input ``"04:56 1419958"`` → ``296`` (minutes after midnight).
-
-    Args:
-        trip_str: The full *Trip* string.
-
-    Returns:
-        Integer minutes after midnight, or ``None`` when the substring cannot
-        be parsed (so rows sort last).
-    """
+    """Parse the *HH:MM* portion of a CLEVER *Trip* string."""
     if not isinstance(trip_str, str):
         return None
-
-    parts = trip_str.split(maxsplit=1)  # ['04:56', '1419958']
-    if not parts:
-        return None
-    time_part = parts[0]  # '04:56'
+    token = trip_str.split(maxsplit=1)[0]  # e.g., '04:56' or '04:56:12'
+    for fmt in ("%H:%M", "%H:%M:%S"):
+        try:
+            t = pd.to_datetime(token, format=fmt).time()
+            return t.hour * 60 + t.minute
+        except ValueError:
+            continue
     try:
-        t = pd.to_datetime(time_part, format="%H:%M").time()
+        t = pd.to_datetime(token).time()
         return t.hour * 60 + t.minute
-    except ValueError:
+    except Exception:
         return None
 
 
@@ -236,40 +228,99 @@ def check_route_validity(
     return is_valid
 
 
-def sort_route_segments(segments: Sequence[str]) -> List[str]:
-    """Return *segments* reordered into a linear chain, if one is derivable.
+def _norm(s: str) -> str:
+    """Normalize a stop name: trim and collapse internal whitespace."""
+    return " ".join((s or "").strip().split())
 
-    Args:
-        segments: Unordered *START – END* strings.
 
-    Returns:
-        A new list of segments in travel order, or the original list when no
-        unique chain can be inferred.
+def sort_route_segments(segments: Iterable[str]) -> List[str]:
+    """Return original segment labels in travel order when a unique chain exists.
+
+    Uses normalized nodes internally to infer order, but returns the exact original
+    SegmentName labels for compatibility with pivot-table columns. If the segments
+    do not form a single simple path (e.g., branching, loops, ambiguity), the
+    original order is returned unchanged.
     """
-    edges = []
-    for seg in segments:
-        start, end = seg.split(" - ")
-        edges.append((start.strip(), end.strip()))
+    original: List[str] = list(segments)
+    if not original:
+        return original
 
-    next_lookup = {}
-    for start, end in edges:
-        next_lookup[start] = end
+    # Build mapping from normalized edge -> original label
+    norm_edges: List[Tuple[str, str]] = []
+    label_for_edge: Dict[Tuple[str, str], str] = {}
+    for seg in original:
+        if " - " not in seg:
+            continue
+        a_raw, b_raw = seg.split(" - ", 1)
+        a, b = _norm(a_raw), _norm(b_raw)
+        e = (a, b)
+        # Keep first-seen label for this normalized edge
+        if e not in label_for_edge:
+            label_for_edge[e] = seg
+            norm_edges.append(e)
 
-    all_starts = [s for (s, _) in edges]
-    all_ends = [e for (_, e) in edges]
-    possible_starts = set(all_starts) - set(all_ends)
-    if len(possible_starts) != 1:
-        return segments
+    if not norm_edges:
+        return original
 
-    first_stop = possible_starts.pop()
-    chain_stops = [first_stop]
-    while chain_stops[-1] in next_lookup:
-        chain_stops.append(next_lookup[chain_stops[-1]])
+    # Build successor map and degree counts; reject branching immediately.
+    succ: Dict[str, str] = {}
+    indeg: Dict[str, int] = {}
+    outdeg: Dict[str, int] = {}
+    nodes: Set[str] = set()
 
-    sorted_segs = []
-    for i in range(len(chain_stops) - 1):
-        sorted_segs.append(f"{chain_stops[i]} - {chain_stops[i + 1]}")
-    return sorted_segs
+    for a, b in norm_edges:
+        nodes.update([a, b])
+        if a in succ and succ[a] != b:
+            # Branching (multiple distinct successors) -> ambiguous
+            return original
+        succ[a] = b
+        outdeg[a] = outdeg.get(a, 0) + 1
+        indeg[b] = indeg.get(b, 0) + 1
+        indeg.setdefault(a, 0)
+        outdeg.setdefault(b, 0)
+
+    # Candidate starts: prefer outdeg - indeg == 1, else nodes with indeg == 0, else all nodes.
+    starts: List[str] = (
+        [n for n in nodes if outdeg.get(n, 0) - indeg.get(n, 0) == 1]
+        or [n for n in nodes if indeg.get(n, 0) == 0]
+        or list(nodes)
+    )
+
+    def walk(start: str) -> List[str]:
+        """Return ordered original labels if a full simple path exists from start."""
+        used: Set[Tuple[str, str]] = set()
+        order: List[str] = []
+        cur: str = start
+        steps: int = 0
+        while cur in succ:
+            nxt: str = succ[cur]
+            e: Tuple[str, str] = (cur, nxt)
+            if e in used:
+                # Loop detected
+                return []
+            used.add(e)
+            order.append(label_for_edge[e])
+            cur = nxt
+            steps += 1
+            if steps > len(norm_edges):
+                # Safety break for unexpected cycles
+                return []
+        # Accept only if every edge was used exactly once
+        return order if len(used) == len(norm_edges) else []
+
+    # Try each candidate start; accept a unique full-coverage solution.
+    solutions: List[List[str]] = []
+    for s in starts:
+        sol = walk(s)
+        if sol:
+            solutions.append(sol)
+
+    if not solutions:
+        return original
+    if any(solutions[0] != s for s in solutions[1:]):
+        # Multiple distinct valid chains -> ambiguous
+        return original
+    return solutions[0]
 
 
 def create_and_save_pivots(
@@ -278,23 +329,7 @@ def create_and_save_pivots(
     dataset_label: str,
     time_columns_map: dict,
 ) -> None:
-    """Create pivot-table CSVs for each *(route, direction, time metric)*.
-
-    The routine writes outputs and “no data” placeholders directly to disk.
-
-    Args:
-        df: CLEVER data filtered to a single service period.
-        output_subdir: Directory in which all files for *dataset_label* will
-            be created (created if missing).
-        dataset_label: Short token used in output file names
-            (e.g. ``"wkdy"``, ``"sun"``).
-        time_columns_map: Mapping of *CLEVER column name* →
-            *file-name suffix*.
-
-    Side Effects:
-        Multiple ``.csv`` files are written to *output_subdir*; messages are
-        printed via :pyfunc:`print`.
-    """
+    """Create pivot-table CSVs for each *(route, direction, time metric)*."""
     if not os.path.exists(output_subdir):
         os.makedirs(output_subdir)
 
@@ -305,13 +340,12 @@ def create_and_save_pivots(
         for direction in route_df["Direction"].unique():
             direction_df = route_df[route_df["Direction"] == direction].copy()
 
-            # ── 1. Sort chronologically via Trip  ────────────────────────────
+            # Sort chronologically via Trip
             if "Trip" in direction_df.columns:
                 direction_df["time_sort"] = direction_df["Trip"].apply(parse_trip_time)
                 direction_df.sort_values("time_sort", inplace=True, na_position="last")
                 direction_df.drop(columns="time_sort", inplace=True)
 
-            # Preserve row order after pivoting
             sorted_idx = (
                 direction_df[["Branch", "Direction", "TripNo", "Variation", "Trip"]]
                 .drop_duplicates()
@@ -319,16 +353,15 @@ def create_and_save_pivots(
                 .index
             )
 
-            # ── 2. Validate / order segments  ───────────────────────────────
+            # Validate & order segments
             segments = direction_df["SegmentName"].dropna().unique().tolist()
             variations = direction_df["Variation"].dropna().unique().tolist()
-            if check_route_validity(segments, variations):
-                segments = sort_route_segments(segments)
+            check_route_validity(segments, variations)  # still logs warnings
+            segments = sort_route_segments(segments)  # always try sorting
 
-            # Track whether *this* direction yielded at least one pivot
             direction_wrote_something = False
 
-            # ── 3–4. Pivot each time column  ────────────────────────────────
+            # Pivot each time column
             for time_col, suffix in time_columns_map.items():
                 if time_col not in direction_df.columns:
                     continue
@@ -342,14 +375,12 @@ def create_and_save_pivots(
                 if pivot_tbl.empty:
                     continue
 
-                # Re-order columns and rows
                 pivot_tbl = pivot_tbl.reindex(
                     columns=[s for s in segments if s in pivot_tbl.columns]
                 )
                 pivot_tbl = pivot_tbl.reindex(index=sorted_idx)
                 pivot_tbl = pivot_tbl.round(1)
 
-                # Write
                 csv_name = f"{dataset_label}_Route{route}_Dir{direction}_{suffix}.csv"
                 csv_path = os.path.join(output_subdir, csv_name)
                 pivot_tbl.to_csv(csv_path, float_format="%.1f")
@@ -358,7 +389,6 @@ def create_and_save_pivots(
                 direction_wrote_something = True
                 route_wrote_any_csv = True
 
-            # ── 4b. Direction-level placeholder if nothing written ──────────
             if not direction_wrote_something:
                 no_data_name = f"{dataset_label}_Route{route}_Dir{direction}_NoData.csv"
                 no_data_path = os.path.join(output_subdir, no_data_name)
@@ -367,7 +397,6 @@ def create_and_save_pivots(
                 ).to_csv(no_data_path, index=False)
                 print(f"Created {no_data_path}")
 
-        # ── 5. Route-level placeholder if *all* directions empty ────────────
         if not route_wrote_any_csv:
             no_data_name = f"{dataset_label}_Route{route}_NoData.csv"
             no_data_path = os.path.join(output_subdir, no_data_name)
