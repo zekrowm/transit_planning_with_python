@@ -27,8 +27,9 @@ import logging
 import math
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
-import matplotlib.pyplot as plt
+
 import geopandas as gpd
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -682,7 +683,10 @@ def export_stop_maps(
     # Quick lookups
     geom_by_id: dict[str, Point] = dict(zip(stops.stop_id.astype(str), stops.geometry))
     name_by_id: dict[str, str] = dict(
-        zip(stops.stop_id.astype(str), stops.get("stop_name", pd.Series("", index=stops.index)).astype(str))
+        zip(
+            stops.stop_id.astype(str),
+            stops.get("stop_name", pd.Series("", index=stops.index)).astype(str),
+        )
     )
 
     for sid, rec in results.items():
