@@ -47,6 +47,8 @@ types = [
 scope_required = false
 scope_case = "kebab-case"
 subject_capitalized = true
-subject_length = 100
+subject_length = 72
 subject_full_stop = false
 breaking_change_token = "BREAKING CHANGE"
+
+line_length = 100
