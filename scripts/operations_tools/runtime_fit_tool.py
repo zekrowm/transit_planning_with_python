@@ -24,11 +24,11 @@ import warnings
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable, Final, Iterable, List, Sequence  # , TypeAlias
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import difflib
 
 # =============================================================================
 # CONFIGURATION
@@ -87,6 +87,15 @@ TRIM_FRAC: Final[float] = 0.01  # drop shortest & longest 1 %
 OUTPUT_DIR: Path = OUTPUT_ROOT_DIR
 PLOTS_DIR: Path = OUTPUT_DIR / "plots"
 
+# Valid directions to enforce and normalize to (keep UPPERCASE strings)
+ALLOWED_DIRECTIONS: List[str] = [
+    "NORTHBOUND",
+    "SOUTHBOUND",
+    "EASTBOUND",
+    "WESTBOUND",
+    "LOOP",
+]
+
 # ---------------------------------------------------------------------
 # TYPE ALIASES
 # ---------------------------------------------------------------------
@@ -96,7 +105,6 @@ PlotFunc: TypeAlias = Callable[[pd.DataFrame], None]
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
-
 
 def _detect_sep(path: Path) -> str:
     """Return delimiter based on extension (csv → comma, others → tab)."""
@@ -127,6 +135,35 @@ def _safe_plot(plot_func: PlotFunc, df: pd.DataFrame) -> None:
         plot_func(df)
     else:
         print("   ⚠  No rows after filters; skipping plots.")
+
+
+def normalize_direction_value(value: str, allowed: List[str]) -> str:
+    """Coerce a free-text direction to one of the allowed values.
+
+    Uses difflib to guess the closest allowed label. Always returns one of
+    ``allowed``. Emits a warning if the original does not exactly match.
+
+    Examples:
+        "NOTHTBOUND" -> "NORTHBOUND"
+        "west bound" -> "WESTBOUND"
+    """
+    val = (value or "").strip().upper()
+    if val in allowed:
+        return val
+    guess = difflib.get_close_matches(val, allowed, n=1, cutoff=0.6)
+    if guess:
+        fixed = guess[0]
+        warnings.warn(f"Direction normalized: {value!r} → {fixed!r}", RuntimeWarning, stacklevel=2)
+        return fixed
+    warnings.warn(f"Unrecognized direction {value!r}; defaulting to 'LOOP'", RuntimeWarning, stacklevel=2)
+    return "LOOP"
+
+
+def normalize_directions_column(df: pd.DataFrame, allowed: List[str]) -> pd.DataFrame:
+    """Normalize the 'Direction' column in place to the allowed list."""
+    df = df.copy()
+    df["Direction"] = df["Direction"].astype(str).map(lambda s: normalize_direction_value(s, allowed))
+    return df
 
 
 # -----------------------------------------------------------------------------
@@ -907,7 +944,6 @@ def suggest_time_bands(
 # MAIN
 # =============================================================================
 
-
 def main() -> None:  # pragma: no cover
     """Run the end-to-end analysis for every route.
 
@@ -943,6 +979,7 @@ def main() -> None:  # pragma: no cover
             .pipe(filter_service_day, SERVICE_DAY_FILTER)
             .pipe(add_deviation_cols)
             .pipe(add_otp_flag)  # adds both on_time & within_window
+            .pipe(normalize_directions_column, ALLOWED_DIRECTIONS)  # normalize Direction values
         )
 
         if base_df.empty:
@@ -1008,7 +1045,7 @@ def main() -> None:  # pragma: no cover
             )
             print(f"      → Suggested {len(bands)} time bands saved.")
 
-            # ---- 2 e.  Plots --------------------------------------------
+            # ---- 2 e.  Plots ---------------------------------------------
             plot_funcs = [
                 plot_start_dev_shaded,
                 plot_start_dev_plain,
