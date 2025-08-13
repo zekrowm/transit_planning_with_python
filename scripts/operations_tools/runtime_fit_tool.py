@@ -23,7 +23,7 @@ import re
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, Final, Iterable, List, Sequence, TypeAlias
+from typing import Callable, Final, Iterable, List, Sequence  # , TypeAlias
 
 import matplotlib.pyplot as plt
 import numpy as np
