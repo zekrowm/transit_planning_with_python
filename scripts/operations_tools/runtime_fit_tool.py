@@ -19,17 +19,18 @@ Assumes route-wise CSVs of trip observations with key timestamp columns.
 
 from __future__ import annotations
 
+import difflib
 import re
 import warnings
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable, Final, Iterable, List, Sequence, TypeAlias
+
 # May need to comment out TypeAlias import for old ArcPro Python versions
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import difflib
 
 # =============================================================================
 # CONFIGURATION
@@ -107,6 +108,7 @@ PlotFunc: TypeAlias = Callable[[pd.DataFrame], None]
 # FUNCTIONS
 # =============================================================================
 
+
 def _detect_sep(path: Path) -> str:
     """Return delimiter based on extension (csv → comma, others → tab)."""
     return "," if path.suffix.lower() == ".csv" else "\t"
@@ -156,14 +158,18 @@ def normalize_direction_value(value: str, allowed: List[str]) -> str:
         fixed = guess[0]
         warnings.warn(f"Direction normalized: {value!r} → {fixed!r}", RuntimeWarning, stacklevel=2)
         return fixed
-    warnings.warn(f"Unrecognized direction {value!r}; defaulting to 'LOOP'", RuntimeWarning, stacklevel=2)
+    warnings.warn(
+        f"Unrecognized direction {value!r}; defaulting to 'LOOP'", RuntimeWarning, stacklevel=2
+    )
     return "LOOP"
 
 
 def normalize_directions_column(df: pd.DataFrame, allowed: List[str]) -> pd.DataFrame:
     """Normalize the 'Direction' column in place to the allowed list."""
     df = df.copy()
-    df["Direction"] = df["Direction"].astype(str).map(lambda s: normalize_direction_value(s, allowed))
+    df["Direction"] = (
+        df["Direction"].astype(str).map(lambda s: normalize_direction_value(s, allowed))
+    )
     return df
 
 
@@ -944,6 +950,7 @@ def suggest_time_bands(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:  # pragma: no cover
     """Run the end-to-end analysis for every route.
