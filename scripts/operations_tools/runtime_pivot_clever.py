@@ -269,24 +269,19 @@ def sort_route_segments(segments: Iterable[str]) -> List[str]:
              or [n for n in nodes if indeg.get(n, 0) == 0] \
              or list(nodes)
 
-    def walk(start):
-        used = set()
-        order = []
-        cur = start
+    def walk(start: str) -> List[str]:
+        used: Set[Tuple[str, str]] = set()
+        order: List[str] = []
+        cur: str = start
         while cur in succ:
-            nxt = succ[cur]
-            edge = (cur, nxt)
+            nxt: str = succ[cur]
+            edge: Tuple[str, str] = (cur, nxt)
             if edge in used:
                 return []
             used.add(edge)
             order.append(label_for_edge[edge])
             cur = nxt
         return order if len(used) == len(norm_edges) else []
-
-    sols = [walk(s) for s in starts if walk(s)]
-    if not sols or any(s != sols[0] for s in sols):
-        return original
-    return sols[0]
 
 
 def create_and_save_pivots(
