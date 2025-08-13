@@ -25,4 +25,4 @@ jobs:
           fetch-depth: 0  # Required so Committed can see all commits in the PR
 
       - name: Run Committed
-        uses: astral-sh/committed-action@v1
+        uses: crate-ci/committed@v1.1.7
