@@ -234,54 +234,93 @@ def _norm(s: str) -> str:
 
 
 def sort_route_segments(segments: Iterable[str]) -> List[str]:
-    """Return original segment labels in travel order when a unique chain exists."""
-    original = list(segments)
+    """Return original segment labels in travel order when a unique chain exists.
+
+    Uses normalized nodes internally to infer order, but returns the exact original
+    SegmentName labels for compatibility with pivot-table columns. If the segments
+    do not form a single simple path (e.g., branching, loops, ambiguity), the
+    original order is returned unchanged.
+    """
+    original: List[str] = list(segments)
     if not original:
         return original
 
-    # Build mapping from normalized tuple to original label
-    norm_edges = []
-    label_for_edge = {}
+    # Build mapping from normalized edge -> original label
+    norm_edges: List[Tuple[str, str]] = []
+    label_for_edge: Dict[Tuple[str, str], str] = {}
     for seg in original:
         if " - " not in seg:
             continue
         a_raw, b_raw = seg.split(" - ", 1)
         a, b = _norm(a_raw), _norm(b_raw)
-        norm_edges.append((a, b))
-        label_for_edge[(a, b)] = seg
+        e = (a, b)
+        # Keep first-seen label for this normalized edge
+        if e not in label_for_edge:
+            label_for_edge[e] = seg
+            norm_edges.append(e)
 
-    # Successor mapping
-    succ = {}
-    indeg, outdeg = {}, {}
-    nodes = set()
+    if not norm_edges:
+        return original
+
+    # Build successor map and degree counts; reject branching immediately.
+    succ: Dict[str, str] = {}
+    indeg: Dict[str, int] = {}
+    outdeg: Dict[str, int] = {}
+    nodes: Set[str] = set()
+
     for a, b in norm_edges:
-        nodes |= {a, b}
+        nodes.update([a, b])
         if a in succ and succ[a] != b:
-            return original  # branching
+            # Branching (multiple distinct successors) -> ambiguous
+            return original
         succ[a] = b
         outdeg[a] = outdeg.get(a, 0) + 1
         indeg[b] = indeg.get(b, 0) + 1
         indeg.setdefault(a, 0)
         outdeg.setdefault(b, 0)
 
-    # Find possible starts
-    starts = [n for n in nodes if outdeg.get(n, 0) - indeg.get(n, 0) == 1] \
-             or [n for n in nodes if indeg.get(n, 0) == 0] \
-             or list(nodes)
+    # Candidate starts: prefer outdeg - indeg == 1, else nodes with indeg == 0, else all nodes.
+    starts: List[str] = (
+        [n for n in nodes if outdeg.get(n, 0) - indeg.get(n, 0) == 1]
+        or [n for n in nodes if indeg.get(n, 0) == 0]
+        or list(nodes)
+    )
 
     def walk(start: str) -> List[str]:
+        """Return ordered original labels if a full simple path exists from start."""
         used: Set[Tuple[str, str]] = set()
         order: List[str] = []
         cur: str = start
+        steps: int = 0
         while cur in succ:
             nxt: str = succ[cur]
-            edge: Tuple[str, str] = (cur, nxt)
-            if edge in used:
+            e: Tuple[str, str] = (cur, nxt)
+            if e in used:
+                # Loop detected
                 return []
-            used.add(edge)
-            order.append(label_for_edge[edge])
+            used.add(e)
+            order.append(label_for_edge[e])
             cur = nxt
+            steps += 1
+            if steps > len(norm_edges):
+                # Safety break for unexpected cycles
+                return []
+        # Accept only if every edge was used exactly once
         return order if len(used) == len(norm_edges) else []
+
+    # Try each candidate start; accept a unique full-coverage solution.
+    solutions: List[List[str]] = []
+    for s in starts:
+        sol = walk(s)
+        if sol:
+            solutions.append(sol)
+
+    if not solutions:
+        return original
+    if any(solutions[0] != s for s in solutions[1:]):
+        # Multiple distinct valid chains -> ambiguous
+        return original
+    return solutions[0]
 
 
 def create_and_save_pivots(
