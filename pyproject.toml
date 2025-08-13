@@ -35,20 +35,3 @@ unresolved-import = "warn"        # C-extension libs without stubs
 # ================================================================
 # COMMIT MESSAGE LINTING
 # ================================================================
-# ----------------------------------------------------------------
-# committed
-# ----------------------------------------------------------------
-[tool.committed]
-convention = "conventional"
-types = [
-  "build", "chore", "ci", "docs", "feat",
-  "fix", "perf", "refactor", "revert", "style", "test"
-]
-scope_required = false
-scope_case = "kebab-case"
-subject_capitalized = true
-subject_length = 72
-subject_full_stop = false
-breaking_change_token = "BREAKING CHANGE"
-
-line_length = 100
