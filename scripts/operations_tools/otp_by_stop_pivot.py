@@ -1,10 +1,10 @@
-"""Calculate OTP percentages by stop and publish user‑friendly outputs.
+"""Calculate OTP percentages by stop and publish user-friendly outputs.
 
 This script processes a raw OTP CSV export and generates user-friendly outputs
 including:
   - Recalculated OTP percentages (% On Time, % Early, % Late)
-  - Route/direction-wide pivot tables of OTP and counts by stop
-  - Stop-level summary tables of OTP performance
+  - Route/direction-wide pivot tables of OTP and counts by stop (Timepoint ID)
+  - Stop-level summary tables of OTP performance (Timepoint ID)
   - Optional filtering by route, direction, and timepoint
 
 It supports override of stop order using a custom JSON configuration file and
@@ -14,12 +14,13 @@ input dataset.
 Outputs are written to a user-specified directory, with clear filenames for each
 (route, direction) combination.
 
-TODO (future): GTFS‑synced visualizations (see stub at bottom).
+TODO (future): GTFS-synced visualizations (see stub at bottom).
 """
 
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import logging
 import sys
@@ -39,26 +40,39 @@ OUT_SUFFIX: str = "_processed"
 
 SHORT_ROUTE_FILTER: List[str] = ["101"]
 
+# When filtering by timepoints, pass **Timepoint IDs** here (not descriptions)
 TIMEPOINT_FILTER: List[str] = []
 RDT_FILTER: List[Tuple[str, str, str]] = []
 
+# Valid directions to enforce and normalize to (keep uppercase strings)
+ALLOWED_DIRECTIONS: List[str] = [
+    "NORTHBOUND",
+    "SOUTHBOUND",
+    "EASTBOUND",
+    "WESTBOUND",
+    "LOOP",
+]
+
+# TIMEPOINT_ORDER now expects **Timepoint IDs** (not descriptions)
+# Replace placeholder IDs with your real values
 TIMEPOINT_ORDER: Dict[str, List[str]] = {
     "EASTBOUND": [
-        "DULLES AIRPORT",
-        "WORLDGATE & ELDEN",
-        "HERNDON METRO STATION NORTH SIDE",
-        "RESTON TOWN CENTER METRO",
-        "WIEHE-RESTON EAST TRANSIT CTR",
+        "DAIR",  # e.g., DULLES AIRPORT
+        "WGEL",
+        "HMN",
+        "RTCM",
+        "WRETC",
     ],
     "WESTBOUND": [
-        "WIEHE-RESTON EAST TRANSIT CTR",
-        "RESTON TOWN CENTER METRO",
-        "HERNDON METRO STATION NORTH SIDE",
-        "WORLDGATE & ELDEN",
-        "DULLES AIRPORT",
+        "WRETC",
+        "RTCM",
+        "HMN",
+        "WGEL",
+        "DAIR",
     ],
 }
 
+# Optional external JSON to override TIMEPOINT_ORDER; same structure as above.
 TIMEPOINT_ORDER_FILE: Path | str | None = None
 
 # -----------------------------------------------------------------------------
@@ -82,7 +96,7 @@ def build_argparser() -> argparse.ArgumentParser:
     Returns:
     -------
     argparse.ArgumentParser
-        A parser pre‑populated with all command‑line options supported by the
+        A parser pre-populated with all command-line options supported by the
         script. The parser **does not** parse the arguments yet; call
         :py:meth:`parse_known_args` or :py:meth:`parse_args` on the returned
         object.
@@ -97,8 +111,8 @@ def build_argparser() -> argparse.ArgumentParser:
         "--timepoints",
         nargs="*",
         default=TIMEPOINT_FILTER,
-        metavar="ID",
-        help="Time‑point IDs to keep.",
+        metavar="TIMEPOINT_ID",
+        help="Time-point IDs to keep.",
     )
     p.add_argument(
         "-r",
@@ -114,8 +128,9 @@ def build_argparser() -> argparse.ArgumentParser:
         default="",
         type=str,
         help=(
-            "Route,Direction,Time‑point triples separated by ';', "
-            "e.g. '151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES'."
+            "Route,Direction,Time-point triples separated by ';', "
+            "e.g. '151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES'. Direction is "
+            "normalized to the configured allow-list."
         ),
     )
     p.add_argument("-d", "--outdir", default=OUTPUT_DIR, help="Folder for all output files.")
@@ -127,7 +142,7 @@ def build_argparser() -> argparse.ArgumentParser:
         default=TIMEPOINT_ORDER_FILE,
         type=str,
         metavar="JSON",
-        help="JSON file overriding TIMEPOINT_ORDER.",
+        help="JSON file overriding TIMEPOINT_ORDER (direction → ordered list of Timepoint IDs).",
     )
     return p
 
@@ -135,9 +150,9 @@ def build_argparser() -> argparse.ArgumentParser:
 def parse_rdt_arg(arg: str) -> List[Tuple[str, str, str]]:
     """Parse the `--rdt` option into a list of *(route, direction, timepoint)* triples.
 
-    The CLI accepts a semicolon‑delimited string such as
-    `"151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES"`.
-    Each triple is validated for three comma‑separated parts.
+    The CLI accepts a semicolon-delimited string such as
+    "151,NORTHBOUND,MHUS;152,SOUTHBOUND,MVES".
+    Each triple is validated for three comma-separated parts.
 
     Parameters
     ----------
@@ -153,7 +168,7 @@ def parse_rdt_arg(arg: str) -> List[Tuple[str, str, str]]:
     Raises:
     ------
     SystemExit
-        If a chunk does not contain exactly three comma‑separated fields.
+        If a chunk does not contain exactly three comma-separated fields.
     """
     if not arg.strip():
         return RDT_FILTER
@@ -172,9 +187,9 @@ def make_short_route(route_str: str) -> str:
 
 
 def recalc_percentages(df: pd.DataFrame) -> pd.DataFrame:
-    """Add *Total Counts* and %‑columns derived from raw on‑time/early/late counts.
+    """Add *Total Counts* and %-columns derived from raw on-time/early/late counts.
 
-    The function works in‑place but also returns the modified DataFrame to allow
+    The function works in-place but also returns the modified DataFrame to allow
     chaining.
     """
     df["Total Counts"] = (df["Sum # On Time"] + df["Sum # Early"] + df["Sum # Late"]).astype(
@@ -190,7 +205,7 @@ def recalc_percentages(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def filter_basic(df: pd.DataFrame, timepoints: List[str], routes: List[str]) -> pd.DataFrame:
-    """Sub‑set the DataFrame by *Timepoint ID* and *Short Route*."""
+    """Sub-set the DataFrame by *Timepoint ID* and *Short Route*."""
     if timepoints:
         df = df[df["Timepoint ID"].isin(timepoints)]
     if routes:
@@ -202,18 +217,16 @@ def filter_rdt(df: pd.DataFrame, triples: List[Tuple[str, str, str]]) -> pd.Data
     """Return only rows whose *(route, direction, timepoint)* matches `triples`."""
     if not triples:
         return df
-    mask = False
+    mask = pd.Series(False, index=df.index)
     for r, d, t in triples:
         mask |= (
-            (df["Short Route"] == r)
-            & (df["Direction"].str.upper() == d.upper())
-            & (df["Timepoint ID"] == t)
+            (df["Short Route"] == r) & (df["Direction"] == d.upper()) & (df["Timepoint ID"] == t)
         )
     return df[mask]
 
 
 def construct_output_path(inp: Path, outdir: str | Path, explicit: str | None) -> Path:
-    """Resolve the path for the long‑table CSV output."""
+    """Resolve the path for the long-table CSV output."""
     if explicit:
         return Path(explicit)
     return Path(outdir) / f"{inp.stem}{OUT_SUFFIX}{inp.suffix}"
@@ -228,7 +241,7 @@ def dedupe_apparent_trips(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_timepoint_order(path: str | Path | None) -> Dict[str, List[str]]:
-    """Load a JSON file that maps directions to an ordered list of stops."""
+    """Load a JSON file that maps directions to an ordered list of Timepoint IDs."""
     if path is None:
         return {k.upper(): v for k, v in TIMEPOINT_ORDER.items()}
     fp = Path(path)
@@ -240,23 +253,27 @@ def load_timepoint_order(path: str | Path | None) -> Dict[str, List[str]]:
         sys.exit(f"ERROR: invalid JSON in {fp} – {exc}")  # noqa: TRY003
     if not isinstance(obj, dict):
         sys.exit("ERROR: pattern-file root must be a JSON object.")
-    return {k.upper(): list(map(str, v)) for k, v in obj.items()}
+    # Ensure keys are uppercase directions; values are list[str] (Timepoint IDs)
+    return {str(k).upper(): list(map(str, v)) for k, v in obj.items()}
 
 
 def enforce_timepoint_order(df: pd.DataFrame, order_map: Dict[str, List[str]]) -> pd.DataFrame:
-    """Filter out rows with stops not present in the configured order list."""
+    """Filter out rows with stops not present in the configured order list.
+
+    Expects `order_map` to map directions → ordered list of **Timepoint IDs**.
+    """
     mask = df.apply(
-        lambda row: row["Timepoint Description"] in order_map.get(row["Direction"], []),
+        lambda row: row["Timepoint ID"] in order_map.get(row["Direction"], []),
         axis=1,
     )
     if not mask.all():
         unknown = (
-            df.loc[~mask, ["Direction", "Timepoint Description"]]
+            df.loc[~mask, ["Direction", "Timepoint ID"]]
             .drop_duplicates()
             .itertuples(index=False, name=None)
         )
         logging.warning(
-            "Dropped %d rows; unknown stops: %s",
+            "Dropped %d rows; unknown (Direction, Timepoint ID): %s",
             (~mask).sum(),
             "; ".join(f"{d} – {tp}" for d, tp in unknown),
         )
@@ -270,29 +287,32 @@ def pivot_route_direction(
 ) -> Dict[Tuple[str, str], pd.DataFrame]:
     """Wide table for one metric.  Guarantees every configured stop exists.
 
-    Returns { (route, direction): DataFrame } with columns:
-      TripStart | Trip | <stops…>
+    Returns:
+    -------
+    dict[tuple[str, str], pd.DataFrame]
+        Mapping (route, direction) → DataFrame with columns:
+        TripStart | Trip | <timepoint IDs…>
     """
     results: Dict[Tuple[str, str], pd.DataFrame] = {}
 
     for (route, direction), g in df.groupby(["Short Route", "Direction"]):
-        direction_uc = direction.upper()
-        cfg_stops = order_map.get(direction_uc, [])
+        direction_uc = direction  # already normalized upstream
+        cfg_ids = order_map.get(direction_uc, [])
 
-        if not cfg_stops:
-            logging.warning("Direction %s missing in TIMEPOINT_ORDER – skipped", direction)
+        if not cfg_ids:
+            logging.warning("Direction %s missing in TIMEPOINT_ORDER – skipped", direction_uc)
             continue
 
         g = g.assign(
-            TPDesc=pd.Categorical(
-                g["Timepoint Description"],
-                categories=cfg_stops,
+            TPID=pd.Categorical(
+                g["Timepoint ID"],
+                categories=cfg_ids,
                 ordered=True,
             ),
             TripStart=g["Trip"].str.split().str[0],
         )
 
-        pivot = g.pivot(index="TripStart", columns="TPDesc", values=metric)
+        pivot = g.pivot(index="TripStart", columns="TPID", values=metric)
 
         # Merge full Trip ID
         trip_lookup = (
@@ -301,18 +321,19 @@ def pivot_route_direction(
         wide = trip_lookup.join(pivot)
 
         # Ensure all configured stops appear
-        missing_cols = [s for s in cfg_stops if s not in wide.columns]
+        missing_cols = [s for s in cfg_ids if s not in wide.columns]
         if missing_cols:
             wide[missing_cols] = pd.NA
             logging.warning(
-                "[%s %s] No OTP data for stops: %s",
+                "[%s %s] No %s data for timepoints: %s",
                 route,
                 direction_uc,
+                metric,
                 "; ".join(missing_cols),
             )
 
         # Order columns
-        wide = wide[["Trip"] + cfg_stops]
+        wide = wide[["Trip"] + cfg_ids]
         wide = wide.sort_index()
 
         results[(route, direction_uc)] = wide
@@ -324,35 +345,35 @@ def summary_route_direction(
     df: pd.DataFrame,
     order_map: Dict[str, List[str]],
 ) -> Dict[Tuple[str, str], pd.DataFrame]:
-    """Create a stop‑level summary for each (route, direction).
+    """Create a stop-level summary for each (route, direction).
 
     Columns
     -------
-    Timepoint Description | AvgPct | Count
+    Timepoint ID | AvgPct | Count
         AvgPct : mean of % On Time (simple mean – see note below)
-        Count  : Σ Total Counts  (ontime + early + late events)
-
-    Warns once if a configured stop has zero observations.
+        Count  : Σ Total Counts (ontime + early + late events)
     """
     summaries: Dict[Tuple[str, str], pd.DataFrame] = {}
 
     for (route, direction), g in df.groupby(["Short Route", "Direction"]):
-        direction_uc = direction.upper()
+        direction_uc = direction  # normalized
         cfg = order_map.get(direction_uc, [])
 
         summ = (
-            g.groupby("Timepoint Description")
+            g.groupby("Timepoint ID")
             .agg(
                 AvgPct=("% On Time", "mean"),  # simple average
-                Count=("Total Counts", "sum"),  # ← FIXED
+                Count=("Total Counts", "sum"),
             )
             .reindex(cfg)
         )
+        # Reindex drops the index name; restore for a clean reset_index()
+        summ.index.name = "Timepoint ID"
 
         missing = summ[summ["Count"].isna()].index.tolist()
         if missing:
             logging.warning(
-                "[%s %s] No OTP data for stops: %s",
+                "[%s %s] No OTP data for timepoints: %s",
                 route,
                 direction_uc,
                 "; ".join(missing),
@@ -365,12 +386,47 @@ def summary_route_direction(
 
 
 # =============================================================================
+# NORMALIZATION HELPERS
+# =============================================================================
+
+
+def normalize_direction_value(value: str, allowed: List[str]) -> str:
+    """Coerce a free-text direction to one of the allowed values.
+
+    Uses difflib to guess the closest allowed label. Always returns one of
+    `allowed`. Emits a warning if the original does not exactly match.
+
+    Examples:
+        "NOTHTBOUND" -> "NORTHBOUND" (warning)
+        "north bound" -> "NORTHBOUND" (warning)
+    """
+    val = (value or "").strip().upper()
+    if val in allowed:
+        return val
+    guess = difflib.get_close_matches(val, allowed, n=1, cutoff=0.6)
+    if guess:
+        fixed = guess[0]
+        logging.warning("Direction normalized: %r → %r", value, fixed)
+        return fixed
+    logging.warning("Unrecognized direction %r; defaulting to 'LOOP'", value)
+    return "LOOP"
+
+
+def normalize_directions_column(df: pd.DataFrame, allowed: List[str]) -> pd.DataFrame:
+    """Normalize the 'Direction' column in place to the allowed list."""
+    df["Direction"] = (
+        df["Direction"].astype(str).map(lambda s: normalize_direction_value(s, allowed))
+    )
+    return df
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
 
 def main() -> None:
-    """Entry‑point guarded by ``if __name__ == "__main__"``."""
+    """Entry-point guarded by ``if __name__ == "__main__"``."""
     parser = build_argparser()
     args, _unknown = parser.parse_known_args()
 
@@ -387,6 +443,11 @@ def main() -> None:
     order_map = load_timepoint_order(args.pattern_file)
 
     df["Short Route"] = df["Route"].astype(str).apply(make_short_route)
+
+    # 1) Normalize direction to the configured list (fixes things like "NOTHTBOUND")
+    df = normalize_directions_column(df, ALLOWED_DIRECTIONS)
+
+    # 2) Percentages, filters, dedupe, and enforce configured order by **Timepoint ID**
     df = recalc_percentages(df)
     df = filter_rdt(df, rdt_triples)
     df = filter_basic(df, args.timepoints, args.routes)
@@ -414,7 +475,7 @@ def main() -> None:
         logging.info("Wrote %s* files for %s %s", stem, route, direction)
 
     # ------------------------------------------------------------------------
-    # TODO: integrate GTFS stop‑times and generate heatmaps or line plots
+    # TODO: integrate GTFS stop-times and generate heatmaps or line plots
     #       of % On Time by stop (matplotlib).  Also consider headway variance.
     # ------------------------------------------------------------------------
 
