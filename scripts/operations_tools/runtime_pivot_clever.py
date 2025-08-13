@@ -44,6 +44,7 @@ TIME_COLUMNS = {
 # FUNCTIONS
 # =============================================================================
 
+
 def load_data(file_path: str) -> pd.DataFrame:
     """Return a DataFrame from a CSV or Excel file.
 
@@ -403,6 +404,7 @@ def process_file(file_path: str, dataset_label: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Dispatch processing for each configured service period.
