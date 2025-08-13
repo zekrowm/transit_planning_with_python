@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import geopandas as gpd
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -640,23 +641,53 @@ def export_results(
     gdf_pts.to_file(out_dir / "deleted_stops.shp")
 
 
-def export_stop_maps(  # noqa: ANN001
+def export_stop_maps(
     stops: gpd.GeoDataFrame,
+    segments: gpd.GeoDataFrame,
     results: Dict[str, Dict[str, object]],
     crs: int | str,
     out_dir: Path,
 ) -> None:
-    """Save a simple PNG map per removed stop (optional backdrop)."""
+    """Save a simple PNG map per removed stop.
+
+    Changes vs. previous version:
+      * Plots BOTH the visual backdrop layer (if provided) AND the actual
+        network centerlines (segments) used to build the graph.
+      * Labels points and title with stop NAMES in addition to IDs.
+      * Displays network distance in FEET instead of miles in the title.
+    """
     if not EXPORT_MAPS:
         return
 
-    import matplotlib.pyplot as plt
+    def _feet_from_miles_str(val: object) -> str:
+        """Robustly format miles (float or '> x') as a feet string."""
+        if val is None or (isinstance(val, float) and math.isnan(val)):
+            return "N/A"
+        if isinstance(val, str) and val.strip().startswith(">"):
+            try:
+                mi = float(val.strip().lstrip(">").strip())
+                return f"> {int(round(mi * FT_PER_MILE)):,.0f} ft"
+            except Exception:  # noqa: BLE001
+                return str(val)
+        try:
+            mi = float(val)  # handles ints/floats/num-strings
+            return f"{int(round(mi * FT_PER_MILE)):,.0f} ft"
+        except Exception:  # noqa: BLE001
+            return str(val)
 
     map_dir = out_dir / "maps"
     map_dir.mkdir(parents=True, exist_ok=True)
 
     sidewalks_backdrop = _load_backdrop_layer_for_plots(PLOT_SIDEWALKS_SHP, crs)
-    geom_by_id: dict[str, Point] = dict(zip(stops.stop_id, stops.geometry))
+
+    # Quick lookups
+    geom_by_id: dict[str, Point] = dict(zip(stops.stop_id.astype(str), stops.geometry))
+    name_by_id: dict[str, str] = dict(
+        zip(
+            stops.stop_id.astype(str),
+            stops.get("stop_name", pd.Series("", index=stops.index)).astype(str),
+        )
+    )
 
     for sid, rec in results.items():
         path = rec["path_geom"]
@@ -664,27 +695,74 @@ def export_stop_maps(  # noqa: ANN001
         if path is None or tgt_sid is None:
             continue
 
-        removed_pt = geom_by_id[sid]
-        kept_pt = geom_by_id[tgt_sid]
+        sid = str(sid)
+        tgt_sid = str(tgt_sid)
+
+        removed_pt = geom_by_id.get(sid)
+        kept_pt = geom_by_id.get(tgt_sid)
+        if removed_pt is None or kept_pt is None:
+            continue
+
+        removed_name = name_by_id.get(sid, "")
+        kept_name = name_by_id.get(tgt_sid, "")
 
         g_path = gpd.GeoSeries([path], crs=crs)
-        g_rm = gpd.GeoSeries([removed_pt], crs=crs)
-        g_kept = gpd.GeoSeries([kept_pt], crs=crs)
 
+        # Figure & axes
         fig, ax = plt.subplots(figsize=(4, 4), dpi=200)
 
+        # Backdrop (optional)
         _plot_backdrop_within_bounds(ax, sidewalks_backdrop, tuple(g_path.total_bounds), crs)
 
-        g_path.plot(ax=ax, linewidth=2, zorder=1)
-        g_rm.plot(ax=ax, color="red", markersize=35, zorder=3)
-        g_kept.plot(ax=ax, color="green", markersize=35, zorder=3)
+        # Plot the ACTUAL network centerlines used to build the graph (clipped to view)
+        xmin, ymin, xmax, ymax = g_path.total_bounds
+        pad = SIDEWALK_BACKDROP_PAD_FT
+        clip_poly = box(xmin - pad, ymin - pad, xmax + pad, ymax + pad)
+        try:
+            seg_sub = segments[segments.geometry.intersects(clip_poly)].copy()
+            if not seg_sub.empty:
+                try:
+                    seg_sub = gpd.clip(seg_sub, clip_poly)
+                except Exception:  # noqa: BLE001
+                    pass
+                # Slightly heavier than backdrop so it's visible beneath the path
+                seg_sub.plot(ax=ax, linewidth=0.8, alpha=0.8, zorder=1)
+        except Exception as exc:  # noqa: BLE001
+            logging.debug("Segment clip/plot failed: %s", exc)
+
+        # Path and points
+        g_path.plot(ax=ax, linewidth=2.0, zorder=2)
+        gpd.GeoSeries([removed_pt], crs=crs).plot(ax=ax, color="red", markersize=35, zorder=3)
+        gpd.GeoSeries([kept_pt], crs=crs).plot(ax=ax, color="green", markersize=35, zorder=3)
+
+        # Labels (names + IDs) with a small offset
+        ax.annotate(
+            f"{removed_name} ({sid})",
+            xy=(removed_pt.x, removed_pt.y),
+            xytext=(3, 3),
+            textcoords="offset points",
+            fontsize=7,
+            zorder=4,
+        )
+        ax.annotate(
+            f"{kept_name} ({tgt_sid})",
+            xy=(kept_pt.x, kept_pt.y),
+            xytext=(3, 3),
+            textcoords="offset points",
+            fontsize=7,
+            zorder=4,
+        )
+
+        # Title: network distance in FEET
+        dist_ft_txt = _feet_from_miles_str(rec.get("network_dist_miles"))
+        title = (
+            f"Deleted {removed_name} ({sid}) \u2192 "
+            f"{kept_name} ({tgt_sid}) [Network: {dist_ft_txt}]"
+        )
+        ax.set_title(title, fontsize=8)
 
         ax.set_aspect("equal")
         ax.set_axis_off()
-
-        dist_txt = rec["network_dist_miles"]
-        title = f"Deleted stop {sid} \u2192 {tgt_sid} ({dist_txt} mi)"
-        ax.set_title(title, fontsize=8)
 
         fig.tight_layout()
         fig.savefig(map_dir / f"{sid}.png", dpi=200, bbox_inches="tight", pad_inches=0.05)
@@ -856,7 +934,7 @@ def main() -> None:
 
     logging.info("Exporting CSV and shapefiles …")
     export_results(results, TARGET_CRS, OUTPUT_DIR)
-    export_stop_maps(stops, results, TARGET_CRS, OUTPUT_DIR)
+    export_stop_maps(stops, segments, results, TARGET_CRS, OUTPUT_DIR)
 
     if not lost_cov.empty:
         lost_cov.to_file(OUTPUT_DIR / "lost_coverage.shp")
