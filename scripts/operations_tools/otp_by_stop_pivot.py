@@ -220,9 +220,7 @@ def filter_rdt(df: pd.DataFrame, triples: List[Tuple[str, str, str]]) -> pd.Data
     mask = pd.Series(False, index=df.index)
     for r, d, t in triples:
         mask |= (
-            (df["Short Route"] == r)
-            & (df["Direction"] == d.upper())
-            & (df["Timepoint ID"] == t)
+            (df["Short Route"] == r) & (df["Direction"] == d.upper()) & (df["Timepoint ID"] == t)
         )
     return df[mask]
 
@@ -289,7 +287,7 @@ def pivot_route_direction(
 ) -> Dict[Tuple[str, str], pd.DataFrame]:
     """Wide table for one metric.  Guarantees every configured stop exists.
 
-    Returns
+    Returns:
     -------
     dict[tuple[str, str], pd.DataFrame]
         Mapping (route, direction) → DataFrame with columns:
@@ -416,7 +414,9 @@ def normalize_direction_value(value: str, allowed: List[str]) -> str:
 
 def normalize_directions_column(df: pd.DataFrame, allowed: List[str]) -> pd.DataFrame:
     """Normalize the 'Direction' column in place to the allowed list."""
-    df["Direction"] = df["Direction"].astype(str).map(lambda s: normalize_direction_value(s, allowed))
+    df["Direction"] = (
+        df["Direction"].astype(str).map(lambda s: normalize_direction_value(s, allowed))
+    )
     return df
 
 
