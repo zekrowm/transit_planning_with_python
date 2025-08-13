@@ -15,7 +15,7 @@ Run the script from ArcGIS Pro’s Python window or a Jupyter notebook.
 from __future__ import annotations
 
 import os
-from typing import List, Mapping, Optional, Sequence, Union, Iterable, Tuple, Dict, Set
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, Union
 
 import pandas as pd
 
