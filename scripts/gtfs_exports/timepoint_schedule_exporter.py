@@ -75,6 +75,7 @@ OPTIONAL_GTFS_FILES: tuple[str, ...] = (
 # FUNCTIONS
 # =============================================================================
 
+
 def format_output_folder_name(service_id: str, schedule_type: str) -> str:
     """Return an output folder name reflecting the schedule label and service_id.
 
@@ -91,14 +92,7 @@ def _in_ipython() -> bool:
 
 def _slugify(label: str) -> str:
     """Return a filesystem-friendly slug from a schedule label."""
-    return (
-        str(label)
-        .strip()
-        .lower()
-        .replace(" ", "_")
-        .replace("-", "_")
-        .replace("/", "_")
-    )
+    return str(label).strip().lower().replace(" ", "_").replace("-", "_").replace("/", "_")
 
 
 def time_to_minutes(time_str: str) -> Optional[int]:
@@ -708,6 +702,7 @@ def export_to_excel_multiple_sheets(
 # SUB-STEPS
 # -----------------------------------------------------------------------------
 
+
 def filter_calendar_df(
     calendar_df: pd.DataFrame,
 ) -> Optional[pd.DataFrame]:
@@ -828,6 +823,7 @@ def process_route_service_combinations(ctx: dict[str, Any]) -> None:
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
 
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[Sequence[str]] = None,
@@ -858,8 +854,7 @@ def load_gtfs_data(
     # Default behavior: required + optional that actually exist
     if files is None:
         files = list(REQUIRED_GTFS_FILES) + [
-            f for f in OPTIONAL_GTFS_FILES
-            if os.path.exists(os.path.join(gtfs_folder_path, f))
+            f for f in OPTIONAL_GTFS_FILES if os.path.exists(os.path.join(gtfs_folder_path, f))
         ]
 
     # Validate presence for the provided list
@@ -897,6 +892,7 @@ def load_gtfs_data(
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
     """Coordinate the end-to-end GTFS → Excel workflow."""
     logging.basicConfig(
@@ -908,8 +904,7 @@ def main() -> None:
     # Build file list: required + optional that actually exist
     files_to_load = list(REQUIRED_GTFS_FILES)
     files_to_load += [
-        f for f in OPTIONAL_GTFS_FILES
-        if os.path.exists(os.path.join(GTFS_FOLDER_PATH, f))
+        f for f in OPTIONAL_GTFS_FILES if os.path.exists(os.path.join(GTFS_FOLDER_PATH, f))
     ]
 
     # Load GTFS data
