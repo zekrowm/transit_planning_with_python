@@ -28,23 +28,77 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER_PATH = r"C:\Path\To\Your\GTFS_Folder"  # Contains GTFS .txt files
+GTFS_FOLDER_PATH = r"C:\Path\To\Your\GTFS_Folder"  # Folder contains GTFS .txt files
 
 BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output_Folder"
 if not os.path.exists(BASE_OUTPUT_PATH):
     os.makedirs(BASE_OUTPUT_PATH)
 
-FILTER_SERVICE_IDS: list[str] = []  # e.g. ["1", "2"]
-FILTER_IN_ROUTES: list[str] = []  # routes to keep
+# Filter service id's can be found in calendar.txt file
+FILTER_SERVICE_IDS: list[str] = ["1", "2", "3"]
+FILTER_IN_ROUTES: list[str] = ["101", "202"]  # routes to keep
 FILTER_OUT_ROUTES: list[str] = []  # routes to exclude
+
+# Explicit schedule label overrides for the selected service_ids
+# Assignments can be found in calendar.txt file
+SERVICE_LABEL_OVERRIDES: dict[str, str] = {
+    "1": "Weekday",
+    "2": "Saturday",
+    "3": "Sunday",
+}
 
 TIME_FORMAT_OPTION = "24"  # "12" or "24"
 MISSING_TIME = "---"
 MAX_COLUMN_WIDTH = 30
 
+# Required and optional GTFS files
+REQUIRED_GTFS_FILES: tuple[str, ...] = (
+    "agency.txt",
+    "stops.txt",
+    "routes.txt",
+    "trips.txt",
+    "stop_times.txt",
+    "calendar.txt",
+)
+
+OPTIONAL_GTFS_FILES: tuple[str, ...] = (
+    "calendar_dates.txt",
+    "feed_info.txt",
+    "shapes.txt",
+    "frequencies.txt",
+    "transfers.txt",
+    "fare_attributes.txt",
+    "fare_rules.txt",
+)
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
+def format_output_folder_name(service_id: str, schedule_type: str) -> str:
+    """Return an output folder name reflecting the schedule label and service_id.
+
+    Example:
+        Weekday (service_id=15) → 'weekday_sid_15'
+    """
+    return f"{_slugify(schedule_type)}_sid_{service_id}"
+
+
+def _in_ipython() -> bool:
+    """Return True if running under IPython/Jupyter."""
+    return "IPYKERNEL" in os.environ or hasattr(sys, "ps1")
+
+
+def _slugify(label: str) -> str:
+    """Return a filesystem-friendly slug from a schedule label."""
+    return (
+        str(label)
+        .strip()
+        .lower()
+        .replace(" ", "_")
+        .replace("-", "_")
+        .replace("/", "_")
+    )
 
 
 def time_to_minutes(time_str: str) -> Optional[int]:
@@ -297,11 +351,22 @@ def map_service_id_to_schedule(service_row_local: pd.Series) -> str:
 
 
 def build_service_id_schedule_map(calendar_df: pd.DataFrame) -> dict[str, str]:
-    """Create ``service_id → schedule_type`` lookup."""
-    service_id_schedule_map = {}
+    """Create service_id → schedule_type lookup with explicit overrides.
+
+    Args:
+        calendar_df: The parsed calendar.txt dataframe filtered to relevant services.
+
+    Returns:
+        Mapping from service_id to a human-friendly schedule label (e.g., "Weekday").
+        Explicit overrides from SERVICE_LABEL_OVERRIDES take precedence; otherwise
+        labels are inferred from the weekday/weekend bit flags.
+    """
+    service_id_schedule_map: dict[str, str] = {}
     for _, service_row_local in calendar_df.iterrows():
         sid_val = service_row_local["service_id"]
-        stype_var = map_service_id_to_schedule(service_row_local)
+        stype_var = SERVICE_LABEL_OVERRIDES.get(
+            sid_val, map_service_id_to_schedule(service_row_local)
+        )
         service_id_schedule_map[sid_val] = stype_var
     return service_id_schedule_map
 
@@ -639,35 +704,9 @@ def export_to_excel_multiple_sheets(
         logging.error(f"Failed to export to Excel file {out_file}. Error: {e}")
 
 
-def format_service_id_folder_name(service_row: pd.Series) -> str:
-    """Return a folder slug such as ``'calendar_3_mon_tue_wed_thu_fri'``."""
-    service_id = service_row["service_id"]
-    day_map = [
-        ("monday", "mon"),
-        ("tuesday", "tue"),
-        ("wednesday", "wed"),
-        ("thursday", "thu"),
-        ("friday", "fri"),
-        ("saturday", "sat"),
-        ("sunday", "sun"),
-    ]
-    included_days = []
-    for col, short_day in day_map:
-        if service_row.get(col, "0") == "1":
-            included_days.append(short_day)
-
-    if included_days:
-        day_str = "_".join(included_days)
-    else:
-        day_str = "none"  # or "holiday" if calendar_dates is used for this
-
-    return f"calendar_{service_id}_{day_str}"
-
-
 # -----------------------------------------------------------------------------
 # SUB-STEPS
 # -----------------------------------------------------------------------------
-
 
 def filter_calendar_df(
     calendar_df: pd.DataFrame,
@@ -684,7 +723,14 @@ def filter_calendar_df(
 
 
 def process_route_service_combinations(ctx: dict[str, Any]) -> None:
-    """Loop through every ``route × service_id`` and export schedule files."""
+    """Loop through every route × service_id and export schedule files.
+
+    Args:
+        ctx: Context with dataframes and configuration, including:
+            - routes, trips, stops, calendar, timepoints
+            - service_id_schedule_map
+            - time_fmt
+    """
     routes_df = ctx["routes"]
     trips_df = ctx["trips"]
     calendar_df = ctx["calendar"]
@@ -694,49 +740,55 @@ def process_route_service_combinations(ctx: dict[str, Any]) -> None:
     # 1) Determine final routes to process
     all_routes = get_all_route_short_names(routes_df)
     final_routes = apply_in_out_filters(all_routes)
-    logging.info(f"Final route selection after filters: {final_routes}")  # Changed to logging
+    logging.info("Final route selection after filters: %s", final_routes)
 
     # 2) For each route, build schedules by direction & service_id
     for route_short_name in final_routes:
-        logging.info(f"\nProcessing route '{route_short_name}'...")  # Changed to logging
+        logging.info("Processing route '%s'...", route_short_name)
         route_ids = routes_df[routes_df["route_short_name"] == route_short_name]["route_id"]
         if route_ids.empty:
-            logging.error(
-                f"Error: Route '{route_short_name}' not found in routes.txt."
-            )  # Changed to logging
+            logging.error("Error: Route '%s' not found in routes.txt.", route_short_name)
             continue
 
         for _, service_row in calendar_df.iterrows():
             service_id = service_row["service_id"]
-            folder_name = format_service_id_folder_name(service_row)
+            schedule_type = service_id_schedule_map.get(service_id, "Unknown")
+
+            # Folder now reflects the override label (and the service_id)
+            folder_name = format_output_folder_name(service_id, schedule_type)
             service_output_path = os.path.join(BASE_OUTPUT_PATH, folder_name)
             if not os.path.exists(service_output_path):
                 os.makedirs(service_output_path)
-
-            schedule_type = service_id_schedule_map.get(service_id, "Unknown")
 
             # Filter trips for this route + this service_id
             relevant_trips = trips_df[
                 (trips_df["route_id"].isin(route_ids)) & (trips_df["service_id"] == service_id)
             ]
             if relevant_trips.empty:
-                logging.info(  # Changed to logging
-                    f"  No trips for route='{route_short_name}' and service_id='{service_id}'."
+                logging.info(
+                    "  No trips for route='%s' and service_id='%s' (%s).",
+                    route_short_name,
+                    service_id,
+                    schedule_type,
                 )
                 continue
 
-            direction_ids_local = relevant_trips["direction_id"].dropna().unique()  # Added dropna()
-            df_sheets = {}
+            direction_ids_local = relevant_trips["direction_id"].dropna().unique()
+            df_sheets: dict[str, pd.DataFrame] = {}
             for dir_id in direction_ids_local:
-                logging.info(  # Changed to logging
-                    f"    Building direction_id '{dir_id}' for service_id='{service_id}'..."
+                logging.info(
+                    "    Building direction_id '%s' for service_id='%s' (%s)...",
+                    dir_id,
+                    service_id,
+                    schedule_type,
                 )
                 master_trip_stops = get_master_trip_stops(
                     dir_id, relevant_trips, timepoints_df, ctx["stops"]
                 )
                 if master_trip_stops.empty:
                     logging.info(
-                        f"      No master trip stops for direction_id '{dir_id}'. Skipping this direction."
+                        "      No master trip stops for direction_id '%s'. Skipping this direction.",
+                        dir_id,
                     )
                     continue
 
@@ -754,28 +806,27 @@ def process_route_service_combinations(ctx: dict[str, Any]) -> None:
                     sheet_name = f"Direction_{dir_id}"
                     df_sheets[sheet_name] = output_df
                 else:
-                    logging.info(f"      No output data for direction_id '{dir_id}'.")
+                    logging.info("      No output data for direction_id '%s'.", dir_id)
 
             if df_sheets:
-                schedule_type_safe = (
-                    schedule_type.replace(" ", "_").replace("-", "_").replace("/", "_")
-                )
+                schedule_type_safe = _slugify(schedule_type)
                 out_file = os.path.join(
                     service_output_path,
                     f"route_{route_short_name}_schedule_{schedule_type_safe}.xlsx",
                 )
                 export_to_excel_multiple_sheets(df_sheets, out_file)
             else:
-                logging.info(  # Changed to logging
-                    f"  No data to export for service_id '{service_id}' "
-                    f"on route '{route_short_name}'."
+                logging.info(
+                    "  No data to export for service_id '%s' (%s) on route '%s'.",
+                    service_id,
+                    schedule_type,
+                    route_short_name,
                 )
 
 
 # -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
 # -----------------------------------------------------------------------------
-
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -784,47 +835,34 @@ def load_gtfs_data(
 ) -> dict[str, pd.DataFrame]:
     """Load one or more GTFS text files into memory.
 
+    Loads required GTFS files and any optional files that exist. Raises on missing
+    required files but not on optional ones.
+
     Args:
-        gtfs_folder_path: Absolute or relative path to the folder
-            containing the GTFS feed.
-        files: Explicit sequence of file names to load. If ``None``,
-            the standard 13 GTFS text files are attempted.
-        dtype: Value forwarded to :pyfunc:`pandas.read_csv(dtype=…)` to
-            control column dtypes. Supply a mapping for per-column dtypes.
+        gtfs_folder_path: Path to folder containing the GTFS feed.
+        files: Explicit sequence of file names to load. If None, defaults to
+            REQUIRED_GTFS_FILES plus any OPTIONAL_GTFS_FILES found.
+        dtype: Passed to pandas.read_csv(dtype=…) to control column dtypes.
 
     Returns:
-        Mapping of file stem → :class:`pandas.DataFrame`; for example,
-        ``data["trips"]`` holds the parsed *trips.txt* table.
+        Mapping of file stem → dataframe, e.g., data["trips"].
 
     Raises:
-        OSError: Folder missing or one of *files* not present.
+        OSError: Folder missing or requested file not present.
         ValueError: Empty file or CSV parser failure.
-        RuntimeError: Generic OS error while reading a file.
-
-    Notes:
-        All columns default to ``str`` to avoid pandas’ type-inference
-        pitfalls (e.g. leading zeros in IDs).
+        RuntimeError: OS error while reading a file.
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
+    # Default behavior: required + optional that actually exist
     if files is None:
-        files = (
-            "agency.txt",
-            "stops.txt",
-            "routes.txt",
-            "trips.txt",
-            "stop_times.txt",
-            "calendar.txt",
-            "calendar_dates.txt",
-            "fare_attributes.txt",
-            "fare_rules.txt",
-            "feed_info.txt",
-            "frequencies.txt",
-            "shapes.txt",
-            "transfers.txt",
-        )
+        files = list(REQUIRED_GTFS_FILES) + [
+            f for f in OPTIONAL_GTFS_FILES
+            if os.path.exists(os.path.join(gtfs_folder_path, f))
+        ]
 
+    # Validate presence for the provided list
     missing = [
         file_name
         for file_name in files
@@ -841,15 +879,12 @@ def load_gtfs_data(
             df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
-
         except pd.errors.EmptyDataError as exc:
             raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
-
         except pd.errors.ParserError as exc:
             raise ValueError(
                 f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
-
         except OSError as exc:
             raise RuntimeError(
                 f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
@@ -862,69 +897,78 @@ def load_gtfs_data(
 # MAIN
 # =============================================================================
 
-
 def main() -> None:
-    """Coordinate the end-to-end GTFS → Excel workflow.
-
-    Steps
-    1. Read GTFS text files.
-    2. Optionally subset *calendar.txt*.
-    3. Identify timepoints.
-    4. Build a ``service_id → schedule_type`` map.
-    5. Produce Excel schedules.
-    """
-    # Configure basic logging
+    """Coordinate the end-to-end GTFS → Excel workflow."""
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # 1) Load GTFS data
-    try:
-        # Use the new load_gtfs_data, passing GTFS_FOLDER_PATH
-        data = load_gtfs_data(GTFS_FOLDER_PATH, dtype=str)
-        logging.info("Successfully loaded GTFS files overall.")  # Main success message
-    except OSError as error:  # Catches directory not found, missing files from new function
-        logging.error(f"GTFS data loading error (OS): {error}")
-        sys.exit(1)
-    except ValueError as error:  # Catches empty file, parser errors from new function
-        logging.error(f"GTFS data loading error (Value): {error}")
-        sys.exit(1)
-    except RuntimeError as error:  # Catches OS errors during file reading from new function
-        logging.error(f"GTFS data loading error (Runtime): {error}")
-        sys.exit(1)
-    except Exception as error:  # Catch any other unexpected error during loading
-        logging.error(f"An unexpected error occurred while loading GTFS files: {error}")
-        sys.exit(1)
+    # Build file list: required + optional that actually exist
+    files_to_load = list(REQUIRED_GTFS_FILES)
+    files_to_load += [
+        f for f in OPTIONAL_GTFS_FILES
+        if os.path.exists(os.path.join(GTFS_FOLDER_PATH, f))
+    ]
 
-    # 2) Filter service IDs if any
+    # Load GTFS data
+    try:
+        data = load_gtfs_data(GTFS_FOLDER_PATH, files=tuple(files_to_load), dtype=str)
+        logging.info("Successfully loaded GTFS files overall.")
+    except OSError as error:
+        logging.error("GTFS data loading error (OS): %s", error)
+        if _in_ipython():
+            return
+        raise
+    except ValueError as error:
+        logging.error("GTFS data loading error (Value): %s", error)
+        if _in_ipython():
+            return
+        raise
+    except RuntimeError as error:
+        logging.error("GTFS data loading error (Runtime): %s", error)
+        if _in_ipython():
+            return
+        raise
+    except Exception as error:
+        logging.error("An unexpected error occurred while loading GTFS files: %s", error)
+        if _in_ipython():
+            return
+        raise
+
+    # Ensure required tables are present
     if "calendar" not in data:
         logging.error("Error: 'calendar.txt' not found in loaded GTFS data. Exiting.")
-        sys.exit(1)
+        if _in_ipython():
+            return
+        raise RuntimeError("'calendar.txt' missing from loaded GTFS data.")
+
     calendar_df_filtered = filter_calendar_df(data["calendar"])
     if calendar_df_filtered is None:
-        # filter_calendar_df already logs a warning if it becomes empty.
-        # We exit here because subsequent steps depend on it.
         logging.info("Exiting due to no service IDs to process.")
-        return  # Exit main
+        return
 
-    # 3) Prepare timepoints
     if "stop_times" not in data:
         logging.error("Error: 'stop_times.txt' not found in loaded GTFS data. Exiting.")
-        sys.exit(1)
+        if _in_ipython():
+            return
+        raise RuntimeError("'stop_times.txt' missing from loaded GTFS data.")
     timepoints_df = prepare_timepoints(data["stop_times"])
 
-    # 4) Build service_id => schedule_type
+    # Build service_id => schedule_type (with overrides)
     service_id_schedule_map = build_service_id_schedule_map(calendar_df_filtered)
+    for sid in FILTER_SERVICE_IDS:
+        logging.info("Service %s → %s", sid, service_id_schedule_map.get(sid, "<missing>"))
 
-    # 5) Build a context dict to reduce argument counts
-    # Ensure all required data keys exist before adding to ctx
+    # Build context
     required_data_keys = ["stops", "trips", "routes"]
     for key in required_data_keys:
         if key not in data:
-            logging.error(f"Error: '{key}.txt' not found in loaded GTFS data. Exiting.")
-            sys.exit(1)
+            logging.error("Error: '%s.txt' not found in loaded GTFS data. Exiting.", key)
+            if _in_ipython():
+                return
+            raise RuntimeError(f"'{key}.txt' missing from loaded GTFS data.")
 
     ctx = {
         "calendar": calendar_df_filtered,
@@ -936,13 +980,15 @@ def main() -> None:
         "routes": data["routes"],
     }
 
-    # Final step: process route + service combos
+    # Produce schedules
     try:
         process_route_service_combinations(ctx)
         logging.info("Script finished successfully.")
     except Exception as e:
-        logging.error(f"An error occurred during schedule processing: {e}", exc_info=True)
-        sys.exit(1)
+        logging.error("An error occurred during schedule processing: %s", e, exc_info=True)
+        if _in_ipython():
+            return
+        raise
 
 
 if __name__ == "__main__":
