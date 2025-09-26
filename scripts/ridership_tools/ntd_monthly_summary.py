@@ -90,6 +90,7 @@ TIME_WINDOWS: Final[list[TimeWindow]] = [
     TimeWindow("FY23", datetime(2022, 7, 1), datetime(2023, 6, 30)),
     TimeWindow("FY24", datetime(2023, 7, 1), datetime(2024, 6, 30)),
     TimeWindow("FY25", datetime(2024, 7, 1), datetime(2025, 6, 30)),
+    TimeWindow("FY26", datetime(2025, 7, 1), datetime(2026, 6, 30)),
     # TimeWindow("Summer2024", datetime(2024, 6, 1), datetime(2024, 8, 31)),
 ]
 
