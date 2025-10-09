@@ -36,6 +36,10 @@ OUTPUT_DIR: Path | None = Path(r"\\Path\\To\\Output\\Folder")  # e.g. r"C:\Data\
 ROUTES: List[str] = []  # keep these (empty → keep all)
 ROUTES_EXCLUDE: List[str] = []  # drop these (empty → drop none)
 
+# If True → aggregate across all selected routes at the same stop (adds a "ROUTES" column).
+# If False → keep routes separate in aggregations (adds/retains a "ROUTE_NAME" column).
+AGGREGATE_ROUTES_TOGETHER: bool = True
+
 # Optional STOP_IDS filter list
 STOP_IDS: List[int] = []  # keep these (empty → keep all)
 
@@ -104,23 +108,26 @@ def bin_ridership_value(value: float) -> str:
     return "25 or more"
 
 
-def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate boardings/alightings by (STOP, STOP_ID).
+def aggregate_by_stop(
+    data_subset: pd.DataFrame,
+    *,
+    aggregate_routes_together: bool,
+) -> pd.DataFrame:
+    """Aggregate boardings/alightings by stop, with optional cross-route rollup.
+
+    When ``aggregate_routes_together`` is True, rows for different routes serving the
+    same stop are summed together and a ``ROUTES`` column lists the unique routes.
+    When False, routes are *not* combined; the output is keyed by ``ROUTE_NAME``,
+    ``STOP``, and ``STOP_ID``. In that case, ``ROUTE_NAME`` is a regular column.
 
     Args:
-        data_subset: A DataFrame that *already* contains only the rows
-            of interest for aggregation.
+        data_subset: DataFrame already filtered to rows of interest.
+        aggregate_routes_together: If True, aggregate across routes at a stop.
 
     Returns:
-        A DataFrame with one row per stop and three new columns:
-        ``BOARD_ALL_TOTAL``, ``ALIGHT_ALL_TOTAL``, and ``ROUTES`` (a
-        comma-separated list of all unique route names serving that stop).
-
-    Notes:
-        * ROUTE_NAME is force-cast to ``str`` to avoid ``TypeError`` when
-          joining.
-        * Only the columns required for aggregation are read to silence a
-          pandas FutureWarning about dropping invalid columns.
+        Aggregated DataFrame with ``BOARD_ALL_TOTAL`` and ``ALIGHT_ALL_TOTAL`` plus:
+          * If together:  one row per (STOP, STOP_ID) and a ``ROUTES`` column.
+          * If separate:  one row per (ROUTE_NAME, STOP, STOP_ID).
     """
     cols_needed: List[str] = [
         "STOP",
@@ -130,26 +137,36 @@ def aggregate_by_stop(data_subset: pd.DataFrame) -> pd.DataFrame:
         "ROUTE_NAME",
     ]
     subset: pd.DataFrame = data_subset[cols_needed].copy()
-
     subset["ROUTE_NAME"] = subset["ROUTE_NAME"].astype(str).str.strip()
 
-    aggregated: pd.DataFrame = (
-        subset.groupby(["STOP", "STOP_ID"], as_index=False)
-        .agg(
-            {
-                "BOARD_ALL": "sum",
-                "ALIGHT_ALL": "sum",
-                "ROUTE_NAME": lambda x: ", ".join(sorted(x.unique())),
-            }
+    if aggregate_routes_together:
+        grouping_cols: List[str] = ["STOP", "STOP_ID"]
+        aggregated: pd.DataFrame = (
+            subset.groupby(grouping_cols, as_index=False)
+            .agg(
+                {
+                    "BOARD_ALL": "sum",
+                    "ALIGHT_ALL": "sum",
+                    "ROUTE_NAME": lambda x: ", ".join(sorted(pd.Series(x).dropna().unique())),
+                }
+            )
+            .rename(
+                columns={
+                    "BOARD_ALL": "BOARD_ALL_TOTAL",
+                    "ALIGHT_ALL": "ALIGHT_ALL_TOTAL",
+                    "ROUTE_NAME": "ROUTES",
+                }
+            )
         )
-        .rename(
-            columns={
-                "BOARD_ALL": "BOARD_ALL_TOTAL",
-                "ALIGHT_ALL": "ALIGHT_ALL_TOTAL",
-                "ROUTE_NAME": "ROUTES",
-            }
+    else:
+        # Keep routes separate in the aggregates.
+        grouping_cols = ["ROUTE_NAME", "STOP", "STOP_ID"]
+        aggregated = (
+            subset.groupby(grouping_cols, as_index=False)
+            .agg({"BOARD_ALL": "sum", "ALIGHT_ALL": "sum"})
+            .rename(columns={"BOARD_ALL": "BOARD_ALL_TOTAL", "ALIGHT_ALL": "ALIGHT_ALL_TOTAL"})
         )
-    )
+
     return aggregated
 
 
@@ -335,19 +352,31 @@ def adjust_excel_formatting(output_file: Path) -> None:
 def process_aggregations(
     filtered_data: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame], pd.DataFrame]:
-    """Central orchestration of rounding/bucketing + aggregation.
+    """Orchestrate rounding/bucketing and aggregation for output sheets.
+
+    This function:
+      1) Standardizes ``ROUTE_NAME`` as ``str``.
+      2) Builds per-period slices if ``TIME_PERIODS`` is set.
+      3) Aggregates for "All Time Periods" and each time-period slice.
+         The cross-route behavior is controlled by
+         ``AGGREGATE_ROUTES_TOGETHER``:
+           * True  → one row per (STOP, STOP_ID) with ``ROUTES`` listing routes.
+           * False → one row per (ROUTE_NAME, STOP, STOP_ID).
+      4) Optionally rounds the "Original" sheet numeric columns.
+      5) Applies binning or rounding to the aggregated totals.
 
     Args:
         filtered_data: The DataFrame *after* optional route/stop filtering.
+            Must contain at least the columns listed in ``REQUIRED_COLUMNS``.
 
     Returns:
         A 3-tuple:
-            * Final version of ``filtered_data`` (possibly rounded).
-            * Mapping ``TIME_PERIOD → aggregated DataFrame``.
+            * Final version of ``filtered_data`` (possibly rounded for "Original").
+            * Mapping ``TIME_PERIOD → aggregated DataFrame`` (sheet-ready).
             * Aggregation across *all* rows and periods.
     """
     # ──────────────────────────────────────────────────────────────────
-    # 0. Standardise ROUTE_NAME to string before any aggregation
+    # 0. Standardize ROUTE_NAME to string before any aggregation
     # ──────────────────────────────────────────────────────────────────
     filtered_data["ROUTE_NAME"] = filtered_data["ROUTE_NAME"].astype(str).str.strip()
 
@@ -358,17 +387,22 @@ def process_aggregations(
     if TIME_PERIODS:
         for period in TIME_PERIODS:
             subset = filtered_data[filtered_data["TIME_PERIOD"] == period.upper()]
+            # Keep only the columns needed for the "Original" per-period sheet seeds
             peak_data_dict[period] = subset[list(COLUMNS_TO_RETAIN)]
 
     # ──────────────────────────────────────────────────────────────────
-    # 2. Aggregate (all-time + each slice)
+    # 2. Aggregate (all-time + each slice); route roll-up is configurable
     # ──────────────────────────────────────────────────────────────────
-    all_time_aggregated: pd.DataFrame = aggregate_by_stop(filtered_data)
+    all_time_aggregated: pd.DataFrame = aggregate_by_stop(
+        filtered_data, aggregate_routes_together=AGGREGATE_ROUTES_TOGETHER
+    )
 
     aggregated_peaks: Dict[str, pd.DataFrame] = {}
     if TIME_PERIODS:
         for period, data_subset in peak_data_dict.items():
-            aggregated_peaks[period] = aggregate_by_stop(data_subset)
+            aggregated_peaks[period] = aggregate_by_stop(
+                data_subset, aggregate_routes_together=AGGREGATE_ROUTES_TOGETHER
+            )
 
     # ──────────────────────────────────────────────────────────────────
     # 3. Optional rounding for "Original" sheet
