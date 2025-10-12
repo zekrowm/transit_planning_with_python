@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - '**'   # allow pushes on any branch to trigger CI
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install tooling
+        run: |
+          python -m pip install -U pip
+          pip install pytest pytest-cov ruff pandas
+
+      - name: Lint (optional)
+        run: |
+          ruff format --check .
+          ruff check --output-format=github .
+
+      - name: Run tests with coverage
+        env:
+          PYTHONPATH: "."
+        run: |
+          pytest -q --cov=helpers --cov-report=term-missing:skip-covered

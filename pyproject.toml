@@ -20,6 +20,10 @@ select   = ["I", "F", "D", "ANN", "TCH"]
 fixable  = ["F401", "D", "I"]
 ignore   = ["ANN401", "TC002", "TC003"]
 
+[tool.ruff.lint.per-file-ignores]
+# Keep tests lean: skip module docstrings and param annotations for fixtures.
+"tests/**/*" = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "ANN001"]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 

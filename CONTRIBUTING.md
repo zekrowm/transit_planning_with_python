@@ -39,12 +39,35 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 
 ## 🧪 Testing & Review
 
-- **Manual testing is required** before submitting a pull request. There are no automated tests yet.
 - All commits must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
 - All pull requests are automatically tested for:
   - Style and formatting using `ruff`.
   - Static typing using `ty`.
-- You **do not** need to run linters or type checkers manually, but you **must fix** any issues flagged by the CI pipeline before requesting a review.
+  - Unit tests (where present) using `pytest`.
+- You do **not** need to run linters or type checkers manually, but you **must fix** any issues flagged by the CI pipeline before requesting a review.
+
+**Manual testing policy (scripts):**  
+New or modified scripts under `scripts/` **must be manually tested** before opening a PR. See the checklist below.
+
+**Manual test checklist (scripts):**
+- [ ] Script runs end-to-end with clean console output (or appropriate logging).
+- [ ] Configuration section at the top is clear and minimal; defaults produce a safe no-op or sample run.
+- [ ] Input/output paths are valid; exported files are created with expected names and sizes.
+- [ ] Error messages are actionable (no cryptic tracebacks for expected user mistakes).
+- [ ] Runtime is reasonable on a small sample dataset; no hidden network or large temporary files.
+
+---
+
+### 🧩 Unit Tests for Helper Functions
+
+If you add or significantly modify a function in the `helpers/` directory:
+
+- Write a **unit test** that exercises its normal behavior and at least one error condition.
+- Save new tests under `tests/unit/` following the naming pattern `test_<module>.py`.
+- Use small, synthetic input data—do **not** rely on external files or network access.
+- Tests should run quickly (<1 s each) and be deterministic.
+- These tests protect against silent failures caused by future changes to dependencies (e.g., pandas, geopandas).
+- A pull request adding or modifying helpers **without** a corresponding test may be asked to add one before review.
 
 ## 🧼 Code Style
 
