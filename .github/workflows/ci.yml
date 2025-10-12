@@ -4,7 +4,8 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches:
+      - '**'   # allow pushes on any branch to trigger CI
   workflow_dispatch: {}
 
 jobs:
