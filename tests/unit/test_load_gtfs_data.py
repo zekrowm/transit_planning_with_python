@@ -83,10 +83,11 @@ def test_load_gtfs_data_empty_file_raises(tmp_path) -> None:
     assert "stops.txt" in msg and "empty" in msg.lower()
 
 
-def test_load_gtfs_data_parser_error_raises(tmp_path) -> None:
+def test_load_gtfs_data_parser_error_raises(tmp_path: Path) -> None:
     """Malformed CSV → ValueError wrapping pandas ParserError."""
-    # Mismatch in number of fields to trigger ParserError
-    malformed = "route_id,service_id,trip_id\n10,WKD\n"
+    # Use an extra field to trigger ParserError (too many fields vs header).
+    # Pandas tolerates fewer fields by padding with NaN, but rejects extra fields.
+    malformed = "route_id,service_id,trip_id\n10,WKD,10A,EXTRA\n"
     folder = _mk_gtfs_dir(tmp_path, files=[("trips.txt", malformed)])
     with pytest.raises(ValueError) as excinfo:
         load_gtfs_data(folder, files=("trips.txt",))
