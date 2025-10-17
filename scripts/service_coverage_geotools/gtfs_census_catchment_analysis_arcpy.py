@@ -225,7 +225,7 @@ def safe_add_field(
     feature_class: str,
     field_name: str,
     field_type: str,
-    **kwargs,
+    **kwargs: Any,
 ) -> None:
     """Add a field if it does not already exist."""
     if not field_exists(feature_class, field_name):
