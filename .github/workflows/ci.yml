@@ -25,10 +25,12 @@ jobs:
           python -m pip install -U pip
           pip install pytest pytest-cov ruff pandas
 
-      - name: Lint (optional)
+      - name: Format check (show diff if failing)
         run: |
-          ruff format --check .
-          ruff check --output-format=github .
+          ruff format --check . || { echo "Formatter diff:"; ruff format --diff .; exit 1; }
+
+      - name: Lint
+        run: ruff check --output-format=github .
 
       - name: Run tests with coverage
         env:
