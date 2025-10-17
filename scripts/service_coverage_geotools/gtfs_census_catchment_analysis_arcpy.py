@@ -14,7 +14,6 @@ Requires:
   - ArcGIS Pro with arcpy; GTFS stop coordinates assumed WGS84.
 """
 
-
 from __future__ import annotations
 
 import logging
@@ -36,21 +35,17 @@ OVERWRITE_OUTPUTS: bool = True
 STOPS_INPUT_MODE: str = "shapefile"
 
 # For "shapefile" mode
-STOPS_FEATURE_CLASS: str = (
-    r"Path\To\Your\bus_route.shp"
-)
+STOPS_FEATURE_CLASS: str = r"Path\To\Your\bus_route.shp"
 
 # For "gtfs" mode
 GTFS_FOLDER: str = r"Folder\Path\To\Your\GTFS"
 
 # Optional: filter GTFS to the following route_short_name values.
 # Example: ["101", "202"]. Leave as [] or None to include all routes (network run).
-GTFS_ROUTE_SHORT_NAMES: Optional[Sequence[str]] = [ ]
+GTFS_ROUTE_SHORT_NAMES: Optional[Sequence[str]] = []
 
 # Inputs (absolute paths)
-DEMOGRAPHICS_SHP: str = (
-    r"Path\To\Your\census_demographics.shp"
-)
+DEMOGRAPHICS_SHP: str = r"Path\To\Your\census_demographics.shp"
 
 # -----------------------------------------------------------------------------
 # DEMOGRAPHICS SOURCE FIELD MAP
@@ -60,22 +55,20 @@ DEMOGRAPHICS_SHP: str = (
 DEMOG_SRC_FIELDS: dict[str, Optional[str]] = {
     # Households
     "loinc_hh_src": "Lowincome_",  # low-income households
-    "total_hh_src": "TotHH",       # total households
-
+    "total_hh_src": "TotHH",  # total households
     # Population
-    "minor_pop_src": "Minority",   # minority population
-    "total_pop_src": "Tot_Pop",    # total population
-
+    "minor_pop_src": "Minority",  # minority population
+    "total_pop_src": "Tot_Pop",  # total population
     # Jobs (ACS layer has none; keep None to emit zeros)
-    "loinc_jobs_src": None,        # low-wage jobs
-    "all_jobs_src": None,          # total jobs
+    "loinc_jobs_src": None,  # low-wage jobs
+    "all_jobs_src": None,  # total jobs
 }
 
 # Outputs (absolute paths) — used by the network run path
-BUFFERED_STOPS_SHP: str =       r"Path\To\Your\buffered_stops.shp"
-DISSOLVED_BUFFERS_SHP: str =    r"Path\To\Your\dissolved_buffers.shp"
+BUFFERED_STOPS_SHP: str = r"Path\To\Your\buffered_stops.shp"
+DISSOLVED_BUFFERS_SHP: str = r"Path\To\Your\dissolved_buffers.shp"
 CLIPPED_DEMOGRAPHICS_SHP: str = r"Path\To\Your\clipped_demographics.shp"
-FINAL_EXPORT_DIR: str =         r"Path\To\Your\output_demogs.shp"
+FINAL_EXPORT_DIR: str = r"Path\To\Your\output_demogs.shp"
 
 # Processing parameters
 BUFFER_DISTANCE_MILES: float = 0.25
@@ -121,6 +114,7 @@ CLIPPED_FIELDS: List[str] = [
 # =============================================================================
 # REUSABLE FUNCTIONS
 # =============================================================================
+
 
 def load_gtfs_data(
     gtfs_folder_path: str,
@@ -284,31 +278,25 @@ def _filter_gtfs_stops_by_route_short_name(
     routes_sel = routes[routes["route_short_name"].astype(str).isin(target)]
     if routes_sel.empty:
         raise ValueError(
-            "No routes matched the provided route_short_name filter: "
-            f"{sorted(target)}"
+            f"No routes matched the provided route_short_name filter: {sorted(target)}"
         )
 
     route_ids = set(routes_sel["route_id"].astype(str))
     trips_sel = trips[trips["route_id"].astype(str).isin(route_ids)]
     if trips_sel.empty:
         raise ValueError(
-            "Routes matched, but no trips found for the selected routes. "
-            "Check GTFS integrity."
+            "Routes matched, but no trips found for the selected routes. Check GTFS integrity."
         )
 
     trip_ids = set(trips_sel["trip_id"].astype(str))
     st_sel = stop_times[stop_times["trip_id"].astype(str).isin(trip_ids)]
     if st_sel.empty:
-        raise ValueError(
-            "Trips matched, but no stop_times rows found. Check GTFS integrity."
-        )
+        raise ValueError("Trips matched, but no stop_times rows found. Check GTFS integrity.")
 
     stop_ids = set(st_sel["stop_id"].astype(str))
     out = stops[stops["stop_id"].astype(str).isin(stop_ids)].copy()
     if out.empty:
-        raise ValueError(
-            "Filtering produced zero stops. Verify stop_times and stops tables."
-        )
+        raise ValueError("Filtering produced zero stops. Verify stop_times and stops tables.")
     return out
 
 
@@ -552,17 +540,17 @@ def add_synthetic_fields(
         ("minor_pop_src", src_map.get("minor_pop_src")),
         ("total_pop_src", src_map.get("total_pop_src")),
         ("loinc_jobs_src", src_map.get("loinc_jobs_src")),  # optional in ACS
-        ("all_jobs_src", src_map.get("all_jobs_src")),      # optional in ACS
+        ("all_jobs_src", src_map.get("all_jobs_src")),  # optional in ACS
     ]
 
     # Outputs to guarantee (stable schema)
     out_specs = [
-        ("loinc_hh",  "DOUBLE"),
-        ("total_hh",  "DOUBLE"),
+        ("loinc_hh", "DOUBLE"),
+        ("total_hh", "DOUBLE"),
         ("minor_pop", "DOUBLE"),
         ("total_pop", "DOUBLE"),
-        ("loinc_jobs","DOUBLE"),
-        ("all_jobs",  "DOUBLE"),
+        ("loinc_jobs", "DOUBLE"),
+        ("all_jobs", "DOUBLE"),
     ]
     for fname, ftype in out_specs:
         safe_add_field(clipped_fc, fname, ftype)
@@ -578,9 +566,12 @@ def add_synthetic_fields(
 
     # Cursor fields: area fraction + present sources + outputs
     src_field_names: List[Optional[str]] = [s[1] for s in sources]
-    present_src_fields: List[str] = [f for f in src_field_names if f and field_exists(clipped_fc, f)]
+    present_src_fields: List[str] = [
+        f for f in src_field_names if f and field_exists(clipped_fc, f)
+    ]
     missing_required = [
-        name for name, f in [
+        name
+        for name, f in [
             ("loinc_hh_src", src_map.get("loinc_hh_src")),
             ("total_hh_src", src_map.get("total_hh_src")),
             ("minor_pop_src", src_map.get("minor_pop_src")),
@@ -621,7 +612,7 @@ def add_synthetic_fields(
             row[base + 2] = a * v("minor_pop_src")
             row[base + 3] = a * v("total_pop_src")
             row[base + 4] = a * v("loinc_jobs_src")  # zeros for ACS
-            row[base + 5] = a * v("all_jobs_src")    # zeros for ACS
+            row[base + 5] = a * v("all_jobs_src")  # zeros for ACS
             cur.updateRow(row)
 
 
@@ -672,8 +663,8 @@ def summarize_census_layer(demographics_fc: str) -> Dict[str, int]:
         "est__60": src.get("loinc_hh_src"),
         "tt_pp_b": src.get("total_pop_src"),
         "est_mnr": src.get("minor_pop_src"),
-        "tot_mpl": src.get("all_jobs_src"),   # may be None
-        "low_wag": src.get("loinc_jobs_src"), # may be None
+        "tot_mpl": src.get("all_jobs_src"),  # may be None
+        "low_wag": src.get("loinc_jobs_src"),  # may be None
     }
 
     # Build the list of actual fields to read
