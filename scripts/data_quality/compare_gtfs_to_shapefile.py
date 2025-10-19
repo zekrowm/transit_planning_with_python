@@ -49,8 +49,8 @@ PLOT_FIGSIZE: tuple[int, int] = (8, 8)
 PLOT_MAX_ROUTES: Optional[int] = None  # None = all
 
 # --- Agency fields ---
-AGENCY_ROUTE_KEY_FIELD: str = "ROUTE_NUMB" # Adjust to match your shapefile
-AGENCY_ROUTE_NAME_FIELD: str = "ROUTE_NAME" # Adjust to match your shapefile
+AGENCY_ROUTE_KEY_FIELD: str = "ROUTE_NUMB"  # Adjust to match your shapefile
+AGENCY_ROUTE_NAME_FIELD: str = "ROUTE_NAME"  # Adjust to match your shapefile
 
 # --- Join policy (strict short-name equality after normalization) ---
 SHORTNAME_STRIP_NONALNUM: bool = True
@@ -89,9 +89,11 @@ def log(msg: str) -> None:
     if VERBOSE:
         print(msg, flush=True)
 
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _ensure_exists(path: Path) -> None:
     if not path.exists():
@@ -153,8 +155,7 @@ def _auto_utm_epsg_from_series(geom: gpd.GeoSeries) -> int:
 
 
 def _project_agency(gdf: gpd.GeoDataFrame) -> tuple[gpd.GeoDataFrame, bool, float]:
-    """
-    Project agency to a distance-suitable CRS.
+    """Project agency to a distance-suitable CRS.
 
     Returns:
         (projected_gdf, is_feet, to_feet_factor) where to_feet_factor converts
@@ -182,7 +183,9 @@ def _project_agency(gdf: gpd.GeoDataFrame) -> tuple[gpd.GeoDataFrame, bool, floa
     if to_feet is None:
         to_feet = 3.28084  # assume meters if unknown
         is_feet = False
-    log(f"[INFO] Projected CRS units: {'feet' if is_feet else 'meters'} | units→feet factor={to_feet:.6f}")
+    log(
+        f"[INFO] Projected CRS units: {'feet' if is_feet else 'meters'} | units→feet factor={to_feet:.6f}"
+    )
     return g2, is_feet, float(to_feet)
 
 
@@ -266,6 +269,7 @@ def _name_divergence(a: str, b: str) -> Tuple[int, float, float]:
 
 # ---------- directed distances (sampling) ----------
 
+
 def _sample_points_along_line(line: LineString, step: float) -> np.ndarray:
     L = line.length
     if L <= 0.0:
@@ -316,6 +320,7 @@ def _statistic(vals: np.ndarray, mode: str) -> float:
 
 # ---------- plotting ----------
 
+
 def _safe_name(s: str) -> str:
     s = s.strip().replace(" ", "_")
     return re.sub(r"[^0-9A-Za-z_\-\.]+", "", s)
@@ -345,14 +350,21 @@ def _plot_route_debug(
     if gtfs_stops_gdf is not None and not gtfs_stops_gdf.empty:
         gtfs_stops_gdf.plot(ax=ax, markersize=10, marker="o", label="GTFS stops")
     if buffer_units is not None and isfinite(buffer_units):
-        gpd.GeoSeries([agency_line.buffer(buffer_units)]).plot(ax=ax, alpha=0.2, label=f"Buffer ({crs_units_label})")
+        gpd.GeoSeries([agency_line.buffer(buffer_units)]).plot(
+            ax=ax, alpha=0.2, label=f"Buffer ({crs_units_label})"
+        )
 
     bounds = np.array(gpd.GeoSeries([agency_line]).total_bounds)
     if gtfs_line is not None:
         bounds = np.vstack([bounds, gpd.GeoSeries([gtfs_line]).total_bounds])
     if gtfs_stops_gdf is not None and not gtfs_stops_gdf.empty:
         bounds = np.vstack([bounds, gtfs_stops_gdf.total_bounds])
-    xmin, ymin, xmax, ymax = bounds[:, 0].min(), bounds[:, 1].min(), bounds[:, 2].max(), bounds[:, 3].max()
+    xmin, ymin, xmax, ymax = (
+        bounds[:, 0].min(),
+        bounds[:, 1].min(),
+        bounds[:, 2].max(),
+        bounds[:, 3].max(),
+    )
     xpad = (xmax - xmin) * 0.05 or 1.0
     ypad = (ymax - ymin) * 0.05 or 1.0
     ax.set_xlim(xmin - xpad, xmax + xpad)
@@ -366,9 +378,11 @@ def _plot_route_debug(
     plt.close(fig)
     return out_path
 
+
 # -----------------------------------------------------------------------------
 # CORE
 # -----------------------------------------------------------------------------
+
 
 def compute_per_route_metrics() -> pd.DataFrame:
     """Compute per-route spatial/name divergence metrics and (optionally) plot diagnostics.
@@ -404,8 +418,7 @@ def compute_per_route_metrics() -> pd.DataFrame:
     for fld in [AGENCY_ROUTE_KEY_FIELD, AGENCY_ROUTE_NAME_FIELD]:
         if fld not in agency_gdf.columns:
             raise ValueError(
-                f"Shapefile missing field '{fld}'. "
-                f"Available: {', '.join(agency_gdf.columns)}"
+                f"Shapefile missing field '{fld}'. Available: {', '.join(agency_gdf.columns)}"
             )
     agency_gdf = agency_gdf.rename(
         columns={AGENCY_ROUTE_KEY_FIELD: "route_key", AGENCY_ROUTE_NAME_FIELD: "agency_route_name"}
@@ -416,9 +429,8 @@ def compute_per_route_metrics() -> pd.DataFrame:
     crs_units_label = "feet" if is_feet else "meters"
 
     # Dissolve to one per route_key
-    agency_routes = (
-        agency_proj[["route_key", "agency_route_name", "geometry"]]
-        .dissolve(by="route_key", as_index=False, aggfunc={"agency_route_name": "first"})
+    agency_routes = agency_proj[["route_key", "agency_route_name", "geometry"]].dissolve(
+        by="route_key", as_index=False, aggfunc={"agency_route_name": "first"}
     )
     log(f"[INFO] Agency routes after dissolve: {len(agency_routes):,}")
 
@@ -463,13 +475,23 @@ def compute_per_route_metrics() -> pd.DataFrame:
                 mapping_status = "short_name_ambiguous_resolved"
                 mapping_notes = f"Candidates={';'.join(candidate_rids)}; selected={chosen_rid} by route trip_count."
 
-            long_nm = routes_df.loc[routes_df["route_id"] == chosen_rid, "route_long_name"].values[0] if chosen_rid else ""
-            short_nm = routes_df.loc[routes_df["route_id"] == chosen_rid, "route_short_name"].values[0] if chosen_rid else ""
+            long_nm = (
+                routes_df.loc[routes_df["route_id"] == chosen_rid, "route_long_name"].values[0]
+                if chosen_rid
+                else ""
+            )
+            short_nm = (
+                routes_df.loc[routes_df["route_id"] == chosen_rid, "route_short_name"].values[0]
+                if chosen_rid
+                else ""
+            )
 
             if chosen_rid:
                 shape_ids = (
                     trips_df.loc[trips_df["route_id"] == chosen_rid, "shape_id"]
-                    .dropna().unique().tolist()
+                    .dropna()
+                    .unique()
+                    .tolist()
                 )
                 rep_shape_id = None
                 if USE_REPRESENTATIVE_SHAPE and shape_ids:
@@ -485,19 +507,34 @@ def compute_per_route_metrics() -> pd.DataFrame:
 
                 if STOPS_FROM_REP_SHAPE_ONLY and rep_shape_id:
                     rep_trip_ids = trips_df.loc[
-                        (trips_df["route_id"] == chosen_rid) & (trips_df["shape_id"] == rep_shape_id),
+                        (trips_df["route_id"] == chosen_rid)
+                        & (trips_df["shape_id"] == rep_shape_id),
                         "trip_id",
                     ]
-                    stop_ids = stop_times_df.loc[stop_times_df["trip_id"].isin(rep_trip_ids), "stop_id"].dropna().unique().tolist()
+                    stop_ids = (
+                        stop_times_df.loc[stop_times_df["trip_id"].isin(rep_trip_ids), "stop_id"]
+                        .dropna()
+                        .unique()
+                        .tolist()
+                    )
                     stops_sel = stops_gdf.loc[stops_gdf.index.intersection(stop_ids)]
                     stops_pick = "rep_shape_trips"
                 else:
                     trip_ids = trips_df.loc[trips_df["route_id"] == chosen_rid, "trip_id"]
-                    stop_ids = stop_times_df.loc[stop_times_df["trip_id"].isin(trip_ids), "stop_id"].dropna().unique().tolist()
+                    stop_ids = (
+                        stop_times_df.loc[stop_times_df["trip_id"].isin(trip_ids), "stop_id"]
+                        .dropna()
+                        .unique()
+                        .tolist()
+                    )
                     stops_sel = stops_gdf.loc[stops_gdf.index.intersection(stop_ids)]
                     stops_pick = "all_route_trips"
 
-                line_dists = _directed_line_to_line_distances(gtfs_line, a_geom, LINE_SAMPLING_STEP) if gtfs_line else np.array([])
+                line_dists = (
+                    _directed_line_to_line_distances(gtfs_line, a_geom, LINE_SAMPLING_STEP)
+                    if gtfs_line
+                    else np.array([])
+                )
                 stop_dists = _point_set_to_line_distances(stops_sel, a_geom)
 
                 stat_line = _statistic(line_dists, BUFFER_STAT) if line_dists.size else float("nan")
@@ -549,12 +586,24 @@ def compute_per_route_metrics() -> pd.DataFrame:
                     "shape_selection": shape_pick,
                     "stops_selection": stops_pick,
                     "buffer_stat": BUFFER_STAT,
-                    "min_buffer_feet": None if not isfinite(buffer_feet) else round(float(buffer_feet), 2),
-                    "name_levenshtein_distance": None if isinstance(lev, float) and np.isnan(lev) else (int(lev) if isinstance(lev, (int, np.integer)) else lev),
-                    "name_similarity_pct": None if isinstance(sim, float) and np.isnan(sim) else round(float(sim), 1),
-                    "name_deviation_pct": None if isinstance(dev, float) and np.isnan(dev) else round(float(dev), 1),
-                    "exceeds_buffer_threshold": False if not isfinite(buffer_feet) else (buffer_feet > TARGET_MAX_BUFFER_FEET),
-                    "exceeds_name_threshold": False if not isfinite(dev) else (dev > TARGET_MAX_NAME_DEVIATION_PCT),
+                    "min_buffer_feet": None
+                    if not isfinite(buffer_feet)
+                    else round(float(buffer_feet), 2),
+                    "name_levenshtein_distance": None
+                    if isinstance(lev, float) and np.isnan(lev)
+                    else (int(lev) if isinstance(lev, (int, np.integer)) else lev),
+                    "name_similarity_pct": None
+                    if isinstance(sim, float) and np.isnan(sim)
+                    else round(float(sim), 1),
+                    "name_deviation_pct": None
+                    if isinstance(dev, float) and np.isnan(dev)
+                    else round(float(dev), 1),
+                    "exceeds_buffer_threshold": False
+                    if not isfinite(buffer_feet)
+                    else (buffer_feet > TARGET_MAX_BUFFER_FEET),
+                    "exceeds_name_threshold": False
+                    if not isfinite(dev)
+                    else (dev > TARGET_MAX_NAME_DEVIATION_PCT),
                     "crs_units": crs_units_label,
                     "line_sampling_step_units": LINE_SAMPLING_STEP,
                     "plot_path": plot_path,
@@ -589,7 +638,12 @@ def compute_per_route_metrics() -> pd.DataFrame:
             )
 
     out = pd.DataFrame.from_records(records).sort_values(
-        ["mapping_status", "exceeds_buffer_threshold", "exceeds_name_threshold", "route_key_agency"],
+        [
+            "mapping_status",
+            "exceeds_buffer_threshold",
+            "exceeds_name_threshold",
+            "route_key_agency",
+        ],
         ascending=[True, False, False, True],
     )
     log(f"[INFO] Produced {len(out):,} summary rows")
@@ -605,6 +659,7 @@ def write_summary_csv(df: pd.DataFrame, path: Path) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Entry point: run metrics, write CSV, and report where artifacts were saved."""
