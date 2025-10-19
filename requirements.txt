@@ -20,6 +20,11 @@ xlrd==2.0.1                  # Read legacy Excel .xls files (no .xlsx support)
 pytest==8.3.5                # Unit testing framework
 faker==25.8.0                # For generating fake data
 
+# CI/dev tooling (kept in the single requirements.txt for simplicity)
+pytest-cov                   # Test coverage reporting
+ruff                         # Linting & formatting
+ty                           # Non-blocking type checks
+
 # Optimization
 pulp==2.9.0                  # Linear programming solver interface
 
@@ -50,4 +55,3 @@ types-openpyxl>=3.1,<5
 types-networkx>=3.4,<4
 #types-faker>=25,<26
 #types-rapidfuzz>=3.11,<4
-
