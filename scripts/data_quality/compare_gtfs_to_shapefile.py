@@ -85,6 +85,7 @@ VERBOSE: bool = True
 
 
 def log(msg: str) -> None:
+    """Print a message immediately when VERBOSE is True."""
     if VERBOSE:
         print(msg, flush=True)
 
