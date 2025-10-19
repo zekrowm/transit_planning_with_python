@@ -18,7 +18,7 @@ import sys
 import warnings
 from math import isfinite
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Optional, Tuple, Union
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -105,10 +105,8 @@ def _read_gtfs_table(gtfs_dir: Path, name: str) -> pd.DataFrame:
     return df
 
 
-def _axis_unit_info(crs_obj) -> tuple[Optional[str], Optional[float]]:
-    """
-    Return (unit_name, meters_per_unit) from pyproj CRS.axis_info if possible.
-    """
+def _axis_unit_info(crs_obj: Union[str, int, CRS, object]) -> tuple[Optional[str], Optional[float]]:
+    """Return (unit_name, meters_per_unit) from pyproj CRS.axis_info if possible."""
     try:
         crs = CRS.from_user_input(crs_obj)
         if not crs.is_projected:
@@ -121,7 +119,8 @@ def _axis_unit_info(crs_obj) -> tuple[Optional[str], Optional[float]]:
     return None, None
 
 
-def _infer_units_is_feet(crs_obj) -> Optional[bool]:
+def _infer_units_is_feet(crs_obj: Union[str, int, CRS, object]) -> Optional[bool]:
+    """Infer whether the projected CRS uses feet based on axis_info metadata."""
     name, m_per_u = _axis_unit_info(crs_obj)
     if name:
         if "foot" in name or "feet" in name or "us_survey_foot" in name:
@@ -136,14 +135,12 @@ def _infer_units_is_feet(crs_obj) -> Optional[bool]:
     return None
 
 
-def _units_to_feet_factor(crs_obj) -> Optional[float]:
-    """
-    Return factor to convert CRS units → feet, or None if cannot determine.
-    """
+def _units_to_feet_factor(crs_obj: Union[str, int, CRS, object]) -> Optional[float]:
+    """Return factor to convert CRS units to feet, or None if undetermined."""
     _, m_per_u = _axis_unit_info(crs_obj)
     if m_per_u is None:
         return None
-    return m_per_u * 3.28084  # meters per unit * feet per meter
+    return m_per_u * 3.28084
 
 
 def _auto_utm_epsg_from_series(geom: gpd.GeoSeries) -> int:
@@ -297,7 +294,10 @@ def _directed_line_to_line_distances(
     return np.concatenate(d_all) if d_all else np.array([], dtype=float)
 
 
-def _point_set_to_line_distances(points: gpd.GeoDataFrame, ref_line) -> np.ndarray:
+def _point_set_to_line_distances(
+    points: gpd.GeoDataFrame,
+    ref_line: Union[LineString, MultiLineString],
+) -> np.ndarray:
     if points is None or points.empty:
         return np.array([], dtype=float)
     return points.geometry.distance(ref_line).to_numpy(dtype=float)
@@ -322,17 +322,20 @@ def _safe_name(s: str) -> str:
 
 def _plot_route_debug(
     route_key: str,
-    agency_line,
-    gtfs_line,
-    gtfs_stops_gdf,
-    buffer_units: float | None,
+    agency_line: Union[LineString, MultiLineString],
+    gtfs_line: Optional[Union[LineString, MultiLineString]],
+    gtfs_stops_gdf: gpd.GeoDataFrame,
+    buffer_units: Optional[float],
     out_dir: Path,
     crs_units_label: str,
     figsize: tuple[int, int],
     dpi: int,
 ) -> Path:
+    """Save a diagnostic PNG for a route (agency line, GTFS line/stops, buffer) and return its path."""
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"route_{_safe_name(str(route_key))}.png"
+    ...
+    return out_path
 
     fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
     gpd.GeoSeries([agency_line]).plot(ax=ax, linewidth=2.0, label="Agency line")
@@ -367,6 +370,12 @@ def _plot_route_debug(
 # -----------------------------------------------------------------------------
 
 def compute_per_route_metrics() -> pd.DataFrame:
+    """Compute per-route spatial/name divergence metrics and (optionally) plot diagnostics.
+
+    Returns:
+        A DataFrame with one row per agency route containing mapping status,
+        buffer statistics (in feet), name divergence, selections used, and plot paths.
+    """
     # --- GTFS ---
     _ensure_exists(GTFS_DIR)
     routes_df = _read_gtfs_table(GTFS_DIR, "routes")
@@ -587,6 +596,7 @@ def compute_per_route_metrics() -> pd.DataFrame:
 
 
 def write_summary_csv(df: pd.DataFrame, path: Path) -> None:
+    """Write the summary DataFrame to CSV at the given path (creating parent dirs)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(path, index=False)
 
@@ -596,6 +606,7 @@ def write_summary_csv(df: pd.DataFrame, path: Path) -> None:
 # =============================================================================
 
 def main() -> None:
+    """Entry point: run metrics, write CSV, and report where artifacts were saved."""
     try:
         df = compute_per_route_metrics()
     except (FileNotFoundError, ValueError) as exc:
