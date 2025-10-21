@@ -1,5 +1,5 @@
 # .github/workflows/helper_audit.yml
-name: helper_audit
+name: helper-audit
 
 on:
   pull_request:
