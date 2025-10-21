@@ -1,5 +1,5 @@
-# .github/workflows/ruff_ty_check.yml
-name: ruff_ty_check
+# .github/workflows/format-lint-typecheck.yml
+name: format-lint-typecheck
 
 on:
   # Run only on PRs that target `main` (and when manually triggered)
