@@ -1,4 +1,4 @@
-# .github/workflows/helper_audit.yml
+# .github/workflows/helper-audit.yml
 name: helper-audit
 
 on:
