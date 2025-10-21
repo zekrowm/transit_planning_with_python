@@ -1,5 +1,5 @@
-# .github/workflows/ruff_ty_weekly.yml
-name: ruff_ty_weekly
+# .github/workflows/format-lint-autofix-weekly.yml
+name: format-lint-autofix-weekly
 
 on:
   schedule:
