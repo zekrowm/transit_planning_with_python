@@ -26,6 +26,11 @@ transit_planning_with_python-main/
     │   ├── uscensus_blocks_merge_gpd.py
     │   ├── uscensus_blocks_table_join_gpd.py
     │   └── uscensus_table_build.py
+    ├── data_quality/
+    │   ├── compare_gtfs_to_shapefile.py
+    │   ├── gtfs_usps_suffix_validator.py
+    │   ├── stop_vs_roadname_checker.py
+    │   └── stop_vs_roadname_checker_arcpy.py
     ├── facilities_tools/
     │   └── flag_stop_upgrades.py
     ├── field_tools/
@@ -39,10 +44,6 @@ transit_planning_with_python-main/
     │   ├── stop_pattern_exporter.py
     │   ├── time_band_exporter.py
     │   └── timepoint_schedule_exporter.py
-    ├── gtfs_validation/
-    │   ├── gtfs_usps_suffix_validator.py
-    │   ├── stop_vs_roadname_checker.py
-    │   └── stop_vs_roadname_checker_arcpy.py
     ├── network_analysis/
     │   ├── audit_turn_clearance.py
     │   ├── route_direction_classifier.py
@@ -59,7 +60,9 @@ transit_planning_with_python-main/
     │   ├── ntd_monthly_summary.py
     │   └── stops_ridership_joiner_arcpy.py
     └── service_coverage_geotools/
-        ├── facility_coverage_audit.py
         ├── gtfs_census_catchment_analysis.py
+        ├── gtfs_census_catchment_analysis_arcpy.py
         ├── gtfs_service_by_district.py
-        └── site_service_audit.py
+        ├── route_site_coverage.py
+        ├── site_route_proximity.py
+        └── site_route_proximity_arcpy.py
