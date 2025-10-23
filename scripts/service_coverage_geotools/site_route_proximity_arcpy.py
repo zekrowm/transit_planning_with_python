@@ -304,7 +304,7 @@ def _most_common(values: list[str]) -> str:
 
 
 def _quick_plot_site(
-    parcel_geom,
+    parcel_geom: arcpy.Geometry | None,
     entrance_points: list,
     stop_points: list,
     site_name: str,
