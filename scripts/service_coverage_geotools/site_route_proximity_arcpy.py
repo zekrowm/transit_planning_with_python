@@ -44,7 +44,6 @@ from typing import Iterable
 import arcpy
 import pandas as pd
 
-
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -64,25 +63,25 @@ PARCELS_FC = r"C:\data\sites\parcels.shp"
 
 # ---- Site identifiers / attributes
 # Preferred display names; fallbacks handled in code.
-LOCATION_NAME_FIELD = "SITE_NAME"          # used by single_fc (if present)
-PARCEL_ID_FIELD = "PARCEL_KEY"              # preferred key on parcels (robustly resolved)
-PARCEL_NAME_FIELD = "FACILITY_N"           # parcel-side display name fallback
-ENTRANCE_NAME_FIELD = "FACILITY_N"         # preferred display name on the entrance points
+LOCATION_NAME_FIELD = "SITE_NAME"  # used by single_fc (if present)
+PARCEL_ID_FIELD = "PARCEL_KEY"  # preferred key on parcels (robustly resolved)
+PARCEL_NAME_FIELD = "FACILITY_N"  # parcel-side display name fallback
+ENTRANCE_NAME_FIELD = "FACILITY_N"  # preferred display name on the entrance points
 
 # Extra attributes to copy to output if present
 LOCATION_EXTRA_FIELDS = ["OWNER", "PARKING", "HANDICAPPE", "BICYCLE", "LIGHTING"]
 
 # ---- Geometry handling & distance (Northern VA state plane feet)
-PROJECTED_CRS_WKID = 2283                  # NAD_1983_StatePlane_Virginia_North_FIPS_4501_Feet
+PROJECTED_CRS_WKID = 2283  # NAD_1983_StatePlane_Virginia_North_FIPS_4501_Feet
 BUFFER_DISTANCE = 0.25
-BUFFER_UNIT = "miles"                      # "miles" | "feet"
+BUFFER_UNIT = "miles"  # "miles" | "feet"
 
 # For single_fc with polygons:
-SINGLE_POLY_REPRESENTATION = "buffer"      # "buffer" | "centroid" | "inside_point"
+SINGLE_POLY_REPRESENTATION = "buffer"  # "buffer" | "centroid" | "inside_point"
 
 # ---- Route filters (short names)
-ROUTE_FILTER_IN: list[str] = []            # keep only these (empty => no whitelist)
-ROUTE_FILTER_OUT: list[str] = []           # drop these
+ROUTE_FILTER_IN: list[str] = []  # keep only these (empty => no whitelist)
+ROUTE_FILTER_OUT: list[str] = []  # drop these
 
 # ---- Output
 OUTPUT_FOLDER = r"C:\data\outputs\gtfs_proximity"
@@ -156,7 +155,9 @@ def _make_stops_fc_from_gtfs(stops_df: pd.DataFrame, sr_proj: arcpy.SpatialRefer
     sr_wgs84 = arcpy.SpatialReference(4326)
 
     # Build WGS84 points in-memory
-    pts_wgs = arcpy.management.CreateFeatureclass(mem, "gtfs_stops_wgs84", "POINT", spatial_reference=sr_wgs84)[0]
+    pts_wgs = arcpy.management.CreateFeatureclass(
+        mem, "gtfs_stops_wgs84", "POINT", spatial_reference=sr_wgs84
+    )[0]
     arcpy.management.AddField(pts_wgs, "stop_id", "TEXT", field_length=64)
 
     with arcpy.da.InsertCursor(pts_wgs, ["SHAPE@XY", "stop_id"]) as icur:
@@ -221,7 +222,9 @@ def _feature_to_point(fc: str, method: str) -> str:
         Path to in-memory point feature class.
     """
     assert method in ("CENTROID", "INSIDE")
-    return arcpy.management.FeatureToPoint(fc, f"in_memory/{Path(fc).name}_{method.lower()}", method)[0]
+    return arcpy.management.FeatureToPoint(
+        fc, f"in_memory/{Path(fc).name}_{method.lower()}", method
+    )[0]
 
 
 def _buffer_fc(fc: str, dist_ft: float) -> str:
@@ -256,7 +259,9 @@ def _select_stops_within(buffer_fc: str, stops_fc: str) -> str:
 
 def _near(selected_stops_lyr: str, anchor_fc: str) -> str:
     """Copy selected stops and run Near to `anchor_fc`; returns a feature class."""
-    out = arcpy.management.CopyFeatures(selected_stops_lyr, f"in_memory/stops_sel_{Path(anchor_fc).name}")[0]
+    out = arcpy.management.CopyFeatures(
+        selected_stops_lyr, f"in_memory/stops_sel_{Path(anchor_fc).name}"
+    )[0]
     arcpy.analysis.Near(out, anchor_fc, method="PLANAR")
     return out
 
@@ -388,6 +393,7 @@ def _in_ipython() -> bool:
     """Return True if running inside IPython/Jupyter."""
     try:
         from IPython import get_ipython  # type: ignore
+
         return get_ipython() is not None
     except Exception:
         return False
@@ -466,20 +472,21 @@ def _single_fc_sites(
             else:
                 near_fc = _near(stops_sel_lyr, single_anchor)
                 dist_df = _read_near_to_df(near_fc)
-                merged = (
-                    dist_df.merge(
-                        st_trips_routes[["stop_id", "route_short_name", "direction_id"]],
-                        on="stop_id",
-                        how="inner",
-                    ).drop_duplicates()
-                )
+                merged = dist_df.merge(
+                    st_trips_routes[["stop_id", "route_short_name", "direction_id"]],
+                    on="stop_id",
+                    how="inner",
+                ).drop_duplicates()
                 base = _base_row_from_fields(present, vals)
                 if merged.empty:
                     results.append({**base, "Routes": "No routes", "Stops": "No stops"})
                 else:
                     idx = merged.groupby(["route_short_name", "direction_id"])["NEAR_DIST"].idxmin()
                     nearest = merged.loc[idx]
-                    pair_set = {(str(r), str(d)) for r, d in zip(nearest.route_short_name, nearest.direction_id)}
+                    pair_set = {
+                        (str(r), str(d))
+                        for r, d in zip(nearest.route_short_name, nearest.direction_id)
+                    }
                     routes_str = ", ".join(sorted(f"{rt} (dir {di})" for rt, di in pair_set))
                     stops_str = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
                     results.append({**base, "Routes": routes_str, "Stops": stops_str})
@@ -515,7 +522,9 @@ def _resolve_parcel_id_field(prc_fc_path: str, desired: str) -> str:
     if "PARCEL_ID" not in fields:
         arcpy.management.AddField(prc_fc_path, "PARCEL_ID", "TEXT", field_length=64)
         oidf = arcpy.Describe(prc_fc_path).OIDFieldName
-        arcpy.management.CalculateField(prc_fc_path, "PARCEL_ID", f'"parc_" + str(!{oidf}!)', "PYTHON3")
+        arcpy.management.CalculateField(
+            prc_fc_path, "PARCEL_ID", f'"parc_" + str(!{oidf}!)', "PYTHON3"
+        )
     return "PARCEL_ID"
 
 
@@ -584,7 +593,9 @@ def _points_driven_sites(
 
     # Build mapping: point OID -> list of parcel IDs (0, 1, or many)
     parcels_by_point: dict[int, list[str]] = {}
-    with arcpy.da.SearchCursor(sj, [pts_oid, parcel_id_on_sj] if parcel_id_on_sj else [pts_oid]) as cur:
+    with arcpy.da.SearchCursor(
+        sj, [pts_oid, parcel_id_on_sj] if parcel_id_on_sj else [pts_oid]
+    ) as cur:
         for row in cur:
             poid = int(row[0])
             if len(row) == 1:
@@ -658,20 +669,21 @@ def _points_driven_sites(
             else:
                 near_fc = _near(stops_sel_lyr, anchor_fc)
                 dist_df = _read_near_to_df(near_fc)
-                merged = (
-                    dist_df.merge(
-                        st_trips_routes[["stop_id", "route_short_name", "direction_id"]],
-                        on="stop_id",
-                        how="inner",
-                    ).drop_duplicates()
-                )
+                merged = dist_df.merge(
+                    st_trips_routes[["stop_id", "route_short_name", "direction_id"]],
+                    on="stop_id",
+                    how="inner",
+                ).drop_duplicates()
 
                 if merged.empty:
                     results.append({**base, "Routes": "No routes", "Stops": "No stops"})
                 else:
                     idx = merged.groupby(["route_short_name", "direction_id"])["NEAR_DIST"].idxmin()
                     nearest = merged.loc[idx]
-                    pair_set = {(str(r), str(d)) for r, d in zip(nearest.route_short_name, nearest.direction_id)}
+                    pair_set = {
+                        (str(r), str(d))
+                        for r, d in zip(nearest.route_short_name, nearest.direction_id)
+                    }
                     routes_str = ", ".join(sorted(f"{rt} (dir {di})" for rt, di in pair_set))
                     stops_str = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
                     results.append({**base, "Routes": routes_str, "Stops": stops_str})
