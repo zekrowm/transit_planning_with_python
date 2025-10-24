@@ -59,25 +59,25 @@ PARCELS_FC = r"C:\data\sites\parcels.shp"
 
 # ---- Site identifiers / attributes
 # Preferred display names; fallbacks handled in code.
-LOCATION_NAME_FIELD = "SITE_NAME"          # used by single_fc (if present)
-PARCEL_ID_FIELD = "PARCEL_KEY"             # preferred key on parcels (robustly resolved)
-PARCEL_NAME_FIELD = "FACILITY_N"           # parcel-side display name fallback
-ENTRANCE_NAME_FIELD = "FACILITY_N"         # preferred display name on the entrance points
+LOCATION_NAME_FIELD = "SITE_NAME"  # used by single_fc (if present)
+PARCEL_ID_FIELD = "PARCEL_KEY"  # preferred key on parcels (robustly resolved)
+PARCEL_NAME_FIELD = "FACILITY_N"  # parcel-side display name fallback
+ENTRANCE_NAME_FIELD = "FACILITY_N"  # preferred display name on the entrance points
 
 # Extra attributes to copy to output if present
 LOCATION_EXTRA_FIELDS = ["OWNER", "PARKING", "HANDICAPPE", "BICYCLE", "LIGHTING"]
 
 # ---- Geometry handling & distance (Northern VA state plane feet)
-PROJECTED_CRS_WKID = 2283                  # NAD_1983_StatePlane_Virginia_North_FIPS_4501_Feet
+PROJECTED_CRS_WKID = 2283  # NAD_1983_StatePlane_Virginia_North_FIPS_4501_Feet
 BUFFER_DISTANCE = 0.25
-BUFFER_UNIT = "miles"                      # "miles" | "feet"
+BUFFER_UNIT = "miles"  # "miles" | "feet"
 
 # For single_fc with polygons:
-SINGLE_POLY_REPRESENTATION = "buffer"      # "buffer" | "centroid" | "inside_point"
+SINGLE_POLY_REPRESENTATION = "buffer"  # "buffer" | "centroid" | "inside_point"
 
 # ---- Route filters (short names)
-ROUTE_FILTER_IN: list[str] = []            # keep only these (empty => no whitelist)
-ROUTE_FILTER_OUT: list[str] = []           # drop these
+ROUTE_FILTER_IN: list[str] = []  # keep only these (empty => no whitelist)
+ROUTE_FILTER_OUT: list[str] = []  # drop these
 
 # ---- Output
 OUTPUT_FOLDER = r"C:\data\outputs\gtfs_proximity"
@@ -91,9 +91,9 @@ PLOT_FIG_DPI = 220
 # ---- Large-parcel handling
 # If a matched parcel exceeds either threshold, treat it as "too large"
 # and buffer a representative point instead of the parcel polygon.
-MAX_PARCEL_AREA_ACRES: float | None = 15.0     # None disables the area test
+MAX_PARCEL_AREA_ACRES: float | None = 15.0  # None disables the area test
 MAX_PARCEL_DIAMETER_FT: float | None = 2500.0  # None disables the diameter test
-LARGE_PARCEL_POINT_METHOD: str = "INSIDE"      # "INSIDE" | "CENTROID"
+LARGE_PARCEL_POINT_METHOD: str = "INSIDE"  # "INSIDE" | "CENTROID"
 
 # ---- QA reporting
 LOG_SHARED_STOPS: bool = True
@@ -107,6 +107,7 @@ QA_REPORT_CSV: str = os.path.join(OUTPUT_FOLDER, "qa_shared_stops.csv")
 # -----------------------------------------------------------------------------
 # UTILITIES
 # -----------------------------------------------------------------------------
+
 
 def _feet(value: float, unit: str) -> float:
     """Convert `value` (miles or feet) to feet."""
@@ -138,9 +139,7 @@ def _parcel_is_too_large(geom: arcpy.Geometry) -> bool:
         diam_ft = float("nan")
 
     too_big_area = (
-        MAX_PARCEL_AREA_ACRES is not None
-        and area_ac == area_ac
-        and area_ac > MAX_PARCEL_AREA_ACRES
+        MAX_PARCEL_AREA_ACRES is not None and area_ac == area_ac and area_ac > MAX_PARCEL_AREA_ACRES
     )
     too_big_diam = (
         MAX_PARCEL_DIAMETER_FT is not None
@@ -474,6 +473,7 @@ def _in_ipython() -> bool:
     """Return True if running inside IPython/Jupyter."""
     try:
         from IPython import get_ipython  # type: ignore
+
         return get_ipython() is not None
     except Exception:
         return False
@@ -482,6 +482,7 @@ def _in_ipython() -> bool:
 # -----------------------------------------------------------------------------
 # SINGLE-FC WORKFLOW
 # -----------------------------------------------------------------------------
+
 
 def _single_fc_sites(
     sr_proj: arcpy.SpatialReference,
@@ -548,8 +549,8 @@ def _single_fc_sites(
             count_within = int(arcpy.management.GetCount(stops_sel_lyr)[0])
 
             base = _base_row_from_fields(present, vals)
-            base["ParcelID"] = ""          # N/A in single_fc
-            base["ParcelMatch"] = ""       # N/A in single_fc
+            base["ParcelID"] = ""  # N/A in single_fc
+            base["ParcelMatch"] = ""  # N/A in single_fc
             base["AnchorType"] = "parcel" if search_geom.type.lower() != "point" else "point"
             base["ParcelLarge"] = ""
             base["ParcelAreaAc"] = ""
@@ -557,9 +558,17 @@ def _single_fc_sites(
             base["StopsWithinBufferCount"] = count_within
 
             if count_within == 0:
-                results.append({**base, "Routes": "No routes", "Stops": "No stops",
-                                "StopNamesSample": "", "NearestDistMinFt": "",
-                                "NearestDistMedFt": "", "NearestDistMaxFt": ""})
+                results.append(
+                    {
+                        **base,
+                        "Routes": "No routes",
+                        "Stops": "No stops",
+                        "StopNamesSample": "",
+                        "NearestDistMinFt": "",
+                        "NearestDistMedFt": "",
+                        "NearestDistMaxFt": "",
+                    }
+                )
             else:
                 near_fc = _near(stops_sel_lyr, single_anchor)
                 dist_df = _read_near_to_df(near_fc)
@@ -569,20 +578,33 @@ def _single_fc_sites(
                     how="inner",
                 ).drop_duplicates()
                 if merged.empty:
-                    results.append({**base, "Routes": "No routes", "Stops": "No stops",
-                                    "StopNamesSample": "", "NearestDistMinFt": "",
-                                    "NearestDistMedFt": "", "NearestDistMaxFt": ""})
+                    results.append(
+                        {
+                            **base,
+                            "Routes": "No routes",
+                            "Stops": "No stops",
+                            "StopNamesSample": "",
+                            "NearestDistMinFt": "",
+                            "NearestDistMedFt": "",
+                            "NearestDistMaxFt": "",
+                        }
+                    )
                 else:
                     idx = merged.groupby(["route_short_name", "direction_id"])["NEAR_DIST"].idxmin()
                     nearest = merged.loc[idx]
-                    pair_set = {(str(r), str(d)) for r, d in zip(nearest.route_short_name,
-                                                                 nearest.direction_id)}
+                    pair_set = {
+                        (str(r), str(d))
+                        for r, d in zip(nearest.route_short_name, nearest.direction_id)
+                    }
                     routes_str = ", ".join(sorted(f"{rt} (dir {di})" for rt, di in pair_set))
                     stops_str = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
                     stopnames = (
-                        nearest.merge(gtfs["stops"][["stop_id", "stop_name"]],
-                                      on="stop_id", how="left")["stop_name"]
-                        .dropna().astype(str).unique()
+                        nearest.merge(
+                            gtfs["stops"][["stop_id", "stop_name"]], on="stop_id", how="left"
+                        )["stop_name"]
+                        .dropna()
+                        .astype(str)
+                        .unique()
                     )
                     stopnames_sample = "; ".join(sorted(stopnames)[:10])
 
@@ -598,6 +620,7 @@ def _single_fc_sites(
                 arcpy.management.Delete(p)
 
     return results
+
 
 # -----------------------------------------------------------------------------
 # POINT-DRIVEN POINTS+PARCELS WORKFLOW
@@ -708,8 +731,10 @@ def _points_driven_sites(
                 if parcel_geom is None:
                     status = "ParcelMissingInLookup"
                     anchor_fc = arcpy.management.CreateFeatureclass(
-                        "in_memory", _unique_basename(f"anc_pt_{poid}", "in_memory"),
-                        "POINT", spatial_reference=sr_proj
+                        "in_memory",
+                        _unique_basename(f"anc_pt_{poid}", "in_memory"),
+                        "POINT",
+                        spatial_reference=sr_proj,
                     )[0]
                     with arcpy.da.InsertCursor(anchor_fc, ["SHAPE@"]) as icur:
                         icur.insertRow([pgeom])
@@ -723,19 +748,23 @@ def _points_driven_sites(
                         pt_fc = _polygon_to_point_fc(parcel_geom, sr_proj)
                         anchor_fc = pt_fc
                         search_fc = _buffer_fc(pt_fc, dist_ft)
-                        anchor_type = "point"   # overridden due to parcel size
+                        anchor_type = "point"  # overridden due to parcel size
                         parcel_large = True
                     else:
                         # Anchor is parcel polygon; search area = buffered parcel
                         anchor_fc = arcpy.management.CreateFeatureclass(
-                            "in_memory", _unique_basename(f"anc_parcel_{poid}", "in_memory"),
-                            "POLYGON", spatial_reference=sr_proj
+                            "in_memory",
+                            _unique_basename(f"anc_parcel_{poid}", "in_memory"),
+                            "POLYGON",
+                            spatial_reference=sr_proj,
                         )[0]
                         with arcpy.da.InsertCursor(anchor_fc, ["SHAPE@"]) as icur:
                             icur.insertRow([parcel_geom])
                         tmp = arcpy.management.CreateFeatureclass(
-                            "in_memory", _unique_basename(f"srch_parcel_{poid}", "in_memory"),
-                            "POLYGON", spatial_reference=sr_proj
+                            "in_memory",
+                            _unique_basename(f"srch_parcel_{poid}", "in_memory"),
+                            "POLYGON",
+                            spatial_reference=sr_proj,
                         )[0]
                         with arcpy.da.InsertCursor(tmp, ["SHAPE@"]) as icur:
                             icur.insertRow([parcel_geom])
@@ -746,8 +775,10 @@ def _points_driven_sites(
                 status = "NoParcel" if len(matched_pids) == 0 else "MultiParcel"
                 parcel_id_str = "" if len(matched_pids) == 0 else ";".join(matched_pids)
                 anchor_fc = arcpy.management.CreateFeatureclass(
-                    "in_memory", _unique_basename(f"anc_pt_{poid}", "in_memory"),
-                    "POINT", spatial_reference=sr_proj
+                    "in_memory",
+                    _unique_basename(f"anc_pt_{poid}", "in_memory"),
+                    "POINT",
+                    spatial_reference=sr_proj,
                 )[0]
                 with arcpy.da.InsertCursor(anchor_fc, ["SHAPE@"]) as icur:
                     icur.insertRow([pgeom])
@@ -780,9 +811,17 @@ def _points_driven_sites(
                 base["ParcelDiamFt"] = ""
 
             if count_within == 0:
-                results.append({**base, "Routes": "No routes", "Stops": "No stops",
-                                "StopNamesSample": "", "NearestDistMinFt": "",
-                                "NearestDistMedFt": "", "NearestDistMaxFt": ""})
+                results.append(
+                    {
+                        **base,
+                        "Routes": "No routes",
+                        "Stops": "No stops",
+                        "StopNamesSample": "",
+                        "NearestDistMinFt": "",
+                        "NearestDistMedFt": "",
+                        "NearestDistMaxFt": "",
+                    }
+                )
                 near_fc = None
             else:
                 near_fc = _near(stops_sel_lyr, anchor_fc)
@@ -794,22 +833,35 @@ def _points_driven_sites(
                 ).drop_duplicates()
 
                 if merged.empty:
-                    results.append({**base, "Routes": "No routes", "Stops": "No stops",
-                                    "StopNamesSample": "", "NearestDistMinFt": "",
-                                    "NearestDistMedFt": "", "NearestDistMaxFt": ""})
+                    results.append(
+                        {
+                            **base,
+                            "Routes": "No routes",
+                            "Stops": "No stops",
+                            "StopNamesSample": "",
+                            "NearestDistMinFt": "",
+                            "NearestDistMedFt": "",
+                            "NearestDistMaxFt": "",
+                        }
+                    )
                 else:
                     idx = merged.groupby(["route_short_name", "direction_id"])["NEAR_DIST"].idxmin()
                     nearest = merged.loc[idx]
-                    pair_set = {(str(r), str(d)) for r, d in zip(nearest.route_short_name,
-                                                                 nearest.direction_id)}
+                    pair_set = {
+                        (str(r), str(d))
+                        for r, d in zip(nearest.route_short_name, nearest.direction_id)
+                    }
                     routes_str = ", ".join(sorted(f"{rt} (dir {di})" for rt, di in pair_set))
                     stops_str = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
 
                     # Stop names preview and distance stats
                     stopnames = (
-                        nearest.merge(gtfs["stops"][["stop_id", "stop_name"]],
-                                      on="stop_id", how="left")["stop_name"]
-                        .dropna().astype(str).unique()
+                        nearest.merge(
+                            gtfs["stops"][["stop_id", "stop_name"]], on="stop_id", how="left"
+                        )["stop_name"]
+                        .dropna()
+                        .astype(str)
+                        .unique()
                     )
                     stopnames_sample = "; ".join(sorted(stopnames)[:10])
 
@@ -917,18 +969,16 @@ def main() -> None:
             df["Location"] = df["Location"].astype(str).fillna("")
 
             def _norm_stopset(s: str) -> str:
-                toks = [t.strip() for t in s.split(",") if t.strip() and t.strip().lower() != "no stops"]
+                toks = [
+                    t.strip() for t in s.split(",") if t.strip() and t.strip().lower() != "no stops"
+                ]
                 return ",".join(sorted(set(toks)))
 
             df["StopSetNorm"] = df["Stops"].map(_norm_stopset)
             nonempty = df[df["StopSetNorm"] != ""]
 
             # (A) identical stop sets across locations
-            identical_groups = (
-                nonempty.groupby("StopSetNorm")["Location"]
-                .agg(list)
-                .reset_index()
-            )
+            identical_groups = nonempty.groupby("StopSetNorm")["Location"].agg(list).reset_index()
             identical_groups["n_locations"] = identical_groups["Location"].map(len)
             identical_groups = identical_groups[identical_groups["n_locations"] > 1]
             identical_groups["IssueType"] = "IdenticalStopSet"
@@ -941,9 +991,7 @@ def main() -> None:
                         explode.append((sid, r["Location"]))
             df_expl = pd.DataFrame(explode, columns=["stop_id", "Location"])
             shared_stops = (
-                df_expl.groupby("stop_id")["Location"]
-                .agg(lambda xs: sorted(set(xs)))
-                .reset_index()
+                df_expl.groupby("stop_id")["Location"].agg(lambda xs: sorted(set(xs))).reset_index()
             )
             shared_stops["n_locations"] = shared_stops["Location"].map(len)
             shared_stops = shared_stops[shared_stops["n_locations"] > 1]
@@ -951,19 +999,23 @@ def main() -> None:
 
             qa_rows = []
             for _, r in identical_groups.iterrows():
-                qa_rows.append({
-                    "IssueType": r["IssueType"],
-                    "Key": r["StopSetNorm"],
-                    "Locations": "; ".join(r["Location"]),
-                    "Count": r["n_locations"],
-                })
+                qa_rows.append(
+                    {
+                        "IssueType": r["IssueType"],
+                        "Key": r["StopSetNorm"],
+                        "Locations": "; ".join(r["Location"]),
+                        "Count": r["n_locations"],
+                    }
+                )
             for _, r in shared_stops.iterrows():
-                qa_rows.append({
-                    "IssueType": r["IssueType"],
-                    "Key": r["stop_id"],
-                    "Locations": "; ".join(r["Location"]),
-                    "Count": r["n_locations"],
-                })
+                qa_rows.append(
+                    {
+                        "IssueType": r["IssueType"],
+                        "Key": r["stop_id"],
+                        "Locations": "; ".join(r["Location"]),
+                        "Count": r["n_locations"],
+                    }
+                )
 
             if qa_rows:
                 pd.DataFrame(qa_rows).to_csv(QA_REPORT_CSV, index=False, encoding="utf-8-sig")
