@@ -30,12 +30,11 @@ import argparse
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Tuple, List
+from typing import Dict, List, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
 
 # ==============================
 # CONFIGURATION
@@ -49,7 +48,7 @@ DEFAULT_OUT_PLOTS_DIR: str = r"folder\path\to\your\plots"
 
 # Current period indicator in 'YY-MM' format (YY two-digit year, MM two-digit month).
 # '25-10' means October 2025.
-DEFAULT_CURRENT_YY_MM: str = "25-10" # Update with your own
+DEFAULT_CURRENT_YY_MM: str = "25-10"  # Update with your own
 
 # Agency OTP standard (fraction). 0.85 = 85%.
 DEFAULT_OTP_STANDARD: float = 0.85
@@ -61,6 +60,7 @@ OUTPUT_TABLE_FILENAME: str = "otp_processed.csv"
 # DATA STRUCTURES
 # ==============================
 
+
 @dataclass(frozen=True)
 class Config:
     """Runtime configuration."""
@@ -71,17 +71,34 @@ class Config:
     current_yy_mm: str
     otp_standard: float
 
+
 # ==============================
 # HELPERS
 # ==============================
 
 MONTH_ABBR_TO_NUM: Dict[str, int] = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 
 VALID_DOWS: Tuple[str, ...] = (
-    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
 )
 
 
@@ -147,13 +164,24 @@ def _normalize_dow(val: object) -> str:
     t = s.lower()
     # Common variants
     mapping = {
-        "mon": "Monday", "monday": "Monday",
-        "tue": "Tuesday", "tues": "Tuesday", "tuesday": "Tuesday",
-        "wed": "Wednesday", "weds": "Wednesday", "wednesday": "Wednesday",
-        "thu": "Thursday", "thur": "Thursday", "thurs": "Thursday", "thursday": "Thursday",
-        "fri": "Friday", "friday": "Friday",
-        "sat": "Saturday", "saturday": "Saturday",
-        "sun": "Sunday", "sunday": "Sunday",
+        "mon": "Monday",
+        "monday": "Monday",
+        "tue": "Tuesday",
+        "tues": "Tuesday",
+        "tuesday": "Tuesday",
+        "wed": "Wednesday",
+        "weds": "Wednesday",
+        "wednesday": "Wednesday",
+        "thu": "Thursday",
+        "thur": "Thursday",
+        "thurs": "Thursday",
+        "thursday": "Thursday",
+        "fri": "Friday",
+        "friday": "Friday",
+        "sat": "Saturday",
+        "saturday": "Saturday",
+        "sun": "Sunday",
+        "sunday": "Sunday",
     }
     return mapping.get(t, s.title())
 
@@ -172,7 +200,14 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
             colmap[c] = "month_label"
         elif key in {"day of the week", "day-of-week", "day_of_week", "dow"}:
             colmap[c] = "dow"
-        elif key in {"sum on time", "sum ontime", "sum on_time", "sum on-time", "sum ontime trips", "sum on time trips"}:
+        elif key in {
+            "sum on time",
+            "sum ontime",
+            "sum on_time",
+            "sum on-time",
+            "sum ontime trips",
+            "sum on time trips",
+        }:
             colmap[c] = "on_time"
         elif key in {"sum early", "sum early trips"}:
             colmap[c] = "early"
@@ -210,7 +245,9 @@ def process(df: pd.DataFrame, current_yy_mm: str) -> pd.DataFrame:
     if bad.any():
         # Keep but mark; user can inspect if needed.
         n_bad = int(bad.sum())
-        print(f"[WARN] Found {n_bad} rows with unrecognized DOW values; they will be ignored in DOW-specific plots.")
+        print(
+            f"[WARN] Found {n_bad} rows with unrecognized DOW values; they will be ignored in DOW-specific plots."
+        )
 
     for col in ("on_time", "early", "late"):
         df[col] = coerce_numeric(df[col])
@@ -224,12 +261,23 @@ def process(df: pd.DataFrame, current_yy_mm: str) -> pd.DataFrame:
         df["pct_late"] = (df["late"] / df["total_trips"]) * 100.0
 
     order_cols = [
-        "route_raw", "route_clean", "direction",
-        "month_label", "period", "dow",
-        "on_time", "early", "late", "total_trips",
-        "pct_on_time", "pct_early", "pct_late",
+        "route_raw",
+        "route_clean",
+        "direction",
+        "month_label",
+        "period",
+        "dow",
+        "on_time",
+        "early",
+        "late",
+        "total_trips",
+        "pct_on_time",
+        "pct_early",
+        "pct_late",
     ]
-    df = df[order_cols].sort_values(by=["route_clean", "direction", "period"]).reset_index(drop=True)
+    df = (
+        df[order_cols].sort_values(by=["route_clean", "direction", "period"]).reset_index(drop=True)
+    )
     return df
 
 
@@ -294,11 +342,9 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
         g_wd = g[g["dow"].isin(VALID_DOWS[:5])].copy()  # Mon..Fri
         if not g_wd.empty:
             # Per-period, per-weekday means for all three metrics
-            wd_means = (
-                g_wd.groupby(["period", "dow"], as_index=False)[
-                    ["pct_on_time", "pct_early", "pct_late"]
-                ].mean()
-            )
+            wd_means = g_wd.groupby(["period", "dow"], as_index=False)[
+                ["pct_on_time", "pct_early", "pct_late"]
+            ].mean()
 
             # Average across weekdays per period (one value per period per metric)
             wd_avg = wd_means.groupby("period", as_index=False)[
@@ -306,15 +352,19 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             ].mean()
 
             # Range across weekdays per period for OTP only
-            wd_min = wd_means.groupby("period", as_index=False)["pct_on_time"].min().rename(
-                columns={"pct_on_time": "min_otp"}
+            wd_min = (
+                wd_means.groupby("period", as_index=False)["pct_on_time"]
+                .min()
+                .rename(columns={"pct_on_time": "min_otp"})
             )
-            wd_max = wd_means.groupby("period", as_index=False)["pct_on_time"].max().rename(
-                columns={"pct_on_time": "max_otp"}
+            wd_max = (
+                wd_means.groupby("period", as_index=False)["pct_on_time"]
+                .max()
+                .rename(columns={"pct_on_time": "max_otp"})
             )
 
             # Align to full period index
-            avg_on  = wd_avg.set_index("period")["pct_on_time"].reindex(periods)
+            avg_on = wd_avg.set_index("period")["pct_on_time"].reindex(periods)
             avg_erl = wd_avg.set_index("period")["pct_early"].reindex(periods)
             avg_lat = wd_avg.set_index("period")["pct_late"].reindex(periods)
             min_map = wd_min.set_index("period")["min_otp"].reindex(periods)
@@ -323,7 +373,9 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             plt.figure()
 
             # Blue OTP average line
-            line_on, = plt.plot(x, avg_on.values, marker="o", label="Weekday On-time % (avg Mon–Fri)")
+            (line_on,) = plt.plot(
+                x, avg_on.values, marker="o", label="Weekday On-time % (avg Mon–Fri)"
+            )
 
             # Light-blue band (OTP min–max range across Mon–Fri)
             base_color = line_on.get_color()
@@ -347,7 +399,7 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
                 linestyle="--",
                 color="red",
                 linewidth=1,
-                label=f"OTP Standard ({otp_standard*100:.0f}%)",
+                label=f"OTP Standard ({otp_standard * 100:.0f}%)",
             )
 
             plt.xticks(ticks=x, labels=periods, rotation=45, ha="right")
@@ -358,7 +410,9 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             plt.title(title)
             plt.legend()
             plt.tight_layout()
-            fname = f"{route_clean}_{direction.replace('/', '-')}_Weekdays_otp_trend.png".replace(" ", "")
+            fname = f"{route_clean}_{direction.replace('/', '-')}_Weekdays_otp_trend.png".replace(
+                " ", ""
+            )
             out_path = out_dir / fname
             plt.savefig(out_path, dpi=150)
             plt.close()
@@ -369,12 +423,12 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             sat_means = g_sat.groupby("period", as_index=False)[
                 ["pct_on_time", "pct_early", "pct_late"]
             ].mean()
-            sat_on  = sat_means.set_index("period")["pct_on_time"].reindex(periods)
+            sat_on = sat_means.set_index("period")["pct_on_time"].reindex(periods)
             sat_erl = sat_means.set_index("period")["pct_early"].reindex(periods)
             sat_lat = sat_means.set_index("period")["pct_late"].reindex(periods)
 
             plt.figure()
-            plt.plot(x, sat_on.values,  marker="o", label="Saturday On-time %")
+            plt.plot(x, sat_on.values, marker="o", label="Saturday On-time %")
             plt.plot(x, sat_erl.values, marker="o", label="Saturday Early %")
             plt.plot(x, sat_lat.values, marker="o", label="Saturday Late %")
             plt.axhline(
@@ -382,7 +436,7 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
                 linestyle="--",
                 color="red",
                 linewidth=1,
-                label=f"OTP Standard ({otp_standard*100:.0f}%)",
+                label=f"OTP Standard ({otp_standard * 100:.0f}%)",
             )
             plt.xticks(ticks=x, labels=periods, rotation=45, ha="right")
             plt.ylim(0, 100)
@@ -392,7 +446,9 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             plt.title(title)
             plt.legend()
             plt.tight_layout()
-            fname = f"{route_clean}_{direction.replace('/', '-')}_Saturday_otp_trend.png".replace(" ", "")
+            fname = f"{route_clean}_{direction.replace('/', '-')}_Saturday_otp_trend.png".replace(
+                " ", ""
+            )
             out_path = out_dir / fname
             plt.savefig(out_path, dpi=150)
             plt.close()
@@ -403,12 +459,12 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             sun_means = g_sun.groupby("period", as_index=False)[
                 ["pct_on_time", "pct_early", "pct_late"]
             ].mean()
-            sun_on  = sun_means.set_index("period")["pct_on_time"].reindex(periods)
+            sun_on = sun_means.set_index("period")["pct_on_time"].reindex(periods)
             sun_erl = sun_means.set_index("period")["pct_early"].reindex(periods)
             sun_lat = sun_means.set_index("period")["pct_late"].reindex(periods)
 
             plt.figure()
-            plt.plot(x, sun_on.values,  marker="o", label="Sunday On-time %")
+            plt.plot(x, sun_on.values, marker="o", label="Sunday On-time %")
             plt.plot(x, sun_erl.values, marker="o", label="Sunday Early %")
             plt.plot(x, sun_lat.values, marker="o", label="Sunday Late %")
             plt.axhline(
@@ -416,7 +472,7 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
                 linestyle="--",
                 color="red",
                 linewidth=1,
-                label=f"OTP Standard ({otp_standard*100:.0f}%)",
+                label=f"OTP Standard ({otp_standard * 100:.0f}%)",
             )
             plt.xticks(ticks=x, labels=periods, rotation=45, ha="right")
             plt.ylim(0, 100)
@@ -426,7 +482,9 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             plt.title(title)
             plt.legend()
             plt.tight_layout()
-            fname = f"{route_clean}_{direction.replace('/', '-')}_Sunday_otp_trend.png".replace(" ", "")
+            fname = f"{route_clean}_{direction.replace('/', '-')}_Sunday_otp_trend.png".replace(
+                " ", ""
+            )
             out_path = out_dir / fname
             plt.savefig(out_path, dpi=150)
             plt.close()
@@ -447,9 +505,21 @@ def build_arg_parser() -> argparse.ArgumentParser:
     """Create the CLI argument parser."""
     p = argparse.ArgumentParser(description="Process OTP CSV, export table and plots.")
     p.add_argument("--input", type=str, default=DEFAULT_INPUT_CSV, help="Path to input CSV.")
-    p.add_argument("--out-table", type=str, default=DEFAULT_OUT_TABLE_DIR, help="Directory for processed CSV output.")
-    p.add_argument("--out-plots", type=str, default=DEFAULT_OUT_PLOTS_DIR, help="Directory for plot PNG outputs.")
-    p.add_argument("--current", type=str, default=DEFAULT_CURRENT_YY_MM, help="Current period in 'YY-MM'.")
+    p.add_argument(
+        "--out-table",
+        type=str,
+        default=DEFAULT_OUT_TABLE_DIR,
+        help="Directory for processed CSV output.",
+    )
+    p.add_argument(
+        "--out-plots",
+        type=str,
+        default=DEFAULT_OUT_PLOTS_DIR,
+        help="Directory for plot PNG outputs.",
+    )
+    p.add_argument(
+        "--current", type=str, default=DEFAULT_CURRENT_YY_MM, help="Current period in 'YY-MM'."
+    )
     p.add_argument(
         "--otp-standard",
         type=float,
@@ -458,9 +528,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     return p
 
+
 # ==============================
 # MAIN
 # ==============================
+
 
 def main(argv: List[str] | None = None) -> None:
     """Entrypoint.
