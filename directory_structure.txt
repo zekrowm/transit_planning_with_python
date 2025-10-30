@@ -29,6 +29,7 @@ transit_planning_with_python-main/
     ├── data_quality/
     │   ├── compare_gtfs_to_shapefile.py
     │   ├── gtfs_usps_suffix_validator.py
+    │   ├── stop_v_conflict_checker.py
     │   ├── stop_vs_roadname_checker.py
     │   └── stop_vs_roadname_checker_arcpy.py
     ├── facilities_tools/
@@ -52,6 +53,7 @@ transit_planning_with_python-main/
     ├── operations_tools/
     │   ├── otp_by_stop_pivot.py
     │   ├── runtime_fit_tool.py
+    │   ├── otp_metrics_trends_export.py
     │   ├── runtime_pivot_clever.py
     │   └── runtime_pivot_ridecheck.py
     ├── ridership_tools/
