@@ -169,7 +169,7 @@ def _pandas_dedupe_stops(src_stops: str,
 
     # Write to temp CSV for XYTableToPoint
     out_dir.mkdir(parents=True, exist_ok=True)
-    tmp_csv = out_dir / f"stops_dedup_tmp.csv"
+    tmp_csv = out_dir / "stops_dedup_tmp.csv"
     df.to_csv(tmp_csv, index=False)
     return str(tmp_csv)
 
