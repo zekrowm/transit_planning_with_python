@@ -19,11 +19,10 @@ import csv
 import math
 import os
 from pathlib import Path
-from typing import Iterable, Optional, Sequence
+from typing import Optional, Sequence
 
-import pandas as pd
 import arcpy
-
+import pandas as pd
 
 # =============================================================================
 # CONFIGURATION
@@ -31,7 +30,7 @@ import arcpy
 
 # --- Output destinations and names ---
 OUTPUT_DIR: str = r"C:\projects\my_stop_analysis\output"
-OUTPUT_GDB: str = r".\stop_conflicts.gdb"      # created if missing
+OUTPUT_GDB: str = r".\stop_conflicts.gdb"  # created if missing
 OUTPUT_FC_NAME: str = "stops_conflicts"
 OUTPUT_BASENAME: str = "stop_conflicts"
 OVERWRITE_OUTPUT: bool = True
@@ -46,8 +45,10 @@ DRIVEWAYS_PATH: str = r"C:\data\gis_layers\parcels.gdb\driveways"
 BUILDINGS_PATH: str = r"C:\data\gis_layers\buildings\building_footprints.shp"
 
 # --- CRS for analysis (use a local projected CRS, units = meters) ---
-ANALYSIS_SR: arcpy.SpatialReference = arcpy.SpatialReference(32618)  # e.g., WGS 84 / UTM zone 18N (m)
-WGS84_SR: arcpy.SpatialReference = arcpy.SpatialReference(4326)       # for lon/lat export
+ANALYSIS_SR: arcpy.SpatialReference = arcpy.SpatialReference(
+    32618
+)  # e.g., WGS 84 / UTM zone 18N (m)
+WGS84_SR: arcpy.SpatialReference = arcpy.SpatialReference(4326)  # for lon/lat export
 
 # --- Conflict toggles ---
 FLAG_ROADWAYS: bool = True
@@ -71,6 +72,7 @@ TMP_WS = arcpy.env.scratchGDB
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def _validate_config() -> None:
     """Validate configuration choices (paths, outputs, exclusivity)."""
@@ -116,10 +118,9 @@ def _deg_tolerance_for_meters(lat_deg: float, tol_m: float) -> tuple[float, floa
     return (tol_lon_deg, tol_lat_deg)
 
 
-def _pandas_dedupe_stops(src_stops: str,
-                         keys: Sequence[str],
-                         xy_tol_m: float,
-                         out_dir: Path) -> str:
+def _pandas_dedupe_stops(
+    src_stops: str, keys: Sequence[str], xy_tol_m: float, out_dir: Path
+) -> str:
     """Read stops.txt with pandas, dedupe, and write a temp CSV used for XYTableToPoint.
 
     Args:
@@ -215,14 +216,14 @@ def _add_flag_field(fc: str, name: str) -> None:
             cur.updateRow([0])
 
 
-def _flag_intersections(target_fc: str,
-                        context_fc: Optional[str],
-                        flag_field: str) -> None:
+def _flag_intersections(target_fc: str, context_fc: Optional[str], flag_field: str) -> None:
     """Set flag_field = 1 for target points that INTERSECT context_fc (any geometry type)."""
     _add_flag_field(target_fc, flag_field)
     if not context_fc:
         return
-    lyr_pts = arcpy.management.MakeFeatureLayer(target_fc, arcpy.CreateUniqueName("pts_", "in_memory"))[0]
+    lyr_pts = arcpy.management.MakeFeatureLayer(
+        target_fc, arcpy.CreateUniqueName("pts_", "in_memory")
+    )[0]
     arcpy.management.SelectLayerByLocation(
         in_layer=lyr_pts,
         overlap_type="INTERSECT",
@@ -234,7 +235,9 @@ def _flag_intersections(target_fc: str,
             cur.updateRow([oid, 1])
 
 
-def _concat_conflict_labels(fc: str, flags: Sequence[str], out_field: str = "conflict_types") -> None:
+def _concat_conflict_labels(
+    fc: str, flags: Sequence[str], out_field: str = "conflict_types"
+) -> None:
     """Write comma-separated list of true flags to out_field."""
     if out_field not in [f.name for f in arcpy.ListFields(fc)]:
         arcpy.management.AddField(fc, out_field, "TEXT", field_length=255)
@@ -277,12 +280,14 @@ def _add_lon_lat(fc_analysis: str, out_lon: str = "lon", out_lat: str = "lat") -
             cur.updateRow([oid, x, y])
 
 
-def _export_conflicts(fc_conflicts: str,
-                      csv_path: Optional[str],
-                      xlsx_path: Optional[str],
-                      shp_path: Optional[str],
-                      gdb_path: Optional[str],
-                      fc_name: Optional[str]) -> None:
+def _export_conflicts(
+    fc_conflicts: str,
+    csv_path: Optional[str],
+    xlsx_path: Optional[str],
+    shp_path: Optional[str],
+    gdb_path: Optional[str],
+    fc_name: Optional[str],
+) -> None:
     """Export conflicts to requested formats."""
     # Vector
     if gdb_path and fc_name:
@@ -295,7 +300,9 @@ def _export_conflicts(fc_conflicts: str,
         arcpy.management.CopyFeatures(fc_conflicts, shp_path)
 
     # Tabular
-    field_names = [f.name for f in arcpy.ListFields(fc_conflicts) if f.type not in ("Geometry", "Raster")]
+    field_names = [
+        f.name for f in arcpy.ListFields(fc_conflicts) if f.type not in ("Geometry", "Raster")
+    ]
     if csv_path:
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
@@ -311,9 +318,11 @@ def _export_conflicts(fc_conflicts: str,
             Use_domain_and_subtype_description="CODE",
         )
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run minimal stop conflict checker (overlap-only; pandas dedupe retained)."""
@@ -342,7 +351,9 @@ def main() -> None:
     bld_fc = _ensure_projected(BUILDINGS_PATH, ANALYSIS_SR) if BUILDINGS_PATH.strip() else None
 
     # Working copy for flags
-    work_fc = arcpy.management.CopyFeatures(stops_fc, arcpy.CreateUniqueName("stops_work", "in_memory"))[0]
+    work_fc = arcpy.management.CopyFeatures(
+        stops_fc, arcpy.CreateUniqueName("stops_work", "in_memory")
+    )[0]
 
     # Flag overlaps (INTERSECT) — any geometry type is fine
     if FLAG_ROADWAYS:
@@ -369,9 +380,13 @@ def main() -> None:
     _add_lon_lat(work_fc, out_lon="lon", out_lat="lat")
 
     # Filter to conflicts
-    conf_lyr = arcpy.management.MakeFeatureLayer(work_fc, arcpy.CreateUniqueName("conf_lyr", "in_memory"))[0]
+    conf_lyr = arcpy.management.MakeFeatureLayer(
+        work_fc, arcpy.CreateUniqueName("conf_lyr", "in_memory")
+    )[0]
     arcpy.management.SelectLayerByAttribute(conf_lyr, "NEW_SELECTION", "has_conflict = 1")
-    conflicts_fc = arcpy.management.CopyFeatures(conf_lyr, arcpy.CreateUniqueName("conflicts_fc", "in_memory"))[0]
+    conflicts_fc = arcpy.management.CopyFeatures(
+        conf_lyr, arcpy.CreateUniqueName("conflicts_fc", "in_memory")
+    )[0]
 
     # Outputs
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -396,10 +411,14 @@ def main() -> None:
     pct = (n_conf / total * 100.0) if total else 0.0
     print(f"Stops checked (post-pandas-dedupe): {total}")
     print(f"Stops with conflicts: {n_conf} ({pct:.1f}%)")
-    print(f"Vector export: {os.path.abspath(gdb_path) if gdb_path else '(GDB disabled)'} "
-          f"{'and ' + shp_path if shp_path else ''}")
-    print(f"Tabular export: {csv_path if csv_path else '(CSV disabled)'} "
-          f"{'and ' + xlsx_path if xlsx_path else ''}")
+    print(
+        f"Vector export: {os.path.abspath(gdb_path) if gdb_path else '(GDB disabled)'} "
+        f"{'and ' + shp_path if shp_path else ''}"
+    )
+    print(
+        f"Tabular export: {csv_path if csv_path else '(CSV disabled)'} "
+        f"{'and ' + xlsx_path if xlsx_path else ''}"
+    )
 
 
 if __name__ == "__main__":
