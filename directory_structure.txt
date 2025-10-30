@@ -7,10 +7,10 @@ transit_planning_with_python-main/
 ├── requirements.txt
 ├── .github/
 │   └── workflows/
-|       ├── ci.yml
-|       ├── helper_audit.yml
-|       ├── ruff_ty_check.yml
-│       └── ruff_ty_weekly.yml
+|       ├── format-lint-autofix-weekly.yml
+|       ├── format-lint-typecheck.yml
+|       ├── helper-audit.yml
+│       └── tests.yml
 ├── dev_tools/
 |   ├── audit_helper_functions.py
 │   └── print_repo_file_tree.py
