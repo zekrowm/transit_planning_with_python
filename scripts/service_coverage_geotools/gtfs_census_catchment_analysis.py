@@ -1,715 +1,154 @@
-"""Performs spatial analysis on GTFS transit data and demographic shapefiles.
+"""Service-area demographics from transit stops.
 
-Generates service area buffers around transit stops and estimates population,
-household, and employment characteristics within those areas. Supports three
-analysis modes: 'network', 'route', and 'stop'. Buffer sizes and stop filters
-are configurable.
+Builds an ArcPy pipeline that buffers stops, dissolves buffers, clips ACS
+demographic polygons, and computes area-weighted counts (households, population,
+jobs). Supports network-wide runs from a stops shapefile or GTFS, and optional
+per-route summaries from GTFS.
 
-Intended for use in Jupyter notebooks with appropriate EPSG settings.
+Configuration:
+  - Set absolute input/output paths in CONFIGURATION.
+  - Choose STOPS_INPUT_MODE: {"shapefile", "gtfs"}.
+  - Optionally filter GTFS via GTFS_ROUTE_SHORT_NAMES.
 
-Typical inputs:
-    - GTFS folder containing: trips.txt, stop_times.txt, routes.txt,
-      stops.txt, calendar.txt.
-    - Demographic shapefile with fields to estimate.
-    - Configurable filter lists and buffer settings in the script.
-
-Outputs:
-    - Shapefiles (.shp) and Excel summaries (.xlsx) for each analysis unit.
-    - Optional matplotlib plots for visual inspection.
+Requires:
+  - ArcGIS Pro with arcpy; GTFS stop coordinates assumed WGS84.
 """
+
+from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
-from typing import Final, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
-import geopandas as gpd
-import matplotlib.pyplot as plt
+import arcpy
+import numpy as np
 import pandas as pd
-from shapely.geometry import Point
 
 # =============================================================================
-# CONFIGURATION
+# CONFIGURATION (ABSOLUTE PATHS ONLY)
 # =============================================================================
+# Overwrite behavior
+OVERWRITE_OUTPUTS: bool = True
 
-# Select analysis mode: "network", "route", or "stop"
-ANALYSIS_MODE = "network"  # Options: "network", "route", "stop"
+# --- Stops input mode ---
+# Choose one: "shapefile" or "gtfs"
+STOPS_INPUT_MODE: str = "shapefile"
 
-# Paths
-GTFS_DATA_PATH = r"C:\Path\To\GTFS_data_folder"
-DEMOGRAPHICS_SHP_PATH = r"C:\Path\To\census_blocks.shp"
-OUTPUT_DIRECTORY = r"C:\Path\To\Output"
+# For "shapefile" mode
+STOPS_FEATURE_CLASS: str = r"Path\To\Your\bus_route.shp"
 
-# Calendar / service-pattern filter
-SERVICE_IDS_TO_INCLUDE: Final[list[str]] = ["3"]  # ← NEW
-# e.g. ["1", "2", "3"] for your weekday patterns, [] for “no calendar filter”
+# For "gtfs" mode
+GTFS_FOLDER: str = r"Folder\Path\To\Your\GTFS"
 
-# Route filters:
-# 1) ROUTES_TO_INCLUDE: If non-empty, only these routes are considered.
-# 2) ROUTES_TO_EXCLUDE: If non-empty, these routes are removed.
-# If both are empty, all routes in routes.txt are used.
-ROUTES_TO_INCLUDE: list[str] = ["101", "202"]  # e.g. [] for no include filter
-ROUTES_TO_EXCLUDE: list[str] = []  # e.g. [] for no exclude filter
+# Optional: filter GTFS to the following route_short_name values.
+# Example: ["101", "202"]. Leave as [] or None to include all routes (network run).
+GTFS_ROUTE_SHORT_NAMES: Optional[Sequence[str]] = []
 
-# Stop filters:
-# 1) STOP_IDS_TO_INCLUDE: If non-empty, only these stops are considered (after route filter).
-# 2) STOP_IDS_TO_EXCLUDE: If non-empty, these stops are removed (after route filter).
-# If both are empty, all stops belonging to final routes are used.
-STOP_IDS_TO_INCLUDE: list[
-    str
-] = []  # e.g. [] for no include filter or [1005, 1007] for include filter
-STOP_IDS_TO_EXCLUDE: list[
-    str
-] = []  # e.g. [] for no include filter or [1010, 1011] for exclude filter
+# Inputs (absolute paths)
+DEMOGRAPHICS_SHP: str = r"Path\To\Your\census_demographics.shp"
 
-# Buffer distances in miles
-BUFFER_DISTANCE = 0.25  # Standard buffer distance
-LARGE_BUFFER_DISTANCE = 2.0  # Larger buffer distance for specified stops
+# -----------------------------------------------------------------------------
+# DEMOGRAPHICS SOURCE FIELD MAP
+# -----------------------------------------------------------------------------
+# Map the clipped ACS layer columns to the semantic inputs the pipeline expects.
+# Leave a value as None if the source field does not exist in your dataset.
+DEMOG_SRC_FIELDS: dict[str, Optional[str]] = {
+    # Households
+    "loinc_hh_src": "Lowincome_",  # low-income households
+    "total_hh_src": "TotHH",  # total households
+    # Population
+    "minor_pop_src": "Minority",  # minority population
+    "total_pop_src": "Tot_Pop",  # total population
+    # Jobs (ACS layer has none; keep None to emit zeros)
+    "loinc_jobs_src": None,  # low-wage jobs
+    "all_jobs_src": None,  # total jobs
+}
 
-# If a stop_id is in this list, use LARGE_BUFFER_DISTANCE instead.
-STOP_IDS_LARGE_BUFFER: list[str] = []
+# Outputs (absolute paths) — used by the network run path
+BUFFERED_STOPS_SHP: str = r"Path\To\Your\buffered_stops.shp"
+DISSOLVED_BUFFERS_SHP: str = r"Path\To\Your\dissolved_buffers.shp"
+CLIPPED_DEMOGRAPHICS_SHP: str = r"Path\To\Your\clipped_demographics.shp"
+FINAL_EXPORT_DIR: str = r"Path\To\Your\output_demogs.shp"
 
-# Optional FIPS filter (list of codes). Empty list = no filter.
-FIPS_FILTER: list[str] = []  # Replace with FIPS code(s) for desired jurisdictions (e.g. "11001")
+# Processing parameters
+BUFFER_DISTANCE_MILES: float = 0.25
+DISSOLVE_FIELD_NAME: str = "dissolve"
 
-# Fields in demographics shapefile to multiply by area ratio
-SYNTHETIC_FIELDS = [
-    "total_pop",
+# Run label used for final export naming and console prints
+RUN_TAG: str = "tsp_service"  # e.g., "weekday_2024q3"
+
+# -----------------------------------------------------------------------------
+# OUTPUT MODE
+# -----------------------------------------------------------------------------
+# One of: "network" | "by_route" | "both"
+OUTPUT_MODE: str = "both"
+
+# Per-route runs are supported only when STOPS_INPUT_MODE == "gtfs".
+# When True, also write a CSV of per-route results to FINAL_EXPORT_DIR.
+BY_ROUTE_WRITE_CSV: bool = True
+
+# Optional: export per-route clipped polygons as shapefiles.
+# File names will be {RUN_TAG}_route_{route_short_name}_service_buffer_data.shp
+BY_ROUTE_EXPORT_FEATURES: bool = False
+
+# -----------------------------------------------------------------------------
+# LOGGING
+# -----------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
+# -----------------------------------------------------------------------------
+# METRIC FIELDS (single source of truth)
+# -----------------------------------------------------------------------------
+CLIPPED_FIELDS: List[str] = [
+    "loinc_hh",
     "total_hh",
-    "tot_empl",
-    "low_wage",
-    "mid_wage",
-    "high_wage",
-    #    "minority",
-    #    "est_lep",
-    #    "est_lo_veh",
-    #    "est_lo_v_1",
-    #    "est_youth",
-    #    "est_elderl",
-    #    "est_low_in",
-]
-
-# EPSG code for projected coordinate system used in area calculations
-CRS_EPSG_CODE = 3395  # Replace with EPSG for your study area
-
-# GTFS files expected
-REQUIRED_GTFS_FILES = [
-    "trips.txt",
-    "stop_times.txt",
-    "routes.txt",
-    "stops.txt",
-    "calendar.txt",
+    "minor_pop",
+    "total_pop",
+    "loinc_jobs",
+    "all_jobs",
 ]
 
 # =============================================================================
-# FUNCTIONS
-# =============================================================================
-
-
-def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
-    """Return service_ids for routes that run Monday through Friday.
-
-    :param calendar_df: DataFrame from calendar.txt.
-    :return: Series of service_id values available on all weekdays.
-    """
-    weekday_filter = (
-        (calendar_df["monday"] == 1)
-        & (calendar_df["tuesday"] == 1)
-        & (calendar_df["wednesday"] == 1)
-        & (calendar_df["thursday"] == 1)
-        & (calendar_df["friday"] == 1)
-    )
-    return calendar_df[weekday_filter]["service_id"]
-
-
-def get_included_routes(
-    routes_df: pd.DataFrame, routes_to_include: list[str], routes_to_exclude: list[str]
-) -> pd.DataFrame:
-    """Determine which routes to keep by applying inclusion/exclusion lists.
-
-    1) Start with all routes in routes_df.
-    2) If routes_to_include is non-empty, keep only those in that list.
-    3) If routes_to_exclude is non-empty, remove those from the result.
-
-    :param routes_df: DataFrame from routes.txt.
-    :param routes_to_include: List of route_short_names to include.
-    :param routes_to_exclude: List of route_short_names to exclude.
-    :return: DataFrame containing only the final included routes.
-    """
-    filtered = routes_df.copy()
-
-    if routes_to_include:
-        filtered = filtered[filtered["route_short_name"].isin(routes_to_include)]
-
-    if routes_to_exclude:
-        filtered = filtered[~filtered["route_short_name"].isin(routes_to_exclude)]
-
-    final_count = len(filtered)
-    print(f"Including {final_count} routes after applying include/exclude lists.")
-    included_names = ", ".join(sorted(filtered["route_short_name"].unique()))
-    if included_names:
-        print(f"  Included Routes: {included_names}")
-    else:
-        print("  Included Routes: None")
-    return filtered
-
-
-def get_included_stops(
-    stops_df: pd.DataFrame,
-    stop_ids_to_include: list[str],
-    stop_ids_to_exclude: list[str],
-) -> pd.DataFrame:
-    """Determine which stops to keep by applying inclusion/exclusion lists.
-
-    1) Start with all stops in stops_df.
-    2) If stop_ids_to_include is non-empty, keep only those IDs.
-    3) If stop_ids_to_exclude is non-empty, remove those from the result.
-
-    :param stops_df: DataFrame from stops.txt (or an already merged subset).
-    :param stop_ids_to_include: List of stop_ids to include (strings or ints).
-    :param stop_ids_to_exclude: List of stop_ids to exclude (strings or ints).
-    :return: DataFrame containing only the final included stops.
-    """
-    filtered = stops_df.copy()
-
-    # Convert to string if necessary, or ensure consistent type
-    # if original GTFS has them as strings. Adjust as needed.
-    if stops_df["stop_id"].dtype == "O":
-        # If it's a string/object type, make sure our lists are also strings
-        stop_ids_to_include = [str(s) for s in stop_ids_to_include]
-        stop_ids_to_exclude = [str(s) for s in stop_ids_to_exclude]
-    else:
-        # Otherwise, cast the DataFrame column to int if they are numeric
-        filtered["stop_id"] = filtered["stop_id"].astype(int)
-        stop_ids_to_include = [str(s) for s in stop_ids_to_include]
-        stop_ids_to_exclude = [str(s) for s in stop_ids_to_exclude]
-
-    if stop_ids_to_include:
-        filtered = filtered[filtered["stop_id"].isin(stop_ids_to_include)]
-
-    if stop_ids_to_exclude:
-        filtered = filtered[~filtered["stop_id"].isin(stop_ids_to_exclude)]
-
-    final_count = len(filtered)
-    print(f"Including {final_count} stops after applying stop include/exclude lists.")
-    return filtered
-
-
-def pick_buffer_distance(
-    stop_id: str, normal_buffer: float, large_buffer: float, large_buffer_ids: list[str]
-) -> float:
-    """Determine the buffer distance for a given stop_id.
-
-    :param stop_id: The stop_id to check.
-    :param normal_buffer: The standard buffer distance in miles.
-    :param large_buffer: The larger buffer distance in miles.
-    :param large_buffer_ids: List of stop_ids that require the larger buffer.
-    :return: Buffer distance in miles.
-    """
-    # Convert as needed to match what large_buffer_ids contain
-    # for consistent comparison
-    str_stop_id = str(stop_id)
-    large_buffer_str_ids = [str(s) for s in large_buffer_ids]
-
-    if str_stop_id in large_buffer_str_ids:
-        return large_buffer
-    else:
-        return normal_buffer
-
-
-def clip_and_calculate_synthetic_fields(
-    demographics_gdf: gpd.GeoDataFrame,
-    buffer_gdf: gpd.GeoDataFrame,
-    synthetic_fields: list[str],
-) -> gpd.GeoDataFrame:
-    """Clip *demographics_gdf* with *buffer_gdf* and compute synthetic totals.
-
-    Steps
-    -----
-    1.  Ensure an original-area column exists (acres).
-    2.  Clip polygons to the buffer.
-    3.  Compute clipped-area and area-percentage.
-    4.  For each requested field that exists, multiply by area percentage
-        to create ``synthetic_<field>`` columns.
-       * Missing fields are reported once and silently skipped.
-    """
-    # ---------------------------------------------------------------
-    # 1. Original area (acres) — if not already present
-    # ---------------------------------------------------------------
-    if "area_ac_og" not in demographics_gdf.columns:
-        demographics_gdf["area_ac_og"] = demographics_gdf.geometry.area / 4046.86
-
-    # ---------------------------------------------------------------
-    # 2. Clip to buffer
-    # ---------------------------------------------------------------
-    clipped_gdf = gpd.clip(demographics_gdf, buffer_gdf)
-
-    # ---------------------------------------------------------------
-    # 3. Clipped area + percentage
-    # ---------------------------------------------------------------
-    clipped_gdf["area_ac_cl"] = clipped_gdf.geometry.area / 4046.86
-    clipped_gdf["area_perc"] = clipped_gdf["area_ac_cl"] / clipped_gdf["area_ac_og"]
-
-    # Handle divide-by-zero and NaN without chained-assignment warnings
-    clipped_gdf["area_perc"] = (
-        clipped_gdf["area_perc"].replace([float("inf"), -float("inf")], 0).fillna(0)
-    )
-
-    # ---------------------------------------------------------------
-    # 4. Synthetic fields — skip any that are missing
-    # ---------------------------------------------------------------
-    missing = [f for f in synthetic_fields if f not in clipped_gdf.columns]
-    if missing:
-        logging.warning("Synthetic field(s) not found and will be skipped: %s", missing)
-
-    for field in synthetic_fields:
-        if field not in clipped_gdf.columns:
-            continue  # silently skip after the single warning above
-
-        numeric = pd.to_numeric(clipped_gdf[field], errors="coerce").fillna(0)
-        clipped_gdf[f"synthetic_{field}"] = clipped_gdf["area_perc"] * numeric
-
-    return clipped_gdf
-
-
-def export_summary_to_excel(totals_dict: dict, output_path: str) -> None:
-    """Write a dictionary of aggregated synthetic fields to a single-row Excel file.
-
-    :param totals_dict: A dictionary of {synthetic_field_name: numeric_total}.
-    :param output_path: File path for the .xlsx output.
-    """
-    # Convert the dictionary to a single-row DataFrame
-    summary_data = {k: [v] for k, v in totals_dict.items()}
-    summary_df = pd.DataFrame(summary_data)
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    summary_df.to_excel(output_path, index=False)
-    print(f"Exported Excel summary: {output_path}")
-
-
-def do_network_analysis(
-    trips: pd.DataFrame,
-    stop_times: pd.DataFrame,
-    routes_df: pd.DataFrame,
-    stops_df: pd.DataFrame,
-    demographics_gdf: gpd.GeoDataFrame,
-    routes_to_include: list[str],
-    routes_to_exclude: list[str],
-    stop_ids_to_include: list[str],
-    stop_ids_to_exclude: list[str],
-    buffer_distance_mi: float,
-    large_buffer_distance_mi: float,
-    stop_ids_large_buffer: list[str],
-    output_dir: str,
-    synthetic_fields: list[str],
-) -> None:
-    """Run a single network-wide buffer/clip analysis.
-
-    The function filters routes and stops, applies variable buffer radii,
-    dissolves individual buffers into a single surface, clips demographic
-    polygons, and exports both geometry and Excel summaries.
-
-    Args:
-        trips: DataFrame from *trips.txt*.
-        stop_times: DataFrame from *stop_times.txt*.
-        routes_df: DataFrame from *routes.txt*.
-        stops_df: DataFrame from *stops.txt*.  # <--- ADD THIS
-        demographics_gdf: GeoDataFrame containing demographic data. # <--- ADD THIS
-        routes_to_include: List of route_short_names to include. # <--- ADD THIS
-        routes_to_exclude: List of route_short_names to exclude. # <--- ADD THIS
-        stop_ids_to_include: List of stop_ids to include. # <--- ADD THIS
-        stop_ids_to_exclude: List of stop_ids to exclude. # <--- ADD THIS
-        buffer_distance_mi: Standard buffer distance in miles. # <--- ADD THIS
-        large_buffer_distance_mi: Larger buffer distance in miles for specific stops. # <--- ADD THIS
-        stop_ids_large_buffer: List of stop_ids that should use the large buffer distance. # <--- ADD THIS
-        output_dir: Directory to save output files. # <--- ADD THIS
-        synthetic_fields: List of demographic fields to synthesize. # <--- ADD THIS
-
-    Returns:
-      - A single shapefile (all_routes_service_buffer_data.shp)
-      - A single Excel summary (all_routes_service_buffer_data.xlsx)
-    """
-    print("\n=== Network-wide Analysis ===")
-
-    # 1) Filter routes
-    final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
-    if final_routes_df.empty:
-        print("No routes remain after route filters. Aborting network analysis.")
-        return
-
-    # 2) Subset trips to only final routes
-    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
-    # 3) Merge trips with stop_times
-    merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
-    # 4) Merge with stops
-    merged_data = pd.merge(merged_data, stops_df, on="stop_id")
-
-    # 5) Filter final stops
-    final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
-    if final_stops_df.empty:
-        print("No stops remain after stop filters. Aborting network analysis.")
-        return
-
-    # 6) Convert to GeoDataFrame in projected CRS
-    final_stops_df["geometry"] = final_stops_df.apply(
-        lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
-    )
-    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
-        epsg=CRS_EPSG_CODE
-    )
-
-    # 7) Compute variable buffer distances — vectorised, pylint-friendly
-    buffer_m = (
-        stops_gdf["stop_id"].map(
-            lambda sid: pick_buffer_distance(
-                sid,
-                normal_buffer=buffer_distance_mi,
-                large_buffer=large_buffer_distance_mi,
-                large_buffer_ids=stop_ids_large_buffer,
-            )
-        )
-        * 1609.34
-    )
-
-    stops_gdf = stops_gdf.assign(buffer_distance_meters=buffer_m).set_geometry(
-        stops_gdf.geometry.buffer(buffer_m)
-    )
-
-    # 8) Dissolve all buffers to create a single “network” buffer
-    network_buffer_gdf = stops_gdf.dissolve().reset_index(drop=True)
-
-    # 9) Clip and export
-    clipped_result = clip_and_calculate_synthetic_fields(
-        demographics_gdf, network_buffer_gdf, synthetic_fields
-    )
-    synthetic_cols = [f"synthetic_{fld}" for fld in synthetic_fields]
-    totals = clipped_result[synthetic_cols].sum().round(0)
-
-    print("Network-wide totals:")
-    for col, value in totals.items():
-        display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
-        print(f"  Total Synthetic {display_col}: {int(value)}")
-
-    os.makedirs(output_dir, exist_ok=True)
-    shp_path = os.path.join(output_dir, "all_routes_service_buffer_data.shp")
-    clipped_result.to_file(shp_path)
-    print(f"Exported network shapefile: {shp_path}")
-
-    # Also export the summary to Excel
-    xlsx_path = os.path.join(output_dir, "all_routes_service_buffer_data.xlsx")
-    final_dict = {col: int(val) for col, val in totals.items()}
-    export_summary_to_excel(final_dict, xlsx_path)
-
-    # Optional plot
-    fig, ax = plt.subplots(figsize=(10, 10))
-    network_buffer_gdf.plot(ax=ax, alpha=0.5, label="Network Buffer")
-    stops_gdf.boundary.plot(ax=ax, linewidth=0.5, label="Stop Buffers")
-    plt.title("Network Buffer")
-    plt.legend()
-    plt.show()
-
-
-def do_route_by_route_analysis(
-    trips: pd.DataFrame,
-    stop_times: pd.DataFrame,
-    routes_df: pd.DataFrame,
-    stops_df: pd.DataFrame,
-    demographics_gdf: gpd.GeoDataFrame,
-    routes_to_include: list[str],
-    routes_to_exclude: list[str],
-    stop_ids_to_include: list[str],
-    stop_ids_to_exclude: list[str],
-    buffer_distance_mi: float,
-    large_buffer_distance_mi: float,
-    stop_ids_large_buffer: list[str],
-    output_dir: str,
-    synthetic_fields: list[str],
-) -> None:
-    """Perform buffer/clip analysis for each individual route.
-
-    The procedure repeats the buffer workflow for every `route_short_name`
-    in the filtered set, exporting per-route shapefiles and Excel totals.
-
-    Exports, for each route_short_name R:
-      - A shapefile named R_service_buffer_data.shp
-      - A summary Excel named R_service_buffer_data.xlsx
-    """
-    print("\n=== Route-by-Route Analysis ===")
-
-    final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
-    if final_routes_df.empty:
-        print("No routes remain after route filters. Aborting route-by-route analysis.")
-        return
-
-    # Merge the relevant GTFS data
-    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
-    merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
-    merged_data = pd.merge(merged_data, stops_df, on="stop_id")
-
-    # Filter stops per user-specified ID filters
-    final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
-    if final_stops_df.empty:
-        print("No stops remain after stop filters. Aborting route-by-route analysis.")
-        return
-
-    # Convert to GeoDataFrame in projected CRS
-    final_stops_df["geometry"] = final_stops_df.apply(
-        lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
-    )
-    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
-        epsg=CRS_EPSG_CODE
-    )
-
-    # Apply variable buffer logic
-    stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
-        lambda sid: pick_buffer_distance(
-            sid,
-            normal_buffer=buffer_distance_mi,
-            large_buffer=large_buffer_distance_mi,
-            large_buffer_ids=stop_ids_large_buffer,
-        )
-        * 1609.34
-    )
-    stops_gdf["geometry"] = stops_gdf.apply(
-        lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
-    )
-
-    # Keep only necessary columns and remove duplicates
-    stops_gdf = stops_gdf[["route_short_name", "stop_id", "geometry"]].drop_duplicates()
-
-    # Dissolve buffers by route
-    dissolved_by_route_gdf = stops_gdf.dissolve(by="route_short_name").reset_index()
-    unique_route_names = dissolved_by_route_gdf["route_short_name"].unique()
-
-    for route_name in unique_route_names:
-        print(f"\nProcessing route: {route_name}")
-        route_buffer_gdf = dissolved_by_route_gdf[
-            dissolved_by_route_gdf["route_short_name"] == route_name
-        ]
-        if route_buffer_gdf.empty:
-            print(f"No stops found for route '{route_name}' - skipping.")
-            continue
-
-        clipped_result = clip_and_calculate_synthetic_fields(
-            demographics_gdf, route_buffer_gdf, synthetic_fields
-        )
-
-        synthetic_cols = [f"synthetic_{f}" for f in synthetic_fields]
-        totals = clipped_result[synthetic_cols].sum().round(0)
-        for col, val in totals.items():
-            display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
-            print(f"  Total Synthetic {display_col} for route {route_name}: {int(val)}")
-
-        # Shapefile export
-        os.makedirs(output_dir, exist_ok=True)
-        shp_path = os.path.join(output_dir, f"{route_name}_service_buffer_data.shp")
-        clipped_result.to_file(shp_path)
-        print(f"Exported shapefile for route {route_name}: {shp_path}")
-
-        # Export summary to Excel
-        xlsx_path = os.path.join(output_dir, f"{route_name}_service_buffer_data.xlsx")
-        final_dict = {col: int(val) for col, val in totals.items()}
-        export_summary_to_excel(final_dict, xlsx_path)
-
-        # Optional plot
-        fig, ax = plt.subplots(figsize=(10, 10))
-        route_buffer_gdf.plot(ax=ax, alpha=0.5, label=f"Route {route_name} Buffer")
-        plt.title(f"Route {route_name} Buffer Overlay")
-        plt.legend()
-        plt.show()
-
-
-def do_stop_by_stop_analysis(
-    trips: pd.DataFrame,
-    stop_times: pd.DataFrame,
-    routes_df: pd.DataFrame,
-    stops_df: pd.DataFrame,
-    demographics_gdf: gpd.GeoDataFrame,
-    routes_to_include: list[str],
-    routes_to_exclude: list[str],
-    stop_ids_to_include: list[str],
-    stop_ids_to_exclude: list[str],
-    buffer_distance_mi: float,
-    large_buffer_distance_mi: float,
-    stop_ids_large_buffer: list[str],
-    output_dir: str,
-    synthetic_fields: list[str],
-) -> None:
-    """Compute buffers and demographic catchments for each stop.
-
-    Each GTFS stop that survives the route, trip, and stop filters is
-    buffered (variable radius), clipped against the demographic layer, and
-    written to individual shapefile/Excel pairs.
-
-    Exports, for each stop_id S:
-      - A shapefile named stop_S_service_buffer_data.shp
-      - A summary Excel named stop_S_service_buffer_data.xlsx
-    """
-    print("\n=== Stop-by-Stop Analysis ===")
-
-    final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
-    if final_routes_df.empty:
-        print("No routes remain after route filters. Aborting stop-by-stop analysis.")
-        return
-
-    # Merge the relevant GTFS data
-    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
-    merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
-    merged_data = pd.merge(merged_data, stops_df, on="stop_id")
-
-    # Filter stops per user-specified ID filters
-    final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
-    if final_stops_df.empty:
-        print("No stops remain after stop filters. Aborting stop-by-stop analysis.")
-        return
-
-    # Convert to GeoDataFrame in projected CRS
-    final_stops_df["geometry"] = final_stops_df.apply(
-        lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
-    )
-    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
-        epsg=CRS_EPSG_CODE
-    )
-
-    # Apply variable buffer logic
-    stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
-        lambda sid: pick_buffer_distance(
-            sid,
-            normal_buffer=buffer_distance_mi,
-            large_buffer=large_buffer_distance_mi,
-            large_buffer_ids=stop_ids_large_buffer,
-        )
-        * 1609.34
-    )
-
-    # For each stop, create a buffer, clip, and store results
-    unique_stops = stops_gdf["stop_id"].unique()
-    os.makedirs(output_dir, exist_ok=True)
-
-    for sid in unique_stops:
-        single_stop_gdf = stops_gdf[stops_gdf["stop_id"] == sid]
-        if single_stop_gdf.empty:
-            continue
-
-        stop_id_str = str(sid)
-        # Buffer
-        single_stop_gdf["geometry"] = single_stop_gdf.apply(
-            lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
-        )
-        # Dissolve in case stop appears in multiple trips
-        single_stop_buffer = single_stop_gdf.dissolve().reset_index(drop=True)
-
-        # Clip
-        clipped_result = clip_and_calculate_synthetic_fields(
-            demographics_gdf, single_stop_buffer, synthetic_fields
-        )
-        synthetic_cols = [f"synthetic_{f}" for f in synthetic_fields]
-        totals = clipped_result[synthetic_cols].sum().round(0)
-
-        print(f"\nStop {stop_id_str} totals:")
-        for col, val in totals.items():
-            display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
-            print(f"  Total Synthetic {display_col}: {int(val)}")
-
-        # Export shapefile
-        shp_path = os.path.join(output_dir, f"stop_{stop_id_str}_service_buffer_data.shp")
-        clipped_result.to_file(shp_path)
-        print(f"Exported shapefile for stop {stop_id_str}: {shp_path}")
-
-        # Export summary to Excel
-        xlsx_path = os.path.join(output_dir, f"stop_{stop_id_str}_service_buffer_data.xlsx")
-        final_dict = {col: int(val) for col, val in totals.items()}
-        export_summary_to_excel(final_dict, xlsx_path)
-
-        # Optional plot
-        fig, ax = plt.subplots(figsize=(8, 8))
-        single_stop_buffer.plot(ax=ax, alpha=0.5, label=f"Stop {stop_id_str} Buffer")
-        plt.title(f"Stop {stop_id_str} Buffer Overlay")
-        plt.legend()
-        plt.show()
-
-
-def apply_fips_filter(
-    demog_gdf: gpd.GeoDataFrame,
-    fips_filter: list[str],
-    fips_col: str = "FIPS",
-) -> gpd.GeoDataFrame:
-    """Filter *demog_gdf* by county FIPS codes.
-
-    If *fips_col* is absent the function tries to derive it from the first
-    column whose name starts with ``GEOID`` (block, tract, etc.), slicing the
-    first 5 characters.  If that also fails, the filter is skipped with a
-    warning.
-    """
-    if not fips_filter:
-        logging.info("No FIPS filter provided; processing all features.")
-        return demog_gdf
-
-    if fips_col not in demog_gdf.columns:
-        # attempt automatic derivation
-        geo_cols = [c for c in demog_gdf.columns if c.lower().startswith("geoid")]
-        if geo_cols:
-            src = geo_cols[0]
-            demog_gdf[fips_col] = demog_gdf[src].str[:5]
-            logging.info("Derived %s from %s (first 5 chars) for FIPS filtering.", fips_col, src)
-        else:
-            logging.warning(
-                "FIPS filter requested (%s) but no '%s' column or GEOID-like "
-                "field found.  Skipping the filter.",
-                fips_filter,
-                fips_col,
-            )
-            return demog_gdf
-
-    before = len(demog_gdf)
-    demog_gdf = demog_gdf[demog_gdf[fips_col].isin(fips_filter)]
-    logging.info(
-        "Applied FIPS filter %s — %d → %d features.",
-        fips_filter,
-        before,
-        len(demog_gdf),
-    )
-    return demog_gdf
-
-
-# -----------------------------------------------------------------------------
 # REUSABLE FUNCTIONS
-# -----------------------------------------------------------------------------
+# =============================================================================
 
 
 def load_gtfs_data(
-    gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: type = str
+    gtfs_folder_path: str,
+    files: Optional[Sequence[str]] = None,
+    dtype: str | type[str] | Mapping[str, Any] = str,
 ) -> dict[str, pd.DataFrame]:
-    """Load GTFS text files from *gtfs_folder_path*.
-
-    The function validates the presence of each requested file, reads it
-    into a :class:`pandas.DataFrame`, and returns a dictionary keyed by file
-    stem.
+    """Load one or more GTFS text files into memory.
 
     Args:
-        gtfs_folder_path: Absolute or relative path to the directory that
-            contains GTFS text files.
-        files: Specific GTFS file names to load.  If *None*, the canonical
-            set defined in the function body is used.
-        dtype: Either a single pandas dtype applied to every column or a
-            mapping of column names to dtypes passed verbatim to
-            :func:`pandas.read_csv`.
+        gtfs_folder_path: Absolute or relative path to the folder
+            containing the GTFS feed.
+        files: Explicit sequence of file names to load. If ``None``,
+            the standard 13 GTFS text files are attempted.
+        dtype: Value forwarded to :pyfunc:`pandas.read_csv(dtype=…)` to
+            control column dtypes. Supply a mapping for per-column dtypes.
 
     Returns:
-        A dictionary whose keys are file stems (e.g. ``"trips"``) and whose
-        values are DataFrames with the raw GTFS contents.
+        Mapping of file stem → :class:`pandas.DataFrame`; for example,
+        ``data["trips"]`` holds the parsed *trips.txt* table.
 
     Raises:
-        OSError: *gtfs_folder_path* does not exist or one or more files are
-            missing.
-        ValueError: A file is empty or cannot be parsed.
-        RuntimeError: An :pyexc:`OSError` occurs while reading a file.
+        OSError: Folder missing or one of *files* not present.
+        ValueError: Empty file or CSV parser failure.
+        RuntimeError: Generic OS error while reading a file.
+
+    Notes:
+        All columns default to ``str`` to avoid pandas’ type-inference
+        pitfalls (e.g. leading zeros in IDs).
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
     if files is None:
-        files = [
+        files = (
             "agency.txt",
             "stops.txt",
             "routes.txt",
@@ -723,7 +162,7 @@ def load_gtfs_data(
             "frequencies.txt",
             "shapes.txt",
             "transfers.txt",
-        ]
+        )
 
     missing = [
         file_name
@@ -733,14 +172,14 @@ def load_gtfs_data(
     if missing:
         raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
-    data = {}
+    data: dict[str, pd.DataFrame] = {}
     for file_name in files:
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
             df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
             data[key] = df
-            logging.info(f"Loaded {file_name} ({len(df)} records).")
+            logging.info("Loaded %s (%d records).", file_name, len(df))
 
         except pd.errors.EmptyDataError as exc:
             raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
@@ -759,124 +198,701 @@ def load_gtfs_data(
 
 
 # =============================================================================
-# MAIN
+# UTILITIES
 # =============================================================================
+def _as_distance_miles(miles: float) -> str:
+    """Return an ArcPy-friendly distance string in miles."""
+    return f"{miles} Miles"
 
 
-def main() -> None:
-    """Run the catchment-area analysis."""
-    # ------------------------------------------------------------------
-    # Logging (leave it here if you didn't configure logging earlier)
-    # ------------------------------------------------------------------
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(levelname)s | %(asctime)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+def ensure_dir(path: str) -> None:
+    """Create directory if it does not exist."""
+    os.makedirs(path, exist_ok=True)
+
+
+def field_exists(feature_class: str, field_name: str) -> bool:
+    """Return True if a field exists in the feature class."""
+    return any(f.name.lower() == field_name.lower() for f in arcpy.ListFields(feature_class))
+
+
+def safe_add_field(
+    feature_class: str,
+    field_name: str,
+    field_type: str,
+    **kwargs: Any,
+) -> None:
+    """Add a field if it does not already exist."""
+    if not field_exists(feature_class, field_name):
+        arcpy.management.AddField(feature_class, field_name, field_type, **kwargs)
+
+
+def calc_field(feature_class: str, field_name: str, expression: str) -> None:
+    """Calculate a field using PYTHON3 expression type."""
+    arcpy.management.CalculateField(
+        feature_class,
+        field_name,
+        expression,
+        expression_type="PYTHON3",
     )
 
-    try:
-        # --------------------------------------------------------------
-        # 1) LOAD GTFS
-        # --------------------------------------------------------------
-        gtfs_raw = load_gtfs_data(
-            str(GTFS_DATA_PATH),
-            files=REQUIRED_GTFS_FILES,
-            dtype=str,  # keep everything as strings
+
+def _sanitize_name(token: str) -> str:
+    """Return a safe token for in_memory names and filenames."""
+    return "".join(ch for ch in str(token) if ch.isalnum() or ch in ("_", "-"))[:40]
+
+
+def _route_scoped_temp(name: str, scope: str) -> str:
+    """Build an in_memory path unique per scope (e.g., route short name)."""
+    safe = _sanitize_name(scope)
+    return rf"in_memory\{name}_{safe}"
+
+
+# =============================================================================
+# GTFS → FEATURE LAYER
+# =============================================================================
+def _filter_gtfs_stops_by_route_short_name(
+    gtfs: dict[str, pd.DataFrame],
+    route_short_names: Optional[Sequence[str]],
+) -> pd.DataFrame:
+    """Return stops DF filtered to those used by routes with given short names.
+
+    Args:
+        gtfs: Mapping of GTFS table name to DataFrame (from load_gtfs_data()).
+        route_short_names: Optional list/sequence of route_short_name values to keep.
+
+    Returns:
+        DataFrame of filtered stops (subset of gtfs["stops"]).
+    """
+    stops = gtfs["stops"]
+    if not route_short_names:
+        return stops.copy()
+
+    # Normalize filter to strings for robust matching.
+    target = {str(x) for x in route_short_names}
+
+    routes = gtfs["routes"]
+    trips = gtfs["trips"]
+    stop_times = gtfs["stop_times"]
+
+    # route_ids where route_short_name is in target
+    routes_sel = routes[routes["route_short_name"].astype(str).isin(target)]
+    if routes_sel.empty:
+        raise ValueError(
+            f"No routes matched the provided route_short_name filter: {sorted(target)}"
         )
-        trips = gtfs_raw["trips"]
-        stop_times = gtfs_raw["stop_times"]
-        routes_df = gtfs_raw["routes"]
-        stops_df = gtfs_raw["stops"]
 
-        # --------------------------------------------------------------
-        # 2) OPTIONAL CALENDAR FILTER
-        # --------------------------------------------------------------
-        if SERVICE_IDS_TO_INCLUDE:  # e.g. ["1", "2", "3"]
-            before = len(trips)
-            trips = trips[trips["service_id"].isin(SERVICE_IDS_TO_INCLUDE)]
-            logging.info(
-                "Applied calendar filter %s — trips: %d → %d",
-                SERVICE_IDS_TO_INCLUDE,
-                before,
-                len(trips),
-            )
+    route_ids = set(routes_sel["route_id"].astype(str))
+    trips_sel = trips[trips["route_id"].astype(str).isin(route_ids)]
+    if trips_sel.empty:
+        raise ValueError(
+            "Routes matched, but no trips found for the selected routes. Check GTFS integrity."
+        )
+
+    trip_ids = set(trips_sel["trip_id"].astype(str))
+    st_sel = stop_times[stop_times["trip_id"].astype(str).isin(trip_ids)]
+    if st_sel.empty:
+        raise ValueError("Trips matched, but no stop_times rows found. Check GTFS integrity.")
+
+    stop_ids = set(st_sel["stop_id"].astype(str))
+    out = stops[stops["stop_id"].astype(str).isin(stop_ids)].copy()
+    if out.empty:
+        raise ValueError("Filtering produced zero stops. Verify stop_times and stops tables.")
+    return out
+
+
+def _points_layer_from_stops_df(stops_df: pd.DataFrame, layer_name: str = "gtfs_stops") -> str:
+    """Create an in-memory point feature layer from a GTFS stops DataFrame.
+
+    Expects columns: stop_id, stop_name, stop_lat, stop_lon.
+    Uses a strict NumPy structured array (no 'object' dtypes) so that
+    arcpy.da.NumPyArrayToTable can consume it safely.
+    """
+    required = {"stop_id", "stop_name", "stop_lat", "stop_lon"}
+    missing = required.difference(stops_df.columns)
+    if missing:
+        raise ValueError(f"GTFS stops missing required columns: {sorted(missing)}")
+
+    df = stops_df.loc[:, ["stop_id", "stop_name", "stop_lat", "stop_lon"]].copy()
+
+    # Coerce coordinates to float; drop rows with invalid coords.
+    df["stop_lat"] = pd.to_numeric(df["stop_lat"], errors="coerce")
+    df["stop_lon"] = pd.to_numeric(df["stop_lon"], errors="coerce")
+    df = df.dropna(subset=["stop_lat", "stop_lon"])
+
+    # Normalize text columns to strings and clamp to safe lengths.
+    max_id_len = 64
+    max_name_len = 255
+    df["stop_id"] = df["stop_id"].astype(str).str.slice(0, max_id_len)
+    df["stop_name"] = df["stop_name"].astype(str).str.slice(0, max_name_len)
+
+    # Structured array (no 'object' dtype)
+    dtype = np.dtype(
+        [
+            ("stop_id", f"<U{max_id_len}"),
+            ("stop_name", f"<U{max_name_len}"),
+            ("stop_lat", "<f8"),
+            ("stop_lon", "<f8"),
+        ]
+    )
+    rec = np.empty(len(df), dtype=dtype)
+    rec["stop_id"] = df["stop_id"].to_numpy()
+    rec["stop_name"] = df["stop_name"].to_numpy()
+    rec["stop_lat"] = df["stop_lat"].to_numpy(dtype=np.float64)
+    rec["stop_lon"] = df["stop_lon"].to_numpy(dtype=np.float64)
+
+    # Write to in_memory, then convert XY to points.
+    tbl_path = r"in_memory\gtfs_stops_tbl"
+    pt_path = r"in_memory\gtfs_stops_points"
+
+    if arcpy.Exists(tbl_path):
+        arcpy.management.Delete(tbl_path)
+    if arcpy.Exists(pt_path):
+        arcpy.management.Delete(pt_path)
+
+    arcpy.da.NumPyArrayToTable(rec, tbl_path)
+
+    wgs84 = arcpy.SpatialReference(4326)
+    arcpy.management.XYTableToPoint(
+        tbl_path,
+        pt_path,
+        x_field="stop_lon",
+        y_field="stop_lat",
+        coordinate_system=wgs84,
+    )
+
+    lyr_result = arcpy.management.MakeFeatureLayer(pt_path, layer_name)
+    return str(lyr_result)
+
+
+def make_stops_layer(
+    mode: str,
+    shapefile_fc: Optional[str] = None,
+    gtfs_folder: Optional[str] = None,
+    route_short_names: Optional[Sequence[str]] = None,
+    layer_name: str = "stops",
+) -> str:
+    """Create a feature layer of stops for downstream processing.
+
+    Args:
+        mode: One of {"shapefile", "gtfs"}.
+        shapefile_fc: Absolute path to stops feature class when mode == "shapefile".
+        gtfs_folder: Absolute path to GTFS folder when mode == "gtfs".
+        route_short_names: Optional filter for GTFS by route_short_name.
+        layer_name: Output layer name.
+
+    Returns:
+        An ArcPy feature layer ready to use.
+
+    Raises:
+        FileNotFoundError: When the specified input does not exist.
+        ValueError: When configuration is inconsistent or GTFS filtering fails.
+    """
+    m = mode.strip().lower()
+    if m not in {"shapefile", "gtfs"}:
+        raise ValueError("STOPS_INPUT_MODE must be 'shapefile' or 'gtfs'.")
+
+    if m == "shapefile":
+        if not shapefile_fc or not arcpy.Exists(shapefile_fc):
+            raise FileNotFoundError(f"Stops feature class not found: {shapefile_fc}")
+        return str(arcpy.management.MakeFeatureLayer(shapefile_fc, layer_name))
+
+    # GTFS mode
+    if not gtfs_folder or not os.path.exists(gtfs_folder):
+        raise FileNotFoundError(f"GTFS folder not found: {gtfs_folder}")
+
+    # Load required GTFS tables using provided helper
+    gtfs = load_gtfs_data(
+        gtfs_folder,
+        files=("stops.txt", "routes.txt", "trips.txt", "stop_times.txt"),
+        dtype=str,
+    )
+    stops_df = _filter_gtfs_stops_by_route_short_name(gtfs, route_short_names)
+    return _points_layer_from_stops_df(stops_df, layer_name=layer_name)
+
+
+# =============================================================================
+# PIPELINE STEPS
+# =============================================================================
+def buffer_stops(stops_layer: str, out_path: str, miles: float) -> str:
+    """Buffer stops by the given distance in miles."""
+    distance = _as_distance_miles(miles)
+    result = arcpy.analysis.Buffer(stops_layer, out_path, distance)
+    return str(result)
+
+
+def dissolve_buffers(
+    buffer_fc: str,
+    out_path: str,
+    dissolve_field: Optional[str] = None,
+) -> str:
+    """Dissolve buffered polygons.
+
+    If ``dissolve_field`` is falsy, dissolve ALL features (no field).
+    This avoids shapefile schema edits and lock issues.
+    If a field is requested and adding it fails, we fall back to dissolve-all.
+
+    Args:
+        buffer_fc: Path to the buffer feature class.
+        out_path: Output feature class path (e.g., .shp).
+        dissolve_field: Optional name of a field to dissolve on. If None/"" → all.
+
+    Returns:
+        Path to the dissolved feature class.
+    """
+    # If caller doesn't insist on a field, do an "all-in-one" dissolve.
+    if not dissolve_field:
+        result = arcpy.management.Dissolve(buffer_fc, out_path, dissolve_field="")
+        return str(result)
+
+    # Try the field-based dissolve; if schema edit fails, fall back gracefully.
+    try:
+        if not field_exists(buffer_fc, dissolve_field):
+            arcpy.management.AddField(buffer_fc, dissolve_field, "SHORT")
+        calc_field(buffer_fc, dissolve_field, "1")
+        result = arcpy.management.Dissolve(buffer_fc, out_path, dissolve_field)
+        return str(result)
+    except Exception as exc:  # pylint: disable=broad-except
+        logging.warning(
+            "Field-based dissolve failed on '%s' (%s). Falling back to dissolve-all.",
+            dissolve_field,
+            exc,
+        )
+        result = arcpy.management.Dissolve(buffer_fc, out_path, dissolve_field="")
+        return str(result)
+
+
+def add_original_area_acres(demographics_fc: str, field_name: str = "area_ac_og") -> None:
+    """Add original area (acres) to demographic polygons."""
+    safe_add_field(demographics_fc, field_name, "DOUBLE")
+    # area in square meters / 4046.86 => acres
+    calc_field(demographics_fc, field_name, "!shape.area@SQUAREMETERS! / 4046.86")
+
+
+def clip_demographics_to_buffers(
+    demographics_fc: str,
+    buffers_fc: str,
+    out_path: str,
+) -> str:
+    """Clip demographic polygons to the dissolved service buffer."""
+    result = arcpy.analysis.Clip(demographics_fc, buffers_fc, out_path)
+    return str(result)
+
+
+def add_clipped_area_and_percentage(
+    clipped_fc: str,
+    area_field: str = "area_ac_cl",
+    pct_field: str = "area_perc",
+    original_area_field: str = "area_ac_og",
+) -> None:
+    """Add clipped area (acres) and area percentage vs. original."""
+    safe_add_field(clipped_fc, area_field, "DOUBLE")
+    calc_field(clipped_fc, area_field, "!shape.area@SQUAREMETERS! / 4046.86")
+
+    safe_add_field(clipped_fc, pct_field, "DOUBLE")
+    calc_field(clipped_fc, pct_field, f"!{area_field}! / !{original_area_field}!")
+
+
+def print_fields(feature_class: str) -> None:
+    """List and print field names and types for a feature class."""
+    print(f"Fields in {feature_class}:")
+    for f in arcpy.ListFields(feature_class):
+        print(f"  - {f.name} ({f.type})")
+
+
+def add_synthetic_fields(
+    clipped_fc: str,
+    area_pct_field: str = "area_perc",
+    src_map: Mapping[str, Optional[str]] = DEMOG_SRC_FIELDS,
+) -> None:
+    """Create synthetic counts based on area fraction and declared source fields.
+
+    The function expects the clipped demographics to contain:
+      - A fractional area field (default: 'area_perc').
+      - Source columns named in ``src_map`` when present.
+
+    Any metric whose source field is absent (None) will be emitted as zeros
+    so downstream schemas remain stable.
+
+    Args:
+        clipped_fc: Path to the clipped ACS feature class.
+        area_pct_field: Name of the fractional area field in the clipped features.
+        src_map: Mapping from semantic inputs to source field names (or None).
+
+    Raises:
+        ValueError: If the required area fraction field is missing.
+    """
+    # Remove legacy collision if present
+    if field_exists(clipped_fc, "minrty_pop"):
+        arcpy.management.DeleteField(clipped_fc, ["minrty_pop"])
+
+    # Validate area fraction
+    if not field_exists(clipped_fc, area_pct_field):
+        raise ValueError(
+            f"Missing '{area_pct_field}' on {clipped_fc}. "
+            "Run add_clipped_area_and_percentage() first."
+        )
+
+    # Build list of source fields that are actually present
+    # Each entry is (semantic_key, source_field_or_None)
+    sources = [
+        ("loinc_hh_src", src_map.get("loinc_hh_src")),
+        ("total_hh_src", src_map.get("total_hh_src")),
+        ("minor_pop_src", src_map.get("minor_pop_src")),
+        ("total_pop_src", src_map.get("total_pop_src")),
+        ("loinc_jobs_src", src_map.get("loinc_jobs_src")),  # optional in ACS
+        ("all_jobs_src", src_map.get("all_jobs_src")),  # optional in ACS
+    ]
+
+    # Outputs to guarantee (stable schema)
+    out_specs = [
+        ("loinc_hh", "DOUBLE"),
+        ("total_hh", "DOUBLE"),
+        ("minor_pop", "DOUBLE"),
+        ("total_pop", "DOUBLE"),
+        ("loinc_jobs", "DOUBLE"),
+        ("all_jobs", "DOUBLE"),
+    ]
+    for fname, ftype in out_specs:
+        safe_add_field(clipped_fc, fname, ftype)
+
+    # Helper for numeric conversion
+    def _f(x: Any) -> float:
+        if x in (None, "", " "):
+            return 0.0
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return 0.0
+
+    # Cursor fields: area fraction + present sources + outputs
+    src_field_names: List[Optional[str]] = [s[1] for s in sources]
+    present_src_fields: List[str] = [
+        f for f in src_field_names if f and field_exists(clipped_fc, f)
+    ]
+    missing_required = [
+        name
+        for name, f in [
+            ("loinc_hh_src", src_map.get("loinc_hh_src")),
+            ("total_hh_src", src_map.get("total_hh_src")),
+            ("minor_pop_src", src_map.get("minor_pop_src")),
+            ("total_pop_src", src_map.get("total_pop_src")),
+        ]
+        if f and not field_exists(clipped_fc, f)
+    ]
+    if missing_required:
+        raise ValueError(
+            "Synthetic field calculation aborted. Missing expected ACS input columns on "
+            f"{clipped_fc}: {', '.join(missing_required)}"
+        )
+
+    cursor_fields = [area_pct_field] + [f for f in src_field_names if f] + [p[0] for p in out_specs]
+    # Indices to pull safely
+    n_sources = len(present_src_fields)
+
+    with arcpy.da.UpdateCursor(clipped_fc, cursor_fields) as cur:
+        for row in cur:
+            a = _f(row[0])
+
+            # Build a dict from present source names → values
+            src_vals: dict[str, float] = {}
+            for i, f in enumerate(present_src_fields, start=1):
+                src_vals[f] = _f(row[i])
+
+            # Resolve each output's source and compute
+            def v(src_key: str) -> float:
+                src_name = src_map.get(src_key)
+                if not src_name:  # no source declared → zero metric
+                    return 0.0
+                return src_vals.get(src_name, 0.0)
+
+            # Write outputs at the tail positions
+            base = 1 + n_sources  # first output index in 'row'
+            row[base + 0] = a * v("loinc_hh_src")
+            row[base + 1] = a * v("total_hh_src")
+            row[base + 2] = a * v("minor_pop_src")
+            row[base + 3] = a * v("total_pop_src")
+            row[base + 4] = a * v("loinc_jobs_src")  # zeros for ACS
+            row[base + 5] = a * v("all_jobs_src")  # zeros for ACS
+            cur.updateRow(row)
+
+
+def summarize_fields(feature_class: str, fields: Iterable[str]) -> Dict[str, int]:
+    """Sum a set of numeric fields and return rounded integers."""
+    totals = {f: 0.0 for f in fields}
+    with arcpy.da.SearchCursor(feature_class, list(fields)) as cur:
+        for row in cur:
+            for i, f in enumerate(fields):
+                val = row[i]
+                if val is not None:
+                    totals[f] += float(val)
+    return {k: int(round(v)) for k, v in totals.items()}
+
+
+def export_final_copy(
+    in_feature_class: str,
+    out_dir: str,
+    run_tag: str,
+) -> str:
+    """Copy features to a final shapefile named with the run tag.
+
+    Args:
+      in_feature_class: Absolute path to the feature class to export.
+      out_dir: Absolute path to the destination directory.
+      run_tag: Tag to embed in the output filename.
+
+    Returns:
+      Absolute path to the exported shapefile.
+    """
+    ensure_dir(out_dir)
+    out_path = os.path.join(out_dir, f"{run_tag}_service_buffer_data.shp")
+    arcpy.management.CopyFeatures(in_feature_class, out_path)
+    return out_path
+
+
+def summarize_census_layer(demographics_fc: str) -> Dict[str, int]:
+    """Summarize raw totals over the full demographics layer for reference.
+
+    Uses DEMOG_SRC_FIELDS to locate source columns. Missing metrics are returned as zero.
+    """
+    lyr = str(arcpy.management.MakeFeatureLayer(demographics_fc, "census_data"))
+
+    # Map outputs → source field names
+    src = DEMOG_SRC_FIELDS
+    mapping = {
+        "tt_hh_b": src.get("total_hh_src"),
+        "est__60": src.get("loinc_hh_src"),
+        "tt_pp_b": src.get("total_pop_src"),
+        "est_mnr": src.get("minor_pop_src"),
+        "tot_mpl": src.get("all_jobs_src"),  # may be None
+        "low_wag": src.get("loinc_jobs_src"),  # may be None
+    }
+
+    # Build the list of actual fields to read
+    read_fields = [f for f in mapping.values() if f and field_exists(lyr, f)]
+    if not read_fields:
+        return {k: 0 for k in mapping.keys()}
+
+    # Sum the present fields
+    sums_present = summarize_fields(lyr, read_fields)
+
+    # Re-express in the expected output keys, with zeros for missing
+    out: Dict[str, int] = {}
+    for out_key, src_field in mapping.items():
+        if src_field and src_field in sums_present:
+            out[out_key] = int(sums_present[src_field])
         else:
-            logging.info("No calendar filter applied; using all %d trips.", len(trips))
+            out[out_key] = 0
+    return out
 
-        # --------------------------------------------------------------
-        # 3) DEMOGRAPHICS LAYER
-        # --------------------------------------------------------------
-        demographics_path = Path(DEMOGRAPHICS_SHP_PATH)
-        if not demographics_path.is_file():
-            raise FileNotFoundError(f"Demographics shapefile not found: {demographics_path}")
 
-        demographics_gdf = gpd.read_file(demographics_path)
-        demographics_gdf = apply_fips_filter(demographics_gdf, FIPS_FILTER)
-        demographics_gdf = demographics_gdf.to_crs(epsg=CRS_EPSG_CODE)
+# =============================================================================
+# CONSOLIDATED EXECUTION HELPERS
+# =============================================================================
+def _process_service_area_from_stops_layer(
+    stops_layer: str,
+    run_tag: str,
+    *,
+    export_final: bool,
+    final_export_dir: str,
+    # Optional explicit disk paths; if provided, they will be used (network path).
+    buffered_path: Optional[str] = None,
+    dissolved_path: Optional[str] = None,
+    clipped_path: Optional[str] = None,
+) -> Tuple[Dict[str, int], Optional[str]]:
+    """Run the buffer→dissolve→clip→synthetics→summaries pipeline for any stops layer.
 
-        # --------------------------------------------------------------
-        # 4) ANALYSIS DISPATCH
-        # --------------------------------------------------------------
-        mode = ANALYSIS_MODE.lower()
-        if mode == "network":
-            do_network_analysis(
-                trips,
-                stop_times,
-                routes_df,
-                stops_df,
-                demographics_gdf,
-                ROUTES_TO_INCLUDE,
-                ROUTES_TO_EXCLUDE,
-                STOP_IDS_TO_INCLUDE,
-                STOP_IDS_TO_EXCLUDE,
-                BUFFER_DISTANCE,
-                LARGE_BUFFER_DISTANCE,
-                STOP_IDS_LARGE_BUFFER,
-                str(OUTPUT_DIRECTORY),
-                SYNTHETIC_FIELDS,
+    When disk paths are provided for buffered/dissolved/clipped, they are used.
+    Otherwise, unique in_memory paths are allocated (per-route use case).
+
+    Args:
+        stops_layer: Feature layer of stop points to buffer.
+        run_tag: Label for prints/filenames.
+        export_final: If True, writes a final shapefile to final_export_dir.
+        final_export_dir: Absolute directory for exports when export_final is True.
+        buffered_path: Optional explicit output for buffered polygons.
+        dissolved_path: Optional explicit output for dissolved polygons.
+        clipped_path: Optional explicit output for clipped demographics.
+
+    Returns:
+        (totals_dict, exported_fc_path or None)
+    """
+    # Allocate unique ephemeral outputs when not explicitly provided
+    if not buffered_path:
+        buffered_path = _route_scoped_temp("buffered_stops", run_tag)
+    if not dissolved_path:
+        dissolved_path = _route_scoped_temp("dissolved_buffers", run_tag)
+    if not clipped_path:
+        clipped_path = _route_scoped_temp("clipped_demog", run_tag)
+
+    # 2) Buffer
+    logging.info("Buffering stops (%s)…", run_tag)
+    buffered = buffer_stops(stops_layer, buffered_path, BUFFER_DISTANCE_MILES)
+
+    # 3) Dissolve all features for this scope
+    logging.info("Dissolving buffers (%s)…", run_tag)
+    dissolved = dissolve_buffers(buffered, dissolved_path, dissolve_field=None)
+
+    # 5) Clip demographics to dissolved
+    logging.info("Clipping demographics (%s)…", run_tag)
+    clipped = clip_demographics_to_buffers(DEMOGRAPHICS_SHP, dissolved, clipped_path)
+
+    # 6–8) Derived area fields and synthetic metrics
+    add_clipped_area_and_percentage(clipped)
+    add_synthetic_fields(clipped)
+
+    # 9) Summaries
+    totals = summarize_fields(clipped, CLIPPED_FIELDS)
+
+    # Optional export to disk
+    exported_path: Optional[str] = None
+    if export_final:
+        exported_path = export_final_copy(clipped, final_export_dir, run_tag)
+
+    return totals, exported_path
+
+
+def _run_network_total(stops_layer: str) -> None:
+    """Whole-network summary using the already-prepared stops layer.
+
+    Uses in_memory for all intermediate edits to avoid shapefile field limits.
+    Only the final, slimmed copy is exported as a shapefile in FINAL_EXPORT_DIR.
+    """
+    print(f"Buffering stops to {BUFFER_DISTANCE_MILES} mi → in_memory (intermediates)")
+
+    # Do NOT pass explicit disk paths; this keeps buffer/dissolve/clip + field edits in_memory.
+    svc_totals, exported = _process_service_area_from_stops_layer(
+        stops_layer=stops_layer,
+        run_tag=RUN_TAG,
+        export_final=True,
+        final_export_dir=FINAL_EXPORT_DIR,
+        # buffered_path=None,
+        # dissolved_path=None,
+        # clipped_path=None,
+    )
+
+    print(f"[{RUN_TAG}] Service buffer totals (area-weighted, rounded):")
+    for k in CLIPPED_FIELDS:
+        print(f"  {k}: {svc_totals[k]:,}")
+
+    print("Summarizing reference totals over the full demographics layer…")
+    full_totals = summarize_census_layer(DEMOGRAPHICS_SHP)
+    for k in ["tt_hh_b", "est__60", "tt_pp_b", "est_mnr", "tot_mpl", "low_wag"]:
+        print(f"  {k}: {full_totals[k]:,}")
+
+    if exported:
+        print(f"Final shapefile exported: {exported}")
+
+
+def _run_by_route(gtfs_folder: str, route_short_names: Sequence[str]) -> pd.DataFrame:
+    """Per-route summaries (GTFS only). Returns a DataFrame of results.
+
+    For each route_short_name, rebuilds its own stops layer from GTFS,
+    runs the service-area pipeline (in_memory by default), and collects totals.
+    """
+    results: List[Dict[str, int | str]] = []
+    for route_sn in route_short_names:
+        tag = f"{RUN_TAG}_route_{_sanitize_name(route_sn)}"
+        print(f"— Processing route {route_sn} —")
+
+        # Build a route-scoped stops layer directly from GTFS
+        stops_layer = make_stops_layer(
+            mode="gtfs",
+            gtfs_folder=gtfs_folder,
+            route_short_names=[route_sn],
+            layer_name=f"stops_{_sanitize_name(route_sn)}",
+        )
+
+        totals, exported = _process_service_area_from_stops_layer(
+            stops_layer=stops_layer,
+            run_tag=tag,
+            export_final=BY_ROUTE_EXPORT_FEATURES,
+            final_export_dir=FINAL_EXPORT_DIR,
+        )
+
+        row: Dict[str, int | str] = {"route_short_name": str(route_sn)}
+        row.update({k: int(totals[k]) for k in CLIPPED_FIELDS})
+        results.append(row)
+
+        if BY_ROUTE_EXPORT_FEATURES and exported:
+            print(f"  Exported per-route shapefile: {exported}")
+
+    df = pd.DataFrame(results).sort_values("route_short_name").reset_index(drop=True)
+    if BY_ROUTE_WRITE_CSV and not df.empty:
+        ensure_dir(FINAL_EXPORT_DIR)
+        csv_path = os.path.join(FINAL_EXPORT_DIR, f"{RUN_TAG}_by_route_summary.csv")
+        df.to_csv(csv_path, index=False)
+        print(f"Per-route summary written: {csv_path}")
+
+    # Also print a quick console view
+    if not df.empty:
+        print("\nPer-route totals (area-weighted, rounded):")
+        cols = ["route_short_name"] + CLIPPED_FIELDS
+        print(df[cols].to_string(index=False))
+
+    return df
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+def main() -> None:
+    """Run the end-to-end pipeline according to OUTPUT_MODE."""
+    arcpy.env.overwriteOutput = OVERWRITE_OUTPUTS
+
+    # Basic input checks (mode-specific)
+    m = STOPS_INPUT_MODE.lower()
+    if m == "shapefile":
+        if not arcpy.Exists(STOPS_FEATURE_CLASS):
+            raise FileNotFoundError(f"Stops feature class not found: {STOPS_FEATURE_CLASS}")
+    elif m == "gtfs":
+        if not os.path.exists(GTFS_FOLDER):
+            raise FileNotFoundError(f"GTFS folder not found: {GTFS_FOLDER}")
+    else:
+        raise ValueError("STOPS_INPUT_MODE must be 'shapefile' or 'gtfs'.")
+
+    if not arcpy.Exists(DEMOGRAPHICS_SHP):
+        raise FileNotFoundError(f"Input not found: {DEMOGRAPHICS_SHP}")
+
+    # One-time prep on demographics
+    print("Adding original area (acres) to demographics…")
+    add_original_area_acres(DEMOGRAPHICS_SHP)
+
+    # Build the base stops layer (network scope) once
+    print("Preparing stops layer…")
+    stops_layer = make_stops_layer(
+        mode=STOPS_INPUT_MODE,
+        shapefile_fc=STOPS_FEATURE_CLASS,
+        gtfs_folder=GTFS_FOLDER,
+        route_short_names=GTFS_ROUTE_SHORT_NAMES,
+        layer_name="stops_for_buffering",
+    )
+
+    mode = OUTPUT_MODE.lower().strip()
+    if mode not in {"network", "by_route", "both"}:
+        raise ValueError("OUTPUT_MODE must be one of {'network','by_route','both'}.")
+
+    run_by_route = mode in {"by_route", "both"}
+    run_network = mode in {"network", "both"}
+
+    if run_network:
+        _run_network_total(stops_layer)
+
+    if run_by_route:
+        if STOPS_INPUT_MODE.lower() != "gtfs":
+            raise RuntimeError(
+                "Per-route output requires STOPS_INPUT_MODE='gtfs' so that "
+                "stops can be reconstructed by route_short_name."
             )
-        elif mode == "route":
-            do_route_by_route_analysis(
-                trips,
-                stop_times,
-                routes_df,
-                stops_df,
-                demographics_gdf,
-                ROUTES_TO_INCLUDE,
-                ROUTES_TO_EXCLUDE,
-                STOP_IDS_TO_INCLUDE,
-                STOP_IDS_TO_EXCLUDE,
-                BUFFER_DISTANCE,
-                LARGE_BUFFER_DISTANCE,
-                STOP_IDS_LARGE_BUFFER,
-                str(OUTPUT_DIRECTORY),
-                SYNTHETIC_FIELDS,
+        route_list = list(GTFS_ROUTE_SHORT_NAMES or [])
+        if not route_list:
+            # Guardrail: avoid accidental 'all routes' on very large feeds.
+            raise ValueError(
+                "GTFS_ROUTE_SHORT_NAMES is empty; populate it to enable per-route processing."
             )
-        elif mode == "stop":
-            do_stop_by_stop_analysis(
-                trips,
-                stop_times,
-                routes_df,
-                stops_df,
-                demographics_gdf,
-                ROUTES_TO_INCLUDE,
-                ROUTES_TO_EXCLUDE,
-                STOP_IDS_TO_INCLUDE,
-                STOP_IDS_TO_EXCLUDE,
-                BUFFER_DISTANCE,
-                LARGE_BUFFER_DISTANCE,
-                STOP_IDS_LARGE_BUFFER,
-                str(OUTPUT_DIRECTORY),
-                SYNTHETIC_FIELDS,
-            )
-        else:
-            raise ValueError(f"Invalid ANALYSIS_MODE: {ANALYSIS_MODE}")
+        _ = _run_by_route(GTFS_FOLDER, route_list)
 
-        print("\nAnalysis completed successfully.")
-
-    except Exception as exc:  # catch and log any error
-        logging.error("Analysis terminated due to an error: %s", exc, exc_info=True)
+    print("✔ Processing completed successfully.")
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     main()

@@ -1,55 +1,49 @@
-"""Detects potential typos in GTFS stop names using spatial and fuzzy matching.
+"""Identifies potential typos in GTFS stop names by comparing them to nearby roadway names.
 
-This script buffers GTFS stops, spatially joins them with nearby roadway
-centerlines, and uses fuzzy string comparison to flag discrepancies between
-stop names and adjacent road names.
-
-Inputs:
-    - GTFS 'stops.txt' file
-    - Roadway centerline shapefile
-    - Configuration parameters (paths, CRS, buffer distance, similarity threshold)
-    - Optional user input for mapping non-standard roadway field names
+Creates a spatial buffer around each GTFS stop, joins to intersecting roadway segments,
+and uses fuzzy string matching to flag stop names that are similar—but not identical—
+to adjacent street names. Intended for QA of stop name consistency in GIS-based transit data.
 
 Outputs:
-    - CSV listing potential stop name typos and similarity scores
+    - CSV of potential stop name typos and similarity scores.
+    - File geodatabase with intermediate feature classes for inspection.
+
+Typical use:
+    Run in ArcGIS Pro's Python environment or any ArcPy-enabled session
+    after configuring input paths and parameters at the top of the script.
 """
 
+import difflib
 import logging
 import os
 import re
-from typing import Any, Dict, List, Mapping, Optional, Set
+import sys
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
 
-import geopandas as gpd
+import arcpy  # type: ignore
 import pandas as pd
-from pyproj import CRS
-from rapidfuzz import fuzz, process
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-# Paths to input files
-GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
+GTFS_FOLDER = r"path\to\your\GTFS"
+ROADWAYS_PATH = r"path\to\your\roadways.shp"
+OUTPUT_DIR = r"path\to\output"  # any writable folder
+OUTPUT_CSV = "potential_typos.csv"
 
-ROADWAYS_PATH = r"path\to\your\roadways.shp"  # Replace with your roadways centerline shapefile path
-
-# Output settings
-OUTPUT_DIR = r"path\to\output\directory"  # Replace with your desired output directory
-OUTPUT_CSV_NAME = "potential_typos.csv"
-OUTPUT_CSV_PATH = os.path.join(OUTPUT_DIR, OUTPUT_CSV_NAME)
-
-# Coordinate Reference Systems
-STOPS_CRS = "EPSG:4326"  # WGS84 Latitude/Longitude. Typically standard for GTFS stops.
-TARGET_CRS = "EPSG:2248"  # Projected CRS for spatial analysis (adjust as needed).
+# Spatial references
+STOPS_CRS = 4326  # GTFS lat/lon – WGS-84
+TARGET_CRS = 2248  # example: VA North (US ft). change if needed
 
 # Processing parameters
-SIMILARITY_THRESHOLD = 80  # 0-100, higher number yields fewer results
-
-# Buffer distance configuration
-BUFFER_DISTANCE_VALUE = 50
+BUFFER_DISTANCE = 50
 BUFFER_DISTANCE_UNIT = "feet"  # 'feet' or 'meters'
+SIMILARITY_THRESHOLD = 80  # 0-100
 
-# Roadway Shapefile Column Configuration
+# Roadway field requirements
 REQUIRED_COLUMNS_ROADWAY = [
     "RW_PREFIX",
     "RW_TYPE_US",
@@ -59,416 +53,381 @@ REQUIRED_COLUMNS_ROADWAY = [
 ]
 
 DESCRIPTIONS_ROADWAY = {
-    "RW_PREFIX": "Directional prefix (e.g., 'N' in 'N Washington St')",
-    "RW_TYPE_US": "Street type (e.g., 'St' in 'N Washington St')",
-    "RW_SUFFIX": "Directional suffix (e.g., 'SE' in 'Park St SE')",
-    "RW_SUFFIX_": "Additional suffix (e.g., 'EB' in 'RT267 EB')",
+    "RW_PREFIX": "Directional prefix (e.g. 'N' in 'N Washington St')",
+    "RW_TYPE_US": "Street type (e.g. 'St' in 'N Washington St')",
+    "RW_SUFFIX": "Directional suffix (e.g. 'SE' in 'Park St SE')",
+    "RW_SUFFIX_": "Additional suffix (e.g. 'EB' in 'I-66 EB')",
     "FULLNAME": "Full street name",
 }
+
+# -----------------------------------------------------------------------------
+# LOGGING
+# -----------------------------------------------------------------------------
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+arcpy.env.overwriteOutput = True
 
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
 
 
-def get_crs_unit(crs_code: str) -> Optional[str]:
-    """Determine the linear unit of a CRS.
+def create_work_gdb(base_dir: str) -> str:
+    """Create <base_dir>/typo_work_<timestamp>.gdb and return its path.
 
-    Args:
-        crs_code: The CRS code (e.g., "EPSG:4326").
-
-    Returns:
-        str or None: The unit name if found, otherwise None.
+    Re-use if it already exists in this session.
     """
-    try:
-        crs = CRS.from_user_input(crs_code)
-        if crs.axis_info:
-            return crs.axis_info[0].unit_name
-        logging.error("CRS has no axis information.")
-        return None
-    except ValueError as err:
-        logging.error("Error determining CRS unit: %s", err)
-        return None
+    Path(base_dir).mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    name = f"typo_work_{ts}.gdb"
+    gdb = os.path.join(base_dir, name)
+    if not arcpy.Exists(gdb):
+        arcpy.management.CreateFileGDB(base_dir, name)
+        logging.info("Created workspace %s", gdb)
+    else:
+        logging.info("Using existing workspace %s", gdb)
+    return gdb
 
 
-def convert_buffer_distance(value: float, from_unit: str, to_unit: str) -> float:
-    """Convert buffer distance from `from_unit` to `to_unit` using known conversion factors.
+def fgdb_path(gdb: str, fc_name: str) -> str:
+    """Return full path inside the work GDB."""
+    return os.path.join(gdb, fc_name)
+
+
+# -----------------------------------------------------------------------------
+# OTHER FUNCTIONS
+# -----------------------------------------------------------------------------
+
+
+def load_gtfs_stops(folder: str) -> pd.DataFrame:
+    """Loads GTFS stops from stops.txt into a pandas DataFrame.
 
     Args:
-        value (float): The distance value to convert.
-        from_unit (str): The unit of the input value (e.g., "feet", "meters").
-        to_unit (str): The desired unit for the output value (e.g., "feet", "meters").
+        folder: The path to the folder containing the GTFS `stops.txt` file.
 
     Returns:
-        float: The converted distance value.
+        A pandas DataFrame with stop data.
 
     Raises:
-        ValueError: If the conversion from `from_unit` to `to_unit` is not supported.
+        FileNotFoundError: If `stops.txt` is not found in the specified folder.
+        ValueError: If the `stops.txt` file is missing required columns.
     """
-    conversion_factors = {
-        ("feet", "meters"): 0.3048,
-        ("meters", "feet"): 3.28084,
-        ("metre", "feet"): 3.28084,
-        ("us survey foot", "meters"): 0.3048006096012192,
-        ("meters", "us survey foot"): 3.280833333333333,
-        ("feet", "us survey foot"): 0.999998,
-        ("us survey foot", "feet"): 1.000002,
-    }
-    key = (from_unit.lower(), to_unit.lower())
-    if key in conversion_factors:
-        return value * conversion_factors[key]
-    raise ValueError(f"Conversion from {from_unit} to {to_unit} not supported.")
+    path = os.path.join(folder, "stops.txt")
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"stops.txt not found in {folder}")
+    df = pd.read_csv(path, dtype=str, low_memory=False)
+    need = {"stop_id", "stop_name", "stop_lat", "stop_lon"}
+    if not need.issubset(df.columns):
+        raise ValueError(f"stops.txt missing columns: {', '.join(need - set(df.columns))}")
+    df["stop_lat"] = df["stop_lat"].astype(float)
+    df["stop_lon"] = df["stop_lon"].astype(float)
+    return df
 
 
-# -----------------------------------------------------------------------------
-# DATA LOADING FUNCTIONS
-# -----------------------------------------------------------------------------
+def normalize_street(name: str, mods: set[str]) -> str:
+    """Cleans and standardizes a street name string.
 
-
-def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame:
-    """Validate an in-memory GTFS stops DataFrame and return a GeoDataFrame.
+    Removes modifiers (e.g., 'St', 'Ave'), punctuation, and extra whitespace,
+    and converts the string to lowercase.
 
     Args:
-        stops_df (pandas.DataFrame): Frame created by `load_gtfs_data(..., files=["stops.txt"])`.
-        crs (str, optional): CRS to assign to the resulting GeoDataFrame.
-            Defaults to STOPS_CRS.
+        name: The street name to normalize.
+        mods: A set of modifier words (like 'rd', 'st', 'blvd') to remove.
 
     Returns:
-        geopandas.GeoDataFrame: Stops with point geometries in the requested CRS.
-
-    Raises:
-        ValueError: If required columns are missing or lat/lon cannot be cast to float.
+        The normalized street name string.
     """
-    required_cols = ["stop_id", "stop_name", "stop_lat", "stop_lon"]
-    missing = [c for c in required_cols if c not in stops_df.columns]
-    if missing:
-        raise ValueError(f"Required columns missing from stops.txt: {', '.join(missing)}")
-
-    # Ensure numeric latitude / longitude
-    stops_df = stops_df.copy()
-    stops_df["stop_lat"] = stops_df["stop_lat"].astype(float)
-    stops_df["stop_lon"] = stops_df["stop_lon"].astype(float)
-
-    gdf = gpd.GeoDataFrame(
-        stops_df,
-        geometry=gpd.points_from_xy(stops_df["stop_lon"], stops_df["stop_lat"]),
-        crs=crs,
-    )
-    return gdf
-
-
-def load_roadways(roadways_path: str) -> gpd.GeoDataFrame:
-    """Load the roadway shapefile and return a GeoDataFrame.
-
-    Args:
-        roadways_path (str): The file path to the roadway shapefile.
-
-    Returns:
-        gpd.GeoDataFrame: A GeoDataFrame containing the roadway data.
-    """
-    return gpd.read_file(roadways_path)
-
-
-# -----------------------------------------------------------------------------
-# DATA PROCESSING FUNCTIONS
-# -----------------------------------------------------------------------------
-
-
-def map_roadway_columns(roadways_gdf: gpd.GeoDataFrame) -> Dict[str, str]:
-    """Map the required roadway columns.
-
-    Prompts the user to input the correct column names if missing.
-
-    Args:
-        roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame containing roadway data.
-
-    Returns:
-        dict: A dictionary mapping required column names to their actual names in the GeoDataFrame.
-    """
-    column_mapping = {}
-    for col in REQUIRED_COLUMNS_ROADWAY:
-        if col in roadways_gdf.columns:
-            column_mapping[col] = col
-        else:
-            logging.warning("The column '%s' is missing from the roadway shapefile.", col)
-            logging.info("Description: %s", DESCRIPTIONS_ROADWAY[col])
-            logging.info("Available columns: %s", roadways_gdf.columns.tolist())
-            new_col = input(
-                f"Please enter the correct column name for '{col}' (or leave blank to skip): "
-            ).strip()
-            while new_col and new_col not in roadways_gdf.columns:
-                logging.warning(
-                    "'%s' is not among the available columns: %s",
-                    new_col,
-                    roadways_gdf.columns.tolist(),
-                )
-                new_col = input(
-                    f"Please enter the correct column name for '{col}' (or leave blank to skip): "
-                ).strip()
-            if new_col:
-                column_mapping[col] = new_col
-                logging.info("Mapped '%s' to '%s'", col, new_col)
-            else:
-                logging.info("Skipped mapping for '%s'", col)
-    return {k: v for k, v in column_mapping.items() if v is not None}
-
-
-def extract_modifiers(
-    roadways_gdf: gpd.GeoDataFrame, column_mapping_roadway: Dict[str, str]
-) -> Set[str]:
-    """Extract unique modifier values (e.g., street types) from the roadway GeoDataFrame.
-
-    Args:
-        roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame containing roadway data.
-        column_mapping_roadway (dict): A dictionary mapping required column names to their actual names.
-
-    Returns:
-        set: A set of unique, normalized modifier strings.
-    """
-    modifiers_fields = ["RW_TYPE_US"]
-    modifiers = set()
-    for field in modifiers_fields:
-        mapped_field = column_mapping_roadway.get(field)
-        if mapped_field and mapped_field in roadways_gdf.columns:
-            unique_vals = roadways_gdf[mapped_field].dropna().unique()
-            modifiers.update(unique_vals)
-    modifiers = set(
-        str(mod).lower().strip() for mod in modifiers if pd.notnull(mod) and str(mod).strip()
-    )
-    return modifiers
-
-
-def normalize_street_name(name: str, modifiers_set: Set[str]) -> str:
-    """Normalize a street name by removing known modifiers, punctuation, and extra spaces.
-
-    Args:
-        name (str): The street name to normalize.
-        modifiers_set (set): A set of known modifiers to remove from the name.
-
-    Returns:
-        str: The normalized street name.
-    """
-    if pd.isnull(name) or not isinstance(name, str):
+    if not isinstance(name, str):
         return ""
-    if modifiers_set:
-        pattern = r"\b(" + "|".join(re.escape(m) for m in modifiers_set) + r")\b"
-        name = re.sub(pattern, "", name, flags=re.IGNORECASE)
-    name = re.sub(r"[^\w\s]", "", name)
+    if mods:
+        name = re.sub(
+            r"\b(" + "|".join(map(re.escape, mods)) + r")\b",
+            " ",
+            name,
+            flags=re.IGNORECASE,
+        )
+    name = re.sub(r"[^\w\s]", " ", name)
     return re.sub(r"\s+", " ", name).strip().lower()
 
 
-def create_buffered_stops(stops_gdf: gpd.GeoDataFrame, buffer_distance: float) -> gpd.GeoDataFrame:
-    """Create a buffered geometry for each stop.
+def split_stop_name(stop_name: str, mods: set[str]) -> list[str]:
+    """Splits a GTFS stop name into normalized street name components.
+
+    Uses common intersection separators (e.g., '@', '&', '/') to divide the
+    stop name and then normalizes each resulting part.
 
     Args:
-        stops_gdf (gpd.GeoDataFrame): The GeoDataFrame of stops.
-        buffer_distance (float): The distance to buffer the stops by.
+        stop_name: The full stop name string.
+        mods: A set of modifier words to be removed during normalization.
 
     Returns:
-        gpd.GeoDataFrame: The GeoDataFrame with a new 'buffered_geometry' column.
+        A list of normalized street name fragments from the stop name.
     """
-    stops_gdf["buffered_geometry"] = stops_gdf.geometry.buffer(buffer_distance)
-    return stops_gdf.set_geometry("buffered_geometry")
+    if not isinstance(stop_name, str):
+        return []
+    seps = [" @ ", " and ", " & ", "/", " intersection of "]
+    parts = re.split("|".join(map(re.escape, seps)), stop_name, flags=re.IGNORECASE)
+    return [normalize_street(p, mods) for p in parts if p.strip()]
 
 
-def spatial_join_stops_roadways(
-    stops_buffered_gdf: gpd.GeoDataFrame, roadways_gdf: gpd.GeoDataFrame
-) -> gpd.GeoDataFrame:
-    """Spatially join the buffered stops with the roadways.
+def dl_score(a: str, b: str) -> float:
+    """Calculates the Damerau-Levenshtein similarity ratio between two strings.
 
     Args:
-        stops_buffered_gdf (gpd.GeoDataFrame): The GeoDataFrame of buffered stops.
-        roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame of roadways.
+        a: The first string.
+        b: The second string.
 
     Returns:
-        gpd.GeoDataFrame: A GeoDataFrame resulting from the spatial join.
+        A similarity score between 0.0 and 100.0.
     """
-    return gpd.sjoin(
-        stops_buffered_gdf[["stop_id", "stop_name", "buffered_geometry"]],
-        roadways_gdf[["FULLNAME", "FULLNAME_clean", "geometry"]],
-        how="left",
-        predicate="intersects",
+    return difflib.SequenceMatcher(None, a, b).ratio() * 100
+
+
+def make_stops_fc(df: pd.DataFrame, out_fc: str, sr: int) -> None:
+    """Creates a point feature class from a DataFrame of GTFS stops.
+
+    Args:
+        df: DataFrame containing stop_id, stop_name, stop_lon, stop_lat.
+        out_fc: The full path for the output feature class.
+        sr: The spatial reference ID (WKID) for the output feature class.
+    """
+    if arcpy.Exists(out_fc):
+        arcpy.management.Delete(out_fc)
+    arcpy.management.CreateFeatureclass(
+        os.path.dirname(out_fc),
+        os.path.basename(out_fc),
+        "POINT",
+        spatial_reference=arcpy.SpatialReference(sr),
+    )
+    arcpy.management.AddField(out_fc, "stop_id", "TEXT", 50)
+    arcpy.management.AddField(out_fc, "stop_name", "TEXT", 255)
+    with arcpy.da.InsertCursor(out_fc, ["SHAPE@XY", "stop_id", "stop_name"]) as cur:
+        for r in df.itertuples(index=False):
+            cur.insertRow([(r.stop_lon, r.stop_lat), r.stop_id, r.stop_name])
+
+
+def safe_project_or_copy(in_fc: str, out_fc: str, out_sr: int) -> None:
+    """Project `in_fc` to `out_fc`. If Project fails, fall back to CopyFeatures.
+
+    Ensures `out_fc` exists on return.
+    """
+    if arcpy.Exists(out_fc):
+        arcpy.management.Delete(out_fc)
+
+    desc = arcpy.Describe(in_fc)
+    src_sr = desc.spatialReference
+    tgt_sr = arcpy.SpatialReference(out_sr)
+
+    try:
+        if src_sr.name and src_sr.factoryCode == tgt_sr.factoryCode:
+            # Already in target SR
+            arcpy.management.CopyFeatures(in_fc, out_fc)
+        else:
+            arcpy.management.Project(in_fc, out_fc, tgt_sr)
+    except Exception as exc:
+        logging.warning("Project failed (%s). Copying features instead.", exc)
+        arcpy.management.CopyFeatures(in_fc, out_fc)
+
+    if not arcpy.Exists(out_fc):
+        raise RuntimeError(f"Failed to create {out_fc}")
+
+
+def buffer_fc(in_fc: str, out_fc: str, dist: float, unit: str) -> None:
+    """Creates a buffer around features in a feature class.
+
+    Args:
+        in_fc: The input feature class.
+        out_fc: The path for the output buffer feature class.
+        dist: The buffer distance.
+        unit: The units for the buffer distance (e.g., 'feet', 'meters').
+    """
+    if arcpy.Exists(out_fc):
+        arcpy.management.Delete(out_fc)
+    arcpy.analysis.Buffer(in_fc, out_fc, f"{dist} {unit}", dissolve_option="NONE")
+
+
+def spatial_join_fc(target: str, join: str, out_fc: str) -> None:
+    """Performs a one-to-many spatial join.
+
+    Finds all join features that intersect with each target feature.
+
+    Args:
+        target: The target feature class.
+        join: The feature class to join to the target.
+        out_fc: The path for the output joined feature class.
+    """
+    if arcpy.Exists(out_fc):
+        arcpy.management.Delete(out_fc)
+    arcpy.analysis.SpatialJoin(
+        target,
+        join,
+        out_fc,
+        join_operation="JOIN_ONE_TO_MANY",
+        match_option="INTERSECT",
     )
 
 
-def extract_street_names(stop_name: str, modifiers: Set[str]) -> List[str]:
-    """Extract potential street names from a stop name using common separators.
+def field_set(fc: str) -> set[str]:
+    """Gets a set of field names from a feature class or table."""
+    return {f.name for f in arcpy.ListFields(fc)}
+
+
+def map_road_fields(fc: str) -> dict[str, str]:
+    """Prompts user to map required roadway fields if they are not found.
 
     Args:
-        stop_name (str): The name of the stop.
-        modifiers (set): A set of known modifiers to assist in normalization.
+        fc: The roadway feature class to check.
 
     Returns:
-        list: A list of normalized street names extracted from the stop name.
-    """
-    if pd.isnull(stop_name) or not isinstance(stop_name, str):
-        return []
-    separators = [" @ ", " and ", " & ", "/", " intersection of "]
-    pattern = "|".join(map(re.escape, separators))
-    streets = re.split(pattern, stop_name, flags=re.IGNORECASE)
-    return [normalize_street_name(street, modifiers) for street in streets if street]
-
-
-def compare_stop_to_roads(
-    stop_id: str,
-    stop_name: str,
-    stop_streets: List[str],
-    road_names: Set[str],
-    roads_gdf: gpd.GeoDataFrame,
-    threshold: int,
-) -> List[Dict[str, Any]]:
-    """Compare each portion of the stop name to known road names via fuzzy matching.
-
-    Args:
-        stop_id (str): The ID of the stop.
-        stop_name (str): The original name of the stop.
-        stop_streets (list): A list of potential street names extracted from the stop name.
-        road_names (list): A list of normalized road names for comparison.
-        roads_gdf (gpd.GeoDataFrame): The GeoDataFrame of roadways (used to retrieve original road names).
-        threshold (int): The similarity score threshold (0-100) for considering a match.
-
-    Returns:
-        list[dict]: A list of dictionaries, each representing a potential typo.
-    """
-    potential_typos_list = []
-    for street in stop_streets:
-        if street in road_names:
-            continue
-        match_tuples = process.extract(street, road_names, scorer=fuzz.token_set_ratio, limit=3)
-        for match_clean, score, _ in match_tuples:
-            if threshold <= score < 100:
-                original_matches = roads_gdf.loc[
-                    roads_gdf["FULLNAME_clean"] == match_clean, "FULLNAME"
-                ].unique()
-                for original_match in original_matches:
-                    potential_typos_list.append(
-                        {
-                            "stop_id": stop_id,
-                            "stop_name": stop_name,
-                            "street_in_stop_name": street,
-                            "similar_road_name_clean": match_clean,
-                            "similar_road_name_original": original_match,
-                            "similarity_score": score,
-                        }
-                    )
-    return potential_typos_list
-
-
-def process_typos(
-    stops_gdf: gpd.GeoDataFrame,
-    roadways_gdf: gpd.GeoDataFrame,
-    modifiers: Set[str],
-    road_names_clean: Set[str],
-    threshold: int,
-) -> pd.DataFrame:
-    """Process each stop and perform fuzzy matching to identify potential typos.
-
-    Args:
-        stops_gdf (gpd.GeoDataFrame): The GeoDataFrame of stops.
-        roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame of roadways.
-        modifiers (set): A set of known street name modifiers.
-        road_names_clean (set): A set of normalized roadway names.
-        threshold (int): The similarity score threshold for fuzzy matching.
-
-    Returns:
-        pd.DataFrame: A deduplicated DataFrame of potential typos, sorted by similarity score.
-    """
-    potential_typos = []
-    for _, stop in stops_gdf.iterrows():
-        s_id = stop["stop_id"]
-        s_name = stop["stop_name"]
-        s_streets = extract_street_names(s_name, modifiers)
-        typos = compare_stop_to_roads(
-            s_id, s_name, s_streets, road_names_clean, roadways_gdf, threshold
-        )
-        potential_typos.extend(typos)
-
-    logging.info("Total potential typos found before deduplication: %d", len(potential_typos))
-    typos_df = pd.DataFrame(potential_typos)
-    typos_df_sorted = typos_df.sort_values(by="similarity_score", ascending=False).drop_duplicates()
-    return typos_df_sorted
-
-
-# -----------------------------------------------------------------------------
-# REUSABLE FUNCTIONS
-# -----------------------------------------------------------------------------
-
-
-def load_gtfs_data(
-    gtfs_folder_path: str,
-    files: Optional[list[str]] = None,
-    dtype: str | type[str] | Mapping[str, Any] = str,
-) -> dict[str, pd.DataFrame]:
-    """Load one or more GTFS text files into a dictionary of DataFrames.
-
-    Args:
-        gtfs_folder_path (str): Absolute or relative path to the directory
-            containing GTFS text files.
-        files (list[str] | None): Explicit list of GTFS filenames to load.
-            If ``None``, the full standard GTFS set is read.
-        dtype (str | Mapping[str, Any]): Value forwarded to
-            :pyfunc:`pandas.read_csv` to control column dtypes;
-            defaults to ``str``.
-
-    Returns:
-        dict[str, pandas.DataFrame]: Mapping of file stem → DataFrame.
-        For example, ``data["trips"]`` contains *trips.txt*.
+        A dictionary mapping required field names to the actual field names
+        found in the feature class.
 
     Raises:
-        OSError: The folder does not exist or a required file is missing.
-        ValueError: A file is empty or malformed.
-        RuntimeError: An OS-level error occurs while reading.
+        ValueError: If a user-provided alternative field does not exist, or
+            if a mapping for the 'FULLNAME' field is not provided.
     """
-    if not os.path.exists(gtfs_folder_path):
-        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
+    exists = field_set(fc)
+    mapping: dict[str, str] = {}
+    for col in REQUIRED_COLUMNS_ROADWAY:
+        if col in exists:
+            mapping[col] = col
+        else:
+            logging.warning("Field '%s' missing.", col)
+            logging.info("Description: %s", DESCRIPTIONS_ROADWAY[col])
+            logging.info("Available: %s", ", ".join(sorted(exists)))
+            alt = input(f"Enter field name for '{col}' or blank to skip: ").strip()
+            if alt:
+                if alt in exists:
+                    mapping[col] = alt
+                else:
+                    raise ValueError(f"Field '{alt}' not present.")
+    if "FULLNAME" not in mapping:
+        raise ValueError("You must supply a field for FULLNAME.")
+    return mapping
 
-    if files is None:
-        files = [
-            "agency.txt",
-            "stops.txt",
-            "routes.txt",
-            "trips.txt",
-            "stop_times.txt",
-            "calendar.txt",
-            "calendar_dates.txt",
-            "fare_attributes.txt",
-            "fare_rules.txt",
-            "feed_info.txt",
-            "frequencies.txt",
-            "shapes.txt",
-            "transfers.txt",
-        ]
 
-    missing = [
-        file_name
-        for file_name in files
-        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
-    ]
-    if missing:
-        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
+def modifiers_from_roads(fc: str, fld: str) -> set[str]:
+    """Extracts a set of unique string values from a feature class field.
 
-    data = {}
-    for file_name in files:
-        key = file_name.replace(".txt", "")
-        file_path = os.path.join(gtfs_folder_path, file_name)
-        try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
-            data[key] = df
-            logging.info(f"Loaded {file_name} ({len(df)} records).")
+    Used to build a set of street modifiers (e.g., 'St', 'Rd', 'N') for
+    normalization.
 
-        except pd.errors.EmptyDataError as exc:
-            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
+    Args:
+        fc: The feature class to query.
+        fld: The field from which to extract values.
 
-        except pd.errors.ParserError as exc:
-            raise ValueError(
-                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
-            ) from exc
+    Returns:
+        A set of unique, lowercase string values from the specified field.
+    """
+    mods = set()
+    with arcpy.da.SearchCursor(fc, [fld]) as cur:
+        for (v,) in cur:
+            if v:
+                mods.add(str(v).strip().lower())
+    return mods
 
-        except OSError as exc:
-            raise RuntimeError(
-                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
-            ) from exc
-    return data
+
+def road_clean_dict(fc: str, fullname: str, mods: set[str]) -> dict[str, set[str]]:
+    """Creates a lookup from normalized road names to original names.
+
+    Args:
+        fc: The roadway feature class.
+        fullname: The field containing the full roadway name.
+        mods: A set of modifiers to remove during normalization.
+
+    Returns:
+        A dictionary where keys are normalized road names and values are sets
+        of the original, un-normalized names corresponding to each key.
+    """
+    d = defaultdict(set)
+    with arcpy.da.SearchCursor(fc, [fullname]) as cur:
+        for (full,) in cur:
+            if not full:
+                continue
+            clean = normalize_street(full, mods)
+            d[clean].add(full)
+    return d
+
+
+def stop_to_candidate_roads(join_fc: str, fullname: str, mods: set[str]) -> dict[str, set[str]]:
+    """Maps each stop ID to the set of nearby, normalized road names.
+
+    Args:
+        join_fc: The feature class from the stop-to-road spatial join.
+        fullname: The field containing the full roadway name.
+        mods: A set of modifiers to remove during road name normalization.
+
+    Returns:
+        A dictionary where keys are 'stop_id's and values are sets of
+        normalized names of roads that were spatially joined to that stop.
+    """
+    sc = defaultdict(set)
+    with arcpy.da.SearchCursor(join_fc, ["stop_id", fullname]) as cur:
+        for sid, full in cur:
+            if full:
+                sc[sid].add(normalize_street(full, mods))
+    return sc
+
+
+def detect_typos(
+    stops_df: pd.DataFrame,
+    stop2roads: dict[str, set[str]],
+    road_clean: dict[str, set[str]],
+    mods: set[str],
+    thresh: int,
+) -> pd.DataFrame:
+    """Compares stop name parts to nearby road names to find likely typos.
+
+    For each stop, it splits the stop name into parts. Each part is then
+    compared against the set of nearby road names for that stop. If a part
+    is very similar (but not identical) to a nearby road name, it's flagged
+    as a potential typo.
+
+    Args:
+        stops_df: DataFrame of all GTFS stops.
+        stop2roads: A mapping from stop_id to a set of nearby normalized road names.
+        road_clean: A mapping from a normalized road name to its original form(s).
+        mods: A set of modifiers to remove during name normalization.
+        thresh: The similarity score (0-100) threshold for flagging a typo.
+
+    Returns:
+        A pandas DataFrame containing details of each potential typo found.
+    """
+    universe = set(road_clean.keys())
+    out_rows = []
+
+    for rec in stops_df.itertuples(index=False):
+        # Ensure sid and sname are strings to satisfy the type checker
+        sid, sname = str(rec.stop_id), str(rec.stop_name)
+        pieces = split_stop_name(sname, mods)
+        candidates = stop2roads.get(sid, universe)
+
+        for frag in pieces:
+            if frag in candidates:
+                continue
+            for match in difflib.get_close_matches(frag, candidates, n=3, cutoff=thresh / 100):
+                score = dl_score(frag, match)
+                if thresh <= score < 100:
+                    for orig in road_clean.get(match, {match}):
+                        out_rows.append(
+                            {
+                                "stop_id": sid,
+                                "stop_name": sname,
+                                "street_in_stop_name": frag,
+                                "similar_road_name_clean": match,
+                                "similar_road_name_orig": orig,
+                                "similarity_score": round(score, 1),
+                            }
+                        )
+
+    if not out_rows:
+        return pd.DataFrame()
+
+    return pd.DataFrame(out_rows).sort_values("similarity_score", ascending=False).drop_duplicates()
 
 
 # =============================================================================
@@ -477,90 +436,64 @@ def load_gtfs_data(
 
 
 def main() -> None:
-    """Entry point for the GTFS stop-vs-road typo-checker script."""
-    # ------------------------------------------------------------------
-    # 1. Configure logging *inside* main so importing this module is silent
-    # ------------------------------------------------------------------
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    logging.info("Starting processing …")
+    """Main script execution function."""
+    # workspace
+    WORK_GDB = create_work_gdb(OUTPUT_DIR)
 
-    # ------------------------------------------------------------------
-    # 2. Ensure the output directory exists
-    # ------------------------------------------------------------------
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        logging.info("Created output directory %s", OUTPUT_DIR)
+    # GTFS stops
+    logging.info("Loading GTFS stops …")
+    stops_df = load_gtfs_stops(GTFS_FOLDER)
+    stops_raw = fgdb_path(WORK_GDB, "stops_raw")
+    make_stops_fc(stops_df, stops_raw, STOPS_CRS)
 
-    # ------------------------------------------------------------------
-    # 3. Load GTFS data (only stops.txt is required for this task)
-    # ------------------------------------------------------------------
-    gtfs_data = load_gtfs_data(GTFS_FOLDER, files=["stops.txt"])
-    stops_df = gtfs_data["stops"]  # key name = file name w/o ".txt"
-    stops_gdf = load_stops(stops_df)  # validate and convert to GDF
+    # Project stops
+    stops_proj = fgdb_path(WORK_GDB, "stops_proj")
+    logging.info("Projecting stops → %s …", TARGET_CRS)
+    safe_project_or_copy(stops_raw, stops_proj, TARGET_CRS)
 
-    # 4. Load roadway shapefile
-    roadways_gdf = load_roadways(ROADWAYS_PATH)
+    # Project roads
+    roads_proj = fgdb_path(WORK_GDB, "roads_proj")
+    logging.info("Projecting roads …")
+    safe_project_or_copy(ROADWAYS_PATH, roads_proj, TARGET_CRS)
 
-    # 5. Re-project both layers to TARGET_CRS
-    stops_gdf = stops_gdf.to_crs(TARGET_CRS)
-    roadways_gdf = roadways_gdf.to_crs(TARGET_CRS)
+    # Roadway schema
+    logging.info("Mapping roadway fields …")
+    col_map = map_road_fields(roads_proj)
+    mods = modifiers_from_roads(roads_proj, col_map.get("RW_TYPE_US", col_map["FULLNAME"]))
+    logging.info("Found %d modifiers.", len(mods))
 
-    # ------------------------------------------------------------------
-    # 6. Map roadway columns (prompting user if needed)
-    # ------------------------------------------------------------------
-    column_mapping = map_roadway_columns(roadways_gdf)
-    if not column_mapping.get("FULLNAME"):
-        raise ValueError("The 'FULLNAME' column is required in the roadway data.")
-    roadways_gdf = roadways_gdf.rename(columns=column_mapping)
+    # Buffer stops
+    stops_buf = fgdb_path(WORK_GDB, "stops_buf")
+    logging.info("Buffering stops (%s %s) …", BUFFER_DISTANCE, BUFFER_DISTANCE_UNIT)
+    buffer_fc(stops_proj, stops_buf, BUFFER_DISTANCE, BUFFER_DISTANCE_UNIT)
 
-    # 7. Extract modifiers and normalise roadway names
-    modifiers = extract_modifiers(roadways_gdf, column_mapping)
-    logging.info("Extracted modifiers (%d): %s", len(modifiers), modifiers)
-    roadways_gdf["FULLNAME_clean"] = roadways_gdf["FULLNAME"].apply(
-        lambda x: normalize_street_name(x, modifiers)
-    )
+    # Spatial join
+    join_fc = fgdb_path(WORK_GDB, "stops_roads_join")
+    logging.info("SpatialJoin buffers ↔ roads …")
+    spatial_join_fc(stops_buf, roads_proj, join_fc)
 
-    # ------------------------------------------------------------------
-    # 8. Compute buffer distance in target CRS units
-    # ------------------------------------------------------------------
-    crs_unit = get_crs_unit(TARGET_CRS)
-    if crs_unit is None:
-        raise ValueError("Unable to determine the unit for TARGET_CRS.")
-    buffer_distance = (
-        convert_buffer_distance(BUFFER_DISTANCE_VALUE, BUFFER_DISTANCE_UNIT, crs_unit)
-        if BUFFER_DISTANCE_UNIT.lower() != crs_unit.lower()
-        else BUFFER_DISTANCE_VALUE
-    )
+    # Build lookup dictionaries
+    r_clean = road_clean_dict(roads_proj, col_map["FULLNAME"], mods)
+    stop2rd = stop_to_candidate_roads(join_fc, col_map["FULLNAME"], mods)
 
-    # 9. Buffer stops, spatial-join with roadways
-    stops_buffered = create_buffered_stops(stops_gdf, buffer_distance)
-    join_gdf = spatial_join_stops_roadways(stops_buffered, roadways_gdf)
-    logging.info("Spatial join produced %d candidate matches", join_gdf.shape[0])
+    # Detect typos
+    logging.info("Running difflib matching …")
+    typos = detect_typos(stops_df, stop2rd, r_clean, mods, SIMILARITY_THRESHOLD)
 
-    # ------------------------------------------------------------------
-    # 10. Fuzzy-match street names to find potential typos
-    # ------------------------------------------------------------------
-    road_names_clean = set(roadways_gdf["FULLNAME_clean"].dropna().unique())
-    typos_df = process_typos(
-        stops_gdf,
-        roadways_gdf,
-        modifiers,
-        road_names_clean,
-        SIMILARITY_THRESHOLD,
-    )
-
-    # 11. Save or report results
-    if typos_df.empty:
+    # Output
+    out_csv = os.path.join(OUTPUT_DIR, OUTPUT_CSV)
+    if typos.empty:
         logging.info("No potential typos found.")
     else:
-        out_path = os.path.join(OUTPUT_DIR, OUTPUT_CSV_NAME)
-        typos_df.to_csv(out_path, index=False)
-        logging.info("Potential typos saved to %s", out_path)
+        typos.to_csv(out_csv, index=False)
+        logging.info("Wrote %d rows → %s", len(typos), out_csv)
+
+    logging.info("All done. Workspace retained at %s for inspection.", WORK_GDB)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logging.exception("Processing failed")
+        sys.exit(1)
