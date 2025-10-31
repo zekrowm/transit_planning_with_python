@@ -8,9 +8,12 @@
 
 # ------------- Libraries available in ArcPro and from pip install -----------
 # Core Data Science Libraries
-pandas==1.4.4              # Data manipulation and analysis
-numpy==1.20.1                # Numerical computing
-scipy==1.6.2                 # Scientific computing and optimization
+pandas==2.2.3                # Data manipulation and analysis
+#pandas==1.4.4               # ArcPro version
+numpy==1.26.4                # Numerical computing
+#numpy==1.20.1               # ArcPro version
+scipy==1.12.0                # Scientific computing and optimization
+#scipy==1.6.2                # ArcPro version
 
 # Network Analysis
 networkx==2.8.4              # Graph and network analysis
@@ -58,4 +61,5 @@ pulp==2.9.0                  # Linear programming solver interface
 
 # Development Tools
 faker==25.8.0                # For generating fake data
+
 
