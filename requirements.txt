@@ -17,6 +17,7 @@ networkx==2.8.4              # Graph and network analysis
 
 # Visualization
 matplotlib==3.6.0            # Plotting and visualization
+seaborn==0.12.1              # Statistical plotting
 
 # Excel File Support
 openpyxl==3.1.5              # Read/write Excel .xlsx files
@@ -57,3 +58,4 @@ pulp==2.9.0                  # Linear programming solver interface
 
 # Development Tools
 faker==25.8.0                # For generating fake data
+
