@@ -1,53 +1,35 @@
+
+# =============================================================================
+# OFFICIAL STACK — ArcGIS Pro / arcpy Environment
+# =============================================================================
+# This repository is officially supported on the ArcGIS Pro (Windows) stack.
+# `arcpy` 3.1 is installed as part of ArcGIS Pro and cannot be installed via pip.
+# -----------------------------------------------------------------------------
+
 # ------------- Libraries available in ArcPro and from pip install -----------
 # Core Data Science Libraries
-pandas==2.2.3                # Data manipulation and analysis
-numpy==2.3.2                 # Numerical computing
-scipy==1.15.2                # Scientific computing and optimization
+pandas==1.4.4              # Data manipulation and analysis
+numpy==1.20.1                # Numerical computing
+scipy==1.6.2                 # Scientific computing and optimization
 
 # Network Analysis
-networkx==3.4.2              # Graph and network analysis
+networkx==2.8.4              # Graph and network analysis
 
 # Visualization
-matplotlib==3.9.0            # Plotting and visualization
+matplotlib==3.6.0            # Plotting and visualization
+seaborn==0.12.1              # Statistical plotting
 
 # Excel File Support
 openpyxl==3.1.5              # Read/write Excel .xlsx files
 xlrd==2.0.1                  # Read legacy Excel .xls files (no .xlsx support)
 
-
-# ------------- Libraries available only from pip install --------------------
 # Development Tools
 pytest==8.3.5                # Unit testing framework
-faker==25.8.0                # For generating fake data
 
 # CI/dev tooling (kept in the single requirements.txt for simplicity)
 pytest-cov                   # Test coverage reporting
 ruff                         # Linting & formatting
 ty                           # Non-blocking type checks
-
-# Optimization
-pulp==2.9.0                  # Linear programming solver interface
-
-# String Matching and Text Utilities
-rapidfuzz==3.13.0            # Fast fuzzy string matching
-
-# Geospatial Libraries (GeoPandas stack)
-geopandas==1.1.1             # Geospatial data handling (open-source)
-shapely==2.1.1               # Geometry operations
-pyproj==3.7.1                # Coordinate reference systems and transformations
-
-
-# ------------- arcpy Library ------------------------------------------------
-# Geospatial Libraries (ArcPy stack)
-# Notes on ArcPy and Dual Geospatial Support
-# This project supports two geospatial workflows:
-#   1. ArcPy-based (requires ArcGIS Pro and its Python environment)
-#   2. GeoPandas-based (open-source, fully pip-installable)
-#
-# ArcPy is not included here because it is not pip-installable.
-# If using scripts that require ArcPy, run them within the ArcGIS Pro conda environment,
-# which includes arcpy and most geospatial libraries by default.
-
 
 # ------------- Typing stubs (temporary) -------------------------------------
 pandas-stubs==2.2.*
@@ -55,3 +37,25 @@ types-openpyxl>=3.1,<5
 types-networkx>=3.4,<4
 #types-faker>=25,<26
 #types-rapidfuzz>=3.11,<4
+
+# =============================================================================
+# OPTIONAL “PORTS” STACK — For non-ArcGIS environments
+# =============================================================================
+# The following packages allow limited replication of `arcpy` workflows when
+# running outside ArcGIS Pro.
+# -----------------------------------------------------------------------------
+
+# Geospatial Libraries (GeoPandas stack)
+geopandas==1.1.1             # Geospatial data handling (open-source)
+shapely==2.1.1               # Geometry operations
+pyproj==3.7.1                # Coordinate reference systems and transformations
+
+# String Matching and Text Utilities
+rapidfuzz==3.13.0            # Fast fuzzy string matching
+
+# Optimization
+pulp==2.9.0                  # Linear programming solver interface
+
+# Development Tools
+faker==25.8.0                # For generating fake data
+
