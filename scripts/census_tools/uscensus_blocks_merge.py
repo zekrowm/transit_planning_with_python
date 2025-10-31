@@ -81,6 +81,7 @@ logging.basicConfig(
 )
 LOGGER = logging.getLogger(__name__)
 
+
 # ArcPy can also echo messages to the GP window
 def _gp(msg: str, level: str = "info") -> None:
     if level == "warning":
@@ -90,9 +91,11 @@ def _gp(msg: str, level: str = "info") -> None:
     else:
         arcpy.AddMessage(msg)
 
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
+
 
 def discover_tiger_datasets(root_dir: str | Path, pattern: str) -> list[str]:
     """Return absolute paths to TIGER shapefiles matching ``pattern``.
@@ -301,6 +304,7 @@ def write_output(in_fc: str, out_path: str) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Top-level workflow controller."""
