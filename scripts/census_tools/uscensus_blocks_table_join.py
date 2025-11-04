@@ -69,6 +69,7 @@ LOGGER: Final[logging.Logger] = logging.getLogger(__name__)
 # UTILITIES
 # -----------------------------------------------------------------------------
 
+
 def _list_field_names(dataset: str) -> list[str]:
     """Return a simple list of field names on *dataset*."""
     return [f.name for f in arcpy.ListFields(dataset)]
@@ -234,6 +235,7 @@ def _ensure_temp_gdb(base_path: str) -> str:
 # -----------------------------------------------------------------------------
 # CORE LOGIC
 # -----------------------------------------------------------------------------
+
 
 def join_blocks_to_attributes(
     blocks_fc: str,

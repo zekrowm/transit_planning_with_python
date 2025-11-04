@@ -15,7 +15,7 @@ Stages:
     3) Join stage (ArcPy): join the attribute CSV from step 1 to the block polygons
        from step 2 using a normalized 15-digit block identifier, then write final output.
 
-Notes
+Notes:
 -----
 * ZIPped TIGER shapefiles are NOT read directly—unzip first.
 * All TIGER inputs should be in the same coordinate system.
@@ -51,8 +51,8 @@ import pandas as pd
 # =============================================================================
 
 # ---- Input roots ----
-INPUT_CSV_DIR: str | Path = r"Folder\Path\To\Your\input_csv"         # <<< EDIT ME
-INPUT_SHP_DIR: str | Path = r"Folder\Path\To\Your\input_shp"          # <<< EDIT ME
+INPUT_CSV_DIR: str | Path = r"Folder\Path\To\Your\input_csv"  # <<< EDIT ME
+INPUT_SHP_DIR: str | Path = r"Folder\Path\To\Your\input_shp"  # <<< EDIT ME
 
 # ---- TIGER shapefile discovery ----
 # Glob pattern to select block shapefiles (basenames). Example: "tl_2023_*_tabblock20.shp"
@@ -75,9 +75,13 @@ FIPS_TO_FILTER: list[str] = [
 ]
 
 # ---- Outputs ----
-INTERMEDIATE_MERGED_SHP: str = r"File\Path\to\Your\Output\merged_blocks.shp"       # or ...gdb\merged_blocks
+INTERMEDIATE_MERGED_SHP: str = (
+    r"File\Path\to\Your\Output\merged_blocks.shp"  # or ...gdb\merged_blocks
+)
 INTERMEDIATE_COMBINED_CSV: str = r"File\Path\to\Your\Output\combined_blocks.csv"
-FINAL_JOINED_FEATURES: str = r"File\Path\to\Your\Output\blocks_with_attrs.shp"     # or ...gdb\blocks_with_attrs
+FINAL_JOINED_FEATURES: str = (
+    r"File\Path\to\Your\Output\blocks_with_attrs.shp"  # or ...gdb\blocks_with_attrs
+)
 
 # ---- CSV topic signatures ----
 TOPIC_SIGNATURES: dict[str, Sequence[str] | str] = {
@@ -95,8 +99,8 @@ TOPIC_SIGNATURES: dict[str, Sequence[str] | str] = {
 FIPS_FIELD_NAME: str = "FIPS"
 STATE_CANDIDATES: tuple[str, ...] = ("STATEFP20", "STATEFP")
 COUNTY_CANDIDATES: tuple[str, ...] = ("COUNTYFP20", "COUNTYFP")
-LEFT_KEY: Final[str] = "GEOID20"      # block GEOID in geometry
-RIGHT_KEY: Final[str] = "GEO_ID"      # preferred ID in CSV (24-char, rightmost 15 used)
+LEFT_KEY: Final[str] = "GEOID20"  # block GEOID in geometry
+RIGHT_KEY: Final[str] = "GEO_ID"  # preferred ID in CSV (24-char, rightmost 15 used)
 DERIVATION_SRC: Final[str] = "GEO_ID_blk"  # fallback CSV column
 USE_IN_MEMORY: bool = True
 FORCE_FLOAT: bool = False
@@ -153,7 +157,7 @@ def discover_census_files(
     for path in root.rglob("*"):
         if not path.is_file():
             continue
-        if not path.name.lower().endswith(("-data.csv", ".csv.gz", ".zip")) :
+        if not path.name.lower().endswith(("-data.csv", ".csv.gz", ".zip")):
             continue
 
         for var, sig in signatures.items():
@@ -173,7 +177,7 @@ def _read_csv_any(path: str | Path, **read_kwargs: Any) -> pd.DataFrame:
 
     if suf == ".zip":
         with zipfile.ZipFile(p) as zf:
-            members = [m for m in zf.namelist() if m.lower().endswith("-data.csv") ]
+            members = [m for m in zf.namelist() if m.lower().endswith("-data.csv")]
             if not members:
                 raise FileNotFoundError(f"No '*-Data.csv' inside {p}")
             with zf.open(members[0]) as fh, io.TextIOWrapper(fh, encoding="utf-8") as txt:
@@ -192,12 +196,7 @@ def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame
 def _clean_name_cols(df: pd.DataFrame) -> None:
     """Sanitize NAME-like columns in place (remove CR/LF/TAB)."""
     for col in df.filter(regex=r"^NAME").columns:
-        df[col] = (
-            df[col]
-            .astype(str)
-            .str.replace(r"[\r\n\t]+", " ", regex=True)
-            .str.strip()
-        )
+        df[col] = df[col].astype(str).str.replace(r"[\r\n\t]+", " ", regex=True).str.strip()
 
 
 def _load_and_concat(
@@ -246,9 +245,7 @@ def _ensure_geo_id(df: pd.DataFrame) -> None:
     if GEO_ID_COL in df.columns:
         return
     if "GEOID" in df.columns:
-        df["GEOID"] = (
-            df["GEOID"].astype(str).str.replace(r"\D", "", regex=True).str.zfill(15)
-        )
+        df["GEOID"] = df["GEOID"].astype(str).str.replace(r"\D", "", regex=True).str.zfill(15)
         df[GEO_ID_COL] = "1000000US" + df["GEOID"]
 
 
@@ -354,8 +351,18 @@ class _TractInputs:
 
 
 def _derive_income(df: pd.DataFrame) -> pd.DataFrame:
-    bands = ["sub_10k", "10k_15k", "15k_20k", "20k_25k", "25k_30k", "30k_35k", "35k_40k",
-             "40k_45k", "45k_50k", "50k_60k"]
+    bands = [
+        "sub_10k",
+        "10k_15k",
+        "15k_20k",
+        "20k_25k",
+        "25k_30k",
+        "30k_35k",
+        "35k_40k",
+        "40k_45k",
+        "45k_50k",
+        "50k_60k",
+    ]
     df["low_income"] = df[bands].sum(axis=1)
     df["perc_low_income"] = df["low_income"] / df["total_hh"]
     df.drop(columns="total_hh", inplace=True)
@@ -371,7 +378,7 @@ def _derive_ethnicity(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _derive_language(df: pd.DataFrame) -> pd.DataFrame:
-    lep_cols = [c for c in df.columns if c.endswith("_engnwell") ]
+    lep_cols = [c for c in df.columns if c.endswith("_engnwell")]
     df[lep_cols] = df[lep_cols].apply(pd.to_numeric, errors="coerce").fillna(0)
     df["all_nwell"] = df[lep_cols].sum(axis=1)
     df["perc_lep"] = (df["all_nwell"] / df["total_lang_pop"]).fillna(0).round(3)
@@ -391,8 +398,18 @@ def _derive_vehicle(df: pd.DataFrame) -> pd.DataFrame:
 def _derive_age(df: pd.DataFrame) -> pd.DataFrame:
     youth = ["m_15_17", "f_15_17", "m_18_19", "f_18_19", "m_20", "f_20", "m_21", "f_21"]
     elderly = [
-        "m_65_66", "f_65_66", "m_67_69", "f_67_69", "m_70_74", "f_70_74",
-        "m_75_79", "f_75_79", "m_80_84", "f_80_84", "m_a_85", "f_a_85",
+        "m_65_66",
+        "f_65_66",
+        "m_67_69",
+        "f_67_69",
+        "m_70_74",
+        "f_70_74",
+        "m_75_79",
+        "f_75_79",
+        "m_80_84",
+        "f_80_84",
+        "m_a_85",
+        "f_a_85",
     ]
     df["all_youth"] = df[[c for c in youth if c in df]].sum(axis=1)
     df["all_elderly"] = df[[c for c in elderly if c in df]].sum(axis=1)
@@ -600,6 +617,7 @@ def build_joined_table_from_folder(
 # TIGER MERGE & FILTER (ArcPy)
 # -----------------------------------------------------------------------------
 
+
 def discover_tiger_datasets(root_dir: str | Path, pattern: str) -> list[str]:
     """Return absolute paths to TIGER shapefiles matching *pattern* (no ZIP)."""
     root_path = Path(root_dir).expanduser().resolve()
@@ -676,7 +694,9 @@ def ensure_fips_field(
 
     LOGGER.info("Adding FIPS field %s", fips_field)
     _gp(f"Adding FIPS field {fips_field}")
-    arcpy.management.AddField(in_table=feature_class, field_name=fips_field, field_type="TEXT", field_length=5)
+    arcpy.management.AddField(
+        in_table=feature_class, field_name=fips_field, field_type="TEXT", field_length=5
+    )
 
     fields_to_update = (state_field, county_field, fips_field)
     with arcpy.da.UpdateCursor(feature_class, fields_to_update) as cursor:
@@ -738,9 +758,11 @@ def write_output(in_fc: str, out_path: str) -> None:
     _gp("Output written successfully.")
     LOGGER.info("Output written successfully")
 
+
 # -----------------------------------------------------------------------------
 # JOIN (ArcPy)
 # -----------------------------------------------------------------------------
+
 
 def _list_field_names(dataset: str) -> list[str]:
     """Return a simple list of field names on *dataset*."""
@@ -958,6 +980,7 @@ def join_blocks_to_attributes(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def run_pipeline() -> None:
     """Run CSV merge → TIGER merge/filter → join → outputs."""
