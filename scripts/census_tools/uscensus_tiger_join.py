@@ -819,7 +819,7 @@ def _load_csv_to_memory(csv_path: str) -> str:
         csv_path: Absolute path to the input CSV file.
 
     Returns:
-        The fully qualified in_memory table path (e.g., ``in_memory\attrs_csv``).
+        The fully qualified in_memory table path.
     """
     out_name = "attrs_csv"
     LOGGER.info(
