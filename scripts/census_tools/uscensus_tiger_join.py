@@ -52,26 +52,30 @@ import pandas as pd
 # =============================================================================
 
 # ---- Input roots ----
-INPUT_CSV_DIR: str | Path = r"Folder\Path\To\Your\input_csvs"         # <<< EDIT ME
-INPUT_SHP_DIR: str | Path = r"Folder\Path\To\Your\input_shps"         # <<< EDIT ME
+INPUT_CSV_DIR: str | Path = r"Folder\Path\To\Your\input_csvs"  # <<< EDIT ME
+INPUT_SHP_DIR: str | Path = r"Folder\Path\To\Your\input_shps"  # <<< EDIT ME
 
 # ---- TIGER shapefile discovery ----
 # Glob pattern to select block shapefiles (basenames). Example: "tl_2023_*_tabblock20.shp"
-TIGER_INPUT_GLOB: str = "tl_*_*_tabblock20.shp" # Edit if using block group or tract geometry
+TIGER_INPUT_GLOB: str = "tl_*_*_tabblock20.shp"  # Edit if using block group or tract geometry
 
 # Optional FIPS filter (5-char county codes)
 # Leave empty to keep all.
 # Add codes for your counties of interest to filter.
 FIPS_TO_FILTER: list[str] = [
-#    "11001",
-#    "24031", "24033",
-#    "51683", "51685", "51059", "51013", "51510", "51600", "51610", "51107", "51153",
+    #    "11001",
+    #    "24031", "24033",
+    #    "51683", "51685", "51059", "51013", "51510", "51600", "51610", "51107", "51153",
 ]
 
 # ---- Outputs ----
-INTERMEDIATE_MERGED_SHP: str = r"File\Path\To\Your\output_intermediate\merged_blocks.shp"       # or ...gdb\merged_blocks
+INTERMEDIATE_MERGED_SHP: str = (
+    r"File\Path\To\Your\output_intermediate\merged_blocks.shp"  # or ...gdb\merged_blocks
+)
 INTERMEDIATE_COMBINED_CSV: str = r"File\Path\To\Your\output_intermediate\combined_blocks.csv"
-FINAL_JOINED_FEATURES: str = r"File\Path\To\Your\output_final\blocks_with_attrs.shp"     # or ...gdb\blocks_with_attrs
+FINAL_JOINED_FEATURES: str = (
+    r"File\Path\To\Your\output_final\blocks_with_attrs.shp"  # or ...gdb\blocks_with_attrs
+)
 
 # ---- CSV topic signatures ----
 TOPIC_SIGNATURES: dict[str, Sequence[str] | str] = {
@@ -89,8 +93,8 @@ TOPIC_SIGNATURES: dict[str, Sequence[str] | str] = {
 FIPS_FIELD_NAME: str = "FIPS"
 STATE_CANDIDATES: tuple[str, ...] = ("STATEFP20", "STATEFP")
 COUNTY_CANDIDATES: tuple[str, ...] = ("COUNTYFP20", "COUNTYFP")
-LEFT_KEY: Final[str] = "GEOID20"      # block GEOID in geometry
-RIGHT_KEY: Final[str] = "GEO_ID"      # preferred ID in CSV (24-char, rightmost 15 used)
+LEFT_KEY: Final[str] = "GEOID20"  # block GEOID in geometry
+RIGHT_KEY: Final[str] = "GEO_ID"  # preferred ID in CSV (24-char, rightmost 15 used)
 DERIVATION_SRC: Final[str] = "GEO_ID_blk"  # fallback CSV column
 USE_IN_MEMORY: bool = True
 FORCE_FLOAT: bool = False
@@ -598,7 +602,7 @@ def _make_shapefile_safe_columns(
         # If still collides, perturb by appending an index (last char)
         if candidate in used:
             for i in range(36):  # 0-9A-Z
-                tail = (str(i) if i < 10 else chr(ord("A") + i - 10))
+                tail = str(i) if i < 10 else chr(ord("A") + i - 10)
                 cand2 = f"{base8[:7]}{tail}{chk}"
                 if cand2 not in used:
                     return cand2
@@ -669,7 +673,6 @@ def build_joined_table_from_folder(
         "block_id_synth": "BLK_ID_S",
         "tract_id_clean": "TRCT_ID_C",
         "GEO_ID_blk": "GEO_ID_blk",  # already 10
-
         # Block-level totals
         "total_pop": "POP_TOT",
         "total_hh": "HH_TOT",
@@ -677,15 +680,12 @@ def build_joined_table_from_folder(
         "low_wage": "EMP_LO",
         "mid_wage": "EMP_MD",
         "high_wage": "EMP_HI",
-
         # Income (tract-derived)
         "low_income": "HH_LOWINC",
         "perc_low_income": "PCT_LOWINC",
-
         # Ethnicity (tract-derived)
         "minority": "MINOR_CNT",
         "perc_minority": "PCT_MINOR",
-
         # Language / LEP (tract-derived)
         "total_lang_pop": "LANG_TOT",
         "spanish_engnwell": "SPA_NWELL",
@@ -701,7 +701,6 @@ def build_joined_table_from_folder(
         "otheretc_engnwell": "OTH_NWELL",
         "all_nwell": "LEP_CNT",
         "perc_lep": "PCT_LEP",
-
         # Vehicles (tract-derived)
         "all_hhs": "HHS_ALL",
         "veh_0_all_hh": "HH0_ALL",
@@ -722,7 +721,6 @@ def build_joined_table_from_folder(
         "perc_1_veh": "PCT_VEH1",
         "perc_veh_1_hh_1": "PCT_HH1V1",
         "perc_lo_veh_mod": "PCT_LOVEM",
-
         # Age (tract-derived)
         "all_youth": "YOUTH_CNT",
         "all_elderly": "ELDER_CNT",

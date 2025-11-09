@@ -58,7 +58,7 @@ GTFS_ROUTE_SHORT_NAMES: Optional[Sequence[str]] = ["101", "202"]
 # Input demographics (from the census-join pipeline).
 # This may be a FileGDB feature class or a shapefile; both work.
 DEMOGRAPHICS_FC: str = (
-    #r"File\Path\To\Your\output_final\scratch_join.gdb\joined_blocks"
+    # r"File\Path\To\Your\output_final\scratch_join.gdb\joined_blocks"
     r"File\Path\To\Your\output_final\blocks_with_attrs.shp"
 )
 
@@ -463,7 +463,9 @@ def detect_demog_schema(demographics_fc: str) -> DemogSchema:
                 resolved_inputs[pref.count] = rcount
                 continue
 
-    return DemogSchema(outputs=tuple(outputs), strategies=strategies, resolved_inputs=resolved_inputs)
+    return DemogSchema(
+        outputs=tuple(outputs), strategies=strategies, resolved_inputs=resolved_inputs
+    )
 
 
 def add_original_area_acres(demographics_fc: str, field_name: str = "area_ac_og") -> None:
@@ -664,7 +666,9 @@ def add_synthetic_fields(
         if vals:
             logging.info(
                 "Diagnostics: area_perc per-source: max=%.3f, mean=%.3f (N=%d)",
-                max(vals), sum(vals) / max(len(vals), 1), len(vals)
+                max(vals),
+                sum(vals) / max(len(vals), 1),
+                len(vals),
             )
     except Exception:
         pass
@@ -720,20 +724,24 @@ def _sr_name(obj_path: str) -> str:
     except Exception:
         return "<unknown>"
 
+
 def _count(obj_path: str) -> int:
     try:
         return int(arcpy.management.GetCount(obj_path).getOutput(0))
     except Exception:
         return -1
 
+
 def _log_env() -> None:
     env = arcpy.env
-    logging.info("Env: extent=%s mask=%s snapRaster=%s",
-                 getattr(env, "extent", None),
-                 getattr(env, "mask", None),
-                 getattr(env, "snapRaster", None))
+    logging.info(
+        "Env: extent=%s mask=%s snapRaster=%s",
+        getattr(env, "extent", None),
+        getattr(env, "mask", None),
+        getattr(env, "snapRaster", None),
+    )
 
-    
+
 def _project_to_match_sr(in_fc: str, like_fc: str, name_hint: str) -> str:
     """Project *in_fc* to the spatial reference of *like_fc* if they differ.
 
@@ -787,9 +795,12 @@ def _project_to_match_sr(in_fc: str, like_fc: str, name_hint: str) -> str:
 
     logging.info(
         "Projecting '%s' SR [%s] → match '%s' SR [%s] (transform=%s) → '%s' …",
-        in_fc, getattr(in_sr, "name", "<unknown>"),
-        like_fc, getattr(like_sr, "name", "<unknown>"),
-        transform or "<none>", out_fc,
+        in_fc,
+        getattr(in_sr, "name", "<unknown>"),
+        like_fc,
+        getattr(like_sr, "name", "<unknown>"),
+        transform or "<none>",
+        out_fc,
     )
     arcpy.management.Project(in_fc, out_fc, like_sr, transform)
     return out_fc
@@ -824,7 +835,7 @@ def _scratch_gdb() -> str:
     if not arcpy.Exists(gdb):
         arcpy.management.CreateFileGDB(folder, "sr_temp.gdb")
     return gdb
-    
+
 
 def clip_demographics_to_buffers(
     demographics_fc: str,
@@ -858,11 +869,13 @@ def clip_demographics_to_buffers(
     # Pre-flight diagnostics
     logging.info(
         "Clip preflight: DEMO SR=%s, count=%s",
-        _sr_name(demographics_fc), _count(demographics_fc),
+        _sr_name(demographics_fc),
+        _count(demographics_fc),
     )
     logging.info(
         "Clip preflight: BUFF SR=%s, count=%s",
-        _sr_name(buffers_for_clip), _count(buffers_for_clip),
+        _sr_name(buffers_for_clip),
+        _count(buffers_for_clip),
     )
 
     # Make sure large FCs have a spatial index (idempotent)
@@ -894,9 +907,7 @@ def clip_demographics_to_buffers(
         try:
             logging.info("Fallback: Intersect (polygons ∩ buffer) …")
             tmp = result_path + "_ix_tmp"
-            arcpy.analysis.Intersect(
-                [demographics_fc, buffers_for_clip], tmp, "ALL", "", "INPUT"
-            )
+            arcpy.analysis.Intersect([demographics_fc, buffers_for_clip], tmp, "ALL", "", "INPUT")
             if arcpy.Exists(result_path):
                 arcpy.management.Delete(result_path)
             arcpy.management.CopyFeatures(tmp, result_path)
@@ -908,7 +919,9 @@ def clip_demographics_to_buffers(
     n = _count(result_path)
     logging.info(
         "Clip result: %s features at %s (SR=%s)",
-        n, result_path, _sr_name(result_path),
+        n,
+        result_path,
+        _sr_name(result_path),
     )
     if n == 0:
         logging.warning(
@@ -974,6 +987,7 @@ def export_final_copy(
 # =============================================================================
 # CONSOLIDATED EXECUTION HELPERS
 # =============================================================================
+
 
 def calc_original_area_for_intersecting(
     demographics_fc: str,
@@ -1124,8 +1138,10 @@ def _run_network_total(stops_layer: str) -> None:
 
     Intermediates use explicit disk outputs if provided in config; otherwise in_memory.
     """
-    print(f"Buffering stops to {BUFFER_DISTANCE_MILES} mi → "
-          f"{'disk' if BUFFERED_STOPS_OUT else 'in_memory'} (intermediates)")
+    print(
+        f"Buffering stops to {BUFFER_DISTANCE_MILES} mi → "
+        f"{'disk' if BUFFERED_STOPS_OUT else 'in_memory'} (intermediates)"
+    )
 
     svc_totals, exported = _process_service_area_from_stops_layer(
         stops_layer=stops_layer,
