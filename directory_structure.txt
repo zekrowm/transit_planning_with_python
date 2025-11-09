@@ -26,7 +26,8 @@ transit_planning_with_python-main/
     │   ├── uscensus_blocks_merge.py
     │   ├── uscensus_blocks_merge_gpd.py
     │   ├── uscensus_blocks_table_join_gpd.py
-    │   └── uscensus_table_build.py
+    │   ├── uscensus_table_build.py
+    │   └── uscensus_tiger_join.py
     ├── data_quality/
     │   ├── compare_gtfs_to_shapefile.py
     │   ├── gtfs_usps_suffix_validator.py
@@ -64,7 +65,7 @@ transit_planning_with_python-main/
     │   ├── ntd_monthly_summary.py
     │   └── stops_ridership_joiner.py
     └── service_coverage_geotools/
-        ├── gtfs_census_catchment_analysis.py
+        ├── gtfs_census_catchment.py
         ├── gtfs_census_catchment_analysis_gpd.py
         ├── gtfs_service_by_district_gpd.py
         ├── route_site_coverage_gpd.py
