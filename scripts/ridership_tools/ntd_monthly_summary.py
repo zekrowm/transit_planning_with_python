@@ -148,8 +148,8 @@ EXCLUDE_DATA: dict[str, str | Iterable[str]] = {
 PLOT_CONFIG: Final[dict[str, bool]] = {
     "plot_total_ridership": False,
     "plot_weekday_avg": True,
-    "plot_saturday_avg": False,
-    "plot_sunday_avg": False,
+    "plot_saturday_avg": True,
+    "plot_sunday_avg": True,
     "plot_revenue_hours": False,
     "plot_trips": False,
     "plot_revenue_miles": False,
