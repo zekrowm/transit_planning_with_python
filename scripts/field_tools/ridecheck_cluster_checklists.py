@@ -127,6 +127,7 @@ _EARTH_RADIUS_M = 6_371_000.0
 # FILE / IO HELPERS
 # =============================================================================
 
+
 def validate_input_directory(base_input_path: str, gtfs_files: Iterable[str]) -> None:
     """Ensure base_input_path exists and contains all GTFS_FILES."""
     if not os.path.isdir(base_input_path):
@@ -154,20 +155,17 @@ def load_gtfs_data(
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Load trips, stop_times, routes, stops, calendar from a GTFS folder."""
     trips = pd.read_csv(os.path.join(base_input_path, "trips.txt"), dtype=dtype_dict)
-    stop_times = pd.read_csv(
-        os.path.join(base_input_path, "stop_times.txt"), dtype=dtype_dict
-    )
+    stop_times = pd.read_csv(os.path.join(base_input_path, "stop_times.txt"), dtype=dtype_dict)
     routes = pd.read_csv(os.path.join(base_input_path, "routes.txt"), dtype=dtype_dict)
     stops = pd.read_csv(os.path.join(base_input_path, "stops.txt"), dtype=dtype_dict)
-    calendar = pd.read_csv(
-        os.path.join(base_input_path, "calendar.txt"), dtype=dtype_dict
-    )
+    calendar = pd.read_csv(os.path.join(base_input_path, "calendar.txt"), dtype=dtype_dict)
     return trips, stop_times, routes, stops, calendar
 
 
 # =============================================================================
 # IDENTIFIER / CLUSTER RESOLUTION
 # =============================================================================
+
 
 def _normalize_identifier_list(values: Iterable[str | int]) -> List[str]:
     """Return a list of str identifiers from a heterogeneous list."""
@@ -229,9 +227,7 @@ def build_cluster_stop_ids(
 
     # identifier_field == "stop_code"
     if "stop_code" not in stops_local.columns:
-        raise ValueError(
-            "identifier_field is 'stop_code' but stops.txt has no 'stop_code' column."
-        )
+        raise ValueError("identifier_field is 'stop_code' but stops.txt has no 'stop_code' column.")
 
     stops_local["stop_code"] = stops_local["stop_code"].astype(str)
 
@@ -275,6 +271,7 @@ def build_cluster_stop_ids(
 # =============================================================================
 # TIME HELPERS
 # =============================================================================
+
 
 def normalize_gtfs_time_to_hhmm(time_str: str) -> str:
     """Normalize GTFS HH:MM[:SS] (possibly ≥ 24h) to 'HH:MM' 0–23h.
@@ -323,9 +320,9 @@ def _haversine_m(
     dlat = lat2r - lat1r
     dlon = lon2r - lon1r
 
-    a = (dlat / 2.0).map(math.sin) ** 2 + math.cos(lat1r) * (
-        lat2r.map(math.cos)
-    ) * ((dlon / 2.0).map(math.sin) ** 2)
+    a = (dlat / 2.0).map(math.sin) ** 2 + math.cos(lat1r) * (lat2r.map(math.cos)) * (
+        (dlon / 2.0).map(math.sin) ** 2
+    )
 
     c = 2 * a.map(math.sqrt).map(lambda x: math.asin(min(1.0, x)))
     return _EARTH_RADIUS_M * c
@@ -373,9 +370,7 @@ def find_nearby_stops_for_clusters(
 
         if anchors.empty:
             if verbose:
-                print(
-                    f"Warning: no anchor stops found for cluster '{cname}' in stops.txt."
-                )
+                print(f"Warning: no anchor stops found for cluster '{cname}' in stops.txt.")
             continue
 
         for _, arow in anchors.iterrows():
@@ -428,14 +423,12 @@ def find_nearby_stops_for_clusters(
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_csv = os.path.join(BASE_OUTPUT_PATH, f"nearby_stop_warnings_{ts}.csv")
         try:
-            result.sort_values(
-                ["cluster", "anchor_stop_id", "distance_ft"]
-            ).to_csv(out_csv, index=False)
+            result.sort_values(["cluster", "anchor_stop_id", "distance_ft"]).to_csv(
+                out_csv, index=False
+            )
             print(f"Nearby stop report written to {out_csv}")
         except PermissionError:
-            print(
-                "Warning: could not write nearby stop report (permission denied)."
-            )
+            print("Warning: could not write nearby stop report (permission denied).")
 
     return result
 
@@ -443,6 +436,7 @@ def find_nearby_stops_for_clusters(
 # =============================================================================
 # EXCEL EXPORT
 # =============================================================================
+
 
 def export_to_excel(df: pd.DataFrame, output_file: str) -> None:
     """Write DataFrame to Excel with basic formatting and route highlighting."""
@@ -548,8 +542,7 @@ def process_cluster_slice(
         df = df.sort_values("arrival_sort").drop(columns=["arrival_sort"])
     except Exception as exc:  # noqa: BLE001
         print(
-            f"Warning: could not sort by arrival_time for {cluster_name} "
-            f"({schedule_name}): {exc}"
+            f"Warning: could not sort by arrival_time for {cluster_name} ({schedule_name}): {exc}"
         )
 
     # Placeholders
@@ -610,16 +603,11 @@ def process_cluster_slice(
     df = df.drop(columns=[c for c in to_drop if c in df.columns], errors="ignore")
 
     if not os.path.isdir(base_output_path):
-        print(
-            f"Error: output directory {base_output_path} does not exist; "
-            "cannot write Excel."
-        )
+        print(f"Error: output directory {base_output_path} does not exist; cannot write Excel.")
         return
 
     # Full-day export
-    full_path = os.path.join(
-        base_output_path, f"{cluster_name}_{schedule_name}_data.xlsx"
-    )
+    full_path = os.path.join(base_output_path, f"{cluster_name}_{schedule_name}_data.xlsx")
     df_full = prepend_sample_row(df.copy(), cluster_name, schedule_name)
     export_to_excel(df_full, full_path)
     print(f"Exported {cluster_name} ({schedule_name}) full-day to {full_path}")
@@ -630,17 +618,13 @@ def process_cluster_slice(
             try:
                 st = pd.to_datetime(start_s, format="%H:%M").time()
                 et = pd.to_datetime(end_s, format="%H:%M").time()
-                atimes = pd.to_datetime(
-                    df["arrival_time"], format="%H:%M", errors="coerce"
-                ).dt.time
+                atimes = pd.to_datetime(df["arrival_time"], format="%H:%M", errors="coerce").dt.time
 
                 mask = pd.notnull(atimes) & (atimes >= st) & (atimes <= et)
                 subset = df.loc[mask].copy()
 
                 if subset.empty:
-                    print(
-                        f"  No {win_name} data for {cluster_name} ({schedule_name})."
-                    )
+                    print(f"  No {win_name} data for {cluster_name} ({schedule_name}).")
                     continue
 
                 path_win = os.path.join(
@@ -651,10 +635,7 @@ def process_cluster_slice(
                     subset, cluster_name, f"{schedule_name} {win_name}"
                 )
                 export_to_excel(subset_with_sample, path_win)
-                print(
-                    f"  Exported {win_name} for {cluster_name} "
-                    f"({schedule_name}) to {path_win}"
-                )
+                print(f"  Exported {win_name} for {cluster_name} ({schedule_name}) to {path_win}")
             except Exception as exc:  # noqa: BLE001
                 print(
                     f"  Error processing window {win_name} for {cluster_name} "
@@ -666,15 +647,14 @@ def process_cluster_slice(
 # MAIN ORCHESTRATION
 # =============================================================================
 
+
 def generate_gtfs_checklists() -> None:
     """End-to-end orchestration for GTFS field checklist generation."""
     # 1. Basic validation and load
     validate_input_directory(BASE_INPUT_PATH, GTFS_FILES)
     create_output_directory(BASE_OUTPUT_PATH)
 
-    trips, stop_times, routes, stops, calendar = load_gtfs_data(
-        BASE_INPUT_PATH, DTYPE_DICT
-    )
+    trips, stop_times, routes, stops, calendar = load_gtfs_data(BASE_INPUT_PATH, DTYPE_DICT)
 
     # Normalize ids as strings where relevant
     for df_name, df in [
@@ -701,9 +681,7 @@ def generate_gtfs_checklists() -> None:
     )
 
     # Drop clusters that ended up with no valid stop_ids
-    cluster_stop_ids = {
-        cname: ids for cname, ids in cluster_stop_ids.items() if ids
-    }
+    cluster_stop_ids = {cname: ids for cname, ids in cluster_stop_ids.items() if ids}
 
     if not cluster_stop_ids:
         print("No valid clusters after resolving identifiers; nothing to process.")
@@ -718,8 +696,7 @@ def generate_gtfs_checklists() -> None:
     )
     if _nearby_df.empty:
         print(
-            f"No nearby non-cluster stops found within {NEARBY_STOP_BUFFER_FT} ft "
-            "of any cluster."
+            f"No nearby non-cluster stops found within {NEARBY_STOP_BUFFER_FT} ft of any cluster."
         )
 
     # 4. Process each schedule
@@ -738,10 +715,7 @@ def generate_gtfs_checklists() -> None:
         relevant_services = calendar.loc[service_mask, "service_id"].astype(str)
 
         if relevant_services.empty:
-            print(
-                f"No service_ids active for schedule '{schedule_name}'; "
-                "skipping schedule."
-            )
+            print(f"No service_ids active for schedule '{schedule_name}'; skipping schedule.")
             continue
 
         trips_filtered = trips[trips["service_id"].isin(relevant_services)]
@@ -753,18 +727,22 @@ def generate_gtfs_checklists() -> None:
             continue
 
         # Build master joined table for this schedule
-        merged = stop_times.merge(
-            trips_filtered,
-            on="trip_id",
-            how="inner",
-        ).merge(
-            routes[["route_id", "route_short_name"]],
-            on="route_id",
-            how="left",
-        ).merge(
-            stops[["stop_id", "stop_name", "stop_lat", "stop_lon"]],
-            on="stop_id",
-            how="left",
+        merged = (
+            stop_times.merge(
+                trips_filtered,
+                on="trip_id",
+                how="inner",
+            )
+            .merge(
+                routes[["route_id", "route_short_name"]],
+                on="route_id",
+                how="left",
+            )
+            .merge(
+                stops[["stop_id", "stop_name", "stop_lat", "stop_lon"]],
+                on="stop_id",
+                how="left",
+            )
         )
 
         # Mark start/last in sequence_long
