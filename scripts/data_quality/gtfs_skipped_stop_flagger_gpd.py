@@ -30,6 +30,7 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 import pandas as pd
 from shapely.geometry import LineString, Point
 
