@@ -1038,7 +1038,12 @@ def plot_mismatch_segment(
         zorder=LINE_ZORDER,
     )
 
-    def _scatter_keys(keys, marker, size, label):
+    def _scatter_keys(
+        keys: Iterable[str],
+        marker: str,
+        size: float,
+        label: str,
+    ) -> None:
         xs: List[float] = []
         ys: List[float] = []
         for key in keys:
@@ -1166,7 +1171,7 @@ def plot_route_pair_overview(
     # Helpers shared by both plots
     # --------------------------------------------------------------------- #
     def _plot_route_with_buffer(
-        ax,
+        ax: Axes,
         geom_geo: LineString,
         geom_proj: LineString,
         label: str,
@@ -1209,7 +1214,7 @@ def plot_route_pair_overview(
         )
 
     def _scatter_keys(
-        ax,
+        ax: Axes,
         keys: Iterable[str],
         marker: str,
         size: float,
