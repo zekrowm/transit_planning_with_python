@@ -30,8 +30,8 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
 import pandas as pd
+from matplotlib.axes import Axes
 from shapely.geometry import LineString, Point
 
 # =============================================================================
@@ -142,6 +142,7 @@ class GTFSContext:
 # =============================================================================
 # GTFS helpers
 # =============================================================================
+
 
 def choose_representative_trip_ids_max_stops(
     trips_df: pd.DataFrame,
@@ -381,9 +382,7 @@ def select_representative_shapes(trips_df: pd.DataFrame) -> pd.DataFrame:
     df["direction_id"] = df["direction_id"].astype(str)
 
     counts = (
-        df.groupby(["route_id", "direction_id", "shape_id"])
-        .size()
-        .reset_index(name="trip_count")
+        df.groupby(["route_id", "direction_id", "shape_id"]).size().reset_index(name="trip_count")
     )
     counts = counts.sort_values("trip_count", ascending=False)
     reps = counts.drop_duplicates(subset=["route_id", "direction_id"])
@@ -549,9 +548,7 @@ def choose_representative_trip_ids(
         subset = df.loc[mask, "trip_id"]
 
         if subset.empty:
-            mask2 = (df["route_id"] == route_id) & (
-                df["direction_id"] == direction_id
-            )
+            mask2 = (df["route_id"] == route_id) & (df["direction_id"] == direction_id)
             subset = df.loc[mask2, "trip_id"]
 
         if subset.empty:
@@ -631,7 +628,7 @@ def hausdorff_distance_safe(
         return None
     return float(geom_a.hausdorff_distance(geom_b))
 
-    
+
 def shares_only_terminal_stops(
     base_seq: Sequence[str],
     other_seq: Sequence[str],
@@ -676,7 +673,6 @@ def shares_only_terminal_stops(
             return False
 
     return True
-
 
 
 # =============================================================================
@@ -748,10 +744,10 @@ def compare_segments_for_route_pair(
     sequences: Mapping[RouteKey, Sequence[str]],
     stop_names: Mapping[str, str],
     shapes_proj: Mapping[RouteKey, LineString],  # kept for signature compat; unused
-    stops_gdf_proj: gpd.GeoDataFrame,            # kept for signature compat; unused
-    max_shape_hausdorff_m: Optional[float],      # kept for signature compat; unused
-    max_stop_to_shape_m: float,                  # kept for signature compat; unused
-    segment_measure_padding_m: float,            # kept for signature compat; unused
+    stops_gdf_proj: gpd.GeoDataFrame,  # kept for signature compat; unused
+    max_shape_hausdorff_m: Optional[float],  # kept for signature compat; unused
+    max_stop_to_shape_m: float,  # kept for signature compat; unused
+    segment_measure_padding_m: float,  # kept for signature compat; unused
 ) -> List[Dict[str, object]]:
     """Compare shared segments between two routes using sequences only.
 
@@ -807,9 +803,7 @@ def compare_segments_for_route_pair(
             other_pos[s] = idx
 
     # Shared indices along the base route in base order.
-    base_shared_idx: List[int] = [
-        i for i, s in enumerate(base_seq) if s in other_pos
-    ]
+    base_shared_idx: List[int] = [i for i, s in enumerate(base_seq) if s in other_pos]
     if len(base_shared_idx) < 2:
         return []
 
@@ -856,12 +850,8 @@ def compare_segments_for_route_pair(
         set_base_int = set(base_interior_u)
         set_other_int = set(other_interior_u)
 
-        stops_only_on_base = [
-            s for s in base_interior_u if s not in set_other_int
-        ]
-        stops_only_on_other = [
-            s for s in other_interior_u if s not in set_base_int
-        ]
+        stops_only_on_base = [s for s in base_interior_u if s not in set_other_int]
+        stops_only_on_other = [s for s in other_interior_u if s not in set_base_int]
 
         # If there are no unique stops, this segment is consistent.
         if not stops_only_on_base and not stops_only_on_other:
@@ -930,10 +920,7 @@ def _find_segment_indices(
     try:
         i1 = seq.index(end_key, i0 + 1)
     except ValueError as exc:
-        msg = (
-            f"End stop key {end_key} not found in sequence after start "
-            f"({start_key})."
-        )
+        msg = f"End stop key {end_key} not found in sequence after start ({start_key})."
         raise KeyError(msg) from exc
 
     return i0, i1
@@ -1011,11 +998,7 @@ def plot_mismatch_segment(
     base_interior = set(base_segment_keys[1:-1])
     other_interior = set(other_segment_keys[1:-1])
 
-    shared_interior = (
-        base_interior.intersection(other_interior)
-        - unique_base
-        - unique_other
-    )
+    shared_interior = base_interior.intersection(other_interior) - unique_base - unique_other
 
     fig, ax = plt.subplots(figsize=(6, 6))
 
@@ -1180,11 +1163,7 @@ def plot_route_pair_overview(
         """Plot a route LineString and its buffer on the given axis."""
         if buffer_m > 0.0:
             buf_proj = geom_proj.buffer(buffer_m)
-            buf_geo = (
-                gpd.GeoSeries([buf_proj], crs=PROJECTED_CRS)
-                .to_crs(GTFS_CRS)
-                .iloc[0]
-            )
+            buf_geo = gpd.GeoSeries([buf_proj], crs=PROJECTED_CRS).to_crs(GTFS_CRS).iloc[0]
             if buf_geo.geom_type == "Polygon":
                 x_buf, y_buf = buf_geo.exterior.xy
                 ax.fill(
@@ -1316,10 +1295,7 @@ def plot_route_pair_overview(
         label="only on other (off-corridor)",
     )
 
-    title = (
-        f"Overview: {base_route_id} dir {base_dir} "
-        f"vs {other_route_id} dir {other_dir}"
-    )
+    title = f"Overview: {base_route_id} dir {base_dir} vs {other_route_id} dir {other_dir}"
     ax.set_title(title)
     ax.set_aspect("equal", adjustable="datalim")
     ax.grid(True, linewidth=0.3, zorder=GRID_ZORDER)
@@ -1416,8 +1392,7 @@ def plot_route_pair_overview(
     ax_right.legend(loc="best", fontsize=7)
 
     fig2.suptitle(
-        f"Side-by-side: {base_route_id} dir {base_dir} "
-        f"vs {other_route_id} dir {other_dir}"
+        f"Side-by-side: {base_route_id} dir {base_dir} vs {other_route_id} dir {other_dir}"
     )
 
     filename_side = f"overview_{safe_base}_vs_{safe_other}_side_by_side.png"
@@ -1523,8 +1498,7 @@ def prepare_gtfs_context() -> GTFSContext:
     base_keys = [key for key in base_keys if key[0] not in route_id_whitelist]
 
     print(
-        f"Prepared {len(all_route_keys)} route/direction pairs; "
-        f"{len(base_keys)} selected as base."
+        f"Prepared {len(all_route_keys)} route/direction pairs; {len(base_keys)} selected as base."
     )
 
     return GTFSContext(
@@ -1600,7 +1574,7 @@ def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
                 stop_names=ctx.stop_names,
                 shapes_proj=ctx.route_shapes_proj,
                 stops_gdf_proj=ctx.stops_gdf_proj,
-                max_shape_hausdorff_m=None,           # disable geometry gating
+                max_shape_hausdorff_m=None,  # disable geometry gating
                 max_stop_to_shape_m=MAX_STOP_TO_SHAPE_M,
                 segment_measure_padding_m=SEGMENT_MEASURE_PADDING_M,
             )
