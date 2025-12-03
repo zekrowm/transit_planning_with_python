@@ -405,17 +405,17 @@ def process_stops_for_single_run() -> None:
     Creates one shapefile for the entire network of bus stops,
     and now also exports an intermediate aggregated ridership CSV.
     """
-    # Step 1: Create or identify the bus‑stops feature class
+    # Step 1: Create or identify the bus-stops feature class
     bus_stops_fc, fields_to_export = create_bus_stops_feature_class()
 
-    # Step 2: Spatial Join (optional) → also exports CSV of bus stops (+ polygons)
+    # Step 2: Spatial Join (optional) → also exports CSV of bus stops (+ polygons)
     current_fc = spatial_join_bus_stops_to_polygons(bus_stops_fc, fields_to_export)
 
-    # Step 3: Read ridership data from Excel & optionally filter by routes
+    # Step 3: Read ridership data from Excel & optionally filter by routes
     df_excel = read_and_filter_ridership_data()
 
-    # ─── AGGREGATE PER STOP (network‑wide) ───
-    # Collapse any multi‑route rows down to one row per STOP_ID
+    # ─── AGGREGATE PER STOP (network-wide) ───
+    # Collapse any multi-route rows down to one row per STOP_ID
     df_excel = df_excel.groupby("STOP_ID", as_index=False).agg(
         {"XBOARDINGS": "sum", "XALIGHTINGS": "sum", "TOTAL": "sum"}
     )
@@ -423,21 +423,21 @@ def process_stops_for_single_run() -> None:
     # Export the intermediate aggregated ridership spreadsheet
     agg_per_stop_csv = os.path.join(OUTPUT_FOLDER, "agg_ridership_per_stop.csv")
     df_excel.to_csv(agg_per_stop_csv, index=False)
-    print(f"Aggregated ridership per stop exported to:\n{agg_per_stop_csv}")
+    logger.info("Aggregated ridership per stop exported to: %s", agg_per_stop_csv)
 
-    # Step 4: Merge ridership data with CSV from spatial join
+    # Step 4: Merge ridership data with CSV from spatial join
     df_joined, key_field = merge_ridership_and_csv(df_excel, fields_to_export)
 
-    # Step 4a: Filter to matched bus stops
+    # Step 4a: Filter to matched bus stops
     filtered_fc = filter_matched_bus_stops(current_fc, df_joined, key_field)
 
-    # Step 5: Update the bus‑stops shapefile with ridership fields
+    # Step 5: Update the bus-stops shapefile with ridership fields
     update_bus_stops_ridership(filtered_fc, df_joined, key_field)
 
-    # Steps 6 & 7: Aggregate ridership (optional, by polygon)
+    # Steps 6 & 7: Aggregate ridership (optional, by polygon)
     aggregate_ridership(df_joined)
 
-    print("Single‑run process complete.")
+    logger.info("Single-run process complete.")
 
 
 # =============================================================================
