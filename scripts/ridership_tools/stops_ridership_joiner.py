@@ -72,6 +72,16 @@ IS_GTFS_INPUT = BUS_STOPS_INPUT.lower().endswith(".txt")
 arcpy.env.overwriteOutput = True
 
 # =============================================================================
+# LOGGING
+# =============================================================================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# =============================================================================
 # FUNCTIONS
 # =============================================================================
 
