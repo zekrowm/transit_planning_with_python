@@ -454,12 +454,12 @@ def main() -> None:
     # >>>>> NEW BRANCHING LOGIC <<<<<
     if not SPLIT_BY_ROUTE:
         # ---- Original single-run approach ----
-        print("SPLIT_BY_ROUTE = False. Running single shapefile process.")
+        logger.info("SPLIT_BY_ROUTE = False. Running single shapefile process.")
         process_stops_for_single_run()
 
     else:
         # ---- Per-route approach (from the second script) ----
-        print("SPLIT_BY_ROUTE = True. Creating one shapefile per route.")
+        logger.info("SPLIT_BY_ROUTE = True. Creating one shapefile per route.")
 
         # Step 1: Create or identify the bus stops feature class
         bus_stops_fc, fields_to_export = create_bus_stops_feature_class()
@@ -472,32 +472,31 @@ def main() -> None:
 
         # Identify unique routes
         unique_routes = df_excel["ROUTE_NAME"].unique()
-        print(f"Found the following unique routes: {unique_routes}")
+        logger.info("Found the following unique routes: %s", unique_routes)
 
         # For each route, merge, filter, and export a shapefile
         for route in unique_routes:
-            print(f"\n=== Processing route: {route} ===")
+            logger.info("=== Processing route: %s ===", route)
             df_route = df_excel[df_excel["ROUTE_NAME"] == route].copy()
             if df_route.empty:
-                print(f"No ridership data for route {route}. Skipping.")
+                logger.warning("No ridership data for route %s. Skipping.", route)
                 continue
 
             # Merge data
             df_joined, key_field = merge_ridership_and_csv(df_route, fields_to_export)
             if df_joined.empty:
-                print(f"No matched bus stops found for route {route}. Skipping.")
+                logger.warning(
+                    "No matched bus stops found for route %s. Skipping.",
+                    route,
+                )
                 continue
 
             # Create a route-specific feature class path
             route_output_fc = os.path.join(OUTPUT_FOLDER, f"BusStops_{route}.shp")
 
-            # We'll replicate the filtering logic from the second script
-            # in a more direct manner. We do not re-use filter_matched_bus_stops
-            # with the single "MATCHED_JOINED_FC" because we need distinct outputs.
-            # Instead, we do a partial version:
             matched_keys = df_joined[key_field].dropna().unique().tolist()
             if not matched_keys:
-                print("No matched bus stops found. Skipping this route.")
+                logger.warning("No matched bus stops found. Skipping route %s.", route)
                 continue
 
             arcpy.MakeFeatureLayer_management(current_fc, "joined_lyr_route")
@@ -520,11 +519,14 @@ def main() -> None:
 
             selected_count = int(arcpy.GetCount_management("joined_lyr_route").getOutput(0))
             if selected_count == 0:
-                print(f"No bus stops found in FC for route {route}. Skipping.")
+                logger.warning(
+                    "No bus stops found in FC for route %s. Skipping.",
+                    route,
+                )
                 continue
 
             arcpy.CopyFeatures_management("joined_lyr_route", route_output_fc)
-            print(f"Route-specific shapefile created at: {route_output_fc}")
+            logger.info("Route-specific shapefile created at: %s", route_output_fc)
 
             # Now update ridership fields
             update_bus_stops_ridership(route_output_fc, df_joined, key_field)
@@ -535,7 +537,7 @@ def main() -> None:
         # For simplicity, we show it once for the entire dataset:
         aggregate_ridership(df_excel)
 
-        print("Per-route process complete.")
+        logger.info("Per-route process complete.")
 
 
 if __name__ == "__main__":
