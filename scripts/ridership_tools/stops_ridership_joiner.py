@@ -13,12 +13,12 @@ Typical use:
 """
 
 import csv
+import logging
 import os
 from typing import List, Tuple
 
 import arcpy  # type: ignore
 import pandas as pd
-import logging
 
 # =============================================================================
 # CONFIGURATION
