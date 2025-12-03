@@ -86,6 +86,7 @@ logging.basicConfig(
     format="%(levelname)s: %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # FUNCTIONS
@@ -218,10 +219,10 @@ def read_excel_file(input_file: Path) -> pd.DataFrame:
     try:
         return pd.read_excel(input_file)
     except FileNotFoundError:
-        print(f"Error: The file '{input_file}' does not exist.")
+        logger.error("The file '%s' does not exist.", input_file)
         sys.exit(1)
     except ValueError as exc:  # pandas re-raises most Excel errors as ValueError
-        print(f"Error reading the Excel file: {exc}")
+        logger.error("Error reading the Excel file: %s", exc)
         sys.exit(1)
 
 
@@ -237,7 +238,7 @@ def verify_required_columns(data_frame: pd.DataFrame, required_columns: Sequence
     """
     missing_columns: List[str] = [col for col in required_columns if col not in data_frame.columns]
     if missing_columns:
-        print(f"Error: Missing columns: {missing_columns}")
+        logger.error("Missing columns: %s", missing_columns)
         sys.exit(1)
 
 
@@ -282,7 +283,7 @@ def filter_data(
 
 def write_to_excel(
     output_file: Path,
-    filtered_data: pd.DataFrame,
+    filtered_data: pd.DataDataFrame,
     aggregated_peaks: Dict[str, pd.DataFrame],
     all_time_aggregated: pd.DataFrame,
 ) -> None:
@@ -310,9 +311,9 @@ def write_to_excel(
                 df_agg.to_excel(writer, sheet_name=period, index=False)
 
         adjust_excel_formatting(output_file)
-        print(f"Success: The processed file has been saved as '{output_file}'.")
+        logger.info("The processed file has been saved as '%s'.", output_file)
     except (OSError, PermissionError) as exc:
-        print(f"Error writing the processed Excel file: {exc}")
+        logger.error("Error writing the processed Excel file: %s", exc)
         sys.exit(1)
 
 
@@ -335,9 +336,9 @@ def adjust_excel_formatting(output_file: Path) -> None:
                 cell.font = Font(bold=True)
 
             # Auto-size column widths
-            for col_idx, column_cells in enumerate(sheet.columns, start=1):  # CHANGED
+            for col_idx, column_cells in enumerate(sheet.columns, start=1):
                 max_length: int = 0
-                col_letter: str = get_column_letter(col_idx)  # CHANGED
+                col_letter: str = get_column_letter(col_idx)
                 for cell in column_cells:
                     cell_val = str(cell.value) if cell.value is not None else ""
                     max_length = max(max_length, len(cell_val))
@@ -345,7 +346,7 @@ def adjust_excel_formatting(output_file: Path) -> None:
 
         workbook.save(output_file)
     except (OSError, PermissionError) as exc:
-        print(f"Error adjusting Excel formatting: {exc}")
+        logger.error("Error adjusting Excel formatting: %s", exc)
         sys.exit(1)
 
 
