@@ -481,12 +481,8 @@ def _build_stop_aggregates(
         out_df = base.merge(agg, on="stop_id", how="inner")
 
         # Normalize types once here; downstream functions rely on this.
-        out_df["route_id"] = out_df["route_id"].apply(
-            lambda vals: [str(v) for v in vals]
-        )
-        out_df["direction_id"] = out_df["direction_id"].apply(
-            lambda vals: [int(v) for v in vals]
-        )
+        out_df["route_id"] = out_df["route_id"].apply(lambda vals: [str(v) for v in vals])
+        out_df["direction_id"] = out_df["direction_id"].apply(lambda vals: [int(v) for v in vals])
         out_df["route_short_name"] = out_df["route_short_name"].apply(
             lambda vals: [str(v) for v in vals]
         )
@@ -627,8 +623,8 @@ def _export_stops_shapefile(
     fields = [
         ("stop_id", "TEXT", 64),
         ("stop_name", "TEXT", 128),
-        ("routes", "TEXT", 254),   # comma-separated route_ids
-        ("dirs", "TEXT", 254),     # comma-separated direction_ids
+        ("routes", "TEXT", 254),  # comma-separated route_ids
+        ("dirs", "TEXT", 254),  # comma-separated direction_ids
         ("rshorts", "TEXT", 254),  # comma-separated route_short_names
     ]
     for name, ftype, length in fields:
