@@ -30,7 +30,7 @@ transit_planning_with_python-main/
     │   └── uscensus_tiger_join.py
     ├── data_quality/
     │   ├── compare_gtfs_to_shapefile.py
-    │   ├── gtfs_uskipped_stop_flagger_gpd.py
+    │   ├── gtfs_skipped_stop_flagger_gpd.py
     │   ├── gtfs_usps_suffix_validator.py
     │   ├── stop_v_conflict_checker.py
     │   ├── stop_vs_roadname_checker.py
@@ -52,12 +52,12 @@ transit_planning_with_python-main/
     │   ├── audit_turn_clearance.py
     │   ├── route_direction_classifier.py
     │   ├── stop_removal_impact_gpd.py
+    │   ├── stop_spacing_flagger.py
     │   └── stop_spacing_flagger_gpd.py
     ├── operations_tools/
     │   ├── otp_by_stop_pivot.py
     │   ├── otp_metrics_trends_export.py
     │   ├── runtime_fit_tool.py
-    │   ├── otp_metrics_trends_export.py
     │   ├── runtime_pivot_clever.py
     │   └── runtime_pivot_ridecheck.py
     ├── ridership_tools/
