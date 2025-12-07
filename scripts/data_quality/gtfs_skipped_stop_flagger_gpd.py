@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.axes import Axes
 from shapely.geometry import LineString, Point
+from shapely.ops import substring
 
 # =============================================================================
 # Configuration
@@ -675,6 +676,84 @@ def shares_only_terminal_stops(
     return True
 
 
+def segment_hausdorff_distance(
+    base_key: RouteKey,
+    other_key: RouteKey,
+    start_key: str,
+    end_key: str,
+    shapes_proj: Mapping[RouteKey, LineString],
+    stops_gdf_proj: gpd.GeoDataFrame,
+    padding_m: float,
+) -> Optional[float]:
+    """Compute Hausdorff distance between the route shapes over a segment.
+
+    The segment is defined by the stop pair (start_key, end_key). For each
+    route, we:
+
+      - Project the start/end stop points onto the route's projected shape
+        (distance along the line).
+      - Extract the substring between those measures, expanded by `padding_m`
+        on both sides, clipped to [0, length].
+      - Compute Hausdorff distance between the two substrings.
+
+    Args:
+        base_key: (route_id, direction_id) for the base route.
+        other_key: (route_id, direction_id) for the other route.
+        start_key: Logical stop key for the segment start.
+        end_key: Logical stop key for the segment end.
+        shapes_proj: Mapping from route key to projected LineString.
+        stops_gdf_proj: Stops GeoDataFrame in PROJECTED_CRS, indexed by stop key.
+        padding_m: Padding (meters) to extend the segment on each side along
+            the shape.
+
+    Returns:
+        Hausdorff distance in meters between the segment substrings, or None if
+        shapes or stop geometries are missing or degenerate.
+    """
+    base_shape = shapes_proj.get(base_key)
+    other_shape = shapes_proj.get(other_key)
+    if base_shape is None or other_shape is None:
+        return None
+
+    if start_key not in stops_gdf_proj.index or end_key not in stops_gdf_proj.index:
+        return None
+
+    start_pt = stops_gdf_proj.loc[start_key, "geometry"]
+    end_pt = stops_gdf_proj.loc[end_key, "geometry"]
+
+    # Measures along base shape.
+    m0_base = float(base_shape.project(start_pt))
+    m1_base = float(base_shape.project(end_pt))
+    if m0_base == m1_base:
+        return None
+    if m0_base > m1_base:
+        m0_base, m1_base = m1_base, m0_base
+    m0_base = max(0.0, m0_base - padding_m)
+    m1_base = min(base_shape.length, m1_base + padding_m)
+
+    # Measures along other shape.
+    m0_other = float(other_shape.project(start_pt))
+    m1_other = float(other_shape.project(end_pt))
+    if m0_other == m1_other:
+        return None
+    if m0_other > m1_other:
+        m0_other, m1_other = m1_other, m0_other
+    m0_other = max(0.0, m0_other - padding_m)
+    m1_other = min(other_shape.length, m1_other + padding_m)
+
+    # Extract substrings.
+    try:
+        seg_base = substring(base_shape, m0_base, m1_base)
+        seg_other = substring(other_shape, m0_other, m1_other)
+    except Exception:  # defensive: geometries can sometimes be weird
+        return None
+
+    if seg_base.is_empty or seg_other.is_empty:
+        return None
+
+    return float(seg_base.hausdorff_distance(seg_other))
+
+
 # =============================================================================
 # Segment alignment and comparison
 # =============================================================================
@@ -743,42 +822,42 @@ def compare_segments_for_route_pair(
     other_key: RouteKey,
     sequences: Mapping[RouteKey, Sequence[str]],
     stop_names: Mapping[str, str],
-    shapes_proj: Mapping[RouteKey, LineString],  # kept for signature compat; unused
-    stops_gdf_proj: gpd.GeoDataFrame,  # kept for signature compat; unused
-    max_shape_hausdorff_m: Optional[float],  # kept for signature compat; unused
-    max_stop_to_shape_m: float,  # kept for signature compat; unused
-    segment_measure_padding_m: float,  # kept for signature compat; unused
+    shapes_proj: Mapping[RouteKey, LineString],
+    stops_gdf_proj: gpd.GeoDataFrame,
+    max_shape_hausdorff_m: Optional[float],
+    max_stop_to_shape_m: float,  # unused currently, kept for signature compat
+    segment_measure_padding_m: float,
 ) -> List[Dict[str, object]]:
-    """Compare shared segments between two routes using sequences only.
+    """Compare shared segments between two routes using sequences + shapes.
 
     Design:
-      - Use only the logical stop sequences (no geometry gating).
-      - For a base route and an "other" route:
-          * Find all stops shared by both sequences.
-          * For each consecutive pair of shared stops (S_start, S_end) that
-            appears in the same order on BOTH routes, treat this as a segment
-            boundary.
-          * Within that segment, compare the interior subsequences:
-              - base_interior = stops between S_start and S_end on the base.
-              - other_interior = stops between S_start and S_end on the other.
-            Any stop that appears only on one side's interior is flagged.
-      - One segment record is emitted per boundary pair where either side has
-        any unique interior stops.
+      - Use logical stop sequences to identify candidate segments:
+          * consecutive shared stops (in the same order on both routes)
+            define a segment boundary.
+      - For each segment, optionally apply a geometry gating step:
+          * Build route-substrings between start/end stops on each shape.
+          * If the segment Hausdorff distance exceeds max_shape_hausdorff_m,
+            treat this as a divergent corridor and skip the segment.
+      - For segments that pass gating, compare interior subsequences:
+          * base_interior = stops between boundaries on the base.
+          * other_interior = stops between boundaries on the other.
+          * Any stop present only on one side's interior is flagged.
 
-    This is a generalization of the 2-1-2 pattern finder:
-      shared, shared, [extras], shared, shared
-    but works for arbitrary interior lengths (not just a single extra stop).
+    This generalizes the 2-1-2 pattern to arbitrary interior lengths.
 
     Args:
         base_key: (route_id, direction_id) for the base route.
         other_key: (route_id, direction_id) for the other route.
         sequences: Mapping from route key to ordered stop key list.
         stop_names: Mapping from stop key to stop_name.
-        shapes_proj: Unused here (kept for API compatibility).
-        stops_gdf_proj: Unused here (kept for API compatibility).
-        max_shape_hausdorff_m: Unused here (kept for API compatibility).
-        max_stop_to_shape_m: Unused here (kept for API compatibility).
-        segment_measure_padding_m: Unused here (kept for API compatibility).
+        shapes_proj: Mapping from route key to projected LineString.
+        stops_gdf_proj: Stops GeoDataFrame (PROJECTED_CRS), indexed by stop key.
+        max_shape_hausdorff_m: Maximum allowed Hausdorff distance (meters)
+            between the two route substrings for a segment to be considered
+            “same corridor”. If None, geometry gating is disabled.
+        max_stop_to_shape_m: Unused (kept for API compatibility).
+        segment_measure_padding_m: Padding (meters) to extend the segment on
+            both sides along each shape when computing the substring.
 
     Returns:
         List of dictionaries describing segment-level stop mismatches.
@@ -825,6 +904,22 @@ def compare_segments_for_route_pair(
         if j0 is None or j1 is None or j0 >= j1:
             continue
 
+        # Optional segment-level geometry gating.
+        if max_shape_hausdorff_m is not None:
+            seg_hd = segment_hausdorff_distance(
+                base_key=base_key,
+                other_key=other_key,
+                start_key=start_key,
+                end_key=end_key,
+                shapes_proj=shapes_proj,
+                stops_gdf_proj=stops_gdf_proj,
+                padding_m=segment_measure_padding_m,
+            )
+            # If we got a valid distance and it's too large, treat this as a
+            # divergent corridor and skip the segment.
+            if seg_hd is not None and seg_hd > max_shape_hausdorff_m:
+                continue
+
         # Interior subsequences between the boundary stops.
         base_interior = list(base_seq[i0 + 1 : i1])
         other_interior = list(other_seq[j0 + 1 : j1])
@@ -863,7 +958,8 @@ def compare_segments_for_route_pair(
                 "base_direction_id": base_dir,
                 "other_route_id": other_route_id,
                 "other_direction_id": other_dir,
-                # Geometry-related field stays as None to keep schema stable.
+                # Geometry-related field can be filled in later if you want to
+                # record segment_hd; for now, keep schema stable.
                 "shape_hausdorff_distance_m": None,
                 "segment_start_stop_key": start_key,
                 "segment_start_stop_name": stop_names.get(start_key, ""),
@@ -1521,11 +1617,17 @@ def prepare_gtfs_context() -> GTFSContext:
 
 
 def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
-    """Run segment-level stop comparison between routes (sequence-based only).
+    """Run segment-level stop comparison between routes.
 
     For each base (route_id, direction_id), compare its logical stop sequence
     against all other route/direction sequences and identify segments bounded
     by pairs of shared stops where the interior subsequences differ.
+
+    Geometry is used at the *segment* level via a Hausdorff distance gate
+    (configured by MAX_SHAPE_HAUSDORFF_M). For each candidate segment
+    between two shared stops, the corresponding shape substrings are
+    compared; segments whose substrings are too far apart are treated as
+    different corridors and skipped.
 
     Args:
         ctx: Prepared GTFSContext.
@@ -1574,7 +1676,7 @@ def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
                 stop_names=ctx.stop_names,
                 shapes_proj=ctx.route_shapes_proj,
                 stops_gdf_proj=ctx.stops_gdf_proj,
-                max_shape_hausdorff_m=None,  # disable geometry gating
+                max_shape_hausdorff_m=MAX_SHAPE_HAUSDORFF_M,
                 max_stop_to_shape_m=MAX_STOP_TO_SHAPE_M,
                 segment_measure_padding_m=SEGMENT_MEASURE_PADDING_M,
             )
