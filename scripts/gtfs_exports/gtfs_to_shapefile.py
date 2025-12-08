@@ -187,8 +187,7 @@ def _validate_tables(
         if pattern_mode in ("most_stops", "most_common"):
             if "stop_times" not in dfs:
                 missing_msgs.append(
-                    "missing stop_times.txt (required for pattern mode "
-                    f"'{pattern_mode}')",
+                    f"missing stop_times.txt (required for pattern mode '{pattern_mode}')",
                 )
             else:
                 need = {"trip_id", "stop_id"}
@@ -433,9 +432,7 @@ def _build_route_patterns(
         if "route_id" in routes_df.columns and "route_short_name" in routes_df.columns:
             tmp = routes_df[["route_id", "route_short_name"]].copy()
             tmp["route_id"] = tmp["route_id"].astype(str)
-            route_short_lookup = (
-                tmp.set_index("route_id")["route_short_name"].astype(str).to_dict()
-            )
+            route_short_lookup = tmp.set_index("route_id")["route_short_name"].astype(str).to_dict()
 
     if pattern_mode == "most_common":
         if stop_times_df is None or stop_times_df.empty:
@@ -509,11 +506,7 @@ def _build_route_patterns(
             LOGGER.warning("No shape geometries; cannot compute 'longest' patterns.")
             return []
 
-        combos = (
-            trips[["route_id", "direction_id", "shape_id"]]
-            .drop_duplicates()
-            .copy()
-        )
+        combos = trips[["route_id", "direction_id", "shape_id"]].drop_duplicates().copy()
 
         def _length_km(shape_id: str) -> float:
             geom = shape_geoms.get(shape_id)
@@ -745,8 +738,7 @@ def _export_lines_shapefile(
         added_fields.append("shape_id")
     else:
         LOGGER.error(
-            "Field shape_id could not be added to %s. "
-            "Continuing without shape_id attribute.",
+            "Field shape_id could not be added to %s. Continuing without shape_id attribute.",
             fc_path,
         )
 
@@ -760,8 +752,7 @@ def _export_lines_shapefile(
     missing_required = required - set(added_fields)
     if missing_required:
         raise RuntimeError(
-            "Missing required fields on gtfs_lines: "
-            + ", ".join(sorted(missing_required)),
+            "Missing required fields on gtfs_lines: " + ", ".join(sorted(missing_required)),
         )
 
     include_shape_id = "shape_id" in added_fields
@@ -835,8 +826,7 @@ def main() -> None:  # noqa: D401
 
         if shapes_df is None or trips_df is None:
             LOGGER.error(
-                "shapes.txt and trips.txt are required for lines export; "
-                "skipping gtfs_lines.shp.",
+                "shapes.txt and trips.txt are required for lines export; skipping gtfs_lines.shp.",
             )
         else:
             shape_geoms = _build_shape_geometries(shapes_df)
