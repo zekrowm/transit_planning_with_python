@@ -53,7 +53,7 @@ LOG_DIR = r"Path\To\Your\Logs"
 # =============================================================================
 
 def configure_logging(log_dir: str) -> None:
-   """Sets up root logging to output to both stdout and a file in the specified directory.
+    """Sets up root logging to output to both stdout and a file in the specified directory.
 
     Args:
         log_dir: The directory where the log file should be created.
