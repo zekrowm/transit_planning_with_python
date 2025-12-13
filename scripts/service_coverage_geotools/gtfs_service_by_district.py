@@ -21,13 +21,11 @@ from __future__ import annotations
 import logging
 import os
 import sys
-import time
 import uuid
 from typing import Any, Mapping
 
-import pandas as pd
 import arcpy
-
+import pandas as pd
 
 # =============================================================================
 # CONFIGURATION
@@ -51,6 +49,7 @@ LOG_DIR = r"Path\To\Your\Logs"
 # =============================================================================
 # LOGGING
 # =============================================================================
+
 
 def configure_logging(log_dir: str) -> None:
     """Sets up root logging to output to both stdout and a file in the specified directory.
@@ -90,6 +89,7 @@ def log_arcpy_messages(level: int = logging.INFO) -> None:
 # UTILITIES
 # =============================================================================
 
+
 def safe_name(prefix: str, workspace: str) -> str:
     """Generates a unique and valid name for an ArcGIS feature class or table.
 
@@ -126,6 +126,7 @@ def ensure_work_gdb(work_dir: str, gdb_name: str) -> str:
 # =============================================================================
 # GTFS LOADING + FILTERING
 # =============================================================================
+
 
 def load_gtfs_data(
     gtfs_folder: str,
@@ -178,6 +179,7 @@ def filter_stops(gtfs_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
 # =============================================================================
 # SPATIAL WORK
 # =============================================================================
+
 
 def csv_to_points(
     csv_path: str,
@@ -283,6 +285,7 @@ def extract_stop_districts(fc: str, district_field: str) -> dict[str, set[str]]:
 # MATRIX BUILD
 # =============================================================================
 
+
 def build_route_district_matrix(
     gtfs_data: dict[str, pd.DataFrame],
     stop_to_districts: dict[str, set[str]],
@@ -302,12 +305,8 @@ def build_route_district_matrix(
     trips = gtfs_data["trips"]
     stop_times = gtfs_data["stop_times"]
 
-    route_name = dict(
-        zip(routes["route_id"].astype(str), routes["route_short_name"].astype(str))
-    )
-    trip_route = dict(
-        zip(trips["trip_id"].astype(str), trips["route_id"].astype(str))
-    )
+    route_name = dict(zip(routes["route_id"].astype(str), routes["route_short_name"].astype(str)))
+    trip_route = dict(zip(trips["trip_id"].astype(str), trips["route_id"].astype(str)))
 
     stop_routes: dict[str, set[str]] = {}
     for t_id, s_id in stop_times[["trip_id", "stop_id"]].itertuples(index=False):
@@ -336,6 +335,7 @@ def build_route_district_matrix(
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Main execution function to run the GTFS-district spatial analysis workflow."""
