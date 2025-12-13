@@ -20,10 +20,11 @@ Outputs:
 from __future__ import annotations
 
 import logging
+import math
 import sys
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Tuple
-import math
+
 import arcpy
 import pandas as pd
 
@@ -74,12 +75,12 @@ BUFFER_DIST_FT = 1320.0  # ¼ mile in feet
 # buffered parcels intersecting the facility features, rather than buffering
 # the facility features themselves.
 PARCELS_SHP = Path(r"Path\To\Your\parcels.shp")
-#PARCELS_SHP: Optional[Path] = None
+# PARCELS_SHP: Optional[Path] = None
 
 # Transfer analysis options
 EXPORT_ROUTE_TRANSFERS: bool = True  # Set False to skip transfer CSVs
-TRANSFER_DISTANCE_FT: float = 150.0   # Max stop-to-stop distance for a transfer (feet)
-TRANSFER_TIME_MIN: float = 40.0      # Max time difference between trips at transfer (minutes)
+TRANSFER_DISTANCE_FT: float = 150.0  # Max stop-to-stop distance for a transfer (feet)
+TRANSFER_TIME_MIN: float = 40.0  # Max time difference between trips at transfer (minutes)
 
 # -----------------------------------------------------------------------------
 # LOGGING
@@ -523,8 +524,7 @@ def _maybe_replace_facility_layers_with_parcel_buffers(
 
     if not parcels_path.exists():
         _add_message(
-            f"Parcels shapefile {parcels_path} not found – "
-            "using facility geometries directly.",
+            f"Parcels shapefile {parcels_path} not found – using facility geometries directly.",
             "WARNING",
         )
         return dict(layers)
@@ -583,14 +583,17 @@ def _maybe_replace_facility_layers_with_parcel_buffers(
 
         inserted_count = 0
 
-        with arcpy.da.SearchCursor(
-            facility_path,
-            [id_field, "SHAPE@"],
-            spatial_reference=target_sr,
-        ) as fac_cur, arcpy.da.InsertCursor(
-            out_fc,
-            [id_field, "SHAPE@"],
-        ) as ins_cur:
+        with (
+            arcpy.da.SearchCursor(
+                facility_path,
+                [id_field, "SHAPE@"],
+                spatial_reference=target_sr,
+            ) as fac_cur,
+            arcpy.da.InsertCursor(
+                out_fc,
+                [id_field, "SHAPE@"],
+            ) as ins_cur,
+        ):
             for id_val, fac_geom in fac_cur:
                 if fac_geom is None:
                     continue
@@ -706,9 +709,7 @@ def _build_route_buffers_fc(
     route_shapes = _get_route_shape_mapping(trips_df)
 
     # All route_ids present in trips.txt.
-    all_route_ids = sorted(
-        r for r in trips_df["route_id"].dropna().unique().tolist()
-    )
+    all_route_ids = sorted(r for r in trips_df["route_id"].dropna().unique().tolist())
 
     buffer_dist_units = _compute_buffer_distance_units(target_sr, buffer_dist_ft)
     wgs84_sr = arcpy.SpatialReference(4326)
@@ -741,9 +742,7 @@ def _build_route_buffers_fc(
             #  - Non-express routes use shapes if allowed and shapes exist.
             #  - If shapes are not available, fall back to stops.
             use_shapes_for_route = (
-                use_shape_buffer
-                and route_id not in express_set
-                and bool(shape_ids)
+                use_shape_buffer and route_id not in express_set and bool(shape_ids)
             )
 
             mode = "shapes" if use_shapes_for_route else "stops"
@@ -814,10 +813,7 @@ def _build_route_geometry_from_shapes(
             continue
         seg.sort_values("shape_pt_sequence", inplace=True)
 
-        pts = [
-            arcpy.Point(lon, lat)
-            for lon, lat in zip(seg["shape_pt_lon"], seg["shape_pt_lat"])
-        ]
+        pts = [arcpy.Point(lon, lat) for lon, lat in zip(seg["shape_pt_lon"], seg["shape_pt_lat"])]
         if len(pts) < 2:
             continue
 
@@ -855,9 +851,7 @@ def _build_route_geometry_from_stops(
         return None
 
     rt_stop_ids = (
-        stop_times_df[stop_times_df["trip_id"].isin(trip_ids)]["stop_id"]
-        .dropna()
-        .unique()
+        stop_times_df[stop_times_df["trip_id"].isin(trip_ids)]["stop_id"].dropna().unique()
     )
     if len(rt_stop_ids) == 0:
         _add_message(f"No stops found for route {route_id}", "WARNING")
@@ -1017,9 +1011,7 @@ def _compute_route_transfer_tables(
     stop_times = tables["stop_times"].copy()
     trips = tables["trips"][["trip_id", "route_id"]].copy()
     stops = tables["stops"][["stop_id", "stop_name", "stop_lat", "stop_lon"]].copy()
-    routes = tables["routes"][
-        ["route_id", "route_short_name", "route_long_name"]
-    ].copy()
+    routes = tables["routes"][["route_id", "route_short_name", "route_long_name"]].copy()
 
     # Parse GTFS times into seconds-from-midnight.
     stop_times["arrival_sec"] = stop_times["arrival_time"].apply(
@@ -1043,8 +1035,7 @@ def _compute_route_transfer_tables(
 
     if events.empty:
         _add_message(
-            "No stop-time events after merging with trips and stops – "
-            "skipping transfer analysis.",
+            "No stop-time events after merging with trips and stops – skipping transfer analysis.",
             "WARNING",
         )
         return
@@ -1143,9 +1134,7 @@ def _compute_route_transfer_tables(
             near = tmp[tmp["route_id_to"] != route_id]
 
             if not near.empty:
-                near["time_diff_sec"] = (
-                    near["event_sec_to"] - near["event_sec_from"]
-                ).abs()
+                near["time_diff_sec"] = (near["event_sec_to"] - near["event_sec_from"]).abs()
                 near = near[near["time_diff_sec"] <= time_window_sec]
 
         frames: List[pd.DataFrame] = []
@@ -1294,8 +1283,7 @@ def main() -> None:
     )
 
     _add_message(
-        f"Building route buffers in CRS '{target_sr.name}' "
-        f"(use_shape_buffer={USE_SHAPE_BUFFER})",
+        f"Building route buffers in CRS '{target_sr.name}' (use_shape_buffer={USE_SHAPE_BUFFER})",
         "INFO",
     )
     _build_route_buffers_fc(
