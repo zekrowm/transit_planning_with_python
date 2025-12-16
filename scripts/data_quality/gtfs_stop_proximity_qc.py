@@ -87,9 +87,11 @@ def _euclid_feet(dx_m: float, dy_m: float) -> float:
     """Euclidean distance (feet) from delta meters."""
     return _meters_to_feet(math.hypot(dx_m, dy_m))
 
+
 # =============================================================================
 # GRID INDEXING (FAST NEIGHBOR SEARCH)
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class GridParams:
@@ -110,9 +112,11 @@ def _neighbor_cells(cell: tuple[int, int]) -> Iterable[tuple[int, int]]:
         for dy in (-1, 0, 1):
             yield (cx + dx, cy + dy)
 
+
 # =============================================================================
 # SAFE WORD HELPERS
 # =============================================================================
+
 
 def compile_safe_words_regex(words: list[str], whole_word: bool) -> re.Pattern[str]:
     """Compile a case-insensitive regex that matches any provided words/phrases."""
@@ -135,9 +139,11 @@ def add_safe_flag(df: pd.DataFrame, safe_words: list[str], whole_word: bool) -> 
     out["is_safe_stop"] = out["stop_name"].astype(str).map(lambda s: bool(rx.search(s)))
     return out
 
+
 # =============================================================================
 # GTFS LOADING
 # =============================================================================
+
 
 def load_stops(stops_txt: Path) -> pd.DataFrame:
     """Load GTFS stops.txt with minimal validation."""
@@ -245,9 +251,11 @@ def is_opposite_direction_pair_same_route(
 
     return False
 
+
 # =============================================================================
 # CORE LOGIC
 # =============================================================================
+
 
 def find_close_stop_pairs(
     stops: pd.DataFrame,
@@ -295,7 +303,9 @@ def find_close_stop_pairs(
                 stop_id_b = str(work.at[j, "stop_id"])
 
                 if exclude_opposite_direction_same_route_pairs and stop_route_dir_index:
-                    if is_opposite_direction_pair_same_route(stop_id_a, stop_id_b, stop_route_dir_index):
+                    if is_opposite_direction_pair_same_route(
+                        stop_id_a, stop_id_b, stop_route_dir_index
+                    ):
                         continue
 
                 dx = float(work.at[j, "x_m"]) - xi
@@ -346,9 +356,11 @@ def summarize_by_stop(pairs: pd.DataFrame) -> pd.DataFrame:
     )
     return out
 
+
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run the stop proximity QC."""
