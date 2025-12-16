@@ -31,6 +31,7 @@ transit_planning_with_python-main/
     ├── data_quality/
     │   ├── compare_gtfs_to_shapefile_gpd.py
     │   ├── gtfs_skipped_stop_flagger_gpd.py
+    │   ├── gtfs_stop_proximity_qc.py
     │   ├── gtfs_usps_suffix_validator.py
     │   ├── stop_v_conflict_checker_arcpy.py
     │   ├── stop_vs_roadname_checker_arcpy.py
