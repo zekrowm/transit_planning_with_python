@@ -203,6 +203,12 @@ def _load_and_concat(
     compression: Literal["infer", "gzip", "bz2", "zip", "xz", "zstd"] | None = None,
 ) -> pd.DataFrame:
     """Read multiple Census CSV / CSV-GZ / ZIP files and concatenate the results."""
+    from functools import partial
+
+    def _col_in_set(col: Hashable, *, wanted: set[Hashable]) -> bool:
+        """Return True if *col* is in *wanted*."""
+        return col in wanted
+
     frames: list[pd.DataFrame] = []
 
     for path in files:
@@ -216,7 +222,7 @@ def _load_and_concat(
 
         if usecols is not None and not callable(usecols):
             wanted = set(usecols)
-            read_kwargs["usecols"] = lambda c: c in wanted  # type: ignore[arg-type]
+            read_kwargs["usecols"] = partial(_col_in_set, wanted=wanted)
         elif callable(usecols):
             read_kwargs["usecols"] = usecols
 

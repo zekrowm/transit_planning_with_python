@@ -391,7 +391,13 @@ def _build_shapes_dict(
     out: dict[str, arcpy.Polyline] = {}
 
     for sid, grp in sdf.groupby("shape_id", sort=False):
-        pts = list(zip(grp["shape_pt_lon"].tolist(), grp["shape_pt_lat"].tolist()))
+        pts = list(
+            zip(
+                grp["shape_pt_lon"].tolist(),
+                grp["shape_pt_lat"].tolist(),
+                strict=True,
+            )
+        )
         if len(pts) < MIN_POINTS_PER_SHAPE:
             continue
         arr = arcpy.Array([arcpy.Point(x, y) for x, y in pts])

@@ -183,9 +183,10 @@ def _project_agency(gdf: gpd.GeoDataFrame) -> tuple[gpd.GeoDataFrame, bool, floa
     if to_feet is None:
         to_feet = 3.28084  # assume meters if unknown
         is_feet = False
-    log(
-        f"[INFO] Projected CRS units: {'feet' if is_feet else 'meters'} | units→feet factor={to_feet:.6f}"
-    )
+
+    units_label = "feet" if is_feet else "meters"
+    msg = f"[INFO] Projected CRS units: {units_label} | units→feet factor={to_feet:.6f}"
+    log(msg)
     return g2, is_feet, float(to_feet)
 
 
@@ -203,7 +204,7 @@ def _build_shapes_gdf(shapes_df: pd.DataFrame, target_epsg: int | None) -> gpd.G
 
     parts: list[tuple[str, LineString]] = []
     for sid, grp in sdf.groupby("shape_id", sort=False):
-        pts = list(zip(grp["shape_pt_lon"], grp["shape_pt_lat"]))
+        pts = list(zip(grp["shape_pt_lon"], grp["shape_pt_lat"], strict=True))
         if len(pts) >= MIN_POINTS_PER_SHAPE:
             parts.append((sid, LineString(pts)))
     if not parts:
@@ -223,15 +224,17 @@ def _stops_gdf(stops_df: pd.DataFrame, target_epsg: int | None) -> gpd.GeoDataFr
     req = {"stop_id", "stop_lat", "stop_lon"}
     miss = req - set(stops_df.columns)
     if miss:
-        # BUGFIX: variable name was wrong previously
         raise ValueError(f"stops.txt missing columns: {sorted(miss)}")
+
     sdf = stops_df.copy()
     sdf["stop_lat"] = sdf["stop_lat"].astype(float)
     sdf["stop_lon"] = sdf["stop_lon"].astype(float)
 
     g = gpd.GeoDataFrame(
         sdf[["stop_id"]].assign(
-            geometry=[Point(xy) for xy in zip(sdf["stop_lon"], sdf["stop_lat"])]
+            geometry=[
+                Point(lon, lat) for lon, lat in zip(sdf["stop_lon"], sdf["stop_lat"], strict=True)
+            ]
         ),
         crs="EPSG:4326",
     )
@@ -337,11 +340,13 @@ def _plot_route_debug(
     figsize: tuple[int, int],
     dpi: int,
 ) -> Path:
-    """Save a diagnostic PNG for a route (agency line, GTFS line/stops, buffer) and return its path."""
+    """Save a diagnostic PNG for a route.
+
+    Includes the agency line, GTFS line/stops, and the computed buffer.
+    Returns the output path.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"route_{_safe_name(str(route_key))}.png"
-    ...
-    return out_path
 
     fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
     gpd.GeoSeries([agency_line]).plot(ax=ax, linewidth=2.0, label="Agency line")
@@ -351,7 +356,9 @@ def _plot_route_debug(
         gtfs_stops_gdf.plot(ax=ax, markersize=10, marker="o", label="GTFS stops")
     if buffer_units is not None and isfinite(buffer_units):
         gpd.GeoSeries([agency_line.buffer(buffer_units)]).plot(
-            ax=ax, alpha=0.2, label=f"Buffer ({crs_units_label})"
+            ax=ax,
+            alpha=0.2,
+            label=f"Buffer ({crs_units_label})",
         )
 
     bounds = np.array(gpd.GeoSeries([agency_line]).total_bounds)
@@ -359,6 +366,7 @@ def _plot_route_debug(
         bounds = np.vstack([bounds, gpd.GeoSeries([gtfs_line]).total_bounds])
     if gtfs_stops_gdf is not None and not gtfs_stops_gdf.empty:
         bounds = np.vstack([bounds, gtfs_stops_gdf.total_bounds])
+
     xmin, ymin, xmax, ymax = (
         bounds[:, 0].min(),
         bounds[:, 1].min(),
@@ -373,6 +381,7 @@ def _plot_route_debug(
     ax.set_title(f"Route {route_key} | Units: {crs_units_label} | Buffer stat: {BUFFER_STAT}")
     ax.legend(loc="best")
     ax.grid(True, linewidth=0.3)
+
     fig.tight_layout()
     fig.savefig(out_path)
     plt.close(fig)
@@ -473,7 +482,11 @@ def compute_per_route_metrics() -> pd.DataFrame:
                 cand = cand.sort_values(["trip_count", "route_id"], ascending=[False, True])
                 chosen_rid = str(cand.iloc[0]["route_id"])
                 mapping_status = "short_name_ambiguous_resolved"
-                mapping_notes = f"Candidates={';'.join(candidate_rids)}; selected={chosen_rid} by route trip_count."
+
+                candidates_s = ";".join(candidate_rids)
+                mapping_notes = (
+                    f"Candidates={candidates_s}; selected={chosen_rid} by route trip_count."
+                )
 
             long_nm = (
                 routes_df.loc[routes_df["route_id"] == chosen_rid, "route_long_name"].values[0]
@@ -611,7 +624,6 @@ def compute_per_route_metrics() -> pd.DataFrame:
             )
         except Exception as e:
             log(f"[ERROR] Route '{arow.get('route_key', '?')}' failed: {e}")
-            # Keep a row to make failures visible in the CSV
             records.append(
                 {
                     "route_key_agency": str(arow.get("route_key", "")),

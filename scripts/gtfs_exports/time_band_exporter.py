@@ -162,7 +162,7 @@ def segment_runtimes(grp: pd.DataFrame) -> RuntimeSegTuple:
         times.append(dep if dep is not None else arr)
 
     segs: List[Union[int, str]] = [MISSING_TIME]
-    for a, b in zip(times, times[1:]):
+    for a, b in zip(times, times[1:], strict=True):
         segs.append(b - a if a is not None and b is not None else "")
     return tuple(segs)
 
@@ -226,7 +226,7 @@ def build_index(
         gtfs["stops"][["stop_id", "stop_name", "stop_code"]].set_index("stop_id").to_dict("index")
     )
 
-    for trip_id, grp in st.groupby("trip_id"):
+    for _trip_id, grp in st.groupby("trip_id"):
         pattern: PatternTuple = tuple(grp["stop_id"])
         pat_hash = hash(pattern)
         stop_dict.setdefault(pat_hash, pattern)

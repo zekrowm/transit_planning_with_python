@@ -128,7 +128,7 @@ def mark_first_and_last_stops(df_in: pd.DataFrame) -> pd.DataFrame:
     df_out = df_in.sort_values(["trip_id", "stop_sequence"]).copy()
     df_out["is_first_stop"] = False
     df_out["is_last_stop"] = False
-    for trip_id, group in df_out.groupby("trip_id"):
+    for _trip_id, group in df_out.groupby("trip_id"):
         df_out.loc[group.index.min(), "is_first_stop"] = True
         df_out.loc[group.index.max(), "is_last_stop"] = True
     return df_out

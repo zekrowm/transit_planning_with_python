@@ -243,11 +243,15 @@ def check_schedule_order(
             if current_time is None:
                 continue
             if last_time is not None and current_time < last_time:
-                logging.warning(  # Changed print to logging.warning
-                    f"⚠️ Time order violation in Route '{route_short_name}', "
-                    f"Schedule '{schedule_type}', Direction '{dir_id}', "
-                    f"Trip '{row['Trip Headsign']}': '{stop}' time {time_str} "
-                    "is earlier than the previous stop's time."
+                logging.warning(
+                    "⚠️ Time order violation in Route '%s', Schedule '%s', Direction '%s', "
+                    "Trip '%s': '%s' time %s is earlier than the previous stop's time.",
+                    route_short_name,
+                    schedule_type,
+                    dir_id,
+                    row.get("Trip Headsign", ""),
+                    stop,
+                    time_str,
                 )
                 break
             last_time = current_time
@@ -264,17 +268,23 @@ def check_schedule_order(
             if current_time is None:
                 continue
             if last_time is not None and current_time < last_time:
-                logging.warning(  # Changed print to logging.warning
-                    f"⚠️ Time order violation in Route '{route_short_name}', "
-                    f"Schedule '{schedule_type}', Direction '{dir_id}', "
-                    f"Stop '{stop}': time {time_str} is earlier than "
-                    "the previous trip."
+                logging.warning(
+                    "⚠️ Time order violation in Route '%s', Schedule '%s', Direction '%s', "
+                    "Stop '%s': time %s is earlier than the previous trip.",
+                    route_short_name,
+                    schedule_type,
+                    dir_id,
+                    stop,
+                    time_str,
                 )
                 break
             last_time = current_time
-    # Using logging.info for consistency
+
     logging.info(
-        f"✅ Schedule order check passed for Route '{route_short_name}', Schedule '{schedule_type}', Direction '{dir_id}'."
+        "✅ Schedule order check passed for Route '%s', Schedule '%s', Direction '%s'.",
+        route_short_name,
+        schedule_type,
+        dir_id,
     )
 
 
@@ -486,7 +496,7 @@ def process_single_trip(
 
     trip_info_rows = trips_df[trips_df["trip_id"] == trip_id]
     if trip_info_rows.empty:
-        logging.warning(f"Trip ID {trip_id} not found in trips_df. Skipping.")
+        logging.warning("Trip ID %s not found in trips_df. Skipping.", trip_id)
         return [None] * (3 + len(master_trip_stops) + 1)  # Match expected row length
     trip_info = trip_info_rows.iloc[0]
 
@@ -495,7 +505,9 @@ def process_single_trip(
     route_name_rows = routes_df[routes_df["route_id"] == route_id]["route_short_name"]
     if route_name_rows.empty:
         logging.warning(
-            f"Route ID {route_id} for trip {trip_id} not found in routes_df. Using 'Unknown Route'."
+            "Route ID %s for trip %s not found in routes_df. Using 'Unknown Route'.",
+            route_id,
+            trip_id,
         )
         route_name_val = "Unknown Route"
     else:
@@ -521,7 +533,6 @@ def process_single_trip(
         arr_m = time_to_minutes(arr_val)
         dep_m = time_to_minutes(dep_val)
         if arr_val and dep_val and arr_m is not None and dep_m is not None:
-            # If arrival is earlier, use arrival as displayed time
             if arr_m < dep_m:
                 time_val = arr_val
         elif arr_val and not dep_val:
@@ -536,7 +547,6 @@ def process_single_trip(
         oc_list = master_dict[sid]
         ptr = occurrence_ptr[sid]
 
-        # Move through repeated stops (if any) in the master trip
         while ptr < len(oc_list) and oc_list[ptr][1] < row_2["stop_sequence"]:
             ptr += 1
 
@@ -549,34 +559,36 @@ def process_single_trip(
         ptr += 1
         occurrence_ptr[sid] = ptr
 
-    # Determine the final "sort_time" for sorting rows
     if valid_24h_times:
         try:
-            # Ensure times are in HH:MM format before converting to timedelta
             formatted_24h_times = []
             for t in valid_24h_times:
-                if re.match(r"^\d{1,2}:\d{2}$", t):  # Basic HH:MM check
-                    # For times like "25:00", split and create timedelta
+                if re.match(r"^\d{1,2}:\d{2}$", t):
                     h, m = map(int, t.split(":"))
                     formatted_24h_times.append(pd.Timedelta(hours=h, minutes=m))
-                elif re.match(r"^\d{1,2}:\d{2}:\d{2}$", t):  # HH:MM:SS check
+                elif re.match(r"^\d{1,2}:\d{2}:\d{2}$", t):
                     formatted_24h_times.append(pd.to_timedelta(t))
                 else:
                     logging.warning(
-                        f"Invalid time format for sort_time: {t} in trip {trip_id}. Skipping this time."
+                        "Invalid time format for sort_time: %s (trip_id=%s). Skipping.",
+                        t,
+                        trip_id,
                     )
 
             if formatted_24h_times:
                 max_sort_time = max(formatted_24h_times)
-            else:  # If all times were invalid
-                max_sort_time = pd.Timedelta(days=999)  # Effectively last
+            else:
+                max_sort_time = pd.Timedelta(days=999)
         except (ValueError, TypeError) as e:
             logging.error(
-                f"Error converting times for sorting in trip {trip_id}: {valid_24h_times}. Error: {e}"
+                "Error converting times for sorting (trip_id=%s): %s. Error: %s",
+                trip_id,
+                valid_24h_times,
+                e,
             )
-            max_sort_time = pd.Timedelta(days=999)  # Effectively last
+            max_sort_time = pd.Timedelta(days=999)
     else:
-        max_sort_time = pd.Timedelta(days=999)  # Effectively last, for trips with no valid times
+        max_sort_time = pd.Timedelta(days=999)
 
     row_data = [route_name_val, direction_id, trip_headsign] + schedule_times + [max_sort_time]
     return row_data
@@ -594,11 +606,13 @@ def process_trips_for_direction(params: dict[str, Any]) -> pd.DataFrame:
 
     if trips_dir.empty or master_trip_stops.empty:
         logging.info(
-            f"No usable trips/stops for route '{route_short}', schedule '{sched_type}', direction '{dir_id}'. Skipping."
-        )  # Changed to logging
+            "No usable trips/stops for route '%s', schedule '%s', direction '%s'. Skipping.",
+            route_short,
+            sched_type,
+            dir_id,
+        )
         return pd.DataFrame()
 
-    # Build a quick lookup so we know each stop_id's column index in final output
     master_dict = defaultdict(list)
     master_trip_stops = master_trip_stops.reset_index(drop=True)
     for i, row_2 in master_trip_stops.iterrows():
@@ -608,15 +622,17 @@ def process_trips_for_direction(params: dict[str, Any]) -> pd.DataFrame:
         master_dict[sid].append((occ, mseq, i))
 
     for sid in master_dict:
-        # Sort by stop_sequence inside each list
         master_dict[sid].sort(key=lambda x: x[1])
 
     group_mask = timepoints["trip_id"].isin(trips_dir["trip_id"])
     timepoints_dir = timepoints[group_mask].copy()
     if timepoints_dir.empty:
         logging.info(
-            f"No stop times for route '{route_short}', schedule '{sched_type}', direction '{dir_id}' in TIMEPOINTS. Skipping."
-        )  # Changed to logging
+            "No stop times in TIMEPOINTS for route '%s', schedule '%s', direction '%s'. Skipping.",
+            route_short,
+            sched_type,
+            dir_id,
+        )
         return pd.DataFrame()
 
     stop_names_ordered = master_trip_stops["final_stop_name"].tolist()
@@ -633,7 +649,7 @@ def process_trips_for_direction(params: dict[str, Any]) -> pd.DataFrame:
             master_dict=master_dict,
             ctx=ctx,
         )
-        if row_data[0] is not None:  # Check if trip processing was skipped
+        if row_data[0] is not None:
             rows.append(row_data)
 
     if not rows:
@@ -782,7 +798,8 @@ def process_route_service_combinations(ctx: dict[str, Any]) -> None:
                 )
                 if master_trip_stops.empty:
                     logging.info(
-                        "      No master trip stops for direction_id '%s'. Skipping this direction.",
+                        "      No master trip stops for direction_id '%s'. "
+                        "Skipping this direction.",
                         dir_id,
                     )
                     continue

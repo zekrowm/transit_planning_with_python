@@ -657,13 +657,7 @@ def generate_gtfs_checklists() -> None:
     trips, stop_times, routes, stops, calendar = load_gtfs_data(BASE_INPUT_PATH, DTYPE_DICT)
 
     # Normalize ids as strings where relevant
-    for df_name, df in [
-        ("trips", trips),
-        ("stop_times", stop_times),
-        ("routes", routes),
-        ("stops", stops),
-        ("calendar", calendar),
-    ]:
+    for df in (trips, stop_times, routes, stops, calendar):
         if "route_id" in df.columns:
             df["route_id"] = df["route_id"].astype(str)
         if "trip_id" in df.columns:

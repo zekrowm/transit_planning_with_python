@@ -240,7 +240,15 @@ def _build_routes_gdf(
         shapes[shape_cols]
         .sort_values(["shape_id", "shape_pt_sequence"])
         .groupby("shape_id")
-        .apply(lambda g: LineString(zip(g.shape_pt_lon, g.shape_pt_lat)))
+        .apply(
+            lambda g: LineString(
+                zip(
+                    g["shape_pt_lon"].to_numpy(),
+                    g["shape_pt_lat"].to_numpy(),
+                    strict=True,
+                )
+            )
+        )
         .to_frame("geometry")
         .reset_index()
     )
@@ -325,7 +333,7 @@ def _flag_left_turn_spacing(
 
     Rejects false ‘turns’ that are
     • within TURN_STOP_BUFFER_FT of any served stop, *or*
-    • have a lateral offset < MIN_LATERAL_OFFSET_FT from the straight‑line
+    • have a lateral offset < MIN_LATERAL_OFFSET_FT from the straight-line
       chord connecting points LOOK_AHEAD_FT before and after the vertex.
     """
     crs_str = str(stops_gdf.crs)
@@ -342,11 +350,11 @@ def _flag_left_turn_spacing(
             drn: int = int(r.direction_id)
             line: LineString = r.geometry
 
-            # served stops for this route × direction
+            # served stops for this route × direction
             cand = stops_gdf.iloc[list(sindex.intersection(line.bounds))]
             served = cand[
-                cand.route_id.apply(lambda xs: rid in xs)
-                & cand.direction_id.apply(lambda xs: drn in xs)
+                cand.route_id.apply(lambda xs, rid=rid: rid in xs)
+                & cand.direction_id.apply(lambda xs, drn=drn: drn in xs)
             ].copy()
             if len(served) < 2:
                 continue
@@ -355,7 +363,7 @@ def _flag_left_turn_spacing(
             served.sort_values("dist_along", inplace=True)
             served.drop_duplicates("dist_along", inplace=True)
 
-            # left‑turn vertices
+            # left-turn vertices
             lefts = _find_left_turns(
                 line,
                 min_deflect_deg=min_deflect_deg,
@@ -368,12 +376,12 @@ def _flag_left_turn_spacing(
             for d_turn, ang in lefts:
                 turn_pt = line.interpolate(d_turn)
 
-                # 1) curb‑poke filter
+                # 1) curb-poke filter
                 min_stop_dist_ft = min(turn_pt.distance(pt) for pt in served.geometry) * ft_factor
                 if min_stop_dist_ft <= TURN_STOP_BUFFER_FT:
                     continue
 
-                # 2) lateral‑offset filter
+                # 2) lateral-offset filter
                 look = LOOK_AHEAD_FT / ft_factor
                 d0 = max(d_turn - look, 0.0)
                 d1 = min(d_turn + look, line.length)
@@ -408,7 +416,7 @@ def _flag_left_turn_spacing(
                 )
 
     print(
-        f"Wrote left‑turn spacing log → {log_path.name} "
+        f"Wrote left-turn spacing log → {log_path.name} "
         f"({'no issues' if not flagged else f'{len(flagged):,} issues'})"
     )
     return gpd.GeoDataFrame(flagged, crs=stops_gdf.crs)

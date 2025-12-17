@@ -241,9 +241,10 @@ def _concat_conflict_labels(
     """Write comma-separated list of true flags to out_field."""
     if out_field not in [f.name for f in arcpy.ListFields(fc)]:
         arcpy.management.AddField(fc, out_field, "TEXT", field_length=255)
+
     with arcpy.da.UpdateCursor(fc, list(flags) + [out_field]) as cur:
         for *vals, _existing in cur:
-            labels = [name for name, v in zip(flags, vals) if int(v or 0) == 1]
+            labels = [name for name, v in zip(flags, vals, strict=True) if int(v or 0) == 1]
             cur.updateRow(vals + [",".join(labels)])
 
 

@@ -1,17 +1,21 @@
-"""Identify bus stops that merit amenity upgrades based on ridership thresholds and supplemental amenity data.
+"""Flag stops needing amenity upgrades using ridership thresholds and amenity data.
 
 This script reads stop-level ridership and amenity information from one or
 (optionally) two Excel workbooks. It normalizes and (optionally) aggregates
-duplicate STOP_IDs, then computes boolean "FLAG_*" columns to highlight
-where usage warrants an upgrade but the amenity is missing.
+duplicate STOP_IDs, then computes boolean "FLAG_*" columns to highlight where
+usage warrants an upgrade but the amenity is missing.
 
 It outputs a multi-sheet Excel workbook and a plain-text log file:
 
     stops_needing_improvement.xlsx:
         Raw Data – Unmodified import.
-        All Flags – Every stop plus boolean flag columns for each amenity and a NEEDS_IMPROVEMENT summary flag.
-        Shelter / Bench / TrashCan / Pad – One sheet per amenity, listing only the stops that require that specific upgrade.
-    stops_needing_improvement.txt: A concise summary of flagged stops by category, followed by a detailed, human-readable list of all stops identified for improvement.
+        All Flags – Every stop plus boolean flag columns for each amenity and a
+        NEEDS_IMPROVEMENT summary flag.
+        Shelter / Bench / TrashCan / Pad – One sheet per amenity, listing only
+        the stops that require that specific upgrade.
+    stops_needing_improvement.txt: A concise summary of flagged stops by
+    category, followed by a detailed, human-readable list of all stops
+    identified for improvement.
 
 Typical use-cases include batch reviews of bus-stop needs based on ArcGIS
 outputs, planning reports, or independently maintained amenity inventories.
