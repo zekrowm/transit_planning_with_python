@@ -18,7 +18,7 @@ line-length    = 100
 # TC = flake8-type-checking
 select   = ["I", "F", "D", "ANN", "TCH", "B", "E", "W"]
 fixable  = ["F401", "D", "I"]
-ignore   = ["ANN401"]
+ignore   = ["ANN401", "TC002"]
 
 [tool.ruff.lint.per-file-ignores]
 # Keep tests lean: skip module docstrings and param annotations for fixtures.
