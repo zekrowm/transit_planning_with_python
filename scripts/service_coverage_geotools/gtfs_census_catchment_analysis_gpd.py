@@ -122,35 +122,47 @@ def filter_weekday_service(calendar_df: pd.DataFrame) -> pd.Series:
     return calendar_df[weekday_filter]["service_id"]
 
 
-def get_included_routes(
-    routes_df: pd.DataFrame, routes_to_include: list[str], routes_to_exclude: list[str]
+def get_included_stops(
+    stops_df: pd.DataFrame,
+    stop_ids_to_include: list[str],
+    stop_ids_to_exclude: list[str],
 ) -> pd.DataFrame:
-    """Determine which routes to keep by applying inclusion/exclusion lists.
+    """Determine which stops to keep by applying inclusion/exclusion lists.
 
-    1) Start with all routes in routes_df.
-    2) If routes_to_include is non-empty, keep only those in that list.
-    3) If routes_to_exclude is non-empty, remove those from the result.
+    1) Start with all stops in stops_df.
+    2) If stop_ids_to_include is non-empty, keep only those IDs.
+    3) If stop_ids_to_exclude is non-empty, remove those from the result.
 
-    :param routes_df: DataFrame from routes.txt.
-    :param routes_to_include: List of route_short_names to include.
-    :param routes_to_exclude: List of route_short_names to exclude.
-    :return: DataFrame containing only the final included routes.
+    Args:
+        stops_df: DataFrame from stops.txt (or an already merged subset).
+        stop_ids_to_include: List of stop_ids to include (strings or ints).
+        stop_ids_to_exclude: List of stop_ids to exclude (strings or ints).
+
+    Returns:
+        DataFrame containing only the final included stops.
     """
-    filtered = routes_df.copy()
+    filtered = stops_df.copy()
 
-    if routes_to_include:
-        filtered = filtered[filtered["route_short_name"].isin(routes_to_include)]
+    # Keep types consistent between the DataFrame and the filter lists.
+    stop_id_series = filtered["stop_id"]
+    if stop_id_series.dtype == "O":
+        filtered["stop_id"] = stop_id_series.astype(str)
+        stop_ids_to_include_cast = [str(s) for s in stop_ids_to_include]
+        stop_ids_to_exclude_cast = [str(s) for s in stop_ids_to_exclude]
+    else:
+        # If stop_id is numeric, keep it numeric for .isin().
+        filtered["stop_id"] = pd.to_numeric(stop_id_series, errors="coerce").astype("Int64")
+        stop_ids_to_include_cast = [int(s) for s in stop_ids_to_include]
+        stop_ids_to_exclude_cast = [int(s) for s in stop_ids_to_exclude]
 
-    if routes_to_exclude:
-        filtered = filtered[~filtered["route_short_name"].isin(routes_to_exclude)]
+    if stop_ids_to_include_cast:
+        filtered = filtered[filtered["stop_id"].isin(stop_ids_to_include_cast)]
+
+    if stop_ids_to_exclude_cast:
+        filtered = filtered[~filtered["stop_id"].isin(stop_ids_to_exclude_cast)]
 
     final_count = len(filtered)
-    print(f"Including {final_count} routes after applying include/exclude lists.")
-    included_names = ", ".join(sorted(filtered["route_short_name"].unique()))
-    if included_names:
-        print(f"  Included Routes: {included_names}")
-    else:
-        print("  Included Routes: None")
+    print(f"Including {final_count} stops after applying stop include/exclude lists.")
     return filtered
 
 
@@ -313,21 +325,21 @@ def do_network_analysis(
         trips: DataFrame from *trips.txt*.
         stop_times: DataFrame from *stop_times.txt*.
         routes_df: DataFrame from *routes.txt*.
-        stops_df: DataFrame from *stops.txt*.  # <--- ADD THIS
-        demographics_gdf: GeoDataFrame containing demographic data. # <--- ADD THIS
-        routes_to_include: List of route_short_names to include. # <--- ADD THIS
-        routes_to_exclude: List of route_short_names to exclude. # <--- ADD THIS
-        stop_ids_to_include: List of stop_ids to include. # <--- ADD THIS
-        stop_ids_to_exclude: List of stop_ids to exclude. # <--- ADD THIS
-        buffer_distance_mi: Standard buffer distance in miles. # <--- ADD THIS
-        large_buffer_distance_mi: Larger buffer distance in miles for specific stops. # <--- ADD THIS
-        stop_ids_large_buffer: List of stop_ids that should use the large buffer distance. # <--- ADD THIS
-        output_dir: Directory to save output files. # <--- ADD THIS
-        synthetic_fields: List of demographic fields to synthesize. # <--- ADD THIS
+        stops_df: DataFrame from *stops.txt*.
+        demographics_gdf: GeoDataFrame containing demographic data.
+        routes_to_include: List of route_short_names to include.
+        routes_to_exclude: List of route_short_names to exclude.
+        stop_ids_to_include: List of stop_ids to include.
+        stop_ids_to_exclude: List of stop_ids to exclude.
+        buffer_distance_mi: Standard buffer distance in miles.
+        large_buffer_distance_mi: Larger buffer distance in miles for specific stops.
+        stop_ids_large_buffer: List of stop_ids that should use the large buffer distance.
+        output_dir: Directory to save output files.
+        synthetic_fields: List of demographic fields to synthesize.
 
     Returns:
-      - A single shapefile (all_routes_service_buffer_data.shp)
-      - A single Excel summary (all_routes_service_buffer_data.xlsx)
+        - A single shapefile (all_routes_service_buffer_data.shp)
+        - A single Excel summary (all_routes_service_buffer_data.xlsx)
     """
     print("\n=== Network-wide Analysis ===")
 
@@ -338,9 +350,15 @@ def do_network_analysis(
         return
 
     # 2) Subset trips to only final routes
-    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
+    trips_merged = pd.merge(
+        trips,
+        final_routes_df[["route_id", "route_short_name"]],
+        on="route_id",
+    )
+
     # 3) Merge trips with stop_times
     merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
+
     # 4) Merge with stops
     merged_data = pd.merge(merged_data, stops_df, on="stop_id")
 
@@ -352,13 +370,14 @@ def do_network_analysis(
 
     # 6) Convert to GeoDataFrame in projected CRS
     final_stops_df["geometry"] = final_stops_df.apply(
-        lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
+        lambda row: Point(row["stop_lon"], row["stop_lat"]),
+        axis=1,
     )
     stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
         epsg=CRS_EPSG_CODE
     )
 
-    # 7) Compute variable buffer distances — vectorised, pylint-friendly
+    # 7) Compute variable buffer distances
     buffer_m = (
         stops_gdf["stop_id"].map(
             lambda sid: pick_buffer_distance(
@@ -380,7 +399,9 @@ def do_network_analysis(
 
     # 9) Clip and export
     clipped_result = clip_and_calculate_synthetic_fields(
-        demographics_gdf, network_buffer_gdf, synthetic_fields
+        demographics_gdf,
+        network_buffer_gdf,
+        synthetic_fields,
     )
     synthetic_cols = [f"synthetic_{fld}" for fld in synthetic_fields]
     totals = clipped_result[synthetic_cols].sum().round(0)
@@ -395,12 +416,10 @@ def do_network_analysis(
     clipped_result.to_file(shp_path)
     print(f"Exported network shapefile: {shp_path}")
 
-    # Also export the summary to Excel
     xlsx_path = os.path.join(output_dir, "all_routes_service_buffer_data.xlsx")
     final_dict = {col: int(val) for col, val in totals.items()}
     export_summary_to_excel(final_dict, xlsx_path)
 
-    # Optional plot
     fig, ax = plt.subplots(figsize=(10, 10))
     network_buffer_gdf.plot(ax=ax, alpha=0.5, label="Network Buffer")
     stops_gdf.boundary.plot(ax=ax, linewidth=0.5, label="Stop Buffers")
