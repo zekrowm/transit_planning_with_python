@@ -305,8 +305,20 @@ def build_route_district_matrix(
     trips = gtfs_data["trips"]
     stop_times = gtfs_data["stop_times"]
 
-    route_name = dict(zip(routes["route_id"].astype(str), routes["route_short_name"].astype(str)))
-    trip_route = dict(zip(trips["trip_id"].astype(str), trips["route_id"].astype(str)))
+    route_name = dict(
+        zip(
+            routes["route_id"].astype(str),
+            routes["route_short_name"].astype(str),
+            strict=True,
+        )
+    )
+    trip_route = dict(
+        zip(
+            trips["trip_id"].astype(str),
+            trips["route_id"].astype(str),
+            strict=True,
+        )
+    )
 
     stop_routes: dict[str, set[str]] = {}
     for t_id, s_id in stop_times[["trip_id", "stop_id"]].itertuples(index=False):
@@ -322,9 +334,9 @@ def build_route_district_matrix(
     all_routes = sorted(route_districts, key=lambda r: route_name.get(r, "zzz"))
     all_districts = sorted({d for ds in route_districts.values() for d in ds})
 
-    rows = []
+    rows: list[dict[str, str]] = []
     for rid in all_routes:
-        row = {"route_short_name": route_name.get(rid, rid)}
+        row: dict[str, str] = {"route_short_name": route_name.get(rid, rid)}
         for d in all_districts:
             row[d] = "y" if d in route_districts[rid] else "n"
         rows.append(row)

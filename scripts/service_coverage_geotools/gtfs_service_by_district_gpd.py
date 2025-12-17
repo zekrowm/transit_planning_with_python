@@ -147,17 +147,19 @@ def build_route_district_matrix(
         district_field (str): Name of the district identifier column.
 
     Returns:
-        pd.DataFrame: Matrix with 'route_short_name' and one column per district, containing 'y' or 'n'.
+        pd.DataFrame: Matrix with 'route_short_name' and one column per district,
+            containing 'y' or 'n'.
     """
     routes_df = gtfs_data["routes"]
     trips_df = gtfs_data["trips"]
     stop_times_df = gtfs_data["stop_times"]
+
     # Build quick lookups
-    route_id_to_name = dict(zip(routes_df["route_id"], routes_df["route_short_name"]))
-    trip_id_to_route_id = dict(zip(trips_df["trip_id"], trips_df["route_id"]))
+    route_id_to_name = dict(zip(routes_df["route_id"], routes_df["route_short_name"], strict=True))
+    trip_id_to_route_id = dict(zip(trips_df["trip_id"], trips_df["route_id"], strict=True))
 
     # Build stop_id -> set of route_ids
-    stop_id_to_route_ids = {}
+    stop_id_to_route_ids: dict[str, set[str]] = {}
     for row in stop_times_df.itertuples(index=False):
         trip_id = row.trip_id
         stop_id = row.stop_id
@@ -167,14 +169,14 @@ def build_route_district_matrix(
 
     # Gather district info for each stop_id from `intersect_gdf`
     # `intersect_gdf` must have columns: "stop_id" (from stops), and the district field
-    stop_id_to_districts = {}
-    for idx, row in intersect_gdf.iterrows():
+    stop_id_to_districts: dict[str, set[Any]] = {}
+    for _, row in intersect_gdf.iterrows():
         stop_id_val = row["stop_id"]
         dist_val = row[district_field]
         stop_id_to_districts.setdefault(stop_id_val, set()).add(dist_val)
 
     # Build route -> set of districts
-    route_to_districts = {}
+    route_to_districts: dict[str, set[Any]] = {}
     for stop_id, route_ids in stop_id_to_route_ids.items():
         if stop_id in stop_id_to_districts:
             these_districts = stop_id_to_districts[stop_id]
@@ -183,15 +185,16 @@ def build_route_district_matrix(
 
     # Build final matrix with route_short_name as rows, each district as a column
     all_route_ids = sorted(
-        route_to_districts.keys(), key=lambda rid: route_id_to_name.get(rid, "zzz")
+        route_to_districts.keys(),
+        key=lambda rid: route_id_to_name.get(rid, "zzz"),
     )
     all_districts = sorted({dist for dset in route_to_districts.values() for dist in dset})
 
-    matrix_data = []
+    matrix_data: list[dict[Any, Any]] = []
     for route_id in all_route_ids:
         short_name = route_id_to_name.get(route_id, route_id)
         covered_districts = route_to_districts[route_id]
-        row_dict = {"route_short_name": short_name}
+        row_dict: dict[Any, Any] = {"route_short_name": short_name}
         for dist in all_districts:
             row_dict[dist] = "y" if dist in covered_districts else "n"
         matrix_data.append(row_dict)
@@ -210,7 +213,8 @@ def write_dataframe_to_excel(
     Args:
         df (pd.DataFrame): The DataFrame to write.
         excel_path (str): Full path to the output Excel file.
-        sheet_name (str, optional): Name of the sheet to write to. Defaults to "districts_vs_routes".
+        sheet_name (str, optional): Name of the sheet to write to.
+            Defaults to "districts_vs_routes".
     """
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name=sheet_name, index=False)

@@ -64,6 +64,13 @@ def _ensure_output_folder(folder: str | Path) -> Path:
     return out
 
 
+def _served_mask(df: pd.DataFrame, rid: str, drn: int) -> pd.Series:
+    """Return boolean mask for rows whose list fields include rid/drn."""
+    return df["route_id"].apply(lambda xs, rid=rid: rid in xs) & df["direction_id"].apply(
+        lambda xs, drn=drn: drn in xs
+    )
+
+
 def _flag_long_spacing_csv(
     routes_gdf: gpd.GeoDataFrame,
     stops_gdf: gpd.GeoDataFrame,
@@ -120,10 +127,7 @@ def _flag_long_spacing_csv(
 
         # —— served stops on this route/direction ————————————————
         cand = stops_gdf.iloc[list(sindex.intersection(line.bounds))]
-        served = cand[
-            cand.route_id.apply(lambda xs: rid in xs)
-            & cand.direction_id.apply(lambda xs: drn in xs)
-        ].copy()
+        served = cand[_served_mask(cand, rid, drn)].copy()
 
         if len(served) < 2:
             continue
@@ -152,12 +156,7 @@ def _flag_long_spacing_csv(
 
             # candidate “missed” stops from *other* routes
             maybe = stops_gdf.iloc[list(sindex.intersection((minx, miny, maxx, maxy)))]
-            maybe = maybe[
-                ~(
-                    maybe.route_id.apply(lambda xs: rid in xs)
-                    & maybe.direction_id.apply(lambda xs: drn in xs)
-                )
-            ]
+            maybe = maybe[~_served_mask(maybe, rid, drn)]
 
             for _, st in maybe.iterrows():
                 proj = line.project(st.geometry)
@@ -325,7 +324,7 @@ def _build_routes_gdf(
         shapes[shape_cols]
         .sort_values(["shape_id", "shape_pt_sequence"])
         .groupby("shape_id")
-        .apply(lambda g: LineString(zip(g.shape_pt_lon, g.shape_pt_lat)))
+        .apply(lambda g: LineString(zip(g.shape_pt_lon, g.shape_pt_lat, strict=True)))
         .to_frame("geometry")
         .reset_index()
     )
@@ -380,10 +379,7 @@ def _split_into_segments(
         drn: int = int(r.direction_id)
 
         cand = stops_gdf.iloc[list(sindex.intersection(line.bounds))]
-        cand = cand[
-            cand.route_id.apply(lambda ids: rid in ids)
-            & cand.direction_id.apply(lambda ids: drn in ids)
-        ]
+        cand = cand[_served_mask(cand, rid, drn)]
         if cand.empty:
             continue
 
@@ -438,7 +434,10 @@ def _flag_short_spacing(
     threshold_ft: float,
     log_path: Path,
 ) -> None:
-    """Write a log of consecutive stops spaced closer than *threshold_ft* along their route polyline."""
+    """Write a log of consecutive stops spaced closer than *threshold_ft*.
+
+    Stops are evaluated along each route polyline.
+    """
     crs_str = str(stops_gdf.crs) if stops_gdf.crs is not None else ""
     factor_ft: float = 1.0 if "2263" in crs_str else 3.28084
     sindex = stops_gdf.sindex
@@ -455,10 +454,7 @@ def _flag_short_spacing(
             line: LineString = row.geometry
 
             cand = stops_gdf.iloc[list(sindex.intersection(line.bounds))]
-            cand = cand[
-                cand.route_id.apply(lambda xs: rid in xs)
-                & cand.direction_id.apply(lambda xs: drn in xs)
-            ].copy()
+            cand = cand[_served_mask(cand, rid, drn)].copy()
 
             if len(cand) < 2:
                 continue

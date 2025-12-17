@@ -564,7 +564,7 @@ def add_synthetic_fields(
 
     # Also try to fetch pct/total for count-based metrics (for sanity fallback)
     derived_helpers: Dict[str, Tuple[Optional[str], Optional[str]]] = {}
-    for out_name, (mode, spec) in strategies.items():
+    for out_name, (mode, _spec) in strategies.items():
         if mode == "count":
             # Look up matching pct/total names from _PREFS (canonical), then resolve on clipped FC
             pref = _PREFS.get(out_name)
@@ -621,7 +621,8 @@ def add_synthetic_fields(
                             pct_val = pct_val / 100.0 if pct_val > 1.0 else pct_val
                             tot_val = vals.get(tot_clip, 0.0)
                             derived = a * (pct_val * tot_val)
-                            # If raw would exceed derived-total expectation, use the safer derived value
+                            # If raw would exceed the derived-total expectation,
+                            # use the safer derived value.
                             if derived > 0.0 and raw > derived:
                                 row[idx[out_name]] = derived
                             else:
