@@ -198,6 +198,7 @@ def _safe_name(s: str) -> str:
 
 @dataclass(frozen=True)
 class UnitInfo:
+    """Spatial reference and unit conversion details for distance reporting."""
     sr: arcpy.SpatialReference
     crs_units_label: str  # "feet" or "meters" (or best guess)
     to_feet_factor: float
@@ -283,6 +284,7 @@ def _project_sr_if_geographic(
 
 @dataclass
 class AgencyRoute:
+    """Normalized agency route key, display name, and dissolved route geometry."""
     route_key_raw: str
     route_key_norm: str
     agency_route_name: str
@@ -425,6 +427,7 @@ def _build_stops_dict(
 
 @dataclass(frozen=True)
 class GtfsIndex:
+    """Spatial reference and unit conversion details for distance reporting."""
     route_to_trips: dict[str, list[str]]
     route_to_shapes: dict[str, list[str]]
     route_shape_to_trips: dict[tuple[str, str], list[str]]
