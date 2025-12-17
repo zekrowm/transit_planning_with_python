@@ -157,6 +157,7 @@ def _name_divergence(a: str, b: str) -> tuple[int, float, float]:
 # FILE + GTFS READ
 # =============================================================================
 
+
 def _ensure_exists(path: Path) -> None:
     if not path.exists():
         raise FileNotFoundError(f"Missing required file/folder: {path}")
@@ -173,6 +174,7 @@ def _read_gtfs_table(gtfs_dir: Path, name: str) -> pd.DataFrame:
 # =============================================================================
 # NORMALIZATION
 # =============================================================================
+
 
 def _norm_short_name(val: object) -> str:
     s = "" if val is None else str(val).strip()
@@ -196,9 +198,11 @@ def _safe_name(s: str) -> str:
 # CRS + UNITS (ArcPy)
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class UnitInfo:
     """Spatial reference and unit conversion details for distance reporting."""
+
     sr: arcpy.SpatialReference
     crs_units_label: str  # "feet" or "meters" (or best guess)
     to_feet_factor: float
@@ -213,7 +217,7 @@ def _sr_is_projected(sr: arcpy.SpatialReference) -> bool:
 
 def _to_feet_factor_from_sr(sr: arcpy.SpatialReference) -> tuple[str, float]:
     """Return (label, factor) where factor converts SR linear units to feet.
-    
+
     If unknown, assume meters.
     """
     try:
@@ -257,7 +261,7 @@ def _project_sr_if_geographic(
     geom_for_centroid: arcpy.Geometry,
 ) -> arcpy.SpatialReference:
     """If input SR is geographic, choose an auto UTM based on centroid.
-    
+
     If already projected, return input SR.
     """
     if _sr_is_projected(input_sr):
@@ -282,9 +286,11 @@ def _project_sr_if_geographic(
 # AGENCY LOAD + DISSOLVE (ArcPy Geometry)
 # =============================================================================
 
+
 @dataclass
 class AgencyRoute:
     """Normalized agency route key, display name, and dissolved route geometry."""
+
     route_key_raw: str
     route_key_norm: str
     agency_route_name: str
@@ -365,6 +371,7 @@ def _load_and_dissolve_agency_routes(
 # GTFS GEOMETRY BUILD (ArcPy)
 # =============================================================================
 
+
 def _build_shapes_dict(
     shapes_df: pd.DataFrame,
     out_sr: arcpy.SpatialReference,
@@ -425,9 +432,11 @@ def _build_stops_dict(
 # GTFS INDEXES (PERFORMANCE)
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class GtfsIndex:
     """Spatial reference and unit conversion details for distance reporting."""
+
     route_to_trips: dict[str, list[str]]
     route_to_shapes: dict[str, list[str]]
     route_shape_to_trips: dict[tuple[str, str], list[str]]
@@ -435,8 +444,7 @@ class GtfsIndex:
 
 
 def build_gtfs_indexes(trips_df: pd.DataFrame, stop_times_df: pd.DataFrame) -> GtfsIndex:
-    """
-    Precompute lookups to avoid repeated DataFrame filtering.
+    """Precompute lookups to avoid repeated DataFrame filtering.
 
     - route_to_trips: route_id -> [trip_id, ...]
     - route_to_shapes: route_id -> [shape_id, ...] (unique, non-null)
@@ -496,6 +504,7 @@ def build_gtfs_indexes(trips_df: pd.DataFrame, stop_times_df: pd.DataFrame) -> G
 # =============================================================================
 # DISTANCES (ArcPy Geometry)
 # =============================================================================
+
 
 def _iter_polyline_vertices(pl: arcpy.Geometry) -> Iterable[tuple[float, float]]:
     """Yield all vertices (x,y) from a polyline-like geometry (multipart-safe)."""
@@ -568,6 +577,7 @@ def _statistic(vals: np.ndarray, mode: str) -> float:
 # =============================================================================
 # PLOTTING (matplotlib from ArcPy geometry)
 # =============================================================================
+
 
 def _plot_route_debug(
     route_key: str,
@@ -649,6 +659,7 @@ def _plot_route_debug(
 # =============================================================================
 # CORE
 # =============================================================================
+
 
 def compute_per_route_metrics() -> pd.DataFrame:
     """Compute per-route spatial/name divergence metrics and (optionally) plot diagnostics."""
@@ -787,13 +798,17 @@ def compute_per_route_metrics() -> pd.DataFrame:
 
                 if gtfs_line is not None:
                     line_dists = _directed_line_to_line_distances(gtfs_line, a_geom, sampling_step)
-                    stat_line = _statistic(line_dists, BUFFER_STAT) if line_dists.size else float("nan")
+                    stat_line = (
+                        _statistic(line_dists, BUFFER_STAT) if line_dists.size else float("nan")
+                    )
                 else:
                     stat_line = float("nan")
 
                 buffer_units = float(np.nanmax([stat_line, stat_stop]))
                 buffer_feet = (
-                    buffer_units * unit_info.to_feet_factor if math.isfinite(buffer_units) else float("nan")
+                    buffer_units * unit_info.to_feet_factor
+                    if math.isfinite(buffer_units)
+                    else float("nan")
                 )
             else:
                 buffer_units = float("nan")
@@ -837,7 +852,9 @@ def compute_per_route_metrics() -> pd.DataFrame:
                     "shape_selection": shape_pick,
                     "stops_selection": stops_pick,
                     "buffer_stat": BUFFER_STAT,
-                    "min_buffer_feet": None if not math.isfinite(buffer_feet) else round(float(buffer_feet), 2),
+                    "min_buffer_feet": None
+                    if not math.isfinite(buffer_feet)
+                    else round(float(buffer_feet), 2),
                     "name_levenshtein_distance": None
                     if (isinstance(lev, float) and np.isnan(lev))
                     else int(lev),
@@ -887,7 +904,12 @@ def compute_per_route_metrics() -> pd.DataFrame:
             )
 
     out = pd.DataFrame.from_records(records).sort_values(
-        ["mapping_status", "exceeds_buffer_threshold", "exceeds_name_threshold", "route_key_agency"],
+        [
+            "mapping_status",
+            "exceeds_buffer_threshold",
+            "exceeds_name_threshold",
+            "route_key_agency",
+        ],
         ascending=[True, False, False, True],
     )
     log(f"[INFO] Produced {len(out):,} summary rows")
@@ -903,6 +925,7 @@ def write_summary_csv(df: pd.DataFrame, path: Path) -> None:
 # =============================================================================
 # MAIN
 # =============================================================================
+
 
 def main() -> None:
     """Run metrics and write outputs."""
