@@ -19,7 +19,6 @@ from typing import Iterable, Optional
 import geopandas as gpd
 import pandas as pd
 
-
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -197,7 +196,9 @@ def spatial_join_to_polygons(
 
     # "within" = point must lie inside polygon. Use "intersects" if you want boundary hits.
     joined = gpd.sjoin(stops, polygons, how="left", predicate="within")
-    joined = joined.drop(columns=[c for c in joined.columns if c.startswith("index_")], errors="ignore")
+    joined = joined.drop(
+        columns=[c for c in joined.columns if c.startswith("index_")], errors="ignore"
+    )
 
     logger.info("Spatial join complete. Stops rows: %d.", len(joined))
     return joined, polygons
