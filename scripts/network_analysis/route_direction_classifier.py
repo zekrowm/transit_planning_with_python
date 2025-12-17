@@ -76,13 +76,18 @@ def classify_direction(
         coords = list(line_projected.coords)
         if coords[0] != coords[-1]:
             coords.append(coords[0])
-        area = sum((x1 * y2 - x2 * y1) for (x1, y1), (x2, y2) in zip(coords, coords[1:]))
+
+        area = sum(
+            (x1 * y2 - x2 * y1)
+            for (x1, y1), (x2, y2) in zip(coords, coords[1:], strict=True)
+        )
+
         if area > 0:
             return "CCW"
         if area < 0:
             return "CW"
         return "LOOP"
-    # Not a loop, compare lat/long differences
+
     lat_diff = end_lat - start_lat
     lon_diff = end_lon - start_lon
     if abs(lat_diff) > abs(lon_diff):
@@ -169,7 +174,7 @@ def create_lines_from_shapes(shapes: pd.DataFrame) -> gpd.GeoDataFrame:
 
     lines = []
     for sid, group in shapes_grouped:
-        line = LineString(zip(group["shape_pt_lon"], group["shape_pt_lat"]))
+        line = LineString(zip(group["shape_pt_lon"], group["shape_pt_lat"], strict=True))
         lines.append((sid, line))
 
     gdf = gpd.GeoDataFrame(lines, columns=["shape_id", "geometry"], crs="EPSG:4326")
@@ -179,7 +184,9 @@ def create_lines_from_shapes(shapes: pd.DataFrame) -> gpd.GeoDataFrame:
 def merge_and_classify_shapes(
     trips: pd.DataFrame, routes_filtered: pd.DataFrame, gdf_shapes: gpd.GeoDataFrame
 ) -> pd.DataFrame:
-    """Filters trips by routes, merges them with direction classification, and returns a DataFrame."""
+    """Filters trips by routes, merges them with direction classification,
+    and returns a DataFrame.
+    """
     trips_filtered = trips[trips["route_id"].isin(routes_filtered["route_id"])]
     trips_merged = trips_filtered.merge(
         routes_filtered[["route_id", "route_short_name", "route_long_name"]],
@@ -187,12 +194,16 @@ def merge_and_classify_shapes(
     )
 
     gdf_shapes_proj = gdf_shapes.to_crs(PROJECTED_CRS)
-    directions = []
-    for idx, row in gdf_shapes.iterrows():
-        shape_id = row["shape_id"]
-        geom_4326 = row["geometry"]
-        geom_proj = gdf_shapes_proj[gdf_shapes_proj["shape_id"] == shape_id].iloc[0].geometry
-        directions.append((shape_id, classify_direction(geom_4326, geom_proj)))
+
+    directions: list[tuple[str, str]] = []
+    for row_4326, row_proj in zip(
+        gdf_shapes.itertuples(index=False),
+        gdf_shapes_proj.itertuples(index=False),
+        strict=True,
+    ):
+        directions.append(
+            (row_4326.shape_id, classify_direction(row_4326.geometry, row_proj.geometry))
+        )
 
     direction_df = pd.DataFrame(directions, columns=["shape_id", "shape_direction"])
     return trips_merged.merge(direction_df, on="shape_id")
@@ -201,7 +212,9 @@ def merge_and_classify_shapes(
 def identify_first_last_stops(
     trips_merged: pd.DataFrame, stop_times: pd.DataFrame, stops: pd.DataFrame
 ) -> pd.DataFrame:
-    """Identifies first and last stops (with names), merges them, and returns the augmented DataFrame."""
+    """Identifies first and last stops (with names), merges them,
+    and returns the augmented DataFrame.
+    """
     stop_times_sorted = stop_times.sort_values(["trip_id", "stop_sequence"])
     first_stops = stop_times_sorted.groupby("trip_id").first().reset_index()
     last_stops = stop_times_sorted.groupby("trip_id").last().reset_index()
@@ -259,7 +272,9 @@ def determine_dominant_shapes(final_data: pd.DataFrame) -> pd.DataFrame:
 
 
 def export_excel_summaries(summary: pd.DataFrame, final_data: pd.DataFrame) -> None:
-    """Exports an overall Directions_Summary.xlsx and per-route/direction files with departure times."""
+    """Exports an overall Directions_Summary.xlsx and per-route/direction files
+    with departure times.
+    """
     summary_path = os.path.join(OUTPUT_FOLDER, "Directions_Summary.xlsx")
     summary.to_excel(summary_path, index=False)
 
@@ -290,13 +305,14 @@ def export_jpegs(summary: pd.DataFrame, gdf_shapes: gpd.GeoDataFrame) -> None:
 
 
 def flag_suspicious_data(summary: pd.DataFrame) -> None:
-    """Flags suspicious cases where shape_direction vs. direction_id are inconsistent and exports them."""
+    """Flags suspicious cases where shape_direction vs. direction_id are inconsistent
+    and exports them.
+    """
     summary_simplified = summary[
         ["route_short_name", "direction_id", "shape_direction"]
     ].drop_duplicates()
 
     flags = []
-    # 1) For each route, check if multiple direction_ids exist with only one shape_direction
     route_groups = summary_simplified.groupby("route_short_name")
     for route_name, grp in route_groups:
         unique_dirs = grp["direction_id"].unique()
@@ -313,7 +329,6 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
                 }
             )
 
-    # 2) Within the same (route_short_name, direction_id), check multiple cardinal directions.
     def is_cardinal_direction(direct: str) -> bool:
         return direct in ("NB", "SB", "EB", "WB")
 
@@ -373,7 +388,7 @@ def main() -> None:
     # Step 5: Determine dominant shapes
     final_data = determine_dominant_shapes(final_data)
     if ANALYZE_ONLY_DOMINANT_SHAPE:
-        final_data = final_data[final_data["is_dominant"] == True]
+        final_data = final_data[final_data["is_dominant"].fillna(False)]
 
     # Rebuild summary from final_data
     summary = (
