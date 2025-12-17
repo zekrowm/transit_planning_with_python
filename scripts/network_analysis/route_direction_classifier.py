@@ -184,8 +184,10 @@ def create_lines_from_shapes(shapes: pd.DataFrame) -> gpd.GeoDataFrame:
 def merge_and_classify_shapes(
     trips: pd.DataFrame, routes_filtered: pd.DataFrame, gdf_shapes: gpd.GeoDataFrame
 ) -> pd.DataFrame:
-    """Filters trips by routes, merges them with direction classification,
-    and returns a DataFrame.
+    """Filter trips by routes and merge with shape direction classification.
+
+    Returns a DataFrame of trips joined to route metadata and a derived
+    `shape_direction` for each `shape_id`.
     """
     trips_filtered = trips[trips["route_id"].isin(routes_filtered["route_id"])]
     trips_merged = trips_filtered.merge(
@@ -212,8 +214,10 @@ def merge_and_classify_shapes(
 def identify_first_last_stops(
     trips_merged: pd.DataFrame, stop_times: pd.DataFrame, stops: pd.DataFrame
 ) -> pd.DataFrame:
-    """Identifies first and last stops (with names), merges them,
-    and returns the augmented DataFrame.
+    """Identify first/last stops (with names) and merge into trips.
+
+    Returns the augmented DataFrame with first/last stop IDs and names,
+    plus `departure_time` from the first stop.
     """
     stop_times_sorted = stop_times.sort_values(["trip_id", "stop_sequence"])
     first_stops = stop_times_sorted.groupby("trip_id").first().reset_index()
@@ -272,8 +276,9 @@ def determine_dominant_shapes(final_data: pd.DataFrame) -> pd.DataFrame:
 
 
 def export_excel_summaries(summary: pd.DataFrame, final_data: pd.DataFrame) -> None:
-    """Exports an overall Directions_Summary.xlsx and per-route/direction files
-    with departure times.
+    """Export Excel summary and per-route/direction departure files.
+
+    Writes `Directions_Summary.xlsx` and `Route_<short_name>_Dir_<direction_id>_departures.xlsx`.
     """
     summary_path = os.path.join(OUTPUT_FOLDER, "Directions_Summary.xlsx")
     summary.to_excel(summary_path, index=False)
@@ -305,8 +310,9 @@ def export_jpegs(summary: pd.DataFrame, gdf_shapes: gpd.GeoDataFrame) -> None:
 
 
 def flag_suspicious_data(summary: pd.DataFrame) -> None:
-    """Flags suspicious cases where shape_direction vs. direction_id are inconsistent
-    and exports them.
+    """Flag inconsistent shape_direction vs. direction_id combinations.
+
+    Exports `Suspicious_RouteDirections.xlsx` when inconsistencies are detected.
     """
     summary_simplified = summary[
         ["route_short_name", "direction_id", "shape_direction"]
