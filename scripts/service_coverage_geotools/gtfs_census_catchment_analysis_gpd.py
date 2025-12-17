@@ -129,81 +129,55 @@ def get_included_stops(
 ) -> pd.DataFrame:
     """Determine which stops to keep by applying inclusion/exclusion lists.
 
-    1) Start with all stops in stops_df.
-    2) If stop_ids_to_include is non-empty, keep only those IDs.
-    3) If stop_ids_to_exclude is non-empty, remove those from the result.
-
     Args:
         stops_df: DataFrame from stops.txt (or an already merged subset).
-        stop_ids_to_include: List of stop_ids to include (strings or ints).
-        stop_ids_to_exclude: List of stop_ids to exclude (strings or ints).
+        stop_ids_to_include: Stop IDs to include. If non-empty, only these remain.
+        stop_ids_to_exclude: Stop IDs to exclude. If non-empty, these are removed.
 
     Returns:
         DataFrame containing only the final included stops.
     """
     filtered = stops_df.copy()
 
-    # Keep types consistent between the DataFrame and the filter lists.
-    stop_id_series = filtered["stop_id"]
-    if stop_id_series.dtype == "O":
-        filtered["stop_id"] = stop_id_series.astype(str)
-        stop_ids_to_include_cast = [str(s) for s in stop_ids_to_include]
-        stop_ids_to_exclude_cast = [str(s) for s in stop_ids_to_exclude]
-    else:
-        # If stop_id is numeric, keep it numeric for .isin().
-        filtered["stop_id"] = pd.to_numeric(stop_id_series, errors="coerce").astype("Int64")
-        stop_ids_to_include_cast = [int(s) for s in stop_ids_to_include]
-        stop_ids_to_exclude_cast = [int(s) for s in stop_ids_to_exclude]
+    filtered["stop_id"] = filtered["stop_id"].astype(str)
+    include = [str(s) for s in stop_ids_to_include]
+    exclude = [str(s) for s in stop_ids_to_exclude]
 
-    if stop_ids_to_include_cast:
-        filtered = filtered[filtered["stop_id"].isin(stop_ids_to_include_cast)]
+    if include:
+        filtered = filtered[filtered["stop_id"].isin(include)]
 
-    if stop_ids_to_exclude_cast:
-        filtered = filtered[~filtered["stop_id"].isin(stop_ids_to_exclude_cast)]
+    if exclude:
+        filtered = filtered[~filtered["stop_id"].isin(exclude)]
 
-    final_count = len(filtered)
-    print(f"Including {final_count} stops after applying stop include/exclude lists.")
+    logging.info(
+        "Including %d stops after applying stop include/exclude lists.",
+        len(filtered),
+    )
     return filtered
 
 
-def get_included_stops(
-    stops_df: pd.DataFrame,
-    stop_ids_to_include: list[str],
-    stop_ids_to_exclude: list[str],
+def get_included_routes(
+    routes_df: pd.DataFrame,
+    routes_to_include: list[str],
+    routes_to_exclude: list[str],
 ) -> pd.DataFrame:
-    """Determine which stops to keep by applying inclusion/exclusion lists.
+    """Filter routes by route_short_name include/exclude lists."""
+    filtered = routes_df.copy()
 
-    1) Start with all stops in stops_df.
-    2) If stop_ids_to_include is non-empty, keep only those IDs.
-    3) If stop_ids_to_exclude is non-empty, remove those from the result.
+    if "route_short_name" not in filtered.columns:
+        raise KeyError("routes_df is missing required column: 'route_short_name'")
 
-    :param stops_df: DataFrame from stops.txt (or an already merged subset).
-    :param stop_ids_to_include: List of stop_ids to include (strings or ints).
-    :param stop_ids_to_exclude: List of stop_ids to exclude (strings or ints).
-    :return: DataFrame containing only the final included stops.
-    """
-    filtered = stops_df.copy()
+    filtered["route_short_name"] = filtered["route_short_name"].astype(str)
+    include = [str(r) for r in routes_to_include]
+    exclude = [str(r) for r in routes_to_exclude]
 
-    # Convert to string if necessary, or ensure consistent type
-    # if original GTFS has them as strings. Adjust as needed.
-    if stops_df["stop_id"].dtype == "O":
-        # If it's a string/object type, make sure our lists are also strings
-        stop_ids_to_include = [str(s) for s in stop_ids_to_include]
-        stop_ids_to_exclude = [str(s) for s in stop_ids_to_exclude]
-    else:
-        # Otherwise, cast the DataFrame column to int if they are numeric
-        filtered["stop_id"] = filtered["stop_id"].astype(int)
-        stop_ids_to_include = [str(s) for s in stop_ids_to_include]
-        stop_ids_to_exclude = [str(s) for s in stop_ids_to_exclude]
+    if include:
+        filtered = filtered[filtered["route_short_name"].isin(include)]
 
-    if stop_ids_to_include:
-        filtered = filtered[filtered["stop_id"].isin(stop_ids_to_include)]
+    if exclude:
+        filtered = filtered[~filtered["route_short_name"].isin(exclude)]
 
-    if stop_ids_to_exclude:
-        filtered = filtered[~filtered["stop_id"].isin(stop_ids_to_exclude)]
-
-    final_count = len(filtered)
-    print(f"Including {final_count} stops after applying stop include/exclude lists.")
+    logging.info("Including %d routes after route include/exclude lists.", len(filtered))
     return filtered
 
 
