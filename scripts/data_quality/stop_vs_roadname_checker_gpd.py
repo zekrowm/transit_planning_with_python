@@ -220,7 +220,8 @@ def extract_modifiers(
 
     Args:
         roadways_gdf (gpd.GeoDataFrame): The GeoDataFrame containing roadway data.
-        column_mapping_roadway (dict): A dictionary mapping required column names to their actual names.
+        column_mapping_roadway (dict): A dictionary mapping required column names to
+            their actual names.
 
     Returns:
         set: A set of unique, normalized modifier strings.
@@ -322,10 +323,13 @@ def compare_stop_to_roads(
     Args:
         stop_id (str): The ID of the stop.
         stop_name (str): The original name of the stop.
-        stop_streets (list): A list of potential street names extracted from the stop name.
+        stop_streets (list): A list of potential street names extracted from the stop
+            name.
         road_names (list): A list of normalized road names for comparison.
-        roads_gdf (gpd.GeoDataFrame): The GeoDataFrame of roadways (used to retrieve original road names).
-        threshold (int): The similarity score threshold (0-100) for considering a match.
+        roads_gdf (gpd.GeoDataFrame): The GeoDataFrame of roadways, used to retrieve
+            original road names.
+        threshold (int): The similarity score threshold (0-100) for considering a
+            match.
 
     Returns:
         list[dict]: A list of dictionaries, each representing a potential typo.
