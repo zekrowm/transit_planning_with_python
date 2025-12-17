@@ -212,8 +212,8 @@ def _sr_is_projected(sr: arcpy.SpatialReference) -> bool:
 
 
 def _to_feet_factor_from_sr(sr: arcpy.SpatialReference) -> tuple[str, float]:
-    """
-    Return (label, factor) where factor converts SR linear units to feet.
+    """Return (label, factor) where factor converts SR linear units to feet.
+    
     If unknown, assume meters.
     """
     try:
@@ -256,8 +256,8 @@ def _project_sr_if_geographic(
     input_sr: arcpy.SpatialReference,
     geom_for_centroid: arcpy.Geometry,
 ) -> arcpy.SpatialReference:
-    """
-    If input SR is geographic, choose an auto UTM based on centroid.
+    """If input SR is geographic, choose an auto UTM based on centroid.
+    
     If already projected, return input SR.
     """
     if _sr_is_projected(input_sr):
@@ -507,8 +507,8 @@ def _iter_polyline_vertices(pl: arcpy.Geometry) -> Iterable[tuple[float, float]]
 
 
 def _sample_points_along_polyline(pl: arcpy.Polyline, step: float) -> list[arcpy.PointGeometry]:
-    """
-    Sample points along a polyline every `step` units (in SR units).
+    """Sample points along a polyline every `step` units (in SR units).
+
     Includes both endpoints.
     """
     L = float(pl.length)
