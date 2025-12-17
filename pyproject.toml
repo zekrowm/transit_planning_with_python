@@ -16,7 +16,7 @@ line-length    = 100
 # D  → pydocstyle (Google-style enforced below)
 # ANN = flake8-annotations
 # TC = flake8-type-checking
-select   = ["I", "F", "D", "ANN", "TCH", "B"]
+select   = ["I", "F", "D", "ANN", "TCH", "B", "E", "W"]
 fixable  = ["F401", "D", "I"]
 ignore   = ["ANN401"]
 
