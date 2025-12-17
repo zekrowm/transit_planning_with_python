@@ -277,7 +277,7 @@ def find_close_stop_pairs(
     params = GridParams(cell_size_m=threshold_m)
 
     grid: dict[tuple[int, int], list[int]] = {}
-    for idx, (xv, yv) in enumerate(zip(work["x_m"].to_list(), work["y_m"].to_list())):
+    for idx, (xv, yv) in enumerate(zip(work["x_m"], work["y_m"], strict=True)):
         cell = _grid_cell(float(xv), float(yv), params.cell_size_m)
         grid.setdefault(cell, []).append(idx)
 
