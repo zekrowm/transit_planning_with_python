@@ -56,7 +56,6 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
         ValueError: If required columns are missing or lat/lon are invalid.
     """
     file_path = gtfs_dir / "stops.txt"
-    # print(f"Reading stops from: {file_path}") # Optional: uncomment for verbose output
     if not file_path.exists():
         raise FileNotFoundError(f"Required file not found: {file_path}")
 
@@ -88,7 +87,9 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
         return gpd.GeoDataFrame(columns=list(required) + ["geometry"], geometry=[], crs=GTFS_CRS)
 
     try:
-        geometry = [Point(xy) for xy in zip(df["stop_lon"], df["stop_lat"])]
+        geometry = [
+            Point(xy) for xy in zip(df["stop_lon"], df["stop_lat"], strict=True)
+        ]
         gdf = gpd.GeoDataFrame(df, geometry=geometry, crs=GTFS_CRS)
     except Exception as e:
         raise ValueError(f"Stop geometry creation failed: {e}") from e
@@ -98,7 +99,6 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
     cols_to_keep = [col for col in essential_cols if col in gdf.columns]
     gdf = gdf[cols_to_keep]
 
-    # print(f"Successfully processed {len(gdf)} stops.") # Optional: uncomment for verbose output
     return gdf
 
 
@@ -119,7 +119,6 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
                     or contains invalid coordinate/sequence data.
     """
     file_path = gtfs_dir / "shapes.txt"
-    # print(f"Reading shapes from: {file_path}") # Optional: uncomment for verbose output
     if not file_path.exists():
         print("Info: Optional file 'shapes.txt' not found. Skipping shapes.")
         return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
@@ -160,7 +159,9 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     records: list[dict] = []
     try:
         for shape_id, group in df.groupby("shape_id", sort=False):
-            coordinates = list(zip(group["shape_pt_lon"], group["shape_pt_lat"]))
+            coordinates = list(
+                zip(group["shape_pt_lon"], group["shape_pt_lat"], strict=True)
+            )
             if len(coordinates) < 2:
                 print(f"Warning: Shape ID {shape_id} skipped: has fewer than 2 valid points.")
                 continue
@@ -174,7 +175,6 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
         return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
 
     gdf = gpd.GeoDataFrame(records, crs=GTFS_CRS)
-    # print(f"Successfully constructed {len(gdf)} line geometries.") # Optional verbose output
     return gdf
 
 
