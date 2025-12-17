@@ -798,7 +798,8 @@ def process_route_service_combinations(ctx: dict[str, Any]) -> None:
                 )
                 if master_trip_stops.empty:
                     logging.info(
-                        "      No master trip stops for direction_id '%s'. Skipping this direction.",
+                        "      No master trip stops for direction_id '%s'. "
+                        "Skipping this direction.",
                         dir_id,
                     )
                     continue
