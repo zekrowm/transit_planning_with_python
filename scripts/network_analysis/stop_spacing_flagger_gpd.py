@@ -66,9 +66,8 @@ def _ensure_output_folder(folder: str | Path) -> Path:
 
 def _served_mask(df: pd.DataFrame, rid: str, drn: int) -> pd.Series:
     """Return boolean mask for rows whose list fields include rid/drn."""
-    return (
-        df["route_id"].apply(lambda xs, rid=rid: rid in xs)
-        & df["direction_id"].apply(lambda xs, drn=drn: drn in xs)
+    return df["route_id"].apply(lambda xs, rid=rid: rid in xs) & df["direction_id"].apply(
+        lambda xs, drn=drn: drn in xs
     )
 
 
