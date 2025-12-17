@@ -1,4 +1,4 @@
-"""GTFS Route Data Validation and Comparison
+"""GTFS Route Data Validation and Comparison.
 
 This script compares an agency's authoritative route centerline features (Shapefile/FC)
 against the GTFS shapes and stops files for the same route system.
