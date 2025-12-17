@@ -155,9 +155,7 @@ def build_route_district_matrix(
     stop_times_df = gtfs_data["stop_times"]
 
     # Build quick lookups
-    route_id_to_name = dict(
-        zip(routes_df["route_id"], routes_df["route_short_name"], strict=True)
-    )
+    route_id_to_name = dict(zip(routes_df["route_id"], routes_df["route_short_name"], strict=True))
     trip_id_to_route_id = dict(zip(trips_df["trip_id"], trips_df["route_id"], strict=True))
 
     # Build stop_id -> set of route_ids
@@ -190,9 +188,7 @@ def build_route_district_matrix(
         route_to_districts.keys(),
         key=lambda rid: route_id_to_name.get(rid, "zzz"),
     )
-    all_districts = sorted(
-        {dist for dset in route_to_districts.values() for dist in dset}
-    )
+    all_districts = sorted({dist for dset in route_to_districts.values() for dist in dset})
 
     matrix_data: list[dict[Any, Any]] = []
     for route_id in all_route_ids:
