@@ -185,10 +185,7 @@ def _project_agency(gdf: gpd.GeoDataFrame) -> tuple[gpd.GeoDataFrame, bool, floa
         is_feet = False
 
     units_label = "feet" if is_feet else "meters"
-    msg = (
-        f"[INFO] Projected CRS units: {units_label} | "
-        f"units→feet factor={to_feet:.6f}"
-    )
+    msg = f"[INFO] Projected CRS units: {units_label} | units→feet factor={to_feet:.6f}"
     log(msg)
     return g2, is_feet, float(to_feet)
 
@@ -236,8 +233,7 @@ def _stops_gdf(stops_df: pd.DataFrame, target_epsg: int | None) -> gpd.GeoDataFr
     g = gpd.GeoDataFrame(
         sdf[["stop_id"]].assign(
             geometry=[
-                Point(lon, lat)
-                for lon, lat in zip(sdf["stop_lon"], sdf["stop_lat"], strict=True)
+                Point(lon, lat) for lon, lat in zip(sdf["stop_lon"], sdf["stop_lat"], strict=True)
             ]
         ),
         crs="EPSG:4326",
@@ -489,8 +485,7 @@ def compute_per_route_metrics() -> pd.DataFrame:
 
                 candidates_s = ";".join(candidate_rids)
                 mapping_notes = (
-                    f"Candidates={candidates_s}; selected={chosen_rid} "
-                    "by route trip_count."
+                    f"Candidates={candidates_s}; selected={chosen_rid} by route trip_count."
                 )
 
             long_nm = (

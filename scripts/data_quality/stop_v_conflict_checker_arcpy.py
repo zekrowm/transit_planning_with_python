@@ -244,9 +244,7 @@ def _concat_conflict_labels(
 
     with arcpy.da.UpdateCursor(fc, list(flags) + [out_field]) as cur:
         for *vals, _existing in cur:
-            labels = [
-                name for name, v in zip(flags, vals, strict=True) if int(v or 0) == 1
-            ]
+            labels = [name for name, v in zip(flags, vals, strict=True) if int(v or 0) == 1]
             cur.updateRow(vals + [",".join(labels)])
 
 

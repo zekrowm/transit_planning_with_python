@@ -87,9 +87,7 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
         return gpd.GeoDataFrame(columns=list(required) + ["geometry"], geometry=[], crs=GTFS_CRS)
 
     try:
-        geometry = [
-            Point(xy) for xy in zip(df["stop_lon"], df["stop_lat"], strict=True)
-        ]
+        geometry = [Point(xy) for xy in zip(df["stop_lon"], df["stop_lat"], strict=True)]
         gdf = gpd.GeoDataFrame(df, geometry=geometry, crs=GTFS_CRS)
     except Exception as e:
         raise ValueError(f"Stop geometry creation failed: {e}") from e
@@ -159,9 +157,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     records: list[dict] = []
     try:
         for shape_id, group in df.groupby("shape_id", sort=False):
-            coordinates = list(
-                zip(group["shape_pt_lon"], group["shape_pt_lat"], strict=True)
-            )
+            coordinates = list(zip(group["shape_pt_lon"], group["shape_pt_lat"], strict=True))
             if len(coordinates) < 2:
                 print(f"Warning: Shape ID {shape_id} skipped: has fewer than 2 valid points.")
                 continue

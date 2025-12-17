@@ -78,8 +78,7 @@ def classify_direction(
             coords.append(coords[0])
 
         area = sum(
-            (x1 * y2 - x2 * y1)
-            for (x1, y1), (x2, y2) in zip(coords, coords[1:], strict=True)
+            (x1 * y2 - x2 * y1) for (x1, y1), (x2, y2) in zip(coords, coords[1:], strict=True)
         )
 
         if area > 0:

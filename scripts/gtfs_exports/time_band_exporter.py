@@ -165,7 +165,7 @@ def segment_runtimes(grp: pd.DataFrame) -> RuntimeSegTuple:
     for a, b in zip(times, times[1:], strict=True):
         segs.append(b - a if a is not None and b is not None else "")
     return tuple(segs)
-  
+
 
 def build_index(
     gtfs: Dict[str, pd.DataFrame],
