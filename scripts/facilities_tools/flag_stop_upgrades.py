@@ -1,5 +1,4 @@
-"""Identify bus stops that merit amenity upgrades based on ridership thresholds and
-supplemental amenity data.
+"""Flag stops needing amenity upgrades using ridership thresholds and amenity data.
 
 This script reads stop-level ridership and amenity information from one or
 (optionally) two Excel workbooks. It normalizes and (optionally) aggregates
