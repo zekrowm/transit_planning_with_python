@@ -27,6 +27,8 @@ from typing import Iterable
 
 import pandas as pd
 
+from scripts.utils.logging_helper import setup_logging
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -49,8 +51,6 @@ PASS_SAFE_STOPS = True  # if True, skip any close pair where either stop is "saf
 # Across-the-street handling (directional pairs on same route):
 # If True, exclude pairs that share a route but are served exclusively by opposite directions.
 EXCLUDE_OPPOSITE_DIRECTION_SAME_ROUTE_PAIRS = True
-
-LOG_LEVEL = "INFO"  # DEBUG | INFO | WARNING
 
 LOGGER = logging.getLogger(__name__)
 
@@ -364,7 +364,7 @@ def summarize_by_stop(pairs: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     """Run the stop proximity QC."""
-    logging.basicConfig(level=getattr(logging, LOG_LEVEL), format="%(levelname)s: %(message)s")
+    setup_logging()
 
     stops_txt = GTFS_DIR / "stops.txt"
     if not stops_txt.exists():

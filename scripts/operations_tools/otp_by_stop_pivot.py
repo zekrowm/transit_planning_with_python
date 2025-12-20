@@ -29,6 +29,8 @@ from typing import Dict, List, Tuple
 
 import pandas as pd
 
+from scripts.utils.logging_helper import setup_logging
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -79,11 +81,7 @@ TIMEPOINT_ORDER_FILE: Path | str | None = None
 # LOGGING
 # -----------------------------------------------------------------------------
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s: %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+setup_logging()
 
 # =============================================================================
 # FUNCTIONS
