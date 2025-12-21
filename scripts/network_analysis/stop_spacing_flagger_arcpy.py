@@ -584,7 +584,7 @@ def _ordered_route_stops(
 
     result: list[RouteStop] = []
     last_d: float | None = None
-    for d_val, sid, sname in zip(d_sorted, id_sorted, name_sorted):
+    for d_val, sid, sname in zip(d_sorted, id_sorted, name_sorted, strict=True):
         if last_d is None or d_val > last_d:
             result.append(RouteStop(stop_id=sid, stop_name=sname, measure=d_val))
             last_d = d_val

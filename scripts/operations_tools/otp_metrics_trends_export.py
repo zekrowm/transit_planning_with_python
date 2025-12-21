@@ -246,7 +246,8 @@ def process(df: pd.DataFrame, current_yy_mm: str) -> pd.DataFrame:
         # Keep but mark; user can inspect if needed.
         n_bad = int(bad.sum())
         print(
-            f"[WARN] Found {n_bad} rows with unrecognized DOW values; they will be ignored in DOW-specific plots."
+            f"[WARN] Found {n_bad} rows with unrecognized DOW values; "
+            "they will be ignored in DOW-specific plots."
         )
 
     for col in ("on_time", "early", "late"):
