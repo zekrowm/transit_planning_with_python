@@ -684,9 +684,7 @@ def export_stop_maps(
     sidewalks_backdrop = _load_backdrop_layer_for_plots(PLOT_SIDEWALKS_SHP, crs)
 
     # Quick lookups
-    geom_by_id: dict[str, Point] = dict(
-        zip(stops.stop_id.astype(str), stops.geometry, strict=True)
-    )
+    geom_by_id: dict[str, Point] = dict(zip(stops.stop_id.astype(str), stops.geometry, strict=True))
     name_by_id: dict[str, str] = dict(
         zip(
             stops.stop_id.astype(str),

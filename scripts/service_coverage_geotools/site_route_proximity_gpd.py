@@ -174,8 +174,7 @@ def _nearby_routes(
         )
 
         pair_set = {
-            (r, d)
-            for r, d in zip(nearest.route_short_name, nearest.direction_id, strict=True)
+            (r, d) for r, d in zip(nearest.route_short_name, nearest.direction_id, strict=True)
         }
         routes = ", ".join(sorted(f"{r} (dir {d})" for r, d in pair_set))
         stops = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
