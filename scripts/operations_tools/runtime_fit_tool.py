@@ -893,7 +893,7 @@ def suggest_time_bands(
     breaks = _fisher_jenks(df["runtime_p85_min"].to_numpy(), k=k)
 
     labels = np.zeros(n, dtype=int)
-    for i, b in enumerate(breaks, start=1):
+    for _i, b in enumerate(breaks, start=1):
         labels[b:] += 1
     df["_band"] = labels
 

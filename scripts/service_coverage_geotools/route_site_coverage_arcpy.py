@@ -813,7 +813,10 @@ def _build_route_geometry_from_shapes(
             continue
         seg.sort_values("shape_pt_sequence", inplace=True)
 
-        pts = [arcpy.Point(lon, lat) for lon, lat in zip(seg["shape_pt_lon"], seg["shape_pt_lat"])]
+        pts = [
+            arcpy.Point(lon, lat)
+            for lon, lat in zip(seg["shape_pt_lon"], seg["shape_pt_lat"], strict=True)
+        ]
         if len(pts) < 2:
             continue
 
