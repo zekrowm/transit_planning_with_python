@@ -39,7 +39,7 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 
 ## 🧪 Testing & Review
 
-- All commits must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
+- All commits and **Pull Request titles** must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
 - All pull requests are automatically tested for:
   - Style and formatting using `ruff`.
   - Static typing using `ty`.
@@ -115,6 +115,7 @@ Follow these instructions when contributing code via GitHub:
    git push -u origin feature/your-descriptive-feature-name
    ```
 6. **Open a Pull Request.**
+   - Title your Pull Request using [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
    - Clearly describe your changes, referencing any related issues.
 7. **Respond to feedback.**
    - Update your PR with suggested changes until your contribution is approved.
