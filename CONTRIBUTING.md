@@ -39,7 +39,7 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 
 ## 🧪 Testing & Review
 
-- All commits must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
+- All commits and **Pull Request titles** must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
 - All pull requests are automatically tested for:
   - Style and formatting using `ruff`.
   - Static typing using `ty`.
