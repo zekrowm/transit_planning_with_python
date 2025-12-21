@@ -2,14 +2,14 @@
 name: format-lint-typecheck
 
 on:
-  # Run only on PRs that target `main` (and when manually triggered)
+  push:
+    branches: ["main"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
 
 permissions:
-  contents: write          # allows the bot to commit to the PR’s head branch
-  pull-requests: write
+  contents: read
 
 jobs:
   format-lint:
@@ -19,107 +19,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # --------------------------------------------------------------------- 
-    # 1️⃣  Check out the PR’s head branch                                   
-    # --------------------------------------------------------------------- 
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.head_ref }}   # default is fine, but explicit for clarity
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # --------------------------------------------------------------------- 
-    # 2️⃣  Figure out which *.py files changed                               
-    # --------------------------------------------------------------------- 
-    - name: Determine changed Python files
-      id: changed
-      shell: bash
-      run: |
-        set -euo pipefail
-        BASE_SHA="${{ github.event.pull_request.base.sha }}"
-        HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-       
-        # 1. Get added / copied / modified / renamed / type‑changed *.py files.
-        CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT \
-                           "$BASE_SHA" "$HEAD_SHA" -- '*.py' | sort -u)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
 
-        # 2. Keep only those paths that still exist after the checkout.
-        EXISTING_FILES=""
-        for f in $CHANGED_FILES; do
-          [[ -f "$f" ]] && EXISTING_FILES+="$f "
-        done
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --pre "ruff>=0.4.0" ty
+          if [[ -f requirements.txt ]]; then
+            pip install -r requirements.txt
+          fi
+          pip install pandas-stubs
 
-        # 3. Publish the filtered list (trim any trailing space).
-        EXISTING_FILES=${EXISTING_FILES%% }
-        echo "files=$EXISTING_FILES" >> "$GITHUB_OUTPUT"
+      - name: Check formatting with Ruff
+        run: ruff format --check .
 
-    - name: Nothing to do
-      if: ${{ steps.changed.outputs.files == '' }}
-      run: echo "No Python files changed – skipping formatting, linting, and type checking."
+      - name: Lint with Ruff
+        run: ruff check .
 
-    # --------------------------------------------------------------------- 
-    # 3️⃣  Set up Python                                                    
-    # --------------------------------------------------------------------- 
-    - name: Set up Python
-      if: ${{ steps.changed.outputs.files != '' }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
-        cache: "pip"
-
-    # --------------------------------------------------------------------- 
-    # 4️⃣  Install tooling and project deps                                 
-    # --------------------------------------------------------------------- 
-    - name: Install Ruff + Ty
-      if: ${{ steps.changed.outputs.files != '' }}
-      run: |
-        python -m pip install --upgrade pip
-        pip install --pre "ruff>=0.4.0" ty
-
-    - name: Install project dependencies + type stubs
-      if: ${{ steps.changed.outputs.files != '' }}
-      run: |
-        if [[ -f requirements.txt ]]; then
-          pip install -r requirements.txt
-        else
-          echo "requirements.txt not found – skipping."
-        fi
-        pip install pandas-stubs
-
-    # --------------------------------------------------------------------- 
-    # 5️⃣  Ruff formatting, linting, fixing                                 
-    # --------------------------------------------------------------------- 
-    - name: Ruff – format
-      if: ${{ steps.changed.outputs.files != '' }}
-      run: |
-        ruff format ${{ steps.changed.outputs.files }}
-
-    - name: Ruff – lint & auto‑fix
-      if: ${{ steps.changed.outputs.files != '' }}
-      run: |
-        ruff check ${{ steps.changed.outputs.files }} --fix
-
-    # --------------------------------------------------------------------- 
-    # 6️⃣  Ty static type checking (non‑blocking)                           
-    # --------------------------------------------------------------------- 
-    - name: Ty – type check (informational only)
-      if: ${{ steps.changed.outputs.files != '' }}
-      continue-on-error: true
-      run: |
-        ty check ${{ steps.changed.outputs.files }}
-
-    # --------------------------------------------------------------------- 
-    # 7️⃣  Commit any Ruff fixes back to the PR branch                      
-    # --------------------------------------------------------------------- 
-    - name: Commit & push Ruff fixes
-      # Runs ONLY on pull_request events, not on `main`
-      if: ${{ github.event_name == 'pull_request' && steps.changed.outputs.files != '' }}
-      run: |
-        if [[ $(git status --porcelain) ]]; then
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -am "style: Auto‑format changed files with ruff [skip ci]"
-          git push
-        else
-          echo "Nothing to commit – changed files already tidy."
-        fi
+      - name: Type check with Ty (informational only)
+        continue-on-error: true
+        run: ty check .
