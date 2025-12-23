@@ -214,8 +214,7 @@ def build_cluster_stop_ids(
             missing = [sid for sid in id_list if sid not in existing_stop_ids]
             if missing:
                 logging.warning(
-                    "Warning: cluster '%s' references stop_id(s) not found in "
-                    "stops.txt: %s",
+                    "Warning: cluster '%s' references stop_id(s) not found in stops.txt: %s",
                     cname,
                     missing,
                 )
@@ -249,8 +248,7 @@ def build_cluster_stop_ids(
         for code in codes_str:
             if code not in code_to_ids:
                 logging.warning(
-                    "Warning: cluster '%s' references stop_code '%s' not "
-                    "found in stops.txt.",
+                    "Warning: cluster '%s' references stop_code '%s' not found in stops.txt.",
                     cname,
                     code,
                 )
@@ -380,7 +378,9 @@ def find_nearby_stops_for_clusters(
 
         if anchors.empty:
             if verbose:
-                logging.warning("Warning: no anchor stops found for cluster '%s' in stops.txt.", cname)
+                logging.warning(
+                    "Warning: no anchor stops found for cluster '%s' in stops.txt.", cname
+                )
             continue
 
         for _, arow in anchors.iterrows():
@@ -527,8 +527,7 @@ def prepend_sample_row(df: pd.DataFrame, cluster_name: str, schedule_name: str) 
         return pd.concat([pd.DataFrame([sample]), df], ignore_index=True)
     except Exception as exc:  # noqa: BLE001
         logging.error(
-            "Error creating sample row for %s (%s): %s. "
-            "Proceeding without sample row.",
+            "Error creating sample row for %s (%s): %s. Proceeding without sample row.",
             cluster_name,
             schedule_name,
             exc,
@@ -598,8 +597,7 @@ def process_cluster_slice(
     missing_first = [c for c in desired_first if c not in df.columns]
     if missing_first:
         logging.warning(
-            "Warning: expected columns missing for %s "
-            "(%s): %s",
+            "Warning: expected columns missing for %s (%s): %s",
             cluster_name,
             schedule_name,
             missing_first,
@@ -628,7 +626,9 @@ def process_cluster_slice(
     df = df.drop(columns=[c for c in to_drop if c in df.columns], errors="ignore")
 
     if not os.path.isdir(base_output_path):
-        logging.error("Error: output directory %s does not exist; cannot write Excel.", base_output_path)
+        logging.error(
+            "Error: output directory %s does not exist; cannot write Excel.", base_output_path
+        )
         return
 
     # Full-day export
@@ -660,11 +660,16 @@ def process_cluster_slice(
                     subset, cluster_name, f"{schedule_name} {win_name}"
                 )
                 export_to_excel(subset_with_sample, path_win)
-                logging.info("  Exported %s for %s (%s) to %s", win_name, cluster_name, schedule_name, path_win)
+                logging.info(
+                    "  Exported %s for %s (%s) to %s",
+                    win_name,
+                    cluster_name,
+                    schedule_name,
+                    path_win,
+                )
             except Exception as exc:  # noqa: BLE001
                 logging.error(
-                    "  Error processing window %s for %s "
-                    "(%s): %s",
+                    "  Error processing window %s for %s (%s): %s",
                     win_name,
                     cluster_name,
                     schedule_name,
@@ -739,14 +744,15 @@ def generate_gtfs_checklists() -> None:
         relevant_services = calendar.loc[service_mask, "service_id"].astype(str)
 
         if relevant_services.empty:
-            logging.info("No service_ids active for schedule '%s'; skipping schedule.", schedule_name)
+            logging.info(
+                "No service_ids active for schedule '%s'; skipping schedule.", schedule_name
+            )
             continue
 
         trips_filtered = trips[trips["service_id"].isin(relevant_services)]
         if trips_filtered.empty:
             logging.info(
-                "No trips for schedule '%s' after service_id filter; "
-                "skipping schedule.",
+                "No trips for schedule '%s' after service_id filter; skipping schedule.",
                 schedule_name,
             )
             continue
@@ -784,8 +790,7 @@ def generate_gtfs_checklists() -> None:
             cluster_slice = merged[merged["stop_id"].isin(id_list)]
             if cluster_slice.empty:
                 logging.info(
-                    "  No data found for cluster '%s' on schedule "
-                    "'%s'; skipping.",
+                    "  No data found for cluster '%s' on schedule '%s'; skipping.",
                     cname,
                     schedule_name,
                 )

@@ -73,7 +73,9 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
     # Validate and clean coordinate columns
     for col in ["stop_lat", "stop_lon"]:
         if not pd.api.types.is_numeric_dtype(df[col]):
-            logging.warning("Warning: Non-numeric values found in '%s'. Attempting conversion.", col)
+            logging.warning(
+                "Warning: Non-numeric values found in '%s'. Attempting conversion.", col
+            )
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df.dropna(subset=[col], inplace=True)
@@ -137,7 +139,9 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     coord_cols = ["shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"]
     for col in coord_cols:
         if not pd.api.types.is_numeric_dtype(df[col]):
-            logging.warning("Warning: Non-numeric values found in '%s'. Attempting conversion.", col)
+            logging.warning(
+                "Warning: Non-numeric values found in '%s'. Attempting conversion.", col
+            )
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df.dropna(subset=[col], inplace=True)

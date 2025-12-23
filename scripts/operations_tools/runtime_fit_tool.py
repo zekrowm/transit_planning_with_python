@@ -776,8 +776,7 @@ def log_low_sample_start_times(
     out.to_csv(fname, index=False)
 
     logging.warning(
-        "   ⚠  %d low‑sample start‑times logged "
-        "(<%.0f%% of median obs) ➜ %s",
+        "   ⚠  %d low‑sample start‑times logged (<%.0f%% of median obs) ➜ %s",
         len(out),
         thresh_frac * 100,
         fname.name,
@@ -1014,7 +1013,9 @@ def main() -> None:  # pragma: no cover
         # ------------------------------------------------------------------
         if SPLIT_BY_DIRECTION:
             if "Direction" not in base_df.columns:
-                logging.warning("   ⚠  'Direction' column missing; treating all rows as one direction.")
+                logging.warning(
+                    "   ⚠  'Direction' column missing; treating all rows as one direction."
+                )
                 base_df["Direction"] = "unknown"
             dir_groups = base_df.groupby("Direction", sort=False)
         else:
