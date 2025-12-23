@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 import pandas as pd
 from openpyxl import load_workbook
@@ -93,6 +93,11 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
+def _join_unique_routes(x: Any) -> str:
+    """Join unique route names."""
+    return ", ".join(sorted(pd.Series(x).dropna().unique()))
+
+
 def bin_ridership_value(value: float) -> str:
     """Convert a numeric ridership value into a categorical range.
 
@@ -148,7 +153,7 @@ def aggregate_by_stop(
                 {
                     "BOARD_ALL": "sum",
                     "ALIGHT_ALL": "sum",
-                    "ROUTE_NAME": lambda x: ", ".join(sorted(pd.Series(x).dropna().unique())),
+                    "ROUTE_NAME": _join_unique_routes,
                 }
             )
             .rename(
@@ -283,7 +288,7 @@ def filter_data(
 
 def write_to_excel(
     output_file: Path,
-    filtered_data: pd.DataDataFrame,
+    filtered_data: pd.DataFrame,
     aggregated_peaks: Dict[str, pd.DataFrame],
     all_time_aggregated: pd.DataFrame,
 ) -> None:

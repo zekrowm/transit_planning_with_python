@@ -33,6 +33,7 @@ pytest==8.3.5                # Unit testing framework
 pytest-cov                   # Test coverage reporting
 ruff                         # Linting & formatting
 ty                           # Non-blocking type checks
+mypy                         # Static type checker
 
 # ------------- Typing stubs (temporary) -------------------------------------
 pandas-stubs==2.2.*
@@ -61,5 +62,3 @@ pulp==2.9.0                  # Linear programming solver interface
 
 # Development Tools
 faker==25.8.0                # For generating fake data
-
-
