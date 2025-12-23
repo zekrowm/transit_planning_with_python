@@ -487,7 +487,7 @@ def build_monthly_timeseries(all_data: pd.DataFrame) -> pd.DataFrame:
             board_val = row["MTH_BOARD"].iat[0]
             days_val = row["DAYS"].iat[0]
             # Ensure we are converting something float-compatible
-            return float(board_val), float(days_val)  # type: ignore[arg-type]
+            return float(board_val), float(days_val)
         return 0.0, 0.0
 
     rows: list[dict[str, Any]] = []
