@@ -257,7 +257,8 @@ def create_route_workbooks(data_frame: pd.DataFrame) -> None:
     for route_name, route_df in data_frame.groupby("ROUTE_NAME", sort=False):
         wb = Workbook()
         default_sheet = wb.active
-        wb.remove(default_sheet)
+        if default_sheet:
+            wb.remove(default_sheet)
 
         # Within each route, group by DIRECTION_NAME
         for direction_name, direction_df in route_df.groupby("DIRECTION_NAME", sort=False):
@@ -390,7 +391,8 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
             for _, row in violations_df.iterrows():
                 # Format TRIP_START_TIME (if it’s a time object)
                 start_val = row.get("TRIP_START_TIME", None)
-                if hasattr(start_val, "strftime"):  # datetime.time or pandas Timestamp
+                # datetime.time or pandas Timestamp
+                if start_val is not None and hasattr(start_val, "strftime"):
                     start_str = start_val.strftime("%H:%M")
                 else:
                     start_str = "" if pd.isna(start_val) else str(start_val)

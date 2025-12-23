@@ -211,7 +211,8 @@ def safe_div(
 ) -> float | None:
     """Divide with protective zero handling."""
     try:
-        return round(numerator / denominator, precision)  # type: ignore[arg-type]
+        # MyPy may complain about mixed float/int division but it's safe here
+        return round(numerator / denominator, precision)
     except (ZeroDivisionError, TypeError):
         return None
 
@@ -225,7 +226,8 @@ def normalise_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def read_excel_data() -> dict[str, pd.DataFrame]:
     """Load, clean, and filter every monthly workbook."""
-    converters = {col: safe_float for col in REQUIRED_NUMERIC_COLS}
+    # Cast converters to Any to bypass MyPy strictness on Mapping/Dict variance
+    converters: Any = {col: safe_float for col in REQUIRED_NUMERIC_COLS}
     data: dict[str, pd.DataFrame] = {}
 
     for period in ORDERED_PERIODS:
@@ -385,8 +387,8 @@ def detect_negative_trends_12m(
             vals = pd.to_numeric(grp[metric], errors="coerce")
 
             # Build exclusion mask
-            excl_mask = [_is_excluded(p, route) for p in periods]
-            vals = vals.mask(excl_mask)  # convert excluded to NaN
+            excl_mask = [_is_excluded(p, str(route)) for p in periods]
+            vals = vals.mask(pd.Series(excl_mask, index=vals.index))  # convert excluded to NaN
 
             if vals.notna().sum() < window + 1:
                 continue  # not enough data overall
@@ -479,7 +481,14 @@ def build_monthly_timeseries(all_data: pd.DataFrame) -> pd.DataFrame:
 
     def _sum_pair(dfsub: pd.DataFrame, daytype: str) -> tuple[float, float]:
         row = dfsub.loc[dfsub["SERVICE_PERIOD"] == daytype]
-        return (row["MTH_BOARD"].iat[0], row["DAYS"].iat[0]) if not row.empty else (0, 0)
+        if not row.empty:
+            # iat[0] returns a scalar that MyPy sees as very broad.
+            # Explicit cast or float conversion helps.
+            board_val = row["MTH_BOARD"].iat[0]
+            days_val = row["DAYS"].iat[0]
+            # Ensure we are converting something float-compatible
+            return float(board_val), float(days_val)  # type: ignore[arg-type]
+        return 0.0, 0.0
 
     rows: list[dict[str, Any]] = []
     for (period, route), grp in agg.groupby(["period", "ROUTE_NAME"]):

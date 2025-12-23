@@ -46,3 +46,6 @@ jobs:
       - name: Type check with Ty (informational only)
         continue-on-error: true
         run: ty check .
+
+      - name: Type check with Mypy (ridership_tools)
+        run: mypy scripts/ridership_tools

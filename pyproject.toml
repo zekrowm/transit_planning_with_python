@@ -36,6 +36,16 @@ python-version = "3.12"
 [tool.ty.rules]
 unresolved-import = "warn"        # C-extension libs without stubs
 
+# ----------------------------------------------------------------
+# mypy
+# ----------------------------------------------------------------
+[tool.mypy]
+files = ["scripts/ridership_tools"]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true
+show_error_codes = true
+
 # ================================================================
 # COMMIT MESSAGE LINTING
 # ================================================================
