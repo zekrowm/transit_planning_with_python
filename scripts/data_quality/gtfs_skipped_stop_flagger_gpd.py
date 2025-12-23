@@ -23,6 +23,7 @@ Configuration section below.
 
 from __future__ import annotations
 
+import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -444,9 +445,10 @@ def build_route_id_whitelist(
 
     if route_name_whitelist:
         if route_name_field not in routes_df.columns:
-            print(
+            logging.warning(
                 "Warning: routes.txt does not contain the route name field "
-                f"'{route_name_field}'. Route name whitelist will be ignored."
+                "'%s'. Route name whitelist will be ignored.",
+                route_name_field,
             )
             return result
 
@@ -1072,17 +1074,17 @@ def plot_mismatch_segment(
     other_geom = route_shapes_geo.get(other_key)
 
     if base_seq is None or other_seq is None:
-        print(f"Skipping plot: missing sequences for {base_key} or {other_key}.")
+        logging.info("Skipping plot: missing sequences for %s or %s.", base_key, other_key)
         return None
     if base_geom is None or other_geom is None:
-        print(f"Skipping plot: missing shapes for {base_key} or {other_key}.")
+        logging.info("Skipping plot: missing shapes for %s or %s.", base_key, other_key)
         return None
 
     try:
         i0, i1 = _find_segment_indices(base_seq, start_key, end_key)
         j0, j1 = _find_segment_indices(other_seq, start_key, end_key)
     except KeyError as exc:
-        print(f"Skipping plot for {base_key} vs {other_key}: {exc}")
+        logging.info("Skipping plot for %s vs %s: %s", base_key, other_key, exc)
         return None
 
     base_segment_keys = base_seq[i0 : i1 + 1]
@@ -1188,7 +1190,7 @@ def plot_mismatch_segment(
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
-    print(f"Saved plot: {out_path}")
+    logging.info("Saved plot: %s", out_path)
     return out_path
 
 
@@ -1406,7 +1408,7 @@ def plot_route_pair_overview(
     fig.savefig(out_path_combined, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
-    print(f"Saved overview plot: {out_path_combined}")
+    logging.info("Saved overview plot: %s", out_path_combined)
 
     # --------------------------------------------------------------------- #
     # 2) Side-by-side plot
@@ -1496,7 +1498,7 @@ def plot_route_pair_overview(
     fig2.savefig(out_path_side, dpi=150, bbox_inches="tight")
     plt.close(fig2)
 
-    print(f"Saved side-by-side overview plot: {out_path_side}")
+    logging.info("Saved side-by-side overview plot: %s", out_path_side)
 
     return out_path_combined
 
@@ -1513,7 +1515,7 @@ def prepare_gtfs_context() -> GTFSContext:
         GTFSContext containing DataFrames, GeoDataFrames, sequences, shapes,
         and route key sets.
     """
-    print(f"Loading GTFS tables from: {GTFS_DIR}")
+    logging.info("Loading GTFS tables from: %s", GTFS_DIR)
     tables = load_gtfs_tables(GTFS_DIR)
 
     stops_df = tables["stops"]
@@ -1529,14 +1531,14 @@ def prepare_gtfs_context() -> GTFSContext:
         route_id_whitelist={str(x) for x in ROUTE_ID_WHITELIST},
     )
 
-    print("Building shapes GeoDataFrame...")
+    logging.info("Building shapes GeoDataFrame...")
     shapes_gdf_geo = build_shapes_gdf(shapes_df, GTFS_CRS)
     shapes_gdf_proj = shapes_gdf_geo.to_crs(PROJECTED_CRS)
 
-    print("Selecting representative shapes per (route, direction)...")
+    logging.info("Selecting representative shapes per (route, direction)...")
     reps = select_representative_shapes(trips_df)
 
-    print(
+    logging.info(
         "Choosing representative trip_ids per (route, direction) based on "
         "trips with the most stops..."
     )
@@ -1545,11 +1547,11 @@ def prepare_gtfs_context() -> GTFSContext:
         stop_times_df=stop_times_df,
     )
 
-    print("Building stop key and name lookups...")
+    logging.info("Building stop key and name lookups...")
     stop_key_lookup = build_stop_key_lookup(stops_df, STOP_KEY_FIELD)
     stop_names = build_stop_names_lookup(stops_df, STOP_KEY_FIELD)
 
-    print("Building route sequences from representative trips...")
+    logging.info("Building route sequences from representative trips...")
     route_sequences = build_route_sequences(
         stop_times_df=stop_times_df,
         stop_key_lookup=stop_key_lookup,
@@ -1557,7 +1559,7 @@ def prepare_gtfs_context() -> GTFSContext:
     )
 
     if not route_sequences:
-        print("No route sequences could be built. Nothing to compare.")
+        logging.info("No route sequences could be built. Nothing to compare.")
         return GTFSContext(
             stops_df=stops_df,
             trips_df=trips_df,
@@ -1576,11 +1578,11 @@ def prepare_gtfs_context() -> GTFSContext:
             route_id_whitelist=route_id_whitelist,
         )
 
-    print("Building route shapes for plotting and distance calculations...")
+    logging.info("Building route shapes for plotting and distance calculations...")
     route_shapes_geo = build_route_shapes_from_reps(reps, shapes_gdf_geo)
     route_shapes_proj = build_route_shapes_from_reps(reps, shapes_gdf_proj)
 
-    print("Building stops GeoDataFrames...")
+    logging.info("Building stops GeoDataFrames...")
     stops_gdf_geo = build_stops_gdf(stops_df, GTFS_CRS, STOP_KEY_FIELD)
     stops_gdf_proj = stops_gdf_geo.to_crs(PROJECTED_CRS)
 
@@ -1593,8 +1595,10 @@ def prepare_gtfs_context() -> GTFSContext:
 
     base_keys = [key for key in base_keys if key[0] not in route_id_whitelist]
 
-    print(
-        f"Prepared {len(all_route_keys)} route/direction pairs; {len(base_keys)} selected as base."
+    logging.info(
+        "Prepared %d route/direction pairs; %d selected as base.",
+        len(all_route_keys),
+        len(base_keys),
     )
 
     return GTFSContext(
@@ -1638,9 +1642,10 @@ def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
     if not ctx.route_sequences:
         return pd.DataFrame()
 
-    print(
-        f"Comparing segments for {len(ctx.base_route_keys)} base route/direction "
-        f"pairs out of {len(ctx.all_route_keys)} total."
+    logging.info(
+        "Comparing segments for %d base route/direction pairs out of %d total.",
+        len(ctx.base_route_keys),
+        len(ctx.all_route_keys),
     )
 
     results: List[Dict[str, object]] = []
@@ -1651,7 +1656,7 @@ def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
         if base_seq is None:
             continue
 
-        print(f"  Base route {base_route_id} (direction {base_dir})")
+        logging.info("  Base route %s (direction %s)", base_route_id, base_dir)
 
         for other_key in ctx.all_route_keys:
             if other_key == base_key:
@@ -1685,7 +1690,7 @@ def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
                 results.extend(segment_results)
 
     if not results:
-        print("No segment-level stop mismatches were identified.")
+        logging.info("No segment-level stop mismatches were identified.")
         return pd.DataFrame()
 
     df = pd.DataFrame(results)
@@ -1700,7 +1705,7 @@ def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
         ]
     ).reset_index(drop=True)
 
-    print(f"Identified {len(df)} mismatched segments for review.")
+    logging.info("Identified %d mismatched segments for review.", len(df))
     return df
 
 
@@ -1719,7 +1724,7 @@ def run_plotting(ctx: GTFSContext, mismatches_df: pd.DataFrame) -> None:
     """
     # Case 1: we have real segment mismatches -> plot them.
     if not mismatches_df.empty:
-        print(f"Generating plots in: {PLOT_DIR}")
+        logging.info("Generating plots in: %s", PLOT_DIR)
         for _, row in mismatches_df.iterrows():
             plot_mismatch_segment(
                 row=row,
@@ -1732,7 +1737,7 @@ def run_plotting(ctx: GTFSContext, mismatches_df: pd.DataFrame) -> None:
 
     # Case 2: no mismatches -> optional overview plots, but only where
     # there is a meaningful shared interior stop.
-    print(
+    logging.info(
         "Mismatch DataFrame is empty; generating filtered overview plots only "
         "for route pairs that share interior stops."
     )
@@ -1773,12 +1778,13 @@ def run_plotting(ctx: GTFSContext, mismatches_df: pd.DataFrame) -> None:
 
 def main() -> None:
     """Entry point for running the segment stop comparison QA check."""
+    logging.basicConfig(level=logging.INFO)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     try:
         ctx = prepare_gtfs_context()
     except (FileNotFoundError, ValueError) as exc:
-        print(f"Error during GTFS preparation: {exc}", file=sys.stderr)
+        logging.error("Error during GTFS preparation: %s", exc)
         sys.exit(1)
 
     if not ctx.route_sequences:
@@ -1788,13 +1794,13 @@ def main() -> None:
     try:
         mismatches_df = run_segment_comparison(ctx)
     except (FileNotFoundError, ValueError) as exc:
-        print(f"Error during segment comparison: {exc}", file=sys.stderr)
+        logging.error("Error during segment comparison: %s", exc)
         sys.exit(1)
 
     # Always write the CSV, even if it's empty.
     output_path = OUTPUT_DIR / OUTPUT_FILENAME
     mismatches_df.to_csv(output_path, index=False)
-    print(f"Results exported to: {output_path}")
+    logging.info("Results exported to: %s", output_path)
 
     # Always run plotting; it already knows how to handle the empty case.
     run_plotting(ctx, mismatches_df)

@@ -14,6 +14,7 @@ Features:
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -230,7 +231,7 @@ def read_excel_data() -> dict[str, pd.DataFrame]:
     for period in ORDERED_PERIODS:
         spec = PERIODS[period]
         path: Path = DATA_ROOT / spec.filename
-        print(f"→ Reading {period:<8} ({spec.filename}) … ", end="", flush=True)
+        logging.info("→ Reading %s (%s) … ", period, spec.filename)
 
         # --- load ---------------------------------------------------------- #
         df = pd.read_excel(path, sheet_name=spec.sheet, converters=converters)
@@ -258,7 +259,7 @@ def read_excel_data() -> dict[str, pd.DataFrame]:
         )
 
         data[period] = df
-        print(f"{len(df):,} rows")
+        logging.info("%d rows", len(df))
 
     return data
 
@@ -428,7 +429,7 @@ def write_trend_log(df_flags: pd.DataFrame, output_dir: Path = OUTPUT_DIR) -> Pa
     out_path = output_dir / "NegativeTrendFlags.txt"
 
     if df_flags.empty:
-        print("No negative trends detected.")
+        logging.info("No negative trends detected.")
         # create/overwrite an empty file to avoid downstream errors
         out_path.write_text("# No negative trends detected.\n", encoding="utf-8")
         return out_path
@@ -450,7 +451,7 @@ def write_trend_log(df_flags: pd.DataFrame, output_dir: Path = OUTPUT_DIR) -> Pa
         lines.append("")  # blank line between routes
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
-    print(f"Trend log written → {out_path}")
+    logging.info("Trend log written → %s", out_path)
     return out_path
 
 
@@ -598,7 +599,7 @@ def generate_all_plots(df_time: pd.DataFrame) -> None:
     }
     for flag, col in metric_map.items():
         if PLOT_CONFIG.get(flag, False):
-            print(f"Plotting {col} …")
+            logging.info("Plotting %s …", col)
             plot_metric_over_time(df_time, col)
 
 
@@ -620,11 +621,11 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # === STEP 1: READ EXCEL FILES ============================================
-    print("=== STEP 1: READ EXCEL FILES ===")
+    logging.info("=== STEP 1: READ EXCEL FILES ===")
     data_dict = read_excel_data()
 
     # === STEP 2: CLASSIFY & DERIVE ===========================================
-    print("\n=== STEP 2: CLASSIFY & DERIVE ===")
+    logging.info("\n=== STEP 2: CLASSIFY & DERIVE ===")
     for period, df in data_dict.items():
         df["service_type"] = df["ROUTE_NAME"].apply(classify_route)
         df["corridors"] = df["ROUTE_NAME"].apply(classify_corridor)
@@ -640,26 +641,26 @@ def main() -> None:
         .sort_values()
     )
     if not unknown.empty:
-        print("Unclassified routes:", ", ".join(unknown))
+        logging.info("Unclassified routes: %s", ", ".join(unknown))
 
     # === STEP 3: EXPORT COMPLETE DATASETS ====================================
-    print("\n=== STEP 3: EXPORT COMPLETE DATASETS ===")
+    logging.info("\n=== STEP 3: EXPORT COMPLETE DATASETS ===")
 
     # 3.1  Master CSV (all periods) – single file for pipelines
     all_data.to_csv(
         OUTPUT_DIR / "DetailedAllPeriods_for_plotting.csv",
         index=False,
     )
-    print("Combined CSV exported.")
+    logging.info("Combined CSV exported.")
 
     # 3.2  Convenience workbook – one sheet per month (no giant sheet)
     with pd.ExcelWriter(OUTPUT_DIR / "MonthlySheets.xlsx") as xw:
         for period in ORDERED_PERIODS:
             data_dict[period].to_excel(xw, sheet_name=period, index=False)
-    print("Monthly workbook exported.")
+    logging.info("Monthly workbook exported.")
 
     # === STEP 4: ROUTE-LEVEL SUMMARIES (FULL FY-25) ==========================
-    print("\n=== STEP 4: ROUTE-LEVEL SUMMARIES ===")
+    logging.info("\n=== STEP 4: ROUTE-LEVEL SUMMARIES ===")
     subsets = {
         "Combined": all_data,
         "Weekday": all_data[all_data["SERVICE_PERIOD"] == "Weekday"],
@@ -670,27 +671,32 @@ def main() -> None:
         out = route_level_summary(subset)
         with pd.ExcelWriter(OUTPUT_DIR / f"RouteLevelSummary_{label}.xlsx") as xw:
             out.to_excel(xw, sheet_name=f"{label}_Route_Level", index=False)
-        print(f"{label} summary exported.")
+        logging.info("%s summary exported.", label)
 
     # === STEP 5: TIME-SERIES PLOTS ===========================================
-    print("\n=== STEP 5: TIME-SERIES PLOTS ===")
+    logging.info("\n=== STEP 5: TIME-SERIES PLOTS ===")
     ts = build_monthly_timeseries(all_data)
     generate_all_plots(ts)
 
     # === STEP 5B: TREND FLAGGING (12‑mo baseline) ============================
-    print("\n=== TREND FLAGGING (12‑mo baseline) ===")
+    logging.info("\n=== TREND FLAGGING (12‑mo baseline) ===")
     flags = detect_negative_trends_12m(ts)
     write_trend_log(flags)
 
     # === STEP 6: USER-DEFINED TIME WINDOWS ===================================
-    print("\n=== STEP 6: TIME-WINDOW OUTPUTS ===")
+    logging.info("\n=== STEP 6: TIME-WINDOW OUTPUTS ===")
     for tw in TIME_WINDOWS:
         w_dir = OUTPUT_DIR / tw.label
         w_dir.mkdir(parents=True, exist_ok=True)
 
         subset = slice_for_window(all_data, tw)
         if subset.empty:
-            print(f"⚠︎ {tw.label}: no rows inside {tw.start:%Y-%m-%d} → {tw.end:%Y-%m-%d}")
+            logging.info(
+                "⚠︎ %s: no rows inside %s → %s",
+                tw.label,
+                tw.start.strftime("%Y-%m-%d"),
+                tw.end.strftime("%Y-%m-%d"),
+            )
             continue
 
         # 6.1  Raw slice (complete FY etc.) → CSV only
@@ -720,10 +726,11 @@ def main() -> None:
             index=False,
         )
 
-        print(f"{tw.label}: {len(subset):,} rows → {w_dir.relative_to(OUTPUT_DIR)}")
+        logging.info("%s: %d rows → %s", tw.label, len(subset), w_dir.relative_to(OUTPUT_DIR))
 
-    print("\nAll processing complete.")
+    logging.info("\nAll processing complete.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

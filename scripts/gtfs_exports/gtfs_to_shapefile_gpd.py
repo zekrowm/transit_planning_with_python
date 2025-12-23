@@ -13,6 +13,7 @@ Outputs:
     - `gtfs_lines.shp`: Shapefile of transit route line geometries
 """
 
+import logging
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -72,18 +73,21 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
     # Validate and clean coordinate columns
     for col in ["stop_lat", "stop_lon"]:
         if not pd.api.types.is_numeric_dtype(df[col]):
-            print(f"Warning: Non-numeric values found in '{col}'. Attempting conversion.")
+            logging.warning(
+                "Warning: Non-numeric values found in '%s'. Attempting conversion.", col
+            )
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df.dropna(subset=[col], inplace=True)
             if len(df) < original_count:
-                print(
-                    f"Warning: Dropped {original_count - len(df)} stops "
-                    f"due to invalid values in '{col}'."
+                logging.warning(
+                    "Warning: Dropped %d stops due to invalid values in '%s'.",
+                    original_count - len(df),
+                    col,
                 )
 
     if df.empty:
-        print("Warning: No valid stop data found after cleaning.")
+        logging.warning("Warning: No valid stop data found after cleaning.")
         return gpd.GeoDataFrame(columns=list(required) + ["geometry"], geometry=[], crs=GTFS_CRS)
 
     try:
@@ -118,7 +122,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     """
     file_path = gtfs_dir / "shapes.txt"
     if not file_path.exists():
-        print("Info: Optional file 'shapes.txt' not found. Skipping shapes.")
+        logging.info("Info: Optional file 'shapes.txt' not found. Skipping shapes.")
         return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
 
     try:
@@ -135,18 +139,21 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     coord_cols = ["shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"]
     for col in coord_cols:
         if not pd.api.types.is_numeric_dtype(df[col]):
-            print(f"Warning: Non-numeric values found in '{col}'. Attempting conversion.")
+            logging.warning(
+                "Warning: Non-numeric values found in '%s'. Attempting conversion.", col
+            )
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df.dropna(subset=[col], inplace=True)
             if len(df) < original_count:
-                print(
-                    f"Warning: Dropped {original_count - len(df)} shape points "
-                    f"due to invalid values in '{col}'."
+                logging.warning(
+                    "Warning: Dropped %d shape points due to invalid values in '%s'.",
+                    original_count - len(df),
+                    col,
                 )
 
     if df.empty:
-        print("Warning: No valid shape point data found after cleaning.")
+        logging.warning("Warning: No valid shape point data found after cleaning.")
         return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
 
     # Ensure sequence is integer and sort points correctly
@@ -159,7 +166,9 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
         for shape_id, group in df.groupby("shape_id", sort=False):
             coordinates = list(zip(group["shape_pt_lon"], group["shape_pt_lat"], strict=True))
             if len(coordinates) < 2:
-                print(f"Warning: Shape ID {shape_id} skipped: has fewer than 2 valid points.")
+                logging.warning(
+                    "Warning: Shape ID %s skipped: has fewer than 2 valid points.", shape_id
+                )
                 continue
             line = LineString(coordinates)
             records.append({"shape_id": shape_id, "geometry": line})
@@ -167,7 +176,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
         raise ValueError(f"Shape geometry creation failed: {e}") from e
 
     if not records:
-        print("Warning: No valid line geometries constructed from shapes.txt.")
+        logging.warning("Warning: No valid line geometries constructed from shapes.txt.")
         return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
 
     gdf = gpd.GeoDataFrame(records, crs=GTFS_CRS)
@@ -187,7 +196,7 @@ def export_gdf(gdf: gpd.GeoDataFrame, out_path: Path) -> None:
         IOError: If the file cannot be written.
     """
     if gdf.empty:
-        print(f"Info: Skipping export for {out_path.name}: No data.")
+        logging.info("Info: Skipping export for %s: No data.", out_path.name)
         return
 
     try:
@@ -195,7 +204,7 @@ def export_gdf(gdf: gpd.GeoDataFrame, out_path: Path) -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         # Export to Shapefile
         gdf.to_file(out_path, driver="ESRI Shapefile", index=False)
-        print(f"Successfully exported {len(gdf)} features to: {out_path}")
+        logging.info("Successfully exported %d features to: %s", len(gdf), out_path)
     except Exception as e:
         # Raise as an IOError for clearer upstream handling
         raise IOError(f"Could not write shapefile {out_path}: {e}") from e
@@ -240,12 +249,12 @@ def gtfs_to_shapefiles(
     if resolved_output_dir is None:
         raise ValueError("Output directory is not specified and no default is set.")
 
-    print("-" * 50)
-    print("Starting GTFS to Shapefile conversion...")
-    print(f"Input GTFS Directory: {resolved_gtfs_dir}")
-    print(f"Output Directory: {resolved_output_dir}")
-    print(f"Export Type: {kind}")
-    print("-" * 50)
+    logging.info("-" * 50)
+    logging.info("Starting GTFS to Shapefile conversion...")
+    logging.info("Input GTFS Directory: %s", resolved_gtfs_dir)
+    logging.info("Output Directory: %s", resolved_output_dir)
+    logging.info("Export Type: %s", kind)
+    logging.info("-" * 50)
 
     if not resolved_gtfs_dir.is_dir():
         raise NotADirectoryError(
@@ -260,36 +269,38 @@ def gtfs_to_shapefiles(
 
     # --- Process Stops ---
     if kind in ("stops", "both"):
-        print("\nProcessing Stops...")
+        logging.info("\nProcessing Stops...")
         try:
             stops_gdf = read_stops(resolved_gtfs_dir)
             export_gdf(stops_gdf, resolved_output_dir / "gtfs_stops.shp")
         except (FileNotFoundError, ValueError, IOError, NotADirectoryError) as e:
-            print(f"ERROR processing stops: {e}")
+            logging.error("ERROR processing stops: %s", e)
             # Decide if you want to stop or continue if stops fail
             # raise # Uncomment to stop execution on error
         except Exception as e:
-            print(f"An unexpected error occurred during stops processing: {e}")
+            logging.error("An unexpected error occurred during stops processing: %s", e)
             # raise # Uncomment to stop execution on error
 
     # --- Process Shapes (Lines) ---
     if kind in ("lines", "both"):
-        print("\nProcessing Shapes (Lines)...")
+        logging.info("\nProcessing Shapes (Lines)...")
         try:
             lines_gdf = read_shapes(resolved_gtfs_dir)
             export_gdf(lines_gdf, resolved_output_dir / "gtfs_lines.shp")
         except (ValueError, IOError) as e:
-            print(f"ERROR processing shapes: {e}")
+            logging.error("ERROR processing shapes: %s", e)
             # raise # Uncomment to stop execution on error
         except Exception as e:
-            print(f"An unexpected error occurred during shapes processing: {e}")
+            logging.error("An unexpected error occurred during shapes processing: %s", e)
             # raise # Uncomment to stop execution on error
 
-    print("-" * 50)
-    print("Conversion finished.")
+    logging.info("-" * 50)
+    logging.info("Conversion finished.")
     # Provide context requested
-    print(f"Current time: {pd.Timestamp.now(tz='US/Eastern').strftime('%Y-%m-%d %H:%M:%S %Z')}")
-    print("-" * 50)
+    logging.info(
+        "Current time: %s", pd.Timestamp.now(tz="US/Eastern").strftime("%Y-%m-%d %H:%M:%S %Z")
+    )
+    logging.info("-" * 50)
 
 
 # ===========================================================================
@@ -306,7 +317,7 @@ def main() -> None:
     """
     # Scenario 1: Use default paths configured at the top of the file
     # Make sure DEFAULT_GTFS_DIR and DEFAULT_OUTPUT_DIR are set correctly above!
-    print("\nRunning example using default paths from configuration...")
+    logging.info("\nRunning example using default paths from configuration...")
     try:
         # Check if defaults are actually set before running
         if DEFAULT_GTFS_DIR and DEFAULT_OUTPUT_DIR:
@@ -314,7 +325,7 @@ def main() -> None:
             # In real use, you'd point the defaults to existing data.
             if not DEFAULT_GTFS_DIR.exists():
                 DEFAULT_GTFS_DIR.mkdir(parents=True)
-                print(f"Created dummy GTFS dir: {DEFAULT_GTFS_DIR}")
+                logging.info("Created dummy GTFS dir: %s", DEFAULT_GTFS_DIR)
                 # Add dummy files if dir was just created
                 with open(DEFAULT_GTFS_DIR / "stops.txt", "w") as f:
                     f.write("stop_id,stop_name,stop_lat,stop_lon\nS1,Stop 1,38.8,-77.0")
@@ -325,18 +336,18 @@ def main() -> None:
 
             if not DEFAULT_OUTPUT_DIR.exists():
                 DEFAULT_OUTPUT_DIR.mkdir(parents=True)
-                print(f"Created dummy Output dir: {DEFAULT_OUTPUT_DIR}")
+                logging.info("Created dummy Output dir: %s", DEFAULT_OUTPUT_DIR)
 
             # Call the core function without path arguments
             gtfs_to_shapefiles(kind="both")
         else:
-            print("Skipping default path example: Default paths not configured.")
+            logging.info("Skipping default path example: Default paths not configured.")
 
     except Exception as e:
-        print(f"ERROR during default path example: {e}")
+        logging.error("ERROR during default path example: %s", e)
 
     # Scenario 2: Override default paths by providing arguments
-    print("\nRunning example overriding default paths...")
+    logging.info("\nRunning example overriding default paths...")
     try:
         # Define specific paths for this run
         specific_gtfs_path = Path("./example_gtfs_data")
@@ -356,7 +367,7 @@ def main() -> None:
             kind="stops",  # Only export stops for this example
         )
     except Exception as e:
-        print(f"ERROR during specific path example: {e}")
+        logging.error("ERROR during specific path example: %s", e)
 
     # Optional cleanup of example directories (uncomment if desired)
     # import shutil
@@ -368,4 +379,5 @@ def main() -> None:
 if __name__ == "__main__":
     # This block executes only when the script is run directly.
     # It calls the main() function which contains the example usage scenarios.
+    logging.basicConfig(level=logging.INFO)
     main()

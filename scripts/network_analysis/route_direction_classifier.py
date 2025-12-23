@@ -16,6 +16,7 @@ Outputs:
     - Suspicious_RouteDirections.xlsx (if inconsistencies are found)
 """
 
+import logging
 import math
 import os
 
@@ -353,9 +354,9 @@ def flag_suspicious_data(summary: pd.DataFrame) -> None:
     if not flagged_df.empty:
         flagged_df_path = os.path.join(OUTPUT_FOLDER, "Suspicious_RouteDirections.xlsx")
         flagged_df.to_excel(flagged_df_path, index=False)
-        print(f"[INFO] Suspicious combinations flagged. See {flagged_df_path}.")
+        logging.info("[INFO] Suspicious combinations flagged. See %s.", flagged_df_path)
     else:
-        print("[INFO] No suspicious route/direction combos found.")
+        logging.info("[INFO] No suspicious route/direction combos found.")
 
 
 # =============================================================================
@@ -423,8 +424,9 @@ def main() -> None:
     # Step 8: Flag suspicious data
     flag_suspicious_data(summary)
 
-    print("Script execution completed.")
+    logging.info("Script execution completed.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

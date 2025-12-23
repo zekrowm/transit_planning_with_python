@@ -126,7 +126,7 @@ def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
         folders are created automatically.
     """
     if data_frame.empty:
-        print(f"No data to export to {output_file}")
+        logging.info("No data to export to %s", output_file)
         return
 
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -157,7 +157,7 @@ def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
                     max_len = max(max_len, len(str(val)))
             worksheet.column_dimensions[col_letter].width = min(max_len + 2, MAX_COLUMN_WIDTH)
 
-    print(f"Exported: {output_file}")
+    logging.info("Exported: %s", output_file)
 
 
 def filter_data(
@@ -193,7 +193,7 @@ def filter_data(
             .unique()
         )
         if len(blocks_for_selected_routes) == 0:
-            print("No blocks found with the specified route short names.")
+            logging.info("No blocks found with the specified route short names.")
             return pd.DataFrame(), pd.DataFrame()
 
         trips_df = trips_df[trips_df["block_id"].isin(blocks_for_selected_routes)]
@@ -274,7 +274,7 @@ def export_blocks(stop_times_df: pd.DataFrame) -> None:
         ``BASE_OUTPUT_PATH``; creates the folder tree if needed.
     """
     all_blocks = stop_times_df["block_id"].unique()
-    print(f"Found {len(all_blocks)} blocks to export.\n")
+    logging.info("Found %d blocks to export.\n", len(all_blocks))
 
     for block_id in all_blocks:
         block_subset = stop_times_df[stop_times_df["block_id"] == block_id].copy()

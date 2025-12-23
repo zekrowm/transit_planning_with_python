@@ -27,6 +27,7 @@ Output:
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import re
 import sys
@@ -194,7 +195,7 @@ def export_tables_and_log(
         output_dir: Folder where all output files and the log are written.
     """
     if WRITE_LOG and not ADD_TOTAL_COLUMNS:
-        print("⚠  WRITE_LOG is True but ADD_TOTAL_COLUMNS is False – logging disabled.")
+        logging.warning("⚠  WRITE_LOG is True but ADD_TOTAL_COLUMNS is False – logging disabled.")
         log_entries: list[str] = []
     else:
         log_entries: list[str] = []
@@ -219,7 +220,7 @@ def export_tables_and_log(
 
             fname = f"{slugify(str(route))}_{slugify(str(direction))}_{suffix}.csv"
             wide.to_csv(output_dir / fname, index=False)
-            print(f"✓ Wrote {fname}")
+            logging.info("✓ Wrote %s", fname)
 
         # ------------------------------------------------------------------ #
         # 1‑B.  Build the anomaly log (needs trip‑total columns)
@@ -271,9 +272,9 @@ def export_tables_and_log(
         with open(log_path, "w", encoding="utf-8") as fh:
             fh.write(header)
             fh.write("\n".join(log_entries))
-        print(f"✓ Wrote anomaly log: {log_path}")
+        logging.info("✓ Wrote anomaly log: %s", log_path)
     elif WRITE_LOG and ADD_TOTAL_COLUMNS:
-        print("✓ No trip exceeded thresholds – nothing written to log.")
+        logging.info("✓ No trip exceeded thresholds – nothing written to log.")
 
 
 # =============================================================================
@@ -292,4 +293,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

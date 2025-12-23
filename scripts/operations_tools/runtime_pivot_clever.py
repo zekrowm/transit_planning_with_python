@@ -14,6 +14,7 @@ Run the script from ArcGIS Pro’s Python window or a Jupyter notebook.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, Union
 
@@ -169,13 +170,13 @@ def check_route_validity(
     """
     is_valid = True
     if len(set(variation_values)) > 1:
-        print(f"WARNING: Multiple Variation values: {set(variation_values)}")
+        logging.warning("WARNING: Multiple Variation values: %s", set(variation_values))
         is_valid = False
 
     edges = []
     for seg in segments:
         if " - " not in seg:
-            print(f"WARNING: Malformed segment: {seg}")
+            logging.warning("WARNING: Malformed segment: %s", seg)
             is_valid = False
             continue
         start, end = seg.split(" - ")
@@ -189,14 +190,14 @@ def check_route_validity(
         start_counts[s] = start_counts.get(s, 0) + 1
     for node, count in start_counts.items():
         if count > 1:
-            print(f"WARNING: Branching at '{node}' ({count} times).")
+            logging.warning("WARNING: Branching at '%s' (%d times).", node, count)
             is_valid = False
 
     all_starts = [s for (s, _) in edges]
     all_ends = [e for (_, e) in edges]
     possible_starts = set(all_starts) - set(all_ends)
     if len(possible_starts) != 1:
-        print(f"WARNING: No unique start. Found: {possible_starts}")
+        logging.warning("WARNING: No unique start. Found: %s", possible_starts)
         is_valid = False
 
     if possible_starts:
@@ -217,12 +218,16 @@ def check_route_validity(
         chain_stops.append(next_stop)
         used_edges_count += 1
         if used_edges_count > len(edges):
-            print("WARNING: Loop detected.")
+            logging.warning("WARNING: Loop detected.")
             is_valid = False
             break
 
     if used_edges_count < len(edges):
-        print(f"WARNING: Not all segments used ({used_edges_count} of {len(edges)}).")
+        logging.warning(
+            "WARNING: Not all segments used (%d of %d).",
+            used_edges_count,
+            len(edges),
+        )
         is_valid = False
 
     return is_valid
@@ -384,7 +389,7 @@ def create_and_save_pivots(
                 csv_name = f"{dataset_label}_Route{route}_Dir{direction}_{suffix}.csv"
                 csv_path = os.path.join(output_subdir, csv_name)
                 pivot_tbl.to_csv(csv_path, float_format="%.1f")
-                print(f"Created {csv_path}")
+                logging.info("Created %s", csv_path)
 
                 direction_wrote_something = True
                 route_wrote_any_csv = True
@@ -395,7 +400,7 @@ def create_and_save_pivots(
                 pd.DataFrame(
                     {"Info": [f"No valid data for route {route}, direction {direction}."]}
                 ).to_csv(no_data_path, index=False)
-                print(f"Created {no_data_path}")
+                logging.info("Created %s", no_data_path)
 
         if not route_wrote_any_csv:
             no_data_name = f"{dataset_label}_Route{route}_NoData.csv"
@@ -403,7 +408,7 @@ def create_and_save_pivots(
             pd.DataFrame({"Info": [f"No valid data for route {route}."]}).to_csv(
                 no_data_path, index=False
             )
-            print(f"Created {no_data_path}")
+            logging.info("Created %s", no_data_path)
 
 
 def process_file(file_path: str, dataset_label: str) -> None:
@@ -417,7 +422,7 @@ def process_file(file_path: str, dataset_label: str) -> None:
         ValueError: Propagated from :func:`load_data` for unsupported file
             extensions.
     """
-    print(f"\nProcessing file: {file_path} (label='{dataset_label}')")
+    logging.info("\nProcessing file: %s (label='%s')", file_path, dataset_label)
     df = load_data(file_path)
     df = filter_routes(df, ROUTES_TO_EXCLUDE, ROUTES_TO_INCLUDE)
     convert_time_columns(df, TIME_COLUMNS)
@@ -443,23 +448,24 @@ def main() -> None:
     if WKDY_FILE_PATH:
         process_file(WKDY_FILE_PATH, "wkdy")
     else:
-        print("Skipping 'wkdy' (blank path).")
+        logging.info("Skipping 'wkdy' (blank path).")
 
     if SAT_FILE_PATH:
         process_file(SAT_FILE_PATH, "sat")
     else:
-        print("Skipping 'sat' (blank path).")
+        logging.info("Skipping 'sat' (blank path).")
 
     if SUN_FILE_PATH:
         process_file(SUN_FILE_PATH, "sun")
     else:
-        print("Skipping 'sun' (blank path).")
+        logging.info("Skipping 'sun' (blank path).")
 
     if OTHER_FILE_PATH:
         process_file(OTHER_FILE_PATH, "other")
     else:
-        print("Skipping 'other' (blank path).")
+        logging.info("Skipping 'other' (blank path).")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

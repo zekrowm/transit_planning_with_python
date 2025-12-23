@@ -14,6 +14,7 @@ Typical usage: ArcGIS Pro, Jupyter notebook, or command line.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, cast
@@ -467,8 +468,8 @@ def export_results(
         Path(out_folder) / f"{OUTPUT_CSV_PREFIX}_by_route_dir.csv",
         index=False,
     )
-    print(f"✔ Results written to {excel_path}")
-    print("  (+ parallel CSVs in the same folder)")
+    logging.info("✔ Results written to %s", excel_path)
+    logging.info("  (+ parallel CSVs in the same folder)")
 
 
 # =============================================================================
@@ -478,31 +479,32 @@ def export_results(
 
 def main() -> None:
     """Command-line entry point."""
-    print("▸ Listing observed-data files …")
+    logging.basicConfig(level=logging.INFO)
+    logging.info("▸ Listing observed-data files …")
     observed_files = list_observed_files(OBSERVED_DATA_PATH)
-    print(f"  {len(observed_files)} files found.")
+    logging.info("  %d files found.", len(observed_files))
 
     # load → clean → concatenate (still WIDE at this point)
     cleaned_frames: List[pd.DataFrame] = []
     for path in observed_files:
-        print(f"  – loading {path.name}")
+        logging.info("  – loading %s", path.name)
         wide_raw = load_single_file(path)
         wide_clean = clean_dataframe(wide_raw)
         cleaned_frames.append(wide_clean)
 
     wide_all = pd.concat(cleaned_frames, ignore_index=True)
-    print(f"✔ Combined wide DataFrame shape: {wide_all.shape}")
+    logging.info("✔ Combined wide DataFrame shape: %s", wide_all.shape)
 
     # explode to LONG, drop placeholder events, compute diffs
     events_long = longify_events(wide_all)
-    print(f"✔ Long-format events shape (after dropping placeholders): {events_long.shape}")
+    logging.info("✔ Long-format events shape (after dropping placeholders): %s", events_long.shape)
 
     # split for diagnostics
     valid_events, invalid_events = split_valid_invalid(events_long)
     export_extra_dataframes(valid_events, invalid_events, ANALYSIS_RESULTS_PATH)
 
     # summaries
-    print("▸ Calculating punctuality summaries …")
+    logging.info("▸ Calculating punctuality summaries …")
     overall_summary = summarise_punctuality(valid_events)  # 1 row
     by_route_summary = summarise_punctuality(valid_events, ["route_short_name"])
     by_route_dir_summary = summarise_punctuality(
@@ -516,7 +518,7 @@ def main() -> None:
         by_route_dir_summary,
         ANALYSIS_RESULTS_PATH,
     )
-    print("✓ All done.")
+    logging.info("✓ All done.")
 
 
 if __name__ == "__main__":

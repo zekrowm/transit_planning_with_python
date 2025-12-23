@@ -270,7 +270,7 @@ def export_summary_to_excel(totals_dict: dict, output_path: str) -> None:
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     summary_df.to_excel(output_path, index=False)
-    print(f"Exported Excel summary: {output_path}")
+    logging.info("Exported Excel summary: %s", output_path)
 
 
 def do_network_analysis(
@@ -315,12 +315,12 @@ def do_network_analysis(
         - A single shapefile (all_routes_service_buffer_data.shp)
         - A single Excel summary (all_routes_service_buffer_data.xlsx)
     """
-    print("\n=== Network-wide Analysis ===")
+    logging.info("\n=== Network-wide Analysis ===")
 
     # 1) Filter routes
     final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
     if final_routes_df.empty:
-        print("No routes remain after route filters. Aborting network analysis.")
+        logging.info("No routes remain after route filters. Aborting network analysis.")
         return
 
     # 2) Subset trips to only final routes
@@ -339,7 +339,7 @@ def do_network_analysis(
     # 5) Filter final stops
     final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
     if final_stops_df.empty:
-        print("No stops remain after stop filters. Aborting network analysis.")
+        logging.info("No stops remain after stop filters. Aborting network analysis.")
         return
 
     # 6) Convert to GeoDataFrame in projected CRS
@@ -380,15 +380,15 @@ def do_network_analysis(
     synthetic_cols = [f"synthetic_{fld}" for fld in synthetic_fields]
     totals = clipped_result[synthetic_cols].sum().round(0)
 
-    print("Network-wide totals:")
+    logging.info("Network-wide totals:")
     for col, value in totals.items():
         display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
-        print(f"  Total Synthetic {display_col}: {int(value)}")
+        logging.info("  Total Synthetic %s: %d", display_col, int(value))
 
     os.makedirs(output_dir, exist_ok=True)
     shp_path = os.path.join(output_dir, "all_routes_service_buffer_data.shp")
     clipped_result.to_file(shp_path)
-    print(f"Exported network shapefile: {shp_path}")
+    logging.info("Exported network shapefile: %s", shp_path)
 
     xlsx_path = os.path.join(output_dir, "all_routes_service_buffer_data.xlsx")
     final_dict = {col: int(val) for col, val in totals.items()}
@@ -427,11 +427,11 @@ def do_route_by_route_analysis(
       - A shapefile named R_service_buffer_data.shp
       - A summary Excel named R_service_buffer_data.xlsx
     """
-    print("\n=== Route-by-Route Analysis ===")
+    logging.info("\n=== Route-by-Route Analysis ===")
 
     final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
     if final_routes_df.empty:
-        print("No routes remain after route filters. Aborting route-by-route analysis.")
+        logging.info("No routes remain after route filters. Aborting route-by-route analysis.")
         return
 
     # Merge the relevant GTFS data
@@ -442,7 +442,7 @@ def do_route_by_route_analysis(
     # Filter stops per user-specified ID filters
     final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
     if final_stops_df.empty:
-        print("No stops remain after stop filters. Aborting route-by-route analysis.")
+        logging.info("No stops remain after stop filters. Aborting route-by-route analysis.")
         return
 
     # Convert to GeoDataFrame in projected CRS
@@ -475,12 +475,12 @@ def do_route_by_route_analysis(
     unique_route_names = dissolved_by_route_gdf["route_short_name"].unique()
 
     for route_name in unique_route_names:
-        print(f"\nProcessing route: {route_name}")
+        logging.info("\nProcessing route: %s", route_name)
         route_buffer_gdf = dissolved_by_route_gdf[
             dissolved_by_route_gdf["route_short_name"] == route_name
         ]
         if route_buffer_gdf.empty:
-            print(f"No stops found for route '{route_name}' - skipping.")
+            logging.info("No stops found for route '%s' - skipping.", route_name)
             continue
 
         clipped_result = clip_and_calculate_synthetic_fields(
@@ -491,13 +491,13 @@ def do_route_by_route_analysis(
         totals = clipped_result[synthetic_cols].sum().round(0)
         for col, val in totals.items():
             display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
-            print(f"  Total Synthetic {display_col} for route {route_name}: {int(val)}")
+            logging.info("  Total Synthetic %s for route %s: %d", display_col, route_name, int(val))
 
         # Shapefile export
         os.makedirs(output_dir, exist_ok=True)
         shp_path = os.path.join(output_dir, f"{route_name}_service_buffer_data.shp")
         clipped_result.to_file(shp_path)
-        print(f"Exported shapefile for route {route_name}: {shp_path}")
+        logging.info("Exported shapefile for route %s: %s", route_name, shp_path)
 
         # Export summary to Excel
         xlsx_path = os.path.join(output_dir, f"{route_name}_service_buffer_data.xlsx")
@@ -538,11 +538,11 @@ def do_stop_by_stop_analysis(
       - A shapefile named stop_S_service_buffer_data.shp
       - A summary Excel named stop_S_service_buffer_data.xlsx
     """
-    print("\n=== Stop-by-Stop Analysis ===")
+    logging.info("\n=== Stop-by-Stop Analysis ===")
 
     final_routes_df = get_included_routes(routes_df, routes_to_include, routes_to_exclude)
     if final_routes_df.empty:
-        print("No routes remain after route filters. Aborting stop-by-stop analysis.")
+        logging.info("No routes remain after route filters. Aborting stop-by-stop analysis.")
         return
 
     # Merge the relevant GTFS data
@@ -553,7 +553,7 @@ def do_stop_by_stop_analysis(
     # Filter stops per user-specified ID filters
     final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
     if final_stops_df.empty:
-        print("No stops remain after stop filters. Aborting stop-by-stop analysis.")
+        logging.info("No stops remain after stop filters. Aborting stop-by-stop analysis.")
         return
 
     # Convert to GeoDataFrame in projected CRS
@@ -599,15 +599,15 @@ def do_stop_by_stop_analysis(
         synthetic_cols = [f"synthetic_{f}" for f in synthetic_fields]
         totals = clipped_result[synthetic_cols].sum().round(0)
 
-        print(f"\nStop {stop_id_str} totals:")
+        logging.info("\nStop %s totals:", stop_id_str)
         for col, val in totals.items():
             display_col = str(col).replace("synthetic_", "").replace("_", " ").title()
-            print(f"  Total Synthetic {display_col}: {int(val)}")
+            logging.info("  Total Synthetic %s: %d", display_col, int(val))
 
         # Export shapefile
         shp_path = os.path.join(output_dir, f"stop_{stop_id_str}_service_buffer_data.shp")
         clipped_result.to_file(shp_path)
-        print(f"Exported shapefile for stop {stop_id_str}: {shp_path}")
+        logging.info("Exported shapefile for stop %s: %s", stop_id_str, shp_path)
 
         # Export summary to Excel
         xlsx_path = os.path.join(output_dir, f"stop_{stop_id_str}_service_buffer_data.xlsx")
@@ -733,7 +733,7 @@ def load_gtfs_data(
         try:
             df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
             data[key] = df
-            logging.info(f"Loaded {file_name} ({len(df)} records).")
+            logging.info("Loaded %s (%d records).", file_name, len(df))
 
         except pd.errors.EmptyDataError as exc:
             raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
@@ -865,7 +865,7 @@ def main() -> None:
         else:
             raise ValueError(f"Invalid ANALYSIS_MODE: {ANALYSIS_MODE}")
 
-        print("\nAnalysis completed successfully.")
+        logging.info("\nAnalysis completed successfully.")
 
     except Exception as exc:  # catch and log any error
         logging.error("Analysis terminated due to an error: %s", exc, exc_info=True)

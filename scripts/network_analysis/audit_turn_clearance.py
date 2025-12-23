@@ -32,6 +32,7 @@ Workflow:
 
 from __future__ import annotations
 
+import logging
 import re
 import sys
 import tempfile
@@ -170,7 +171,7 @@ def _load_road_centerlines(
         factor = 1.0 if "2263" in target_crs else 3.28084
         roads["geometry"] = roads.geometry.simplify(simplify_ft / factor)
 
-    print(f"Road layer: {len(roads):,} features from {Path(shp_path).name}")
+    logging.info("Road layer: %d features from %s", len(roads), Path(shp_path).name)
     return roads
 
 
@@ -223,7 +224,7 @@ def _build_stops_gdf(
     )
     gdf = gdf.merge(agg, on="stop_id", how="left")
 
-    print(f"Stops layer: {len(gdf):,} served stops.")
+    logging.info("Stops layer: %d served stops.", len(gdf))
     return gdf
 
 
@@ -267,7 +268,7 @@ def _build_routes_gdf(
         factor = 1.0 if "2263" in crs else 3.28084
         gdf["geometry"] = gdf.geometry.apply(lambda ln: ln.simplify(simplify_ft / factor))
 
-    print(f"Routes layer: {len(gdf):,} polylines.")
+    logging.info("Routes layer: %d polylines.", len(gdf))
     return gdf
 
 
@@ -415,9 +416,10 @@ def _flag_left_turn_spacing(
                     }
                 )
 
-    print(
-        f"Wrote left-turn spacing log → {log_path.name} "
-        f"({'no issues' if not flagged else f'{len(flagged):,} issues'})"
+    logging.info(
+        "Wrote left-turn spacing log → %s (%s)",
+        log_path.name,
+        "no issues" if not flagged else f"{len(flagged):,} issues",
     )
     return gpd.GeoDataFrame(flagged, crs=stops_gdf.crs)
 
@@ -438,7 +440,7 @@ def _export_flagged_pngs(
         <route_id>_dir<direction_id>_<stop_id>_<stop_name_slug>.png
     """
     if flagged_gdf.empty:
-        print("PNG export skipped – no flagged stops.")
+        logging.info("PNG export skipped – no flagged stops.")
         return
 
     png_dir = (Path(out_dir) / subdir).resolve()
@@ -537,7 +539,7 @@ def _export_flagged_pngs(
         fig.savefig(png_dir / fname, dpi=dpi, bbox_inches="tight")
         plt.close(fig)
 
-    print(f"Wrote {len(flagged_gdf):,} zoom PNGs → {png_dir}")
+    logging.info("Wrote %d zoom PNGs → %s", len(flagged_gdf), png_dir)
 
 
 # =============================================================================
@@ -550,7 +552,7 @@ def main() -> None:  # noqa: D401
     # -------------------------------------------------------------
     # STEP 0 — Read & validate GTFS
     # -------------------------------------------------------------
-    print("Reading GTFS …")
+    logging.info("Reading GTFS …")
     dfs = _read_gtfs(Path(GTFS_PATH))
     _validate_gtfs(dfs)
 
@@ -566,7 +568,7 @@ def main() -> None:  # noqa: D401
     # -------------------------------------------------------------
     # STEP 1 — Build spatial layers
     # -------------------------------------------------------------
-    print("Building spatial layers …")
+    logging.info("Building spatial layers …")
     stops_gdf = _build_stops_gdf(
         dfs["stops"], dfs["stop_times"], trips_df, routes_df, PROJECTED_CRS
     )
@@ -581,7 +583,7 @@ def main() -> None:  # noqa: D401
     # -------------------------------------------------------------
     # STEP 2 — Left‑turn spacing QA
     # -------------------------------------------------------------
-    print("Running left‑turn spacing QA …")
+    logging.info("Running left‑turn spacing QA …")
     flagged_gdf = _flag_left_turn_spacing(
         routes_gdf,
         stops_gdf,
@@ -608,7 +610,7 @@ def main() -> None:  # noqa: D401
     if EXPORT_FLAGGED_SHP and not flagged_gdf.empty:
         shp_path = out_dir / FLAGGED_SHP_NAME
         flagged_gdf.to_file(shp_path)
-        print(f"Wrote {shp_path.name}")
+        logging.info("Wrote %s", shp_path.name)
 
     # -------------------------------------------------------------
     # STEP 4 — Optional per‑stop PNG export (zoomed, with roads)
@@ -626,12 +628,13 @@ def main() -> None:  # noqa: D401
     # -------------------------------------------------------------
     # FIN
     # -------------------------------------------------------------
-    print("Done. Outputs in:", out_dir)
+    logging.info("Done. Outputs in: %s", out_dir)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     try:
         main()
     except Exception as exc:  # noqa: BLE001
-        print("\nUNEXPECTED ERROR:", exc)
+        logging.error("\nUNEXPECTED ERROR: %s", exc)
         sys.exit(1)
