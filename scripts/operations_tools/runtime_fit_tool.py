@@ -20,6 +20,7 @@ Assumes route-wise CSVs of trip observations with key timestamp columns.
 from __future__ import annotations
 
 import difflib
+import logging
 import re
 import warnings
 from collections import defaultdict
@@ -137,7 +138,7 @@ def _safe_plot(plot_func: PlotFunc, df: pd.DataFrame) -> None:
     if not df.empty:
         plot_func(df)
     else:
-        print("   ⚠  No rows after filters; skipping plots.")
+        logging.warning("   ⚠  No rows after filters; skipping plots.")
 
 
 def normalize_direction_value(value: str, allowed: List[str]) -> str:
@@ -206,10 +207,10 @@ def _discover_route_csvs(root: Path, wanted: set[str] | None = None) -> dict[str
             header = pd.read_csv(p, sep=_detect_sep(p), nrows=0).columns
             route_col = next(col for col in header if route_hdr_re.fullmatch(col))
         except StopIteration:
-            print(f"!! {p.name}: no Route column; skipped")
+            logging.warning("!! %s: no Route column; skipped", p.name)
             continue
         except Exception as e:
-            print(f"!! {p.name}: {e}; skipped")
+            logging.warning("!! %s: %s; skipped", p.name, e)
             continue
 
         try:
@@ -226,7 +227,7 @@ def _discover_route_csvs(root: Path, wanted: set[str] | None = None) -> dict[str
             )
             ids = {_clean_route_id(r) for r in routes}
         except Exception as e:
-            print(f"!! {p.name}: {e}; skipped")
+            logging.warning("!! %s: %s; skipped", p.name, e)
             continue
 
         if wanted:
@@ -578,7 +579,7 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
       and ``_trim_pct`` for optional outlier removal.
     """
     if df.empty:
-        print("   ⚠  No rows after filters; skipping plots.")
+        logging.warning("   ⚠  No rows after filters; skipping plots.")
         return
 
     # ── 1.  Aggregate per start‑time token ────────────────────────────
@@ -603,7 +604,7 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
     ).dropna(subset=["scheduled_min", "p85_min"])
 
     if summary.empty:
-        print("   ⚠  No valid data for runtime P85 vs. scheduled plot.")
+        logging.warning("   ⚠  No valid data for runtime P85 vs. scheduled plot.")
         return
 
     # ── 2.  Reshape to long format for seaborn ────────────────────────
@@ -701,7 +702,7 @@ def export_trimmed_outliers(
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     fname = OUTPUT_DIR / f"{_EXCLUDED_STEM}_{_day_tag()}.csv"
     outliers.to_csv(fname, index=False)
-    print(f"   ⤷ {len(outliers):,} excluded rows ➜ {fname.name}")
+    logging.info("   ⤷ %d excluded rows ➜ %s", len(outliers), fname.name)
 
 
 def log_low_sample_start_times(
@@ -774,9 +775,12 @@ def log_low_sample_start_times(
     fname = OUTPUT_DIR / f"low_sample_start_times_{_day_tag()}.csv"
     out.to_csv(fname, index=False)
 
-    print(
-        f"   ⚠  {len(out)} low‑sample start‑times logged "
-        f"(<{thresh_frac:.0%} of median obs) ➜ {fname.name}"
+    logging.warning(
+        "   ⚠  %d low‑sample start‑times logged "
+        "(<%.0f%% of median obs) ➜ %s",
+        len(out),
+        thresh_frac * 100,
+        fname.name,
     )
 
     # If an EXCLUDE_DATES list is provided, point out any new dates.
@@ -786,7 +790,7 @@ def log_low_sample_start_times(
         }
         missing = flagged_dates - {str(d) for d in exclude_dates}
         if missing:
-            print(f"      ↪ Consider adding these to EXCLUDE_DATES: {sorted(missing)}")
+            logging.warning("      ↪ Consider adding these to EXCLUDE_DATES: %s", sorted(missing))
 
 
 def _cum_sums(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -965,7 +969,7 @@ def main() -> None:  # pragma: no cover
     # 0.  Locate all CSVs and assign them to routes                      #
     # ------------------------------------------------------------------ #
     whitelist = {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
-    print(f"→ Crawling {INPUT_ROOT_DIR} for CSVs …")
+    logging.info("→ Crawling %s for CSVs …", INPUT_ROOT_DIR)
     route_files = _discover_route_csvs(INPUT_ROOT_DIR, whitelist)
 
     if not route_files:
@@ -975,7 +979,7 @@ def main() -> None:  # pragma: no cover
     # 1.  Process each route                                             #
     # ------------------------------------------------------------------ #
     for route, paths in sorted(route_files.items(), key=lambda t: int(t[0])):
-        print(f"— Processing route {route} ({len(paths)} files) …")
+        logging.info("— Processing route %s (%d files) …", route, len(paths))
 
         # ── 1 a.  Load + global filters (shared before direction split) ──
         base_df = (
@@ -991,12 +995,12 @@ def main() -> None:  # pragma: no cover
         )
 
         if base_df.empty:
-            print("   ⚠  No rows left after filtering; skipping route.")
+            logging.warning("   ⚠  No rows left after filtering; skipping route.")
             continue
 
         # ── 1 b.  Quick sanity printout — median obs per start-time ──────
-        print(
-            "   observation median:",
+        logging.info(
+            "   observation median: %s",
             base_df.groupby(TIME_COL_NAME)["Actual Start Time"].count().median(),
         )
         log_low_sample_start_times(
@@ -1010,7 +1014,7 @@ def main() -> None:  # pragma: no cover
         # ------------------------------------------------------------------
         if SPLIT_BY_DIRECTION:
             if "Direction" not in base_df.columns:
-                print("   ⚠  'Direction' column missing; treating all rows as one direction.")
+                logging.warning("   ⚠  'Direction' column missing; treating all rows as one direction.")
                 base_df["Direction"] = "unknown"
             dir_groups = base_df.groupby("Direction", sort=False)
         else:
@@ -1033,9 +1037,11 @@ def main() -> None:  # pragma: no cover
             )
             PLOTS_DIR = OUTPUT_DIR / "plots"
 
-            print(
-                f"   ↳ Direction {dir_val!r}: {len(dir_df):,} rows "
-                f"➜ {OUTPUT_DIR.relative_to(OUTPUT_ROOT_DIR)}"
+            logging.info(
+                "   ↳ Direction '%s': %d rows ➜ %s",
+                dir_val,
+                len(dir_df),
+                OUTPUT_DIR.relative_to(OUTPUT_ROOT_DIR),
             )
 
             # ---- 2 c.  Persist outliers (optional) -----------------------
@@ -1051,7 +1057,7 @@ def main() -> None:  # pragma: no cover
                 index=False,
                 engine="openpyxl",
             )
-            print(f"      → Suggested {len(bands)} time bands saved.")
+            logging.info("      → Suggested %d time bands saved.", len(bands))
 
             # ---- 2 e.  Plots ---------------------------------------------
             plot_funcs = [
@@ -1065,12 +1071,13 @@ def main() -> None:  # pragma: no cover
             for func in plot_funcs:
                 _safe_plot(func, dir_df)
 
-            print(f"      ✓ Direction {dir_val!r} done.")
+            logging.info("      ✓ Direction '%s' done.", dir_val)
 
-        print(f"✓ Finished route {route}")
+        logging.info("✓ Finished route %s", route)
 
-    print("✓✓ All routes processed.")
+    logging.info("✓✓ All routes processed.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

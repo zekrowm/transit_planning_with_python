@@ -284,7 +284,7 @@ def interactive_classify(tokens: Iterable[str]) -> Set[str]:
                 break
             if ans in {"n", "no"}:
                 break
-            print("Please answer y or n.")
+            logging.info("Please answer y or n.")
     return approved
 
 
@@ -337,7 +337,7 @@ def run_validation(
     if interactive:
         unknown = {tok for name in df["stop_name"] for tok in find_offending_words(name, valid_set)}
         if unknown:
-            print(f"{len(unknown)} unknown short words need review …")
+            logging.info("%d unknown short words need review …", len(unknown))
             approved = interactive_classify(unknown)
             exempt |= approved
             if write_exempt and approved and exempt_path is not None:
@@ -361,7 +361,7 @@ def run_validation(
     if output_csv:
         output_csv.parent.mkdir(parents=True, exist_ok=True)
         errs.to_csv(output_csv, index=False)
-        print(f"Saved {len(errs)} offending rows → {output_csv}")
+        logging.info("Saved %d offending rows → %s", len(errs), output_csv)
         LOGGER.info("Wrote %d offending rows → %s", len(errs), output_csv)
 
     return errs
@@ -374,6 +374,7 @@ def run_validation(
 
 def main() -> None:
     """Run the stop‑name validation workflow."""
+    # Note: logging.basicConfig is already called at module level in this file
     errors_df = run_validation(
         STOPS_FILE,
         exempt_path=EXEMPT_FILE,
@@ -383,7 +384,7 @@ def main() -> None:
     )
 
     # Quick peek at the first few violations
-    print(errors_df.head())
+    logging.info(errors_df.head())
 
 
 if __name__ == "__main__":

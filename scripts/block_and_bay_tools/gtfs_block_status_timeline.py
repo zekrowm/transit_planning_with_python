@@ -292,10 +292,17 @@ def check_for_overlapping_trips(
             trip2_id, start2, end2 = trip_times[j]
             # If they intersect in any way
             if start2 <= end1 and start1 <= end2:
-                print(
-                    f"WARNING: Overlapping trips in block {block_id}: "
-                    f"Trip {trip1_id} ({start1}–{end1}) overlaps with "
-                    f"{trip2_id} ({start2}–{end2})"
+                logging.warning(
+                    "WARNING: Overlapping trips in block %s: "
+                    "Trip %s (%s–%s) overlaps with "
+                    "%s (%s–%s)",
+                    block_id,
+                    trip1_id,
+                    start1,
+                    end1,
+                    trip2_id,
+                    start2,
+                    end2,
                 )
 
 
@@ -688,20 +695,20 @@ def _merge_and_filter_data(
 
         block_filter_mask = merged_df["block_id"].isin(blocks_that_qualify)
         merged_df = merged_df[block_filter_mask]
-        print(f"After filtering, total rows = {len(merged_df)}")
+        logging.info("After filtering, total rows = %d", len(merged_df))
     else:
-        print("No block-level filters applied.")
+        logging.info("No block-level filters applied.")
 
     return merged_df
 
 
 def run_step1_gtfs_to_blocks() -> None:
     """Step 1: Generate block-level schedules from GTFS."""
-    print("=== Step 1: Reading GTFS and generating block-level schedules ===")
+    logging.info("=== Step 1: Reading GTFS and generating block-level schedules ===")
     validate_folders(GTFS_FOLDER_PATH, BLOCK_OUTPUT_FOLDER)
 
     # Use the standardized loader
-    print("Loading GTFS data using standardized function ...")
+    logging.info("Loading GTFS data using standardized function ...")
     gtfs_data = load_gtfs_data(GTFS_FOLDER_PATH, dtype=str)
 
     # Pull out frames you'll need
@@ -712,7 +719,7 @@ def run_step1_gtfs_to_blocks() -> None:
     # Optionally handle routes
     routes_df = gtfs_data.get("routes", None)
     if routes_df is not None and "route_short_name" in routes_df.columns:
-        print("Merging routes.txt with trips ...")
+        logging.info("Merging routes.txt with trips ...")
         if "route_short_name" not in trips_df.columns:
             trips_df = pd.merge(
                 trips_df,
@@ -721,7 +728,7 @@ def run_step1_gtfs_to_blocks() -> None:
                 how="left",
             )
     else:
-        print("WARNING: No routes.txt found or missing route_short_name column.")
+        logging.warning("WARNING: No routes.txt found or missing route_short_name column.")
         if "route_short_name" not in trips_df.columns:
             trips_df["route_short_name"] = None
 
@@ -729,21 +736,24 @@ def run_step1_gtfs_to_blocks() -> None:
     merged_df = _merge_and_filter_data(trips_df, stop_times_df, stops_df)
 
     all_blocks = merged_df["block_id"].dropna().unique()
-    print(f"Identified {len(all_blocks)} block(s) to process.")
+    logging.info("Identified %d block(s) to process.", len(all_blocks))
 
     max_minutes = DEFAULT_HOURS * 60
     timeline = range(0, max_minutes, TIME_INTERVAL_MINUTES)
 
     for blk_id in all_blocks:
-        print(f"\nProcessing block {blk_id}...")
+        logging.info("\nProcessing block %s...", blk_id)
         block_data = merged_df[merged_df["block_id"] == blk_id].copy()
         trip_ids = block_data["trip_id"].unique()
 
         check_for_overlapping_trips(block_data, blk_id)
 
         if len(trip_ids) > MAX_TRIPS_PER_BLOCK:
-            print(
-                f"Block {blk_id} has {len(trip_ids)} trips > limit {MAX_TRIPS_PER_BLOCK}. Skipped."
+            logging.info(
+                "Block %s has %d trips > limit %d. Skipped.",
+                blk_id,
+                len(trip_ids),
+                MAX_TRIPS_PER_BLOCK,
             )
             continue
 
@@ -759,9 +769,9 @@ def run_step1_gtfs_to_blocks() -> None:
         out_name = f"block_{blk_id}_{block_route_str}.xlsx"
         out_path = os.path.join(BLOCK_OUTPUT_FOLDER, out_name)
         block_schedule_df.to_excel(out_path, index=False)
-        print(f"Finished block {blk_id}; saved to {out_path}")
+        logging.info("Finished block %s; saved to %s", blk_id, out_path)
 
-    print("\nStep 1 complete: All block-level spreadsheets generated.")
+    logging.info("\nStep 1 complete: All block-level spreadsheets generated.")
 
 
 # --------------------------------------------------------------------------------------------------
@@ -853,6 +863,7 @@ def load_gtfs_data(
 
 def main() -> None:
     """Master entry point."""
+    logging.basicConfig(level=logging.INFO)
     run_step1_gtfs_to_blocks()
 
 

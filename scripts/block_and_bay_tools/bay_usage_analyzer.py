@@ -13,6 +13,7 @@ the module can also be invoked directly from the command line.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -359,7 +360,7 @@ def gather_block_spreadsheets(block_folder: str) -> DataFrame:
         big_df_list.append(temp_df)
 
     df_combined = pd.concat(big_df_list, ignore_index=True)
-    print(f"Loaded {len(df_combined)} total rows from Step 1 block XLSX files.")
+    logging.info("Loaded %d total rows from Step 1 block XLSX files.", len(df_combined))
     return df_combined
 
 
@@ -380,7 +381,7 @@ def run_step2_conflict_detection() -> None:
     ValueError
         If required columns are missing from the input spreadsheets.
     """
-    print("=== Step 2: Conflict detection and per-cluster output (multi-bay) ===")
+    logging.info("=== Step 2: Conflict detection and per-cluster output (multi-bay) ===")
     os.makedirs(CLUSTER_CONFLICT_OUTPUT_FOLDER, exist_ok=True)
 
     # 1) Gather Step 1 data
@@ -424,7 +425,7 @@ def run_step2_conflict_detection() -> None:
 
         sub = df_annotated[df_annotated["ClusterName"] == cname].copy()
         if sub.empty:
-            print(f"No rows found for cluster '{cname}'. Skipping.")
+            logging.info("No rows found for cluster '%s'. Skipping.", cname)
             continue
 
         safe_name = cname.replace(" ", "_")
@@ -432,7 +433,7 @@ def run_step2_conflict_detection() -> None:
             CLUSTER_CONFLICT_OUTPUT_FOLDER,
             f"{safe_name}_Conflicts.xlsx",
         )
-        print(f"Building conflict output for cluster '{cname}' → {out_path}")
+        logging.info("Building conflict output for cluster '%s' → %s", cname, out_path)
 
         # Sort by timestamp, then by block or stop ID
         sub.sort_values(["Timestamp", "Block", "Stop ID"], inplace=True)
@@ -481,12 +482,12 @@ def run_step2_conflict_detection() -> None:
                             cell = worksheet_stop.cell(row=row_idx, column=col_idx)
                             cell.font = Font(bold=True)
 
-        print(f" → Completed writing {out_path}")
+        logging.info(" → Completed writing %s", out_path)
 
     # Final conflict summary stats
-    print(f"\nDistinct cluster-conflict points: {len(cluster_conflicts)}")
-    print(f"Distinct stop-conflict points: {len(stop_conflicts)}")
-    print("Step 2 complete.")
+    logging.info("\nDistinct cluster-conflict points: %d", len(cluster_conflicts))
+    logging.info("Distinct stop-conflict points: %d", len(stop_conflicts))
+    logging.info("Step 2 complete.")
 
 
 # ==================================================================================================
@@ -496,6 +497,7 @@ def run_step2_conflict_detection() -> None:
 
 def main() -> None:
     """Entry point when executing this module as a script."""
+    logging.basicConfig(level=logging.INFO)
     run_step2_conflict_detection()
 
 

@@ -33,6 +33,7 @@ Assumptions:
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 from datetime import datetime
@@ -212,14 +213,17 @@ def build_cluster_stop_ids(
             matched = [sid for sid in id_list if sid in existing_stop_ids]
             missing = [sid for sid in id_list if sid not in existing_stop_ids]
             if missing:
-                print(
-                    f"Warning: cluster '{cname}' references stop_id(s) not found in "
-                    f"stops.txt: {missing}"
+                logging.warning(
+                    "Warning: cluster '%s' references stop_id(s) not found in "
+                    "stops.txt: %s",
+                    cname,
+                    missing,
                 )
             if not matched:
-                print(
-                    f"Warning: cluster '{cname}' has no valid stop_ids after "
-                    "resolution; it will be skipped."
+                logging.warning(
+                    "Warning: cluster '%s' has no valid stop_ids after "
+                    "resolution; it will be skipped.",
+                    cname,
                 )
             cluster_to_ids[cname] = matched
 
@@ -244,24 +248,30 @@ def build_cluster_stop_ids(
         resolved_ids: List[str] = []
         for code in codes_str:
             if code not in code_to_ids:
-                print(
-                    f"Warning: cluster '{cname}' references stop_code '{code}' not "
-                    "found in stops.txt."
+                logging.warning(
+                    "Warning: cluster '%s' references stop_code '%s' not "
+                    "found in stops.txt.",
+                    cname,
+                    code,
                 )
                 continue
             mapped_ids = sorted(set(code_to_ids[code]))
             if len(mapped_ids) > 1:
-                print(
-                    f"Warning: stop_code '{code}' for cluster '{cname}' maps to "
-                    f"multiple stop_ids {mapped_ids}; all will be included."
+                logging.warning(
+                    "Warning: stop_code '%s' for cluster '%s' maps to "
+                    "multiple stop_ids %s; all will be included.",
+                    code,
+                    cname,
+                    mapped_ids,
                 )
             resolved_ids.extend(mapped_ids)
 
         resolved_ids = sorted(set(resolved_ids))
         if not resolved_ids:
-            print(
-                f"Warning: cluster '{cname}' has no valid stop_ids after resolving "
-                "stop_code; it will be skipped."
+            logging.warning(
+                "Warning: cluster '%s' has no valid stop_ids after resolving "
+                "stop_code; it will be skipped.",
+                cname,
             )
         cluster_to_ids[cname] = resolved_ids
 
@@ -361,7 +371,7 @@ def find_nearby_stops_for_clusters(
     for cname, id_list in cluster_stop_ids.items():
         if not id_list:
             if verbose:
-                print(f"Skipping nearby-stop QA for cluster '{cname}' (no stop_ids).")
+                logging.info("Skipping nearby-stop QA for cluster '%s' (no stop_ids).", cname)
             continue
 
         anchor_ids: Set[str] = set(id_list)
@@ -370,7 +380,7 @@ def find_nearby_stops_for_clusters(
 
         if anchors.empty:
             if verbose:
-                print(f"Warning: no anchor stops found for cluster '{cname}' in stops.txt.")
+                logging.warning("Warning: no anchor stops found for cluster '%s' in stops.txt.", cname)
             continue
 
         for _, arow in anchors.iterrows():
@@ -402,9 +412,12 @@ def find_nearby_stops_for_clusters(
         if verbose:
             cnt = sum(1 for r in records if r["cluster"] == cname)
             if cnt > 0:
-                print(
-                    f"Warning: cluster '{cname}' has {cnt} nearby stop(s) within "
-                    f"{buffer_ft} ft that are not in the cluster."
+                logging.warning(
+                    "Warning: cluster '%s' has %d nearby stop(s) within "
+                    "%d ft that are not in the cluster.",
+                    cname,
+                    cnt,
+                    buffer_ft,
                 )
 
     result = pd.DataFrame.from_records(
@@ -426,9 +439,9 @@ def find_nearby_stops_for_clusters(
             result.sort_values(["cluster", "anchor_stop_id", "distance_ft"]).to_csv(
                 out_csv, index=False
             )
-            print(f"Nearby stop report written to {out_csv}")
+            logging.info("Nearby stop report written to %s", out_csv)
         except PermissionError:
-            print("Warning: could not write nearby stop report (permission denied).")
+            logging.warning("Warning: could not write nearby stop report (permission denied).")
 
     return result
 
@@ -471,16 +484,19 @@ def export_to_excel(df: pd.DataFrame, output_file: str) -> None:
 def prepend_sample_row(df: pd.DataFrame, cluster_name: str, schedule_name: str) -> pd.DataFrame:
     """Prepend a sample row 5 min before the first trip, if possible."""
     if df.empty:
-        print(
-            f"Warning: empty dataframe for {cluster_name} ({schedule_name}); "
-            "cannot prepend sample row."
+        logging.warning(
+            "Warning: empty dataframe for %s (%s); cannot prepend sample row.",
+            cluster_name,
+            schedule_name,
         )
         return df
 
     if "arrival_time" not in df.columns or "departure_time" not in df.columns:
-        print(
-            f"Warning: dataframe for {cluster_name} ({schedule_name}) missing "
-            "'arrival_time' or 'departure_time'; cannot prepend sample row."
+        logging.warning(
+            "Warning: dataframe for %s (%s) missing "
+            "'arrival_time' or 'departure_time'; cannot prepend sample row.",
+            cluster_name,
+            schedule_name,
         )
         return df
 
@@ -510,9 +526,12 @@ def prepend_sample_row(df: pd.DataFrame, cluster_name: str, schedule_name: str) 
 
         return pd.concat([pd.DataFrame([sample]), df], ignore_index=True)
     except Exception as exc:  # noqa: BLE001
-        print(
-            f"Error creating sample row for {cluster_name} ({schedule_name}): {exc}. "
-            "Proceeding without sample row."
+        logging.error(
+            "Error creating sample row for %s (%s): %s. "
+            "Proceeding without sample row.",
+            cluster_name,
+            schedule_name,
+            exc,
         )
         return df
 
@@ -526,7 +545,7 @@ def process_cluster_slice(
 ) -> None:
     """Transform one cluster×schedule slice and export Excel (full + windows)."""
     if cluster_data.empty:
-        print(f"No data for {cluster_name} ({schedule_name}); skipping.")
+        logging.info("No data for %s (%s); skipping.", cluster_name, schedule_name)
         return
 
     df = cluster_data.copy()
@@ -541,8 +560,11 @@ def process_cluster_slice(
         df["arrival_sort"] = pd.to_datetime(df["arrival_time"], format="%H:%M")
         df = df.sort_values("arrival_sort").drop(columns=["arrival_sort"])
     except Exception as exc:  # noqa: BLE001
-        print(
-            f"Warning: could not sort by arrival_time for {cluster_name} ({schedule_name}): {exc}"
+        logging.warning(
+            "Warning: could not sort by arrival_time for %s (%s): %s",
+            cluster_name,
+            schedule_name,
+            exc,
         )
 
     # Placeholders
@@ -575,9 +597,12 @@ def process_cluster_slice(
     existing_first = [c for c in desired_first if c in df.columns]
     missing_first = [c for c in desired_first if c not in df.columns]
     if missing_first:
-        print(
-            f"Warning: expected columns missing for {cluster_name} "
-            f"({schedule_name}): {missing_first}"
+        logging.warning(
+            "Warning: expected columns missing for %s "
+            "(%s): %s",
+            cluster_name,
+            schedule_name,
+            missing_first,
         )
 
     other_cols = [c for c in df.columns if c not in existing_first]
@@ -603,14 +628,14 @@ def process_cluster_slice(
     df = df.drop(columns=[c for c in to_drop if c in df.columns], errors="ignore")
 
     if not os.path.isdir(base_output_path):
-        print(f"Error: output directory {base_output_path} does not exist; cannot write Excel.")
+        logging.error("Error: output directory %s does not exist; cannot write Excel.", base_output_path)
         return
 
     # Full-day export
     full_path = os.path.join(base_output_path, f"{cluster_name}_{schedule_name}_data.xlsx")
     df_full = prepend_sample_row(df.copy(), cluster_name, schedule_name)
     export_to_excel(df_full, full_path)
-    print(f"Exported {cluster_name} ({schedule_name}) full-day to {full_path}")
+    logging.info("Exported %s (%s) full-day to %s", cluster_name, schedule_name, full_path)
 
     # Time-window exports
     if time_windows and schedule_name in time_windows:
@@ -624,7 +649,7 @@ def process_cluster_slice(
                 subset = df.loc[mask].copy()
 
                 if subset.empty:
-                    print(f"  No {win_name} data for {cluster_name} ({schedule_name}).")
+                    logging.info("  No %s data for %s (%s).", win_name, cluster_name, schedule_name)
                     continue
 
                 path_win = os.path.join(
@@ -635,11 +660,15 @@ def process_cluster_slice(
                     subset, cluster_name, f"{schedule_name} {win_name}"
                 )
                 export_to_excel(subset_with_sample, path_win)
-                print(f"  Exported {win_name} for {cluster_name} ({schedule_name}) to {path_win}")
+                logging.info("  Exported %s for %s (%s) to %s", win_name, cluster_name, schedule_name, path_win)
             except Exception as exc:  # noqa: BLE001
-                print(
-                    f"  Error processing window {win_name} for {cluster_name} "
-                    f"({schedule_name}): {exc}"
+                logging.error(
+                    "  Error processing window %s for %s "
+                    "(%s): %s",
+                    win_name,
+                    cluster_name,
+                    schedule_name,
+                    exc,
                 )
 
 
@@ -678,7 +707,7 @@ def generate_gtfs_checklists() -> None:
     cluster_stop_ids = {cname: ids for cname, ids in cluster_stop_ids.items() if ids}
 
     if not cluster_stop_ids:
-        print("No valid clusters after resolving identifiers; nothing to process.")
+        logging.info("No valid clusters after resolving identifiers; nothing to process.")
         return
 
     # 3. Nearby-stop QA (optional but helpful)
@@ -689,13 +718,14 @@ def generate_gtfs_checklists() -> None:
         verbose=True,
     )
     if _nearby_df.empty:
-        print(
-            f"No nearby non-cluster stops found within {NEARBY_STOP_BUFFER_FT} ft of any cluster."
+        logging.info(
+            "No nearby non-cluster stops found within %d ft of any cluster.",
+            NEARBY_STOP_BUFFER_FT,
         )
 
     # 4. Process each schedule
     for schedule_name, days in SCHEDULE_TYPES.items():
-        print(f"\nProcessing schedule: {schedule_name}")
+        logging.info("\nProcessing schedule: %s", schedule_name)
 
         # Filter calendar to services that run on all requested days
         for day_col in days:
@@ -709,14 +739,15 @@ def generate_gtfs_checklists() -> None:
         relevant_services = calendar.loc[service_mask, "service_id"].astype(str)
 
         if relevant_services.empty:
-            print(f"No service_ids active for schedule '{schedule_name}'; skipping schedule.")
+            logging.info("No service_ids active for schedule '%s'; skipping schedule.", schedule_name)
             continue
 
         trips_filtered = trips[trips["service_id"].isin(relevant_services)]
         if trips_filtered.empty:
-            print(
-                f"No trips for schedule '{schedule_name}' after service_id filter; "
-                "skipping schedule."
+            logging.info(
+                "No trips for schedule '%s' after service_id filter; "
+                "skipping schedule.",
+                schedule_name,
             )
             continue
 
@@ -748,13 +779,15 @@ def generate_gtfs_checklists() -> None:
 
         # 5. Cluster loops
         for cname, id_list in cluster_stop_ids.items():
-            print(f"  Processing cluster '{cname}' for {schedule_name}")
+            logging.info("  Processing cluster '%s' for %s", cname, schedule_name)
 
             cluster_slice = merged[merged["stop_id"].isin(id_list)]
             if cluster_slice.empty:
-                print(
-                    f"  No data found for cluster '{cname}' on schedule "
-                    f"'{schedule_name}'; skipping."
+                logging.info(
+                    "  No data found for cluster '%s' on schedule "
+                    "'%s'; skipping.",
+                    cname,
+                    schedule_name,
                 )
                 continue
 
@@ -766,11 +799,12 @@ def generate_gtfs_checklists() -> None:
                 time_windows=TIME_WINDOWS,
             )
 
-    print("\nAll clusters and schedules processed.")
+    logging.info("\nAll clusters and schedules processed.")
 
 
 def main() -> None:
     """Script entry point."""
+    logging.basicConfig(level=logging.INFO)
     generate_gtfs_checklists()
 
 

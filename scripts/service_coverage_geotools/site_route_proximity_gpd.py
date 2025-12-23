@@ -21,6 +21,7 @@ Outputs:
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 
@@ -206,7 +207,7 @@ def main() -> None:
         )
 
         if st_trips_routes.empty:
-            print("Route filters removed every route – nothing to analyse.")
+            logging.info("Route filters removed every route – nothing to analyse.")
             return
 
         if INPUT_MODE == "location":
@@ -227,11 +228,11 @@ def main() -> None:
 
         elif INPUT_MODE == "stop_code":
             if "stop_code" not in gtfs["stops"].columns:
-                print("stops.txt lacks 'stop_code' – cannot run stop_code mode.")
+                logging.warning("stops.txt lacks 'stop_code' – cannot run stop_code mode.")
                 return
             stop_ids = gtfs["stops"][gtfs["stops"].stop_code.isin(STOP_CODE_FILTER)].stop_id
             if stop_ids.empty:
-                print("No stops matched STOP_CODE_FILTER.")
+                logging.info("No stops matched STOP_CODE_FILTER.")
                 return
 
             df = (
@@ -255,18 +256,19 @@ def main() -> None:
             raise ValueError("INPUT_MODE must be 'location' or 'stop_code'.")
 
         if not rows:
-            print("No results.")
+            logging.info("No results.")
             return
 
         out_csv = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME)
         os.makedirs(OUTPUT_FOLDER, exist_ok=True)
         pd.DataFrame(rows).to_csv(out_csv, index=False, encoding="utf-8-sig")
-        print(f"✔  Results written → {out_csv}")
+        logging.info("✔  Results written → %s", out_csv)
 
     except Exception as exc:  # pylint: disable=broad-except
-        print(f"✖  {exc}")
+        logging.error("✖  %s", exc)
         sys.exit(1)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

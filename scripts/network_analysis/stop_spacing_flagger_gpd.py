@@ -17,6 +17,7 @@ review as possible missed service opportunities.
 
 from __future__ import annotations
 
+import logging
 import sys
 import tempfile
 import zipfile
@@ -179,11 +180,11 @@ def _flag_long_spacing_csv(
 
     # —— export ————————————————————————————————————————————————
     if not records:
-        print("No long-spacing issues found.")
+        logging.info("No long-spacing issues found.")
         return
 
     pd.DataFrame.from_records(records).to_csv(csv_path, index=False)
-    print(f"Wrote long-spacing CSV → {csv_path.name}")
+    logging.info("Wrote long-spacing CSV → %s", csv_path.name)
 
     # —— optional one-line summary ————————————————————————————
     if summary:
@@ -193,7 +194,7 @@ def _flag_long_spacing_csv(
             fh.write("route_id\tdirection_id\n")
             for rid, drn in sorted(flagged):
                 fh.write(f"{rid}\t{drn}\n")
-        print(f"Wrote summary → {summ_path.name}")
+        logging.info("Wrote summary → %s", summ_path.name)
 
 
 def _read_gtfs_tables(gtfs_path: Path) -> Dict[str, pd.DataFrame]:
@@ -221,7 +222,7 @@ def _read_gtfs_tables(gtfs_path: Path) -> Dict[str, pd.DataFrame]:
         return {k: pd.read_csv(gtfs_path / v) for k, v in filenames.items()}
 
     if gtfs_path.is_file() and gtfs_path.suffix.lower() == ".zip":
-        print("Detected GTFS zip – extracting to temporary directory …")
+        logging.info("Detected GTFS zip – extracting to temporary directory …")
         tmp = tempfile.TemporaryDirectory()
         with zipfile.ZipFile(gtfs_path, "r") as zf:
             zf.extractall(tmp.name)
@@ -301,7 +302,7 @@ def _build_stops_gdf(
     )
     gdf = gdf.merge(agg, on="stop_id", how="left")
 
-    print(f"Stops GDF – kept {len(gdf):,} served stops.")
+    logging.info("Stops GDF – kept %d served stops.", len(gdf))
     return gdf
 
 
@@ -342,9 +343,10 @@ def _build_routes_gdf(
     gdf = gdf[gdf["direction_id"].notna()].copy()
     dropped = before - len(gdf)
     if dropped:
-        print(
-            f"Routes GDF – {dropped:,} of {before:,} shapes were missing "
-            "`direction_id` and were skipped."
+        logging.info(
+            "Routes GDF – %d of %d shapes were missing `direction_id` and were skipped.",
+            dropped,
+            before,
         )
     # ------------------------------------------------------------------------
 
@@ -355,7 +357,7 @@ def _build_routes_gdf(
             aggfunc={"route_short_name": "first", "route_long_name": "first"},
         ).explode(ignore_index=True)
 
-    print(f"Routes GDF – built {len(gdf):,} shapes.")
+    logging.info("Routes GDF – built %d shapes.", len(gdf))
     return gdf
 
 
@@ -407,7 +409,7 @@ def _split_into_segments(
 
     seg_gdf = gpd.GeoDataFrame(seg_records, crs=crs)
     seg_gdf["length_ft"] = seg_gdf.length * (1.0 if "2263" in crs else 3.28084)
-    print(f"Segments GDF – generated {len(seg_gdf):,} pieces.")
+    logging.info("Segments GDF – generated %d pieces.", len(seg_gdf))
     return seg_gdf
 
 
@@ -415,7 +417,7 @@ def _export(gdf: gpd.GeoDataFrame, out_dir: Path, name: str) -> None:
     """Write *gdf* to ESRI Shapefile ``<out_dir>/<name>.shp``."""
     path = out_dir / f"{name}.shp"
     gdf.to_file(path)
-    print(f"Wrote {path.name}")
+    logging.info("Wrote %s", path.name)
 
 
 def _export_segments_by_route_dir(seg_gdf: gpd.GeoDataFrame, out_dir: Path) -> None:
@@ -425,7 +427,7 @@ def _export_segments_by_route_dir(seg_gdf: gpd.GeoDataFrame, out_dir: Path) -> N
         fname = f"{rid}_{suffix}.shp"
         grp_gdf: gpd.GeoDataFrame = grp  # type: ignore[assignment]
         grp_gdf.to_file(out_dir / fname)
-        print(f"Wrote {fname}")
+        logging.info("Wrote %s", fname)
 
 
 def _flag_short_spacing(
@@ -473,7 +475,7 @@ def _flag_short_spacing(
                         f"{spacing_ft:.1f}\n"
                     )
 
-    print(f"Wrote short-spacing log → {log_path.name}")
+    logging.info("Wrote short-spacing log → %s", log_path.name)
 
 
 def _build_stop_layers(
@@ -539,14 +541,14 @@ def main() -> None:  # noqa: D401
     # -----------------------------------------------------------------
     # STEP 0  Read GTFS tables and validate
     # -----------------------------------------------------------------
-    print("STEP 0  Reading GTFS tables …")
+    logging.info("STEP 0  Reading GTFS tables …")
     gtfs_path = Path(GTFS_PATH)
     dfs = _read_gtfs_tables(gtfs_path)
 
     try:
         _validate_columns(dfs)
     except ValueError as err:
-        print("\nERROR – invalid GTFS feed:\n" + str(err))
+        logging.error("\nERROR – invalid GTFS feed:\n%s", err)
         sys.exit(1)
 
     # -----------------------------------------------------------------
@@ -561,21 +563,21 @@ def main() -> None:  # noqa: D401
     # -----------------------------------------------------------------
     # STEP 1  Build stop layers
     # -----------------------------------------------------------------
-    print("STEP 1  Building stop layers …")
+    logging.info("STEP 1  Building stop layers …")
     all_stops_gdf, stops_gdf = _build_stop_layers(dfs, trips_df, routes_df, PROJECTED_CRS)
     _export(stops_gdf, out_dir, "stops")  # export only the filtered set
 
     # -----------------------------------------------------------------
     # STEP 2  Build route polylines
     # -----------------------------------------------------------------
-    print("STEP 2  Building routes shapefile …")
+    logging.info("STEP 2  Building routes shapefile …")
     routes_gdf = _build_routes_gdf(dfs["shapes"], trips_df, routes_df, PROJECTED_CRS, ROUTE_UNION)
     _export(routes_gdf, out_dir, "routes")
 
     # -----------------------------------------------------------------
     # STEP 3  Split polylines into stop-to-stop segments
     # -----------------------------------------------------------------
-    print("STEP 3  Splitting routes into stop-to-stop segments …")
+    logging.info("STEP 3  Splitting routes into stop-to-stop segments …")
     segs_gdf = _split_into_segments(routes_gdf, stops_gdf, PROJECTED_CRS)
     _export(segs_gdf, out_dir, "segments")  # master file
     _export_segments_by_route_dir(segs_gdf, out_dir)  # per-route files
@@ -583,7 +585,7 @@ def main() -> None:  # noqa: D401
     # -----------------------------------------------------------------
     # STEP 4  Short-spacing QA
     # -----------------------------------------------------------------
-    print("STEP 4  Flagging closely-spaced stops …")
+    logging.info("STEP 4  Flagging closely-spaced stops …")
     _flag_short_spacing(
         routes_gdf,
         stops_gdf,  # filtered layer
@@ -594,7 +596,7 @@ def main() -> None:  # noqa: D401
     # -----------------------------------------------------------------
     # STEP 5  Long-spacing QA (needs *all* stops) – CSV export
     # -----------------------------------------------------------------
-    print("STEP 5  Flagging long-spacing segments …")
+    logging.info("STEP 5  Flagging long-spacing segments …")
     _flag_long_spacing_csv(
         routes_gdf,
         all_stops_gdf,  # unfiltered layer
@@ -603,12 +605,13 @@ def main() -> None:  # noqa: D401
         out_dir / LONG_SPACING_CSV_FILE,
     )
 
-    print("\nAll done! Outputs in:", out_dir)
+    logging.info("\nAll done! Outputs in: %s", out_dir)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     try:
         main()
     except Exception as exc:  # noqa: BLE001
-        print("\nUNEXPECTED ERROR:", exc)
+        logging.error("\nUNEXPECTED ERROR: %s", exc)
         sys.exit(1)

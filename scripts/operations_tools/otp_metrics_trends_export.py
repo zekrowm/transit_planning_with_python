@@ -27,6 +27,7 @@ Design choices:
 from __future__ import annotations
 
 import argparse
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -245,9 +246,10 @@ def process(df: pd.DataFrame, current_yy_mm: str) -> pd.DataFrame:
     if bad.any():
         # Keep but mark; user can inspect if needed.
         n_bad = int(bad.sum())
-        print(
-            f"[WARN] Found {n_bad} rows with unrecognized DOW values; "
-            "they will be ignored in DOW-specific plots."
+        logging.warning(
+            "Found %d rows with unrecognized DOW values; "
+            "they will be ignored in DOW-specific plots.",
+            n_bad,
         )
 
     for col in ("on_time", "early", "late"):
@@ -545,7 +547,7 @@ def main(argv: List[str] | None = None) -> None:
     # Accept unknown args to be notebook/IPython friendly (swallows "-f <kernel.json>").
     args, unknown = parser.parse_known_args(argv)
     if unknown:
-        print(f"[WARN] Ignoring unknown CLI args (likely from IPython): {unknown}")
+        logging.warning("Ignoring unknown CLI args (likely from IPython): %s", unknown)
     cfg = Config(
         input_csv=Path(args.input).expanduser(),
         out_table_dir=Path(args.out_table).expanduser(),
@@ -553,22 +555,27 @@ def main(argv: List[str] | None = None) -> None:
         current_yy_mm=args.current,
         otp_standard=args.otp_standard,
     )
-    print(f"[INFO] Reading: {cfg.input_csv}")
+    logging.info("Reading: %s", cfg.input_csv)
     raw = read_csv_safely(cfg.input_csv)
-    print(f"[INFO] Rows read: {len(raw):,}")
-    print("[INFO] Normalizing columns...")
+    logging.info("Rows read: %d", len(raw))
+    logging.info("Normalizing columns...")
     norm = standardize_columns(raw)
-    print(f"[INFO] Processing with CURRENT_YY_MM={cfg.current_yy_mm!r}...")
+    logging.info("Processing with CURRENT_YY_MM='%s'...", cfg.current_yy_mm)
     proc = process(norm, cfg.current_yy_mm)
-    print(f"[INFO] Exporting table to: {cfg.out_table_dir}")
+    logging.info("Exporting table to: %s", cfg.out_table_dir)
     out_table_path = export_table(proc, cfg.out_table_dir, OUTPUT_TABLE_FILENAME)
-    print(f"[OK] Wrote table: {out_table_path}")
-    print(f"[INFO] Generating plots in: {cfg.out_plots_dir}")
+    logging.info("Wrote table: %s", out_table_path)
+    logging.info("Generating plots in: %s", cfg.out_plots_dir)
     plot_series_for_groups(proc, cfg.out_plots_dir, cfg.otp_standard)
-    print("[OK] Plot export complete.")
+    logging.info("Plot export complete.")
     n_groups = proc.groupby(["route_clean", "direction"], dropna=False).ngroups
-    print(f"[SUMMARY] Processed {len(proc):,} rows across {n_groups} route/direction groups.")
+    logging.info(
+        "Processed %d rows across %d route/direction groups.",
+        len(proc),
+        n_groups,
+    )
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

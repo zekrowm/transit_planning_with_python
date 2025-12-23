@@ -18,6 +18,7 @@ Typical use cases
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import os
 from typing import Final
 
@@ -302,7 +303,7 @@ def create_route_workbooks(data_frame: pd.DataFrame) -> None:
         filename = f"{route_name}.xlsx"
         file_path = os.path.join(output_dir, filename)
         wb.save(file_path)
-        print(f"Saved workbook: {file_path}")
+        logging.info("Saved workbook: %s", file_path)
 
 
 def export_to_csv(data_frame: pd.DataFrame, csv_file_path: str) -> None:
@@ -316,7 +317,7 @@ def export_to_csv(data_frame: pd.DataFrame, csv_file_path: str) -> None:
         Destination path for the CSV file.  Any existing file is overwritten.
     """
     data_frame.to_csv(csv_file_path, index=False)
-    print(f"Processed file saved to CSV: {csv_file_path}")
+    logging.info("Processed file saved to CSV: %s", csv_file_path)
 
 
 def export_to_excel(data_frame: pd.DataFrame, output_file: str) -> None:
@@ -354,8 +355,7 @@ def print_high_load_trips(data_frame: pd.DataFrame) -> None:
     """
     high_load_trips = data_frame[data_frame["MAX_LOAD"] > 30]
     if not high_load_trips.empty:
-        print("Trips with MAX_LOAD over 30:")
-        print(high_load_trips)
+        logging.info("Trips with MAX_LOAD over 30:\n%s", high_load_trips)
 
 
 def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
@@ -405,7 +405,7 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
                     f"{row.get('ROUTE_LIMIT_TYPE', '')}\n"
                 )
                 log_file.write(line)
-    print(f"Exported load‐factor violation log: {log_file_path}")
+    logging.info("Exported load‐factor violation log: %s", log_file_path)
 
 
 # =============================================================================
@@ -437,7 +437,7 @@ def main() -> None:
     # 2) EXPORT COMBINED EXCEL (good for a quick, single-sheet view)
     # -------------------------------------------------------------------------
     export_to_excel(processed_data, OUTPUT_FILE)
-    print(f"Processed file saved to Excel: {OUTPUT_FILE}")
+    logging.info("Processed file saved to Excel: %s", OUTPUT_FILE)
 
     # -------------------------------------------------------------------------
     # 3) EXPORT PER-ROUTE EXCEL WORKBOOKS (one .xlsx per route, sheets per direction)
@@ -457,4 +457,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

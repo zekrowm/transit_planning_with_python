@@ -23,6 +23,7 @@ outputs, planning reports, or independently maintained amenity inventories.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -242,12 +243,13 @@ def main() -> None:
     _write_txt_log(df_processed, flag_cols, TXT_LOG_PATH)
 
     # 8. CONSOLE SUMMARY
-    print(f"\n✓ Workbook created: {out_xlsx}")
-    print(f"✓ Text log created: {TXT_LOG_PATH}")
+    logging.info("\n✓ Workbook created: %s", out_xlsx)
+    logging.info("✓ Text log created: %s", TXT_LOG_PATH)
     if need_agg:
         dup_ct = df_raw.shape[0] - df_processed.shape[0]
-        print(f"  (Aggregated {dup_ct} duplicate STOP_ID rows.)")
+        logging.info("  (Aggregated %d duplicate STOP_ID rows.)", dup_ct)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()
