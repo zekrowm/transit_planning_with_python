@@ -29,6 +29,7 @@ ArcGIS Pro (arcpy) and pandas (bundled with Pro).
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -36,6 +37,14 @@ from typing import Iterable
 
 import arcpy
 import pandas as pd
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 # =============================================================================
 # CONFIGURATION
@@ -945,7 +954,7 @@ def main() -> None:
         )
         st_trips_routes = _apply_route_filters(st_trips_routes)
         if st_trips_routes.empty:
-            print("Route filters removed every route – nothing to analyze.")
+            logging.info("Route filters removed every route – nothing to analyze.")
             return
 
         # Create projected stops FC
@@ -960,7 +969,7 @@ def main() -> None:
             raise ValueError("MODE must be 'single_fc' or 'points_plus_parcels'.")
 
         if not rows:
-            print("No results.")
+            logging.info("No results.")
             return
 
         # ---------- QA: shared stops across facilities ----------
@@ -1020,21 +1029,21 @@ def main() -> None:
 
             if qa_rows:
                 pd.DataFrame(qa_rows).to_csv(QA_REPORT_CSV, index=False, encoding="utf-8-sig")
-                print(f"⚑ QA report written → {QA_REPORT_CSV}")
+                logging.info("⚑ QA report written → %s", QA_REPORT_CSV)
             else:
-                print("✓ QA: no shared/identical stop-set issues detected.")
+                logging.info("✓ QA: no shared/identical stop-set issues detected.")
 
         # ---------- Write primary CSV ----------
         out_csv = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME)
         pd.DataFrame(rows).to_csv(out_csv, index=False, encoding="utf-8-sig")
-        print(f"✔ Results written → {out_csv}")
+        logging.info("✔ Results written → %s", out_csv)
 
     except Exception as exc:  # pylint: disable=broad-except
         # In notebooks, re-raise to avoid IPython's nested 'inspect' failure with sys.exit
         if _in_ipython():
-            print(f"✖ {exc}")
+            logging.error("✖ %s", exc)
             raise
-        print(f"✖ {exc}")
+        logging.error("✖ %s", exc)
         sys.exit(1)
 
 

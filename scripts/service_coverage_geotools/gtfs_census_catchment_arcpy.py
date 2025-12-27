@@ -1139,9 +1139,10 @@ def _run_network_total(stops_layer: str) -> None:
 
     Intermediates use explicit disk outputs if provided in config; otherwise in_memory.
     """
-    print(
-        f"Buffering stops to {BUFFER_DISTANCE_MILES} mi → "
-        f"{'disk' if BUFFERED_STOPS_OUT else 'in_memory'} (intermediates)"
+    logging.info(
+        "Buffering stops to %s mi → %s (intermediates)",
+        BUFFER_DISTANCE_MILES,
+        "disk" if BUFFERED_STOPS_OUT else "in_memory",
     )
 
     svc_totals, exported = _process_service_area_from_stops_layer(
@@ -1154,12 +1155,12 @@ def _run_network_total(stops_layer: str) -> None:
         clipped_path=CLIPPED_DEMOGRAPHICS_OUT or None,
     )
 
-    print(f"[{RUN_TAG}] Service buffer totals (area-weighted, rounded):")
+    logging.info("[%s] Service buffer totals (area-weighted, rounded):", RUN_TAG)
     for k in resolved_clipped_fields(DEMOGRAPHICS_FC):
-        print(f"  {k}: {svc_totals.get(k, 0):,}")
+        logging.info("  %s: %s", k, f"{svc_totals.get(k, 0):,}")
 
     if exported:
-        print(f"Final export: {exported}")
+        logging.info("Final export: %s", exported)
 
 
 def _run_by_route(gtfs_folder: str, route_short_names: Sequence[str]) -> pd.DataFrame:
@@ -1171,7 +1172,7 @@ def _run_by_route(gtfs_folder: str, route_short_names: Sequence[str]) -> pd.Data
     results: List[Dict[str, int | str]] = []
     for route_sn in route_short_names:
         tag = f"{RUN_TAG}_route_{_sanitize_name(route_sn)}"
-        print(f"— Processing route {route_sn} —")
+        logging.info("— Processing route %s —", route_sn)
 
         # Build a route-scoped stops layer directly from GTFS
         stops_layer = make_stops_layer(
@@ -1194,7 +1195,7 @@ def _run_by_route(gtfs_folder: str, route_short_names: Sequence[str]) -> pd.Data
         results.append(row)
 
         if BY_ROUTE_EXPORT_FEATURES and exported:
-            print(f"  Exported per-route features: {exported}")
+            logging.info("  Exported per-route features: %s", exported)
 
     df = pd.DataFrame(results).sort_values("route_short_name").reset_index(drop=True)
 
@@ -1208,13 +1209,14 @@ def _run_by_route(gtfs_folder: str, route_short_names: Sequence[str]) -> pd.Data
         ensure_dir(out_dir)
         csv_path = os.path.join(out_dir, f"{RUN_TAG}_by_route_summary.csv")
         df.to_csv(csv_path, index=False)
-        print(f"Per-route summary written: {csv_path}")
+        logging.info("Per-route summary written: %s", csv_path)
 
     # Console view
     if not df.empty:
-        print("\nPer-route totals (area-weighted, rounded):")
+        logging.info("\nPer-route totals (area-weighted, rounded):")
         cols = ["route_short_name"] + resolved_clipped_fields(DEMOGRAPHICS_FC)
-        print(df[cols].to_string(index=False))
+        # We log the string representation of the dataframe
+        logging.info("\n%s", df[cols].to_string(index=False))
 
     return df
 
@@ -1241,7 +1243,7 @@ def main() -> None:
         raise FileNotFoundError(f"Input not found: {DEMOGRAPHICS_FC}")
 
     # Prepare stops layer (network scope) once
-    print("Preparing stops layer…")
+    logging.info("Preparing stops layer…")
     stops_layer = make_stops_layer(
         mode=STOPS_INPUT_MODE,
         shapefile_fc=STOPS_FEATURE_CLASS,
@@ -1274,7 +1276,7 @@ def main() -> None:
             )
         _ = _run_by_route(GTFS_FOLDER, route_list)
 
-    print("✔ Processing completed successfully.")
+    logging.info("✔ Processing completed successfully.")
 
 
 if __name__ == "__main__":
