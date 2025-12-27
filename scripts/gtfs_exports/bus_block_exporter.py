@@ -80,7 +80,7 @@ def validate_folders(input_path: Path, output_path: Path) -> None:
 def load_gtfs_data(
     gtfs_folder_path: Path,
     files: Optional[list[str]] = None,
-    dtype: str | Mapping[str, Any] = str,
+    dtype: str | type | Mapping[str, Any] = str,
 ) -> dict[str, pd.DataFrame]:
     """Load GTFS text files into pandas DataFrames."""
     if files is None:

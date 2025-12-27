@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Dict, Iterable, List, Optional, Tuple, TypedDict, Union, cast
 
 import pandas as pd
 from openpyxl import Workbook
@@ -67,7 +67,14 @@ REQ_FILES: Tuple[str, ...] = ("trips.txt", "stop_times.txt", "routes.txt", "stop
 
 Pattern = Tuple[str, ...]
 SegSpeeds = Tuple[Union[float, str], ...]
-SpeedRecord = Dict[str, Union[SegSpeeds, float]]
+
+
+class SpeedRecord(TypedDict):
+    """Structured record for segment speeds and summary metrics."""
+
+    seg_speeds: SegSpeeds
+    mean_mph: float | str
+
 
 # =============================================================================
 # FUNCTIONS
