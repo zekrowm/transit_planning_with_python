@@ -227,9 +227,11 @@ def linestring_length(line: LineString) -> float:
 def safe_nearest(seg_index: STRtree, pt: Point) -> int | LineString:
     """Return the nearest result from an STRtree (Shapely 2.x or pygeos style)."""
     try:
-        return seg_index.nearest(pt)
+        # Shapely 1.x
+        return seg_index.nearest(pt)  # type: ignore[no-any-return]
     except TypeError:
-        return seg_index.nearest(pt, 1)[0]
+        # Shapely 2.x
+        return seg_index.nearest(pt)[0]  # type: ignore[no-any-return]
 
 
 def linestring_substring(line: LineString, start_m: float, end_m: float) -> LineString:
@@ -264,7 +266,7 @@ def explode_segments(centerlines: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     segs = segs[segs.geom_type == "LineString"].copy()
     segs.reset_index(drop=True, inplace=True)
     segs["edge_id"] = segs.index.astype(int)
-    return segs[["edge_id", "geometry"]]
+    return segs[["edge_id", "geometry"]]  # type: ignore[no-any-return]
 
 
 def build_graph(
@@ -863,7 +865,7 @@ def main() -> None:
             continue
 
         # Euclidean prefilter
-        idxs = kd.query_ball_point([x, y], r=BUFFER_FT)
+        idxs = kd.query_ball_point(x=[x, y], r=BUFFER_FT, p=2.0)
 
         if off_net or not idxs:
             results[sid] = dict(

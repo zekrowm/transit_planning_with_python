@@ -306,13 +306,15 @@ def generate_unique_patterns(
 
             group_sub_dist_valid = group_sub.dropna(subset=["shape_dist_traveled"])
             if group_sub_dist_valid.empty:
-                trip_distances[trip_id_val] = None
+                trip_distances[str(trip_id_val)] = None
             else:
                 dist_val = (
                     group_sub_dist_valid.iloc[-1]["shape_dist_traveled"]
                     - group_sub_dist_valid.iloc[0]["shape_dist_traveled"]
                 )
-                trip_distances[trip_id_val] = convert_dist_to_miles(dist_val, INPUT_DISTANCE_UNIT)
+                trip_distances[str(trip_id_val)] = convert_dist_to_miles(
+                    dist_val, INPUT_DISTANCE_UNIT
+                )
 
     # Build patterns
     patterns_list: list[dict[str, Any]] = []
