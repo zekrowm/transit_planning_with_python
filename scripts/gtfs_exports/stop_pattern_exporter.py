@@ -982,7 +982,7 @@ def main() -> None:
     stop_times_df = gtfs_data.get("stop_times")
     routes_df = gtfs_data.get("routes")
 
-    if any(df is None for df in [stops_df, trips_df, stop_times_df, routes_df]):
+    if stops_df is None or trips_df is None or stop_times_df is None or routes_df is None:
         logging.error("One or more essential GTFS DataFrames could not be loaded. Exiting.")
         return
 

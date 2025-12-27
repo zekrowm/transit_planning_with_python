@@ -9,7 +9,7 @@ though direct execution via the command line is also supported.
 
 import logging
 import os
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Mapping, Optional
 
 import pandas as pd
 
@@ -472,9 +472,8 @@ def _row_for_inactive(
 
     # ------------------------------------------------------------------ status decision
     if prev_trip_info is not None and next_trip_info is not None:
-        # Cast after the None-check so static analysers know the objects are dicts
-        prev_trip = cast("dict[str, Any]", prev_trip_info)
-        next_trip = cast("dict[str, Any]", next_trip_info)
+        prev_trip = prev_trip_info
+        next_trip = next_trip_info
 
         gap: int = next_trip["start"] - prev_trip["end"]
         if gap <= DWELL_THRESHOLD:
@@ -489,7 +488,7 @@ def _row_for_inactive(
     # If the very next minute is the first minute of a trip, mark this minute “LOADING”.
     if (
         next_trip_info is not None
-        and cast("dict[str, Any]", next_trip_info)["start"] == minute + 1
+        and next_trip_info["start"] == minute + 1
         and status in {"DWELL", "LAYOVER"}
     ):
         status = "LOADING"
@@ -540,8 +539,6 @@ def _build_schedule_rows(
             )
 
             if chosen_trip is not None:
-                chosen_trip = cast("dict[str, Any]", chosen_trip)
-
                 (
                     status,
                     stop_id,
