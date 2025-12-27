@@ -16,6 +16,7 @@ All configuration is set in the 'Configuration' section below.
 from __future__ import annotations
 
 import csv
+import logging
 import math
 import os
 from pathlib import Path
@@ -23,6 +24,14 @@ from typing import Optional, Sequence
 
 import arcpy
 import pandas as pd
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 # =============================================================================
 # CONFIGURATION
@@ -410,15 +419,17 @@ def main() -> None:
     total = int(arcpy.management.GetCount(work_fc)[0])
     n_conf = int(arcpy.management.GetCount(conflicts_fc)[0])
     pct = (n_conf / total * 100.0) if total else 0.0
-    print(f"Stops checked (post-pandas-dedupe): {total}")
-    print(f"Stops with conflicts: {n_conf} ({pct:.1f}%)")
-    print(
-        f"Vector export: {os.path.abspath(gdb_path) if gdb_path else '(GDB disabled)'} "
-        f"{'and ' + shp_path if shp_path else ''}"
+    logging.info("Stops checked (post-pandas-dedupe): %d", total)
+    logging.info("Stops with conflicts: %d (%.1f%%)", n_conf, pct)
+    logging.info(
+        "Vector export: %s %s",
+        os.path.abspath(gdb_path) if gdb_path else "(GDB disabled)",
+        "and " + shp_path if shp_path else "",
     )
-    print(
-        f"Tabular export: {csv_path if csv_path else '(CSV disabled)'} "
-        f"{'and ' + xlsx_path if xlsx_path else ''}"
+    logging.info(
+        "Tabular export: %s %s",
+        csv_path if csv_path else "(CSV disabled)",
+        "and " + xlsx_path if xlsx_path else "",
     )
 
 
