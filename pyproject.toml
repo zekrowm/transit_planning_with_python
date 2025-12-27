@@ -30,11 +30,26 @@ convention = "google"
 # ----------------------------------------------------------------
 # ty
 # ----------------------------------------------------------------
+[tool.ty]
+
 [tool.ty.environment]
 python-version = "3.12"
 
 [tool.ty.rules]
-unresolved-import = "warn"        # C-extension libs without stubs
+unsupported-operator = "error"
+invalid-return-type = "warn"
+unresolved-import = "warn"
+invalid-assignment = "warn"
+invalid-argument-type = "warn"
+non-subscriptable = "warn"
+not-iterable = "warn"
+no-matching-overload = "warn"
+invalid-parameter-default = "warn"
+possibly-missing-attribute = "warn"
+redundant-cast = "warn"
+unresolved-reference = "warn"
+unresolved-attribute = "warn"
+unresolved-global = "warn"
 
 # ----------------------------------------------------------------
 # mypy

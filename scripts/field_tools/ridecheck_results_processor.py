@@ -149,7 +149,7 @@ def classify_punctuality(diff: float | int | None) -> str | None:
     Returns:
         A string classification, or ``None`` when *diff* is *NaN*.
     """
-    if pd.isna(diff):
+    if diff is None or pd.isna(diff):
         return None
     if diff < EARLY_TOLERANCE_MIN:
         return "early"
