@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import math
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -675,7 +675,7 @@ def export_stop_maps(
             except Exception:  # noqa: BLE001
                 return str(val)
         try:
-            mi = float(val)  # handles ints/floats/num-strings
+            mi = float(cast(Any, val))  # handles ints/floats/num-strings
             return f"{int(round(mi * FT_PER_MILE)):,.0f} ft"
         except Exception:  # noqa: BLE001
             return str(val)
@@ -929,7 +929,7 @@ def main() -> None:
                 x=x,
                 y=y,
                 nearest_stop_id=tgt_sid,
-                linear_dist_miles=round(float(lin_ft) / FT_PER_MILE, 4),
+                linear_dist_miles=round(float(cast(float, lin_ft)) / FT_PER_MILE, 4),
                 network_dist_miles=round(float(net_ft) / FT_PER_MILE, 4),
                 path_geom=path_geom,
                 sanity_flag=flag,
