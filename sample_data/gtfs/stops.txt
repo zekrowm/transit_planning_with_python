@@ -1,0 +1,4 @@
+stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,location_type,parent_station
+S1,1001,Main St Station,Central Hub,38.9072,-77.0369,0,
+S2,1002,Broadway & 5th,Near Park,38.9080,-77.0380,0,
+S3,1003,High St Loop,Terminus,38.9090,-77.0400,0,

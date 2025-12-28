@@ -41,6 +41,7 @@ The repository is organized for ease of use, with:
 
 - ***Standalone scripts:*** Each tool is fully documented with comments explaining field name assumptions, file formats, and usage instructions.
 - ***Standard data formats:*** Most scripts are designed to work with commonly used data types like GTFS files and shapefiles. Specific requirements are outlined in the script comments.
+- ***Sample Data:*** A synthetic GTFS dataset is provided in `sample_data/gtfs` for testing and experimentation.
 
 ## 🛠️ Requirements
 
@@ -208,6 +209,24 @@ JupyterLab is an advanced interactive development environment for data science a
 
 - **File Paths:** Ensure all file paths are updated in the scripts to match your local system.
 - **Permissions:** If IT restrictions block library installations on your work computer, setting up Python on a home computer is recommended.
+- **Sample Data:** If you want to try the scripts but don't have your own data yet, you can use the sample data provided in `sample_data/gtfs`. This folder contains a synthetic "Toy Transit" agency feed.
+
+  Example of loading the sample data using `helpers.gtfs_helpers`:
+
+  ```python
+  from helpers.gtfs_helpers import load_gtfs_data
+
+  # Point to the sample data folder
+  gtfs_path = "sample_data/gtfs"
+
+  # Load the specific files present in the sample feed
+  data = load_gtfs_data(
+      gtfs_path,
+      files=("agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt", "calendar.txt", "shapes.txt")
+  )
+
+  print(data["routes"].head())
+  ```
 
 ## 🤝 Contributing
 
