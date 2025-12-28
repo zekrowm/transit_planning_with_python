@@ -487,7 +487,7 @@ def _export_flagged_pngs(
         fig, ax = plt.subplots(figsize=(4, 4))
 
         # roads backdrop (dark‑gray)
-        if roads_gdf is not None:
+        if roads_gdf is not None and roads_sindex is not None:
             idx = list(roads_sindex.intersection(win_box.bounds))
             for geom in roads_gdf.geometry.iloc[idx]:
                 clipped = geom.intersection(win_box)
