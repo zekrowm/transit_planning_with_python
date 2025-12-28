@@ -70,13 +70,13 @@ STOP_KEY_FIELD = "stop_code" if USE_STOP_CODE else "stop_id"
 #   - Names (short_name or long_name) that should be ignored entirely
 #     (e.g., express patterns that intentionally skip stops).
 #   - Route IDs that should be ignored explicitly.
-ROUTE_NAME_WHITELIST: Set[str] = {}
+ROUTE_NAME_WHITELIST: Set[str] = set()
 ROUTE_NAME_WHITELIST_FIELD = "route_short_name"  # or "route_long_name"
 ROUTE_ID_WHITELIST: Set[str] = set()
 
 # Target routes: leave empty to analyze all routes, or specify a subset.
 # Example: {"101"} or {"101", "202"}.
-TARGET_ROUTE_IDS: Set[str] = {}
+TARGET_ROUTE_IDS: Set[str] = set()
 
 # Minimum number of shared logical stops between two routes to consider the pair.
 MIN_SHARED_STOPS_FOR_PAIR = 2

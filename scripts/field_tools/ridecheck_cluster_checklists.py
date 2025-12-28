@@ -465,7 +465,7 @@ def export_to_excel(df: pd.DataFrame, output_file: str) -> None:
 
         # Bold rows for special routes
         if "route_short_name" in df.columns and SPECIAL_ROUTES:
-            route_idx = df.columns.get_loc("route_short_name") + 1
+            route_idx = int(df.columns.get_loc("route_short_name")) + 1
             for row_idx in range(2, ws.max_row + 1):
                 val = ws.cell(row=row_idx, column=route_idx).value
                 if str(val) in SPECIAL_ROUTES:
@@ -567,8 +567,8 @@ def process_cluster_slice(
         )
 
     # Placeholders
-    df.insert(df.columns.get_loc("arrival_time") + 1, "act_arrival", "________")
-    df.insert(df.columns.get_loc("departure_time") + 1, "act_departure", "________")
+    df.insert(int(df.columns.get_loc("arrival_time")) + 1, "act_arrival", "________")
+    df.insert(int(df.columns.get_loc("departure_time")) + 1, "act_departure", "________")
 
     if "sequence_long" in df.columns:
         df.loc[df["sequence_long"] == "start", "act_arrival"] = "__XXXX__"

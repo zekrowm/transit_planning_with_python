@@ -32,14 +32,17 @@ convention = "google"
 # ----------------------------------------------------------------
 [tool.ty]
 
+[tool.ty.src]
+exclude = ["**/*arcpy*"]
+
 [tool.ty.environment]
 python-version = "3.12"
 
 [tool.ty.rules]
 unsupported-operator = "error"
-invalid-return-type = "warn"
+invalid-return-type = "error"
 unresolved-import = "warn"
-invalid-assignment = "warn"
+invalid-assignment = "error"
 invalid-argument-type = "warn"
 non-subscriptable = "error"
 not-iterable = "error"

@@ -742,8 +742,8 @@ def log_low_sample_start_times(
     if counts.empty:
         return  # no rows after earlier filters
 
-    cutoff = counts.median() * thresh_frac
-    sparse_tokens = counts[counts < cutoff]
+    cutoff = float(counts.median()) * thresh_frac
+    sparse_tokens = counts[counts.lt(cutoff)]
     if sparse_tokens.empty:
         return  # nothing to flag
 
@@ -910,7 +910,7 @@ def suggest_time_bands(
                 changed = False
                 continue
             for bid in small:
-                idx = sizes.index.get_loc(bid)
+                idx = int(sizes.index.get_loc(bid))
                 opts = []
                 if idx > 0:
                     left = sizes.index[idx - 1]

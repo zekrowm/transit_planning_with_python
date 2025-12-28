@@ -17,7 +17,7 @@ import sys
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
 # =============================================================================
 # Configuration
@@ -154,7 +154,7 @@ def discover_imports(repo_root: Path, cfg: Config) -> set[str]:
     return found
 
 
-def build_import_to_distributions_map() -> dict[str, list[str]]:
+def build_import_to_distributions_map() -> Mapping[str, list[str]]:
     """Map importable package names -> distribution names."""
     # Example: {"yaml": ["PyYAML"], "PIL": ["Pillow"], "sklearn": ["scikit-learn"], ...}
     return metadata.packages_distributions()
@@ -162,7 +162,7 @@ def build_import_to_distributions_map() -> dict[str, list[str]]:
 
 def resolve_distributions(
     imported_modules: set[str],
-    import_to_dists: dict[str, list[str]],
+    import_to_dists: Mapping[str, list[str]],
 ) -> set[str]:
     """Resolve imported top-level modules to installed distribution names."""
     resolved: set[str] = set()
