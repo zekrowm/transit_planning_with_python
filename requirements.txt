@@ -33,7 +33,6 @@ pytest==8.3.5                # Unit testing framework
 pytest-cov                   # Test coverage reporting
 ruff                         # Linting & formatting
 ty                           # Non-blocking type checks
-mypy                         # Static type checker
 
 # ------------- Typing stubs (temporary) -------------------------------------
 pandas-stubs==2.2.*

@@ -45,6 +45,3 @@ jobs:
 
       - name: Type check with Ty
         run: ty check scripts --exclude "**/*arcpy*"
-
-      - name: Type check with Mypy (ridership_tools)
-        run: mypy scripts/ridership_tools
