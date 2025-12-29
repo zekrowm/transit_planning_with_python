@@ -1,3 +1,8 @@
+"""Script to lint Pull Request titles, bodies, and commit messages in CI.
+
+This script enforces Conventional Commits standards and ensures PR descriptions are meaningful.
+"""
+
 import json
 import logging
 import os
@@ -13,7 +18,11 @@ logger = logging.getLogger(__name__)
 # https://www.conventionalcommits.org/en/v1.0.0/
 # Pattern: type(scope): description
 # Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
-CONVENTIONAL_COMMIT_PATTERN = r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?(!)?: .+$"
+CONVENTIONAL_COMMIT_PATTERN = (
+    r"^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)"
+    r"(\([a-z0-9-]+\))?(!)?: .+$"
+)
+
 
 def validate_message(message: str, context: str) -> bool:
     """Validates a message against the Conventional Commits pattern."""
@@ -22,11 +31,15 @@ def validate_message(message: str, context: str) -> bool:
         logger.info(f"  Current: '{message}'")
         logger.info("  Expected format: type(scope): description")
         logger.info("  Example: feat(ui): add dark mode button")
-        logger.info("  Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert")
+        logger.info(
+            "  Allowed types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, "
+            "revert"
+        )
         return False
     return True
 
-def get_commits_from_git(base_ref: str):
+
+def get_commits_from_git(base_ref: str) -> list[str]:
     """Retrieves commit messages from git log."""
     # Fetch the base ref to ensure we can compare
     try:
@@ -42,7 +55,9 @@ def get_commits_from_git(base_ref: str):
         logger.error(f"Failed to get commits via git: {e}")
         return []
 
-def main():
+
+def main() -> None:
+    """Main function to validate PR metadata and commits."""
     has_errors = False
 
     # 1. Validate PR Metadata (Title and Body)
@@ -69,7 +84,9 @@ def main():
                 logger.info("Validating PR Body...")
                 if not body or len(body.strip()) < 10:
                     logger.error("PR Body is too short or empty.")
-                    logger.info("  Please provide a description of the changes (at least 10 characters).")
+                    logger.info(
+                        "  Please provide a description of the changes (at least 10 characters)."
+                    )
                     has_errors = True
                 else:
                     logger.info("PR Body is valid.")
@@ -105,6 +122,7 @@ def main():
         sys.exit(1)
 
     logger.info("All checks passed!")
+
 
 if __name__ == "__main__":
     main()
