@@ -104,8 +104,7 @@ def build_argparser() -> argparse.ArgumentParser:
     """Create and configure the CLI argument parser."""
     p = argparse.ArgumentParser(
         description=(
-            "Recalculate OTP percentages, apply optional filters, and "
-            "output pivot+summary tables."
+            "Recalculate OTP percentages, apply optional filters, and output pivot+summary tables."
         )
     )
     p.add_argument("-i", "--input", default=CSV_PATH, help="Path to the input CSV.")
@@ -270,8 +269,8 @@ def normalize_direction_value(value: str, allowed: List[str]) -> str:
 
 def normalize_directions_column(df: pd.DataFrame, allowed: List[str]) -> pd.DataFrame:
     """Normalize the 'Direction' column in place to the allowed list."""
-    df["Direction"] = df["Direction"].astype(str).map(
-        lambda s: normalize_direction_value(s, allowed)
+    df["Direction"] = (
+        df["Direction"].astype(str).map(lambda s: normalize_direction_value(s, allowed))
     )
     return df
 
@@ -391,8 +390,10 @@ def add_year_month_column(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     # Map Month tokens to month number
-    month_num = df["Month"].map(month_name_to_number) if "Month" in df.columns else pd.Series(
-        [None] * len(df), index=df.index
+    month_num = (
+        df["Month"].map(month_name_to_number)
+        if "Month" in df.columns
+        else pd.Series([None] * len(df), index=df.index)
     )
 
     # Extract year + month number from existing Year-Month
@@ -514,12 +515,7 @@ def filter_rdt(df: pd.DataFrame, triples: List[Tuple[str, str, int]]) -> pd.Data
 def infer_timepoint_orders_for_group(group_df: pd.DataFrame, ascending: bool) -> List[int]:
     """Infer the ordered list of Timepoint Order values for a single group."""
     orders = (
-        group_df["Timepoint Order"]
-        .dropna()
-        .astype("Int64")
-        .drop_duplicates()
-        .astype(int)
-        .tolist()
+        group_df["Timepoint Order"].dropna().astype("Int64").drop_duplicates().astype(int).tolist()
     )
     orders.sort(reverse=not ascending)
     return orders
@@ -561,9 +557,9 @@ def aggregate_to_month(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    agg["Total Counts"] = (
-        agg["Sum # On Time"] + agg["Sum # Early"] + agg["Sum # Late"]
-    ).astype("Int64")
+    agg["Total Counts"] = (agg["Sum # On Time"] + agg["Sum # Early"] + agg["Sum # Late"]).astype(
+        "Int64"
+    )
     denom = agg["Total Counts"].replace(0, pd.NA)
 
     agg["% On Time"] = (agg["Sum # On Time"] / denom * 100).round(2)
@@ -579,9 +575,7 @@ def filter_top_variations(df_monthly: pd.DataFrame, top_n: int | None) -> pd.Dat
         return df_monthly
 
     totals = (
-        df_monthly.groupby(
-            ["Short Route", "Direction", "Variation"], dropna=False
-        )["Total Counts"]
+        df_monthly.groupby(["Short Route", "Direction", "Variation"], dropna=False)["Total Counts"]
         .sum()
         .reset_index()
     )
@@ -620,9 +614,7 @@ def save_variation_line_plot(
     plt.plot(x, summary_df["AvgEarly"], marker="o", label="Early %")
     plt.plot(x, summary_df["AvgLate"], marker="o", label="Late %")
 
-    plt.axhline(
-        otp_standard, linestyle="--", color="red", label=f"Standard ({otp_standard:.0f}%)"
-    )
+    plt.axhline(otp_standard, linestyle="--", color="red", label=f"Standard ({otp_standard:.0f}%)")
 
     plt.xlabel("Timepoint Order")
     plt.ylabel("Percent")
@@ -845,9 +837,7 @@ def main() -> None:
     }
 
     # pivots & summaries --------------------------------------------------------
-    pivot_pct = pivot_monthly_by_stop(
-        df_monthly, "% On Time", ascending=SORT_TIMEPOINT_ORDER_ASC
-    )
+    pivot_pct = pivot_monthly_by_stop(df_monthly, "% On Time", ascending=SORT_TIMEPOINT_ORDER_ASC)
     pivot_cnt = pivot_monthly_by_stop(
         df_monthly, "Total Counts", ascending=SORT_TIMEPOINT_ORDER_ASC
     )
