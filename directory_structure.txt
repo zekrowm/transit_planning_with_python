@@ -59,11 +59,11 @@ transit_planning_with_python-main/
     │   ├── stop_spacing_flagger_arcpy.py
     │   └── stop_spacing_flagger_gpd.py
     ├── operations_tools/
-    │   ├── otp_by_stop_pivot.py
     │   ├── otp_metrics_trends_export.py
-    │   ├── runtime_fit_tool.py
+    │   ├── otp_monthly_by_timepoint_order.py
     │   ├── runtime_pivot_clever.py
-    │   └── runtime_pivot_ridecheck.py
+    │   ├── runtime_pivot_ridecheck.py
+    │   └── trip_event_runtime_diagnostics.py
     ├── ridership_tools/
     │   ├── data_request_by_stop_processor.py
     │   ├── load_factor_monitor.py
