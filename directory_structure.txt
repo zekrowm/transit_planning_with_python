@@ -61,7 +61,7 @@ transit_planning_with_python-main/
     ├── operations_tools/
     │   ├── otp_metrics_trends_export.py
     │   ├── otp_monthly_by_timepoint_order.py
-    │   ├── runtime_pivot_clever.py
+    │   ├── runtime_by_segment_pivot.py
     │   ├── runtime_pivot_ridecheck.py
     │   └── trip_event_runtime_diagnostics.py
     ├── ridership_tools/
