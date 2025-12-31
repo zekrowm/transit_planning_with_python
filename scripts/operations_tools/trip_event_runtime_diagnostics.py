@@ -190,25 +190,38 @@ def _clean_route_id(raw: str | float | int) -> str:
     return m.group(1).lstrip("0") or "0"
 
 
-def _discover_route_csvs(root: Path, wanted: set[str] | None = None) -> dict[str, list[Path]]:
+def _discover_route_csvs(
+    root: Path,
+    wanted: set[str] | None = None,
+) -> dict[str, list[Path]]:
     """Crawl *root* recursively and build {route → [files]}.
 
-    * A file is linked to **every** route ID that appears in its Route column,
-      so mixed files get processed by each relevant route run.
-    * Route column header may be “route”, “Route_ID”, “routeName”, etc.
-    * Honors *wanted* whitelist (1‑to‑4 digit IDs with leading zeros stripped).
+    A file is linked to **every** route ID that appears in its chosen route column
+    (prefers a human-readable ``Route`` column over ID-like columns such as
+    ``RouteID``). Mixed files get processed by each relevant route run.
+
+    The selected route column may be “Route”, “routeName”, “Route_ID”, etc.
+    Honors *wanted* whitelist (1-to-4 digit IDs with leading zeros stripped).
     """
     buckets: dict[str, list[Path]] = defaultdict(list)
     route_hdr_re = re.compile(r"\s*route\w*\s*", flags=re.I)
 
     for p in root.rglob("*.csv"):
         try:
-            # read just the header to find the Route‑like column
-            header = pd.read_csv(p, sep=_detect_sep(p), nrows=0).columns
-            route_col = next(col for col in header if route_hdr_re.fullmatch(col))
-        except StopIteration:
-            logging.warning("!! %s: no Route column; skipped", p.name)
-            continue
+            # Read just the header to find a Route-like column.
+            header = pd.read_csv(p, sep=_detect_sep(p), nrows=0).columns.tolist()
+            route_like = [c for c in header if route_hdr_re.fullmatch(c)]
+            if not route_like:
+                raise KeyError("no route-like column")
+
+            # Prefer the human-readable 'Route' column when present.
+            if "Route" in route_like:
+                route_col = "Route"
+            else:
+                # Otherwise prefer a non-ID route-like column (e.g., routeName) over RouteID.
+                non_id = [c for c in route_like if not re.search(r"id\s*$", c, flags=re.I)]
+                route_col = non_id[0] if non_id else route_like[0]
+
         except Exception as e:
             logging.warning("!! %s: %s; skipped", p.name, e)
             continue
