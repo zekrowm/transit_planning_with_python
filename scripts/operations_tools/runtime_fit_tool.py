@@ -25,9 +25,8 @@ import re
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, Final, Iterable, List, Sequence, TypeAlias
+from typing import Callable, Final, Iterable, List, Sequence
 
-# May need to comment out TypeAlias import for old ArcPro Python versions
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -103,7 +102,7 @@ ALLOWED_DIRECTIONS: List[str] = [
 # TYPE ALIASES
 # ---------------------------------------------------------------------
 
-PlotFunc: TypeAlias = Callable[[pd.DataFrame], None]
+type PlotFunc = Callable[[pd.DataFrame], None]
 
 # =============================================================================
 # FUNCTIONS

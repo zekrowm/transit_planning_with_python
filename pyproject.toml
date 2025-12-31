@@ -16,8 +16,9 @@ line-length    = 100
 # D  → pydocstyle (Google-style enforced below)
 # ANN = flake8-annotations
 # TC = flake8-type-checking
-select   = ["I", "F", "D", "ANN", "TCH", "B", "E", "W"]
-fixable  = ["F401", "D", "I"]
+# UP = pyupgrade
+select   = ["I", "F", "D", "ANN", "TCH", "B", "E", "W", "UP040"]
+fixable  = ["F401", "D", "I", "UP040"]
 ignore   = ["ANN401", "TC002", "TC003"]
 
 [tool.ruff.lint.per-file-ignores]
