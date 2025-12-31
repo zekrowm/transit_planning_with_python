@@ -2,7 +2,8 @@
 
 This script ingests an OTP-by-timepoint CSV export and produces analysis-ready outputs that treat
 each unique (Short Route, Direction, Variation) as its own pattern. It converts the source data to
-a monthly grain (YYYY-MM) to avoid relying on potentially meaningless day-level dates in the export.
+a monthly grain (YYYY-MM) to avoid relying on potentially meaningless day-level dates in the
+export.
 
 Core steps
 ----------
@@ -15,7 +16,8 @@ Core steps
   percentages from the aggregated counts.
 - Generate per-variation outputs:
   - Monthly pivot tables of % On Time and Total Counts (rows = Year-Month, columns = stop order).
-  - A stop-level summary for the analysis window that retains Timepoint ID/Description as context.
+  - A stop-level summary for the analysis window that retains Timepoint ID/Description as
+    context.
   - Optional line plots showing on-time/early/late % across stop order, including a dashed
     reference line for a configurable OTP standard.
 
@@ -220,7 +222,8 @@ def normalize_timepoint_order_column(df: pd.DataFrame) -> pd.DataFrame:
     coerced = pd.to_numeric(df[col], errors="coerce")
     if coerced.isna().any():
         cols = [col]
-        for extra in ("Timepoint ID", "Timepoint Description", "Route", "Direction", "Variation"):
+        extras = ["Timepoint ID", "Timepoint Description", "Route", "Direction", "Variation"]
+        for extra in extras:
             if extra in df.columns:
                 cols.append(extra)
         bad = df.loc[coerced.isna(), cols].head(10)
@@ -383,8 +386,8 @@ def add_year_month_column(df: pd.DataFrame) -> pd.DataFrame:
     has_ym = df["Year-Month"].astype(str).ne("NaT")
     if not has_ym.any():
         sys.exit(
-            "ERROR: Could not derive any Year-Month from Date. Add a 'Year-Month' column (YYYY-MM) "
-            "to the export, or ensure Date is populated for at least some rows."
+            "ERROR: Could not derive any Year-Month from Date. Add a 'Year-Month' column "
+            "(YYYY-MM) to the export, or ensure Date is populated for at least some rows."
         )
 
     # Map Month tokens to month number
@@ -558,9 +561,9 @@ def aggregate_to_month(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    agg["Total Counts"] = (agg["Sum # On Time"] + agg["Sum # Early"] + agg["Sum # Late"]).astype(
-        "Int64"
-    )
+    agg["Total Counts"] = (
+        agg["Sum # On Time"] + agg["Sum # Early"] + agg["Sum # Late"]
+    ).astype("Int64")
     denom = agg["Total Counts"].replace(0, pd.NA)
 
     agg["% On Time"] = (agg["Sum # On Time"] / denom * 100).round(2)
@@ -576,7 +579,9 @@ def filter_top_variations(df_monthly: pd.DataFrame, top_n: int | None) -> pd.Dat
         return df_monthly
 
     totals = (
-        df_monthly.groupby(["Short Route", "Direction", "Variation"], dropna=False)["Total Counts"]
+        df_monthly.groupby(
+            ["Short Route", "Direction", "Variation"], dropna=False
+        )["Total Counts"]
         .sum()
         .reset_index()
     )
@@ -615,7 +620,9 @@ def save_variation_line_plot(
     plt.plot(x, summary_df["AvgEarly"], marker="o", label="Early %")
     plt.plot(x, summary_df["AvgLate"], marker="o", label="Late %")
 
-    plt.axhline(otp_standard, linestyle="--", color="red", label=f"Standard ({otp_standard:.0f}%)")
+    plt.axhline(
+        otp_standard, linestyle="--", color="red", label=f"Standard ({otp_standard:.0f}%)"
+    )
 
     plt.xlabel("Timepoint Order")
     plt.ylabel("Percent")
@@ -725,7 +732,8 @@ def summary_route_direction(
             # Build a contextual lookup using group Total Counts as weights
             ctx_tmp = ctx.copy()
             if "Total Counts" not in ctx_tmp.columns:
-                # If context df hasn't been aggregated yet, approximate weight from processed sum
+                # If context df hasn't been aggregated yet, approximate weight
+                # from processed sum
                 if "Sum # Processed" in ctx_tmp.columns:
                     ctx_tmp["Total Counts"] = pd.to_numeric(
                         ctx_tmp["Sum # Processed"], errors="coerce"
@@ -837,7 +845,9 @@ def main() -> None:
     }
 
     # pivots & summaries --------------------------------------------------------
-    pivot_pct = pivot_monthly_by_stop(df_monthly, "% On Time", ascending=SORT_TIMEPOINT_ORDER_ASC)
+    pivot_pct = pivot_monthly_by_stop(
+        df_monthly, "% On Time", ascending=SORT_TIMEPOINT_ORDER_ASC
+    )
     pivot_cnt = pivot_monthly_by_stop(
         df_monthly, "Total Counts", ascending=SORT_TIMEPOINT_ORDER_ASC
     )
