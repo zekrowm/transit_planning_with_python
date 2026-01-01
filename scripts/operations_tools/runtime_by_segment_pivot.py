@@ -41,6 +41,11 @@ TIME_COLUMNS = {
     "Average StartTPScheduleDeviation": "StartTPSchedDev(min)",
 }
 
+# Which time metrics should also export a per-trip percent-of-total table?
+PERCENT_TIME_COLUMNS = {
+    "Average Actual Running Time": "PctOfRuntime(%)",
+}
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -328,13 +333,42 @@ def sort_route_segments(segments: Iterable[str]) -> List[str]:
     return solutions[0]
 
 
+def to_percent_of_total(pivot_tbl: pd.DataFrame) -> pd.DataFrame:
+    """Convert a minutes pivot table to row-wise percent-of-total.
+
+    Args:
+        pivot_tbl: Pivot with trips as rows and segments as columns.
+
+    Returns:
+        DataFrame of percentages (0-100). Rows with a zero/NaN total become NaN.
+    """
+    row_total = pivot_tbl.sum(axis=1, skipna=True)
+    pct_tbl = pivot_tbl.div(row_total.replace({0.0: pd.NA}), axis=0) * 100.0
+    return pct_tbl
+
+
 def create_and_save_pivots(
     df: pd.DataFrame,
     output_subdir: str,
     dataset_label: str,
-    time_columns_map: dict,
+    time_columns_map: Mapping[str, str],
+    percent_time_columns_map: Optional[Mapping[str, str]] = None,
 ) -> None:
-    """Create pivot-table CSVs for each *(route, direction, time metric)*."""
+    """Create pivot-table CSVs for each *(route, direction, time metric)*.
+
+    Also optionally writes a percent-of-total table (per trip) for selected metrics.
+
+    Args:
+        df: CLEVER input DataFrame for one service period.
+        output_subdir: Output folder for CSVs.
+        dataset_label: Token used in output names (must match subdirectory).
+        time_columns_map: Mapping of raw CLEVER time column -> output suffix.
+        percent_time_columns_map: Optional mapping of raw CLEVER time column -> percent
+            output suffix. If a time column is present here, a percent-of-total CSV is
+            written alongside the minutes pivot.
+    """
+    percent_time_columns_map = percent_time_columns_map or {}
+
     if not os.path.exists(output_subdir):
         os.makedirs(output_subdir)
 
@@ -384,12 +418,24 @@ def create_and_save_pivots(
                     columns=[s for s in segments if s in pivot_tbl.columns]
                 )
                 pivot_tbl = pivot_tbl.reindex(index=sorted_idx)
-                pivot_tbl = pivot_tbl.round(1)
 
+                # Write minutes pivot
+                pivot_tbl_out = pivot_tbl.round(1)
                 csv_name = f"{dataset_label}_Route{route}_Dir{direction}_{suffix}.csv"
                 csv_path = os.path.join(output_subdir, csv_name)
-                pivot_tbl.to_csv(csv_path, float_format="%.1f")
+                pivot_tbl_out.to_csv(csv_path, float_format="%.1f")
                 logging.info("Created %s", csv_path)
+
+                # Optional: percent-of-total export for selected metrics
+                if time_col in percent_time_columns_map:
+                    pct_suffix = percent_time_columns_map[time_col]
+                    pct_tbl = to_percent_of_total(pivot_tbl)  # compute from unrounded minutes
+                    pct_tbl = pct_tbl.round(1)
+
+                    pct_csv_name = f"{dataset_label}_Route{route}_Dir{direction}_{pct_suffix}.csv"
+                    pct_csv_path = os.path.join(output_subdir, pct_csv_name)
+                    pct_tbl.to_csv(pct_csv_path, float_format="%.1f")
+                    logging.info("Created %s", pct_csv_path)
 
                 direction_wrote_something = True
                 route_wrote_any_csv = True
@@ -432,7 +478,13 @@ def process_file(file_path: str, dataset_label: str) -> None:
     else:
         output_subdir = dataset_label
 
-    create_and_save_pivots(df, output_subdir, dataset_label, TIME_COLUMNS)
+    create_and_save_pivots(
+        df=df,
+        output_subdir=output_subdir,
+        dataset_label=dataset_label,
+        time_columns_map=TIME_COLUMNS,
+        percent_time_columns_map=PERCENT_TIME_COLUMNS,
+    )
 
 
 # =============================================================================
