@@ -432,9 +432,7 @@ def create_and_save_pivots(
                     pct_tbl = to_percent_of_total(pivot_tbl)  # compute from unrounded minutes
                     pct_tbl = pct_tbl.round(1)
 
-                    pct_csv_name = (
-                        f"{dataset_label}_Route{route}_Dir{direction}_{pct_suffix}.csv"
-                    )
+                    pct_csv_name = f"{dataset_label}_Route{route}_Dir{direction}_{pct_suffix}.csv"
                     pct_csv_path = os.path.join(output_subdir, pct_csv_name)
                     pct_tbl.to_csv(pct_csv_path, float_format="%.1f")
                     logging.info("Created %s", pct_csv_path)
