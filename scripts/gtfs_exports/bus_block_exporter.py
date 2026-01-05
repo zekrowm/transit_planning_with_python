@@ -769,7 +769,7 @@ def run() -> None:
     validate_folders(gtfs_path, out_path)
 
     logging.info("Loading GTFS …")
-    gtfs = load_gtfs_data(gtfs_path)
+    gtfs = load_gtfs_data(str(gtfs_path))
 
     # ── Merge, mark, filter ────────────────────────────────────────────────────
     trips = gtfs["trips"]

@@ -230,7 +230,7 @@ def plot_route_shape(
 def read_gtfs_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Reads GTFS files and returns the dataframes as a tuple."""
     files = ["routes.txt", "trips.txt", "stop_times.txt", "shapes.txt", "stops.txt"]
-    gtfs_data = load_gtfs_data(GTFS_FOLDER, files=files, dtype=None)
+    gtfs_data = load_gtfs_data(GTFS_FOLDER, files=files, dtype=str)
 
     routes = gtfs_data["routes"]
     trips = gtfs_data["trips"]
