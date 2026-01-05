@@ -14,8 +14,10 @@ Outputs:
 """
 
 import logging
+import os
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 import geopandas as gpd
 import pandas as pd
@@ -43,6 +45,87 @@ DEFAULT_OUTPUT_DIR: Optional[Path] = Path(r"/path/to/your/default_output_folder"
 # ===========================================================================
 
 
+def load_gtfs_data(
+    gtfs_folder_path: str,
+    files: Optional[Sequence[str]] = None,
+    dtype: str | type[str] | Mapping[str, Any] = str,
+) -> dict[str, pd.DataFrame]:
+    """Load one or more GTFS text files into memory.
+
+    Args:
+        gtfs_folder_path: Absolute or relative path to the folder
+            containing the GTFS feed.
+        files: Explicit sequence of file names to load. If ``None``,
+            the standard 13 GTFS text files are attempted.
+        dtype: Value forwarded to :pyfunc:`pandas.read_csv(dtype=…)` to
+            control column dtypes. Supply a mapping for per-column dtypes.
+
+    Returns:
+        Mapping of file stem → :class:`pandas.DataFrame`; for example,
+        ``data["trips"]`` holds the parsed *trips.txt* table.
+
+    Raises:
+        OSError: Folder missing or one of *files* not present.
+        ValueError: Empty file or CSV parser failure.
+        RuntimeError: Generic OS error while reading a file.
+
+    Notes:
+        All columns default to ``str`` to avoid pandas’ type-inference
+        pitfalls (e.g. leading zeros in IDs).
+    """
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
+
+    if files is None:
+        files = (
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt",
+        )
+
+    missing = [
+        file_name
+        for file_name in files
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
+    ]
+    if missing:
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
+
+    data: dict[str, pd.DataFrame] = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(gtfs_folder_path, file_name)
+        try:
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            data[key] = df
+            logging.info("Loaded %s (%d records).", file_name, len(df))
+
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+    return data
+
+
 def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
     """Reads GTFS 'stops.txt' file into a Point GeoDataFrame.
 
@@ -56,13 +139,13 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
         FileNotFoundError: If 'stops.txt' is not found in gtfs_dir.
         ValueError: If required columns are missing or lat/lon are invalid.
     """
-    file_path = gtfs_dir / "stops.txt"
-    if not file_path.exists():
-        raise FileNotFoundError(f"Required file not found: {file_path}")
-
     try:
-        df = pd.read_csv(file_path, dtype={"stop_id": str})
+        data = load_gtfs_data(str(gtfs_dir), files=["stops.txt"], dtype={"stop_id": str})
+        df = data["stops"]
     except Exception as e:
+        # Map helper errors to script's expected errors for backward compatibility
+        if "Missing GTFS files" in str(e):
+            raise FileNotFoundError(f"Required file not found: {gtfs_dir / 'stops.txt'}") from e
         raise ValueError(f"Could not read stops.txt: {e}") from e
 
     required = {"stop_id", "stop_name", "stop_lat", "stop_lon"}
@@ -120,13 +203,13 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
         ValueError: If 'shapes.txt' exists but is missing required columns
                     or contains invalid coordinate/sequence data.
     """
-    file_path = gtfs_dir / "shapes.txt"
-    if not file_path.exists():
+    if not (gtfs_dir / "shapes.txt").exists():
         logging.info("Info: Optional file 'shapes.txt' not found. Skipping shapes.")
         return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
 
     try:
-        df = pd.read_csv(file_path, dtype={"shape_id": str})
+        data = load_gtfs_data(str(gtfs_dir), files=["shapes.txt"], dtype={"shape_id": str})
+        df = data["shapes"]
     except Exception as e:
         raise ValueError(f"Could not read shapes.txt: {e}") from e
 
