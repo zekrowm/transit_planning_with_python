@@ -18,6 +18,44 @@ import pandas as pd
 # -----------------------------------------------------------------------------
 
 
+def validate_gtfs_files_exist(
+    gtfs_folder_path: str,
+    files: Optional[Sequence[str]] = None,
+) -> None:
+    """Check that specific GTFS text files exist and log a warning if missing.
+
+    Args:
+        gtfs_folder_path: Absolute or relative path to the folder
+            containing the GTFS feed.
+        files: Explicit sequence of file names to check. If ``None``,
+            a standard set of GTFS files is checked.
+    """
+    if not os.path.exists(gtfs_folder_path):
+        logging.warning("The directory '%s' does not exist.", gtfs_folder_path)
+        return
+
+    if files is None:
+        files = (
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt",
+        )
+
+    for file_name in files:
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name)):
+            logging.warning("Missing GTFS file: %s", file_name)
+
+
 def load_gtfs_data(
     gtfs_folder_path: str,
     files: Optional[Sequence[str]] = None,
