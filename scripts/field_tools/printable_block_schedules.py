@@ -23,7 +23,7 @@ import logging
 import math
 import os
 from collections.abc import Mapping, Sequence
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import pandas as pd
 from openpyxl.styles import Alignment

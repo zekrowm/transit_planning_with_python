@@ -23,7 +23,7 @@ import os
 import sys
 import uuid
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Optional
 
 import arcpy
 import pandas as pd
