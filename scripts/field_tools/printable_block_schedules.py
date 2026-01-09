@@ -22,7 +22,8 @@ from __future__ import annotations
 import logging
 import math
 import os
-from typing import Any, Sequence, Union
+from collections.abc import Mapping, Sequence
+from typing import Any, Optional, Union
 
 import pandas as pd
 from openpyxl.styles import Alignment
@@ -363,22 +364,22 @@ def export_blocks(stop_times_df: pd.DataFrame) -> None:
 
 def load_gtfs_data(
     gtfs_folder_path: str,
-    files: Sequence[str] | None = None,  # Optional by construction
-    dtype: Any = str,
+    files: Optional[Sequence[str]] = None,
+    dtype: str | type[str] | Mapping[str, Any] = str,
 ) -> dict[str, pd.DataFrame]:
     """Load one or more GTFS text files into memory.
 
     Args:
         gtfs_folder_path: Absolute or relative path to the folder
             containing the GTFS feed.
-        files: Explicit list or tuple of file names to load. If None,
+        files: Explicit sequence of file names to load. If ``None``,
             the standard 13 GTFS text files are attempted.
-        dtype: Value passed to pandas.read_csv(dtype=...). Supply a dict
-            to set per-column dtypes.
+        dtype: Value forwarded to :pyfunc:`pandas.read_csv(dtype=…)` to
+            control column dtypes. Supply a mapping for per-column dtypes.
 
     Returns:
-        Mapping of file stem → corresponding DataFrame; for example,
-        data["trips"] holds the parsed trips.txt table.
+        Mapping of file stem → :class:`pandas.DataFrame`; for example,
+        ``data["trips"]`` holds the parsed *trips.txt* table.
 
     Raises:
         OSError: Folder missing or one of *files* not present.
@@ -386,8 +387,8 @@ def load_gtfs_data(
         RuntimeError: Generic OS error while reading a file.
 
     Notes:
-        All columns are loaded as strings by default to avoid pandas
-        type-inference pitfalls (e.g. leading zeros in IDs).
+        All columns default to ``str`` to avoid pandas’ type-inference
+        pitfalls (e.g. leading zeros in IDs).
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")

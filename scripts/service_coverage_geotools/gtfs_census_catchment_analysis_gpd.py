@@ -20,8 +20,9 @@ Outputs:
 
 import logging
 import os
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Final, Optional
+from typing import Any, Final, Optional
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -671,38 +672,38 @@ def apply_fips_filter(
 
 
 def load_gtfs_data(
-    gtfs_folder_path: str, files: Optional[list[str]] = None, dtype: type = str
+    gtfs_folder_path: str,
+    files: Optional[Sequence[str]] = None,
+    dtype: str | type[str] | Mapping[str, Any] = str,
 ) -> dict[str, pd.DataFrame]:
-    """Load GTFS text files from *gtfs_folder_path*.
-
-    The function validates the presence of each requested file, reads it
-    into a :class:`pandas.DataFrame`, and returns a dictionary keyed by file
-    stem.
+    """Load one or more GTFS text files into memory.
 
     Args:
-        gtfs_folder_path: Absolute or relative path to the directory that
-            contains GTFS text files.
-        files: Specific GTFS file names to load.  If *None*, the canonical
-            set defined in the function body is used.
-        dtype: Either a single pandas dtype applied to every column or a
-            mapping of column names to dtypes passed verbatim to
-            :func:`pandas.read_csv`.
+        gtfs_folder_path: Absolute or relative path to the folder
+            containing the GTFS feed.
+        files: Explicit sequence of file names to load. If ``None``,
+            the standard 13 GTFS text files are attempted.
+        dtype: Value forwarded to :pyfunc:`pandas.read_csv(dtype=…)` to
+            control column dtypes. Supply a mapping for per-column dtypes.
 
     Returns:
-        A dictionary whose keys are file stems (e.g. ``"trips"``) and whose
-        values are DataFrames with the raw GTFS contents.
+        Mapping of file stem → :class:`pandas.DataFrame`; for example,
+        ``data["trips"]`` holds the parsed *trips.txt* table.
 
     Raises:
-        OSError: *gtfs_folder_path* does not exist or one or more files are
-            missing.
-        ValueError: A file is empty or cannot be parsed.
-        RuntimeError: An :pyexc:`OSError` occurs while reading a file.
+        OSError: Folder missing or one of *files* not present.
+        ValueError: Empty file or CSV parser failure.
+        RuntimeError: Generic OS error while reading a file.
+
+    Notes:
+        All columns default to ``str`` to avoid pandas’ type-inference
+        pitfalls (e.g. leading zeros in IDs).
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
     if files is None:
-        files = [
+        files = (
             "agency.txt",
             "stops.txt",
             "routes.txt",
@@ -716,7 +717,7 @@ def load_gtfs_data(
             "frequencies.txt",
             "shapes.txt",
             "transfers.txt",
-        ]
+        )
 
     missing = [
         file_name
@@ -726,7 +727,7 @@ def load_gtfs_data(
     if missing:
         raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
 
-    data = {}
+    data: dict[str, pd.DataFrame] = {}
     for file_name in files:
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
