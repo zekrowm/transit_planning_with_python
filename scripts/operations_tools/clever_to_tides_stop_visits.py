@@ -226,6 +226,7 @@ def dt_to_iso(series: pd.Series) -> pd.Series:
 
 
 def warn_missing_columns(df: pd.DataFrame) -> None:
+    """Validate required/optional CLEVER columns and warn or raise accordingly."""
     missing_req = [c for c in REQ_COLS if c not in df.columns]
     if missing_req:
         raise ValueError(f"Missing required CLEVER columns: {missing_req}")
@@ -353,10 +354,12 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
 
         out["trip_id_performed"] = [
             f"perf_{stable_id(str(sd), str(tt), str(vv))}"
-            for sd, tt, vv in zip(service_date_str, trip_tok_str, veh_str)
+            for sd, tt, vv in zip(service_date_str, trip_tok_str, veh_str, strict=True)
         ]
-        out["trip_id_performed"] = pd.Series(out["trip_id_performed"], index=df.index, dtype="string").replace(
-            {"perf_" + stable_id("", "", ""): pd.NA}
+        out["trip_id_performed"] = (
+            pd.Series(out["trip_id_performed"], index=df.index, dtype="string")
+            .replace({"perf_" + stable_id("", "", ""): pd.NA})
+            .astype("string")
         )
 
     # sequences + stop_id
@@ -380,12 +383,15 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
         logging.warning("vehicle_id is missing on %d rows.", int(out["vehicle_id"].isna().sum()))
 
     # pattern_id (synthetic)
-    route_short = (
-        parse_route_short(df[ROUTE_COL]) if ROUTE_COL in df.columns else pd.Series(pd.NA, index=df.index)
-    )
-    direction = (
-        normalize_text(df[DIRECTION_COL]) if DIRECTION_COL in df.columns else pd.Series(pd.NA, index=df.index)
-    )
+    if ROUTE_COL in df.columns:
+        route_short = parse_route_short(df[ROUTE_COL])
+    else:
+        route_short = pd.Series(pd.NA, index=df.index)
+
+    if DIRECTION_COL in df.columns:
+        direction = normalize_text(df[DIRECTION_COL])
+    else:
+        direction = pd.Series(pd.NA, index=df.index)
 
     if VARIATION_COL in df.columns:
         var = pd.to_numeric(df[VARIATION_COL], errors="coerce").astype("Int64").astype("string")
@@ -444,7 +450,8 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
     dwell_ok = dwell_sec.notna() & (dwell_sec >= 0)
     if (~dwell_ok & dwell_sec.notna()).any():
         logging.warning(
-            "Found %d rows with negative dwell (departure before arrival); leaving dwell blank for those rows.",
+            "Found %d rows with negative dwell (departure before arrival); "
+            "leaving dwell blank for those rows.",
             int((~dwell_ok & dwell_sec.notna()).sum()),
         )
     out["dwell"] = dwell_sec.where(dwell_ok, pd.NA).round(0).astype("Int64")
@@ -480,11 +487,17 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
 
     # Minimal sanity warnings
     if out["service_date"].isna().any():
-        logging.warning("service_date is missing on %d rows.", int(out["service_date"].isna().sum()))
+        logging.warning(
+            "service_date is missing on %d rows.",
+            int(out["service_date"].isna().sum()),
+        )
     if out["stop_id"].isna().any():
         logging.warning("stop_id is missing on %d rows.", int(out["stop_id"].isna().sum()))
     if out["trip_id_performed"].isna().any():
-        logging.warning("trip_id_performed is missing on %d rows.", int(out["trip_id_performed"].isna().sum()))
+        logging.warning(
+            "trip_id_performed is missing on %d rows.",
+            int(out["trip_id_performed"].isna().sum()),
+        )
     if out["trip_stop_sequence"].isna().any():
         logging.warning(
             "trip_stop_sequence is missing on %d rows (unparseable %r).",
@@ -507,6 +520,7 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
+    """Run the CLEVER-to-TIDES stop_visits conversion."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     df = pd.read_csv(INPUT_CSV, low_memory=False)
