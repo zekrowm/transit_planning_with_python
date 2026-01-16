@@ -18,7 +18,11 @@ transit_planning_with_python-main/
 ├── helpers/
 │   └── gtfs_helpers.py
 ├── tests/
-│   └── test_load_gtfs_data.py
+|   ├── fixtures/
+|   │   ├── stop_visits.csv
+|   │   └── trips_performed.csv
+|   └── unit/
+|       └── test_load_gtfs_data.py
 └── scripts/
     ├── block_and_bay_tools/
     │   ├── bay_usage_analyzer.py
@@ -59,6 +63,8 @@ transit_planning_with_python-main/
     │   ├── stop_spacing_flagger_arcpy.py
     │   └── stop_spacing_flagger_gpd.py
     ├── operations_tools/
+    │   ├── clever_to_tides_stop_visits.py
+    │   ├── clever_to_tides_trips_performed.py
     │   ├── otp_monthly_by_timepoint_order.py
     │   ├── otp_monthly_trends_export.py
     │   ├── runtime_by_segment_pivot.py
