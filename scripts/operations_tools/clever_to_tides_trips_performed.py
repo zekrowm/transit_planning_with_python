@@ -418,7 +418,6 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
             n_missing_actual_end,
         )
 
-    # Required field checks per schema (service_date, trip_id_performed, vehicle_id) :contentReference[oaicite:5]{index=5}
     # Required field checks per schema (service_date, trip_id_performed, vehicle_id)
     for req in ("service_date", "trip_id_performed", "vehicle_id"):
         if out[req].isna().any():
