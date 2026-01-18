@@ -237,6 +237,7 @@ def choose_trip_id_performed(
                 trip_id_scheduled.fillna(""),
                 vehicle_id.fillna(""),
                 best_start_str,
+                strict=True,
             )
         ],
         index=service_date.index,
@@ -418,6 +419,7 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     # Required field checks per schema (service_date, trip_id_performed, vehicle_id) :contentReference[oaicite:5]{index=5}
+    # Required field checks per schema (service_date, trip_id_performed, vehicle_id)
     for req in ("service_date", "trip_id_performed", "vehicle_id"):
         if out[req].isna().any():
             bad = out.loc[out[req].isna()].head(10)
@@ -432,6 +434,7 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
+    """Run the CLEVER → TIDES trips_performed conversion pipeline."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     df = pd.read_csv(INPUT_CSV, low_memory=False)
