@@ -1,81 +1,81 @@
 transit_planning_with_python-main/
+├── .github/
+│   └── workflows/
+│       ├── format-lint-autofix-weekly.yml
+│       ├── format-lint-typecheck.yml
+│       ├── helper-audit.yml
+│       └── tests.yml
+├── dev_tools/
+│   ├── audit_helper_functions.py
+│   ├── export_requirements.py
+│   └── print_repo_file_tree.py
+├── scripts/
+│   ├── block_and_bay_tools/
+│   │   ├── bay_usage_analyzer.py
+│   │   └── gtfs_block_status_timeline.py
+│   ├── census_tools/
+│   │   ├── uscensus_blocks_merge_arcpy.py
+│   │   ├── uscensus_blocks_merge_gpd.py
+│   │   ├── uscensus_blocks_table_join_gpd.py
+│   │   ├── uscensus_table_build.py
+│   │   └── uscensus_tiger_join_arcpy.py
+│   ├── data_quality/
+│   │   ├── compare_gtfs_to_shapefile_arcpy.py
+│   │   ├── compare_gtfs_to_shapefile_gpd.py
+│   │   ├── gtfs_skipped_stop_flagger_gpd.py
+│   │   ├── gtfs_stop_proximity_qc.py
+│   │   ├── gtfs_usps_suffix_validator.py
+│   │   ├── stop_v_conflict_checker_arcpy.py
+│   │   ├── stop_vs_roadname_checker_arcpy.py
+│   │   └── stop_vs_roadname_checker_gpd.py
+│   ├── facilities_tools/
+│   │   └── flag_stop_upgrades.py
+│   ├── field_tools/
+│   │   ├── printable_block_schedules.py
+│   │   ├── ridecheck_cluster_checklists.py
+│   │   └── ridecheck_results_processor.py
+│   ├── gtfs_exports/
+│   │   ├── bus_block_exporter.py
+│   │   ├── gtfs_to_shapefile_arcpy.py
+│   │   ├── gtfs_to_shapefile_gpd.py
+│   │   ├── segment_speed_exporter.py
+│   │   ├── stop_pattern_exporter.py
+│   │   ├── time_band_exporter.py
+│   │   └── timepoint_schedule_exporter.py
+│   ├── network_analysis/
+│   │   ├── audit_turn_clearance.py
+│   │   ├── route_direction_classifier.py
+│   │   ├── stop_removal_impact_gpd.py
+│   │   ├── stop_spacing_flagger_arcpy.py
+│   │   └── stop_spacing_flagger_gpd.py
+│   ├── operations_tools/
+│   │   ├── otp_monthly_by_timepoint_order.py
+│   │   ├── otp_monthly_trends_export.py
+│   │   ├── runtime_by_segment_pivot.py
+│   │   ├── runtime_pivot_ridecheck.py
+│   │   └── trip_event_runtime_diagnostics.py
+│   ├── ridership_tools/
+│   │   ├── data_request_by_stop_processor.py
+│   │   ├── load_factor_monitor.py
+│   │   ├── ntd_monthly_summary.py
+│   │   ├── stops_ridership_joiner_arcpy.py
+│   │   └── stops_ridership_joiner_gpd.py
+│   └── service_coverage_geotools/
+│       ├── gtfs_census_catchment_analysis_arcpy.py
+│       ├── gtfs_census_catchment_analysis_gpd.py
+│       ├── gtfs_service_by_district_arcpy.py
+│       ├── gtfs_service_by_district_gpd.py
+│       ├── route_site_coverage_arcpy.py
+│       ├── route_site_coverage_gpd.py
+│       ├── site_route_proximity_arcpy.py
+│       └── site_route_proximity_gpd.py
+├── tests/
+│   └── test_load_gtfs_data.py
+├── utils/
+│   └── gtfs_helpers.py
 ├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md
 ├── directory_structure.txt
 ├── pyproject.toml
-├── requirements.txt
-├── .github/
-│   └── workflows/
-|       ├── format-lint-autofix-weekly.yml
-|       ├── format-lint-typecheck.yml
-|       ├── helper-audit.yml
-│       └── tests.yml
-├── dev_tools/
-|   ├── audit_helper_functions.py
-|   ├── export_requirements.py
-│   └── print_repo_file_tree.py
-├── helpers/
-│   └── gtfs_helpers.py
-├── tests/
-│   └── test_load_gtfs_data.py
-└── scripts/
-    ├── block_and_bay_tools/
-    │   ├── bay_usage_analyzer.py
-    │   └── gtfs_block_status_timeline.py
-    ├── census_tools/
-    │   ├── uscensus_blocks_merge_arcpy.py
-    │   ├── uscensus_blocks_merge_gpd.py
-    │   ├── uscensus_blocks_table_join_gpd.py
-    │   ├── uscensus_table_build.py
-    │   └── uscensus_tiger_join_arcpy.py
-    ├── data_quality/
-    │   ├── compare_gtfs_to_shapefile_arcpy.py
-    │   ├── compare_gtfs_to_shapefile_gpd.py
-    │   ├── gtfs_skipped_stop_flagger_gpd.py
-    │   ├── gtfs_stop_proximity_qc.py
-    │   ├── gtfs_usps_suffix_validator.py
-    │   ├── stop_v_conflict_checker_arcpy.py
-    │   ├── stop_vs_roadname_checker_arcpy.py
-    │   └── stop_vs_roadname_checker_gpd.py
-    ├── facilities_tools/
-    │   └── flag_stop_upgrades.py
-    ├── field_tools/
-    │   ├── printable_block_schedules.py
-    │   ├── ridecheck_cluster_checklists.py
-    │   └── ridecheck_results_processor.py
-    ├── gtfs_exports/
-    │   ├── bus_block_exporter.py
-    │   ├── gtfs_to_shapefile_arcpy.py
-    │   ├── gtfs_to_shapefile_gpd.py
-    │   ├── segment_speed_exporter.py
-    │   ├── stop_pattern_exporter.py
-    │   ├── time_band_exporter.py
-    │   └── timepoint_schedule_exporter.py
-    ├── network_analysis/
-    │   ├── audit_turn_clearance.py
-    │   ├── route_direction_classifier.py
-    │   ├── stop_removal_impact_gpd.py
-    │   ├── stop_spacing_flagger_arcpy.py
-    │   └── stop_spacing_flagger_gpd.py
-    ├── operations_tools/
-    │   ├── otp_monthly_by_timepoint_order.py
-    │   ├── otp_monthly_trends_export.py
-    │   ├── runtime_by_segment_pivot.py
-    │   ├── runtime_pivot_ridecheck.py
-    │   └── trip_event_runtime_diagnostics.py
-    ├── ridership_tools/
-    │   ├── data_request_by_stop_processor.py
-    │   ├── load_factor_monitor.py
-    │   ├── ntd_monthly_summary.py
-    │   ├── stops_ridership_joiner_arcpy.py
-    │   └── stops_ridership_joiner_gpd.py
-    └── service_coverage_geotools/
-        ├── gtfs_census_catchment_analysis_gpd.py
-        ├── gtfs_census_catchment_arcpy.py
-        ├── gtfs_service_by_district_arcpy.py
-        ├── gtfs_service_by_district_gpd.py
-        ├── route_site_coverage_arcpy.py
-        ├── route_site_coverage_gpd.py
-        ├── site_route_proximity_arcpy.py
-        └── site_route_proximity_gpd.py
+└── requirements.txt
