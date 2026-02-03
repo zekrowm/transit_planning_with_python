@@ -40,7 +40,7 @@ FILTER_TO_PLATFORM_STOPS = True
 # Optional service_id filter:
 # - None to include all service_ids
 # - e.g. {"2","3","4"} to restrict analysis to those calendars only
-SERVICE_ID_FILTER: set[str] | None = {"2", "3", "4"} # Replace with your values
+SERVICE_ID_FILTER: set[str] | None = {"2", "3", "4"}  # Replace with your values
 
 OUTPUT_FILENAME = "stop_route_calendar_impacts.csv"
 
@@ -253,13 +253,9 @@ def build_stop_service_routes(
     merged = merged.merge(routes, on="route_id", how="left", validate="many_to_one")
 
     rsn = merged["route_short_name"].fillna("").astype(str).str.strip()
-    merged["route_label"] = np.where(
-        rsn.str.len() > 0, rsn, merged["route_id"].astype(str)
-    )
+    merged["route_label"] = np.where(rsn.str.len() > 0, rsn, merged["route_id"].astype(str))
 
-    dedup = merged[
-        ["stop_id", "service_id", "route_id", "route_label"]
-    ].drop_duplicates()
+    dedup = merged[["stop_id", "service_id", "route_id", "route_label"]].drop_duplicates()
 
     route_id_arr = (
         dedup.groupby(["stop_id", "service_id"])["route_id"]
@@ -338,9 +334,7 @@ def classify_impacts(
     out["other_route_ids_present"] = out["route_id_set"].apply(
         lambda s: sorted(s - target_route_ids)
     )
-    out["served_by_any_target"] = out["target_route_ids_present"].apply(
-        lambda lst: len(lst) > 0
-    )
+    out["served_by_any_target"] = out["target_route_ids_present"].apply(lambda lst: len(lst) > 0)
 
     def _classify_row(row: pd.Series) -> str:
         if not bool(row["served_by_any_target"]):
@@ -379,10 +373,7 @@ def add_stop_level_summary_columns(
 
     def _svc_list(sub: pd.DataFrame, cls: str) -> str:
         svc = sorted(
-            sub.loc[sub["classification"] == cls, "service_id"]
-            .astype(str)
-            .unique()
-            .tolist()
+            sub.loc[sub["classification"] == cls, "service_id"].astype(str).unique().tolist()
         )
         return ",".join(svc)
 
@@ -399,9 +390,7 @@ def add_stop_level_summary_columns(
                 "stop_id": stop_id,
                 "impact_category": impact_category,
                 # clearer names:
-                "has_eliminated_days": bool(
-                    (sub["classification"] == "target_only").any()
-                ),
+                "has_eliminated_days": bool((sub["classification"] == "target_only").any()),
                 "has_route_loss_days": has_plus_other,
                 "service_ids_eliminated": svc_only,
                 "service_ids_route_loss": svc_plus,
@@ -497,18 +486,12 @@ def main() -> None:
     stops_universe = stops.copy()
     stops_universe["location_type"] = stops_universe["location_type"].fillna("").astype(str)
     if FILTER_TO_PLATFORM_STOPS:
-        stops_universe = stops_universe[
-            stops_universe["location_type"].isin(["", "0"])
-        ].copy()
+        stops_universe = stops_universe[stops_universe["location_type"].isin(["", "0"])].copy()
 
     logging.info("Resolving target routes …")
-    target_route_ids = identify_target_route_ids(
-        routes=routes, tokens=set(TARGET_ROUTE_TOKENS)
-    )
+    target_route_ids = identify_target_route_ids(routes=routes, tokens=set(TARGET_ROUTE_TOKENS))
     if not target_route_ids:
-        raise ValueError(
-            "No target routes found. Check TARGET_ROUTE_TOKENS vs routes.txt fields."
-        )
+        raise ValueError("No target routes found. Check TARGET_ROUTE_TOKENS vs routes.txt fields.")
 
     trips_f = _apply_service_id_filter_to_trips(trips, SERVICE_ID_FILTER)
     if trips_f.empty:
@@ -559,9 +542,7 @@ def main() -> None:
     flagged = _clean_for_export(flagged)
 
     # Impact category ordering + sort
-    impact_order = pd.CategoricalDtype(
-        categories=["eliminated", "route_loss_only"], ordered=True
-    )
+    impact_order = pd.CategoricalDtype(categories=["eliminated", "route_loss_only"], ordered=True)
     flagged["impact_category"] = flagged["impact_category"].astype(impact_order)
 
     if "stop_name" in flagged.columns:
@@ -598,9 +579,7 @@ def main() -> None:
     ]
     flagged = flagged[cols]
 
-    logging.info(
-        "Flagged rows (stop_id + service_id with target service): %d", len(flagged)
-    )
+    logging.info("Flagged rows (stop_id + service_id with target service): %d", len(flagged))
     write_single_output(flagged, OUTPUT_DIR, OUTPUT_FILENAME)
 
     logging.info("Done ✔")

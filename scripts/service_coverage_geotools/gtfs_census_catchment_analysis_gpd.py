@@ -456,13 +456,15 @@ def do_route_by_route_analysis(
 
     # Apply variable buffer logic
     stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
-        lambda sid: pick_buffer_distance(
-            sid,
-            normal_buffer=buffer_distance_mi,
-            large_buffer=large_buffer_distance_mi,
-            large_buffer_ids=stop_ids_large_buffer,
+        lambda sid: (
+            pick_buffer_distance(
+                sid,
+                normal_buffer=buffer_distance_mi,
+                large_buffer=large_buffer_distance_mi,
+                large_buffer_ids=stop_ids_large_buffer,
+            )
+            * 1609.34
         )
-        * 1609.34
     )
     stops_gdf["geometry"] = stops_gdf.apply(
         lambda row: row.geometry.buffer(row["buffer_distance_meters"]), axis=1
@@ -567,13 +569,15 @@ def do_stop_by_stop_analysis(
 
     # Apply variable buffer logic
     stops_gdf["buffer_distance_meters"] = stops_gdf["stop_id"].apply(
-        lambda sid: pick_buffer_distance(
-            sid,
-            normal_buffer=buffer_distance_mi,
-            large_buffer=large_buffer_distance_mi,
-            large_buffer_ids=stop_ids_large_buffer,
+        lambda sid: (
+            pick_buffer_distance(
+                sid,
+                normal_buffer=buffer_distance_mi,
+                large_buffer=large_buffer_distance_mi,
+                large_buffer_ids=stop_ids_large_buffer,
+            )
+            * 1609.34
         )
-        * 1609.34
     )
 
     # For each stop, create a buffer, clip, and store results
