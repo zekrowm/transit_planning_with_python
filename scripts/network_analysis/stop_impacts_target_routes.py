@@ -1,17 +1,17 @@
 """GTFS Stop Impact Analyzer.
 
-Parses GTFS data to evaluate the service impact of removing specific target routes 
-(defined in configuration). For every stop served by a target route, the script 
+Parses GTFS data to evaluate the service impact of removing specific target routes
+(defined in configuration). For every stop served by a target route, the script
 determines if the stop is:
 
 1. **Eliminated**: Served *only* by target routes (no alternative service exists).
 2. **Impacted (Route Loss)**: Loses a target route but retains service from others.
 
-The analysis accounts for specific service IDs (calendars) and output includes 
+The analysis accounts for specific service IDs (calendars) and output includes
 Day-of-Week codes to identify if stops are eliminated only on specific days.
 
 Output:
-    Writes `stop_route_calendar_impacts.csv` containing stop-level summaries and 
+    Writes `stop_route_calendar_impacts.csv` containing stop-level summaries and
     per-service-id classifications.
 """
 
@@ -40,7 +40,7 @@ FILTER_TO_PLATFORM_STOPS = True
 # Optional service_id filter:
 # - None to include all service_ids
 # - e.g. {"2","3","4"} to restrict analysis to those calendars only
-SERVICE_ID_FILTER: set[str] | None = {"2", "3", "4"} # Replace with your values
+SERVICE_ID_FILTER: set[str] | None = {"2", "3", "4"}  # Replace with your values
 
 OUTPUT_FILENAME = "stop_route_calendar_impacts.csv"
 
@@ -96,7 +96,9 @@ def _svc_ids_to_dow_list(service_ids_csv: str, svc_to_dow: dict[str, str]) -> st
     return ",".join(sorted(set(out)))
 
 
-def _apply_service_id_filter_to_trips(trips: pd.DataFrame, service_filter: set[str] | None) -> pd.DataFrame:
+def _apply_service_id_filter_to_trips(
+    trips: pd.DataFrame, service_filter: set[str] | None
+) -> pd.DataFrame:
     """Optionally filter trips to a subset of service_ids."""
     if service_filter is None:
         return trips
@@ -127,6 +129,14 @@ def _clean_for_export(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_gtfs_tables(gtfs_dir: Path) -> dict[str, Optional[pd.DataFrame]]:
+    """Load required GTFS files (stops, routes, trips, stop_times, calendar) from directory.
+
+    Args:
+        gtfs_dir: Path to the directory containing GTFS text files.
+
+    Returns:
+        A dictionary containing loaded DataFrames for each file key.
+    """
     stops = _read_gtfs_csv(
         gtfs_dir,
         "stops.txt",
@@ -191,6 +201,15 @@ def load_gtfs_tables(gtfs_dir: Path) -> dict[str, Optional[pd.DataFrame]]:
 
 
 def identify_target_route_ids(routes: pd.DataFrame, tokens: set[str]) -> set[str]:
+    """Resolve target route IDs from a set of route tokens (short names or IDs).
+
+    Args:
+        routes: The routes DataFrame.
+        tokens: A set of strings to match against route_short_name or route_id.
+
+    Returns:
+        A set of resolved route_id strings found in the GTFS data.
+    """
     r = routes.copy()
     r["route_short_name"] = r["route_short_name"].fillna("").astype(str).str.strip()
     r["route_id"] = r["route_id"].fillna("").astype(str).str.strip()
@@ -198,9 +217,9 @@ def identify_target_route_ids(routes: pd.DataFrame, tokens: set[str]) -> set[str
     mask = r["route_short_name"].isin(tokens) | r["route_id"].isin(tokens)
     target_ids = set(r.loc[mask, "route_id"].astype(str).tolist())
 
-    found_tokens = set(r.loc[r["route_short_name"].isin(tokens), "route_short_name"].tolist()) | set(
-        r.loc[r["route_id"].isin(tokens), "route_id"].tolist()
-    )
+    found_tokens = set(
+        r.loc[r["route_short_name"].isin(tokens), "route_short_name"].tolist()
+    ) | set(r.loc[r["route_id"].isin(tokens), "route_id"].tolist())
     missing = sorted(tokens - found_tokens)
     if missing:
         logging.warning(
@@ -208,7 +227,10 @@ def identify_target_route_ids(routes: pd.DataFrame, tokens: set[str]) -> set[str
             ", ".join(missing),
         )
 
-    logging.info("Target route_ids resolved: %s", ", ".join(sorted(target_ids)) if target_ids else "(none)")
+    logging.info(
+        "Target route_ids resolved: %s",
+        ", ".join(sorted(target_ids)) if target_ids else "(none)",
+    )
     return target_ids
 
 
@@ -217,6 +239,16 @@ def build_stop_service_routes(
     trips: pd.DataFrame,
     routes: pd.DataFrame,
 ) -> pd.DataFrame:
+    """Map every (stop_id, service_id) pair to the list of routes serving it.
+
+    Args:
+        stop_times: The stop_times DataFrame.
+        trips: The trips DataFrame (optionally filtered).
+        routes: The routes DataFrame.
+
+    Returns:
+        A DataFrame with unique (stop_id, service_id) rows and a list of route IDs/labels.
+    """
     merged = stop_times.merge(trips, on="trip_id", how="inner", validate="many_to_one")
     merged = merged.merge(routes, on="route_id", how="left", validate="many_to_one")
 
@@ -255,11 +287,20 @@ def attach_calendar_info(
     if calendar is not None and not calendar.empty:
         cal = calendar.copy()
         cal["dow_code"] = cal.apply(_dow_code_from_calendar_row, axis=1)
-        svc_to_dow = dict(zip(cal["service_id"].astype(str), cal["dow_code"].astype(str)))
-        out = out.merge(cal[["service_id", "dow_code"]], on="service_id", how="left", validate="many_to_one")
+        svc_to_dow = dict(
+            zip(cal["service_id"].astype(str), cal["dow_code"].astype(str), strict=True)
+        )
+        out = out.merge(
+            cal[["service_id", "dow_code"]],
+            on="service_id",
+            how="left",
+            validate="many_to_one",
+        )
     else:
         out["dow_code"] = ""
-        logging.warning("calendar.txt missing/empty; dow_code will be blank (days conversion will fall back).")
+        logging.warning(
+            "calendar.txt missing/empty; dow_code will be blank (days conversion will fall back)."
+        )
 
     return out, svc_to_dow
 
@@ -269,11 +310,30 @@ def classify_impacts(
     stops: pd.DataFrame,
     target_route_ids: set[str],
 ) -> pd.DataFrame:
+    """Classify each stop-service pair based on whether it is served by target routes.
+
+    classifications:
+    - not_target: Not served by any target route.
+    - target_only: Served ONLY by target routes (eliminated).
+    - target_plus_other: Served by target routes AND other routes (route loss).
+
+    Args:
+        stop_service_routes: DataFrame mapping stops/services to routes.
+        stops: The stops DataFrame (for attaching location info).
+        target_route_ids: The set of route IDs considered 'target' (to be removed).
+
+    Returns:
+        DataFrame with 'classification' column and stop details attached.
+    """
     out = stop_service_routes.copy()
 
     out["route_id_set"] = out["route_id_arr"].apply(lambda a: set(map(str, a.tolist())))
-    out["target_route_ids_present"] = out["route_id_set"].apply(lambda s: sorted(s & target_route_ids))
-    out["other_route_ids_present"] = out["route_id_set"].apply(lambda s: sorted(s - target_route_ids))
+    out["target_route_ids_present"] = out["route_id_set"].apply(
+        lambda s: sorted(s & target_route_ids)
+    )
+    out["other_route_ids_present"] = out["route_id_set"].apply(
+        lambda s: sorted(s - target_route_ids)
+    )
     out["served_by_any_target"] = out["target_route_ids_present"].apply(lambda lst: len(lst) > 0)
 
     def _classify_row(row: pd.Series) -> str:
@@ -306,11 +366,15 @@ def classify_impacts(
     return out
 
 
-def add_stop_level_summary_columns(flagged: pd.DataFrame, svc_to_dow: dict[str, str]) -> pd.DataFrame:
+def add_stop_level_summary_columns(
+    flagged: pd.DataFrame, svc_to_dow: dict[str, str]
+) -> pd.DataFrame:
     """Compute stop-level summary columns and merge back onto each row (single-file workflow)."""
 
     def _svc_list(sub: pd.DataFrame, cls: str) -> str:
-        svc = sorted(sub.loc[sub["classification"] == cls, "service_id"].astype(str).unique().tolist())
+        svc = sorted(
+            sub.loc[sub["classification"] == cls, "service_id"].astype(str).unique().tolist()
+        )
         return ",".join(svc)
 
     rows: list[dict[str, object]] = []
@@ -348,7 +412,9 @@ def log_unique_stop_impacts(flagged: pd.DataFrame, stops_universe: pd.DataFrame)
     total_affected = len(flagged_stop_ids)
 
     stop_has_plus_other = (
-        flagged.groupby("stop_id")["classification"].apply(lambda s: (s == "target_plus_other").any()).to_dict()
+        flagged.groupby("stop_id")["classification"]
+        .apply(lambda s: (s == "target_plus_other").any())
+        .to_dict()
     )
     impacted_by_route_loss = {sid for sid, has in stop_has_plus_other.items() if has}
     eliminated_altogether = {sid for sid, has in stop_has_plus_other.items() if not has}
@@ -357,19 +423,22 @@ def log_unique_stop_impacts(flagged: pd.DataFrame, stops_universe: pd.DataFrame)
         return 0.0 if d == 0 else (100.0 * n / d)
 
     logging.info(
-        "Unique platform stops in universe: %d; unique stops affected by targets: %d (%.2f%% of universe)",
+        "Unique platform stops in universe: %d; unique stops affected by targets: %d "
+        "(%.2f%% of universe)",
         total_universe,
         total_affected,
         _pct(total_affected, total_universe),
     )
     logging.info(
-        "Unique stops impacted (route loss, still served by other routes): %d (%.2f%% of universe; %.2f%% of affected)",
+        "Unique stops impacted (route loss, still served by other routes): %d "
+        "(%.2f%% of universe; %.2f%% of affected)",
         len(impacted_by_route_loss),
         _pct(len(impacted_by_route_loss), total_universe),
         _pct(len(impacted_by_route_loss), total_affected),
     )
     logging.info(
-        "Unique stops eliminated (only target routes served them): %d (%.2f%% of universe; %.2f%% of affected)",
+        "Unique stops eliminated (only target routes served them): %d "
+        "(%.2f%% of universe; %.2f%% of affected)",
         len(eliminated_altogether),
         _pct(len(eliminated_altogether), total_universe),
         _pct(len(eliminated_altogether), total_affected),
@@ -377,6 +446,13 @@ def log_unique_stop_impacts(flagged: pd.DataFrame, stops_universe: pd.DataFrame)
 
 
 def write_single_output(df: pd.DataFrame, output_dir: Path, filename: str) -> None:
+    """Write the resulting DataFrame to a CSV file.
+
+    Args:
+        df: The DataFrame to write.
+        output_dir: The directory to write to (will be created if needed).
+        filename: The name of the output CSV file.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / filename
     df.to_csv(out_path, index=False)
@@ -389,6 +465,7 @@ def write_single_output(df: pd.DataFrame, output_dir: Path, filename: str) -> No
 
 
 def main() -> None:
+    """Main execution function."""
     logging.basicConfig(level=LOG_LEVEL, format="%(levelname)s | %(message)s")
 
     logging.info("Loading GTFS tables from: %s", GTFS_DIR)
@@ -419,17 +496,26 @@ def main() -> None:
     trips_f = _apply_service_id_filter_to_trips(trips, SERVICE_ID_FILTER)
     if trips_f.empty:
         raise ValueError(
-            "After applying SERVICE_ID_FILTER, no trips remain. Check that the service_ids exist in trips.txt."
+            "After applying SERVICE_ID_FILTER, no trips remain. "
+            "Check that the service_ids exist in trips.txt."
         )
 
     logging.info("Building stop/service -> routes mapping …")
-    stop_service_routes = build_stop_service_routes(stop_times=stop_times, trips=trips_f, routes=routes)
+    stop_service_routes = build_stop_service_routes(
+        stop_times=stop_times, trips=trips_f, routes=routes
+    )
 
     logging.info("Classifying stop impacts …")
-    classified = classify_impacts(stop_service_routes=stop_service_routes, stops=stops, target_route_ids=target_route_ids)
+    classified = classify_impacts(
+        stop_service_routes=stop_service_routes,
+        stops=stops,
+        target_route_ids=target_route_ids,
+    )
 
     logging.info("Attaching calendar info …")
-    classified, svc_to_dow = attach_calendar_info(classified, calendar=calendar if isinstance(calendar, pd.DataFrame) else None)
+    classified, svc_to_dow = attach_calendar_info(
+        classified, calendar=calendar if isinstance(calendar, pd.DataFrame) else None
+    )
 
     # Keep only rows served by at least one target route
     flagged = classified[classified["served_by_any_target"]].copy()
@@ -488,7 +574,9 @@ def main() -> None:
         "service_days_eliminated",
         "service_days_route_loss",
     ]
-    cols = [c for c in preferred_cols if c in flagged.columns] + [c for c in flagged.columns if c not in preferred_cols]
+    cols = [c for c in preferred_cols if c in flagged.columns] + [
+        c for c in flagged.columns if c not in preferred_cols
+    ]
     flagged = flagged[cols]
 
     logging.info("Flagged rows (stop_id + service_id with target service): %d", len(flagged))

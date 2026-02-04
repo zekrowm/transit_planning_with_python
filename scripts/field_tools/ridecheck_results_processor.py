@@ -169,7 +169,7 @@ def flag_on_time(diff_series: pd.Series) -> pd.Series:
         ``'Y'`` if the event is within tolerance, otherwise ``'N'``.
     """
     return diff_series.apply(
-        lambda d: ("Y" if pd.notna(d) and EARLY_TOLERANCE_MIN <= d <= LATE_TOLERANCE_MIN else "N")
+        lambda d: "Y" if pd.notna(d) and EARLY_TOLERANCE_MIN <= d <= LATE_TOLERANCE_MIN else "N"
     )
 
 

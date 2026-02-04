@@ -5,7 +5,6 @@ from typing import Iterable
 
 import pandas as pd
 import pytest
-
 from helpers.gtfs_helpers import load_gtfs_data
 
 
