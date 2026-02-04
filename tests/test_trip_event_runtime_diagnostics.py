@@ -20,6 +20,7 @@ import trip_event_runtime_diagnostics as target
 
 FIXTURE_PATH = Path("tests/fixtures/trips_performed.csv")
 
+
 def test_load_trip_files_tides_support():
     """Verify load_trip_files handles TIDES data correctly."""
 
@@ -75,8 +76,13 @@ def test_load_trip_files_tides_support():
     assert df["_is_tides"].all()
 
     # 7. Check DateTime conversion
-    assert pd.api.types.is_datetime64_any_dtype(df["Scheduled Start Time"]), "Scheduled Start Time not datetime"
-    assert pd.api.types.is_datetime64_any_dtype(df["Actual Start Time"]), "Actual Start Time not datetime"
+    assert pd.api.types.is_datetime64_any_dtype(df["Scheduled Start Time"]), (
+        "Scheduled Start Time not datetime"
+    )
+    assert pd.api.types.is_datetime64_any_dtype(df["Actual Start Time"]), (
+        "Actual Start Time not datetime"
+    )
+
 
 def test_extract_trip_start_time_skip():
     """Verify extract_trip_start_time returns early if column exists."""
