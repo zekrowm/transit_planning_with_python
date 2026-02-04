@@ -5,7 +5,7 @@ from typing import Iterable
 
 import pandas as pd
 import pytest
-from helpers.gtfs_helpers import load_gtfs_data
+from utils.gtfs_helpers import load_gtfs_data
 
 
 def _write(path, text: str) -> None:
