@@ -194,11 +194,7 @@ def parse_route_short(route_text: pd.Series) -> pd.Series:
 def normalize_vehicle_id(vehicle_series: pd.Series) -> pd.Series:
     """Normalize vehicle id values (handle floats like '7906.0', trim whitespace)."""
     s = normalize_text(vehicle_series)
-    return (
-        s.str.replace(r"\.0$", "", regex=True)
-        .replace({"<NA>": pd.NA})
-        .astype("string")
-    )
+    return s.str.replace(r"\.0$", "", regex=True).replace({"<NA>": pd.NA}).astype("string")
 
 
 def normalize_dt_series(series: pd.Series) -> pd.Series:
