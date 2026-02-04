@@ -9,6 +9,13 @@ import pandas as pd
 script_dir = Path("scripts/operations_tools").resolve()
 sys.path.append(str(script_dir))
 
+from unittest.mock import MagicMock
+
+# Mock visualization libraries to allow tests to run in environments without them
+sys.modules["matplotlib"] = MagicMock()
+sys.modules["matplotlib.pyplot"] = MagicMock()
+sys.modules["seaborn"] = MagicMock()
+
 import trip_event_runtime_diagnostics as target
 
 FIXTURE_PATH = Path("tests/fixtures/trips_performed.csv")
