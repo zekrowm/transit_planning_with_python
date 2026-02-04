@@ -31,7 +31,7 @@ from typing import Dict, List, NamedTuple, Set
 # =============================================================================
 
 # Either a .py file *or* a directory that holds the canonical file set
-CANONICAL_PATH: str = "helpers"  # e.g. "helpers.py" or "lib/helpers"
+CANONICAL_PATH: str = "utils"  # e.g. "helpers.py" or "lib/helpers"
 
 SEARCH_ROOT: str = "."  # repo root to audit
 LOG_DIR: str = "./logs"  # where audit logs are written
@@ -215,7 +215,7 @@ def _setup_logging() -> None:
     """Configure console + file logging."""
     Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
     ts = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = Path(LOG_DIR, f"helpers_audit_{ts}.log")
+    log_file = Path(LOG_DIR, f"utils_audit_{ts}.log")
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
