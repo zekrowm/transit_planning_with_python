@@ -265,13 +265,62 @@ def load_trip_files(files: Iterable[Path]) -> pd.DataFrame:
     """
     frames = [pd.read_csv(p, sep=_detect_sep(p), dtype=str, low_memory=False) for p in files]
     df = pd.concat(frames, ignore_index=True)
-    for col in (
-        "Scheduled Start Time",
-        "Scheduled Finish Time",
-        "Actual Start Time",
-        "Actual Finish Time",
-    ):
-        df[col] = pd.to_datetime(df[col], errors="coerce")
+
+    # Detect TIDES format
+    if "schedule_trip_start" in df.columns:
+        # Filter for 'In service' and remove 'Canceled'
+        if "trip_type" in df.columns:
+            # Normalize to lower/title case if needed, but assuming standard TIDES casing
+            # TIDES typically uses "In service", "Deadhead", etc.
+            # Use fillna to avoid dropping legacy rows in mixed batches
+            df = df.loc[df["trip_type"].fillna("In service") == "In service"].copy()
+        if "schedule_relationship" in df.columns:
+            # Use fillna to avoid dropping legacy rows
+            df = df.loc[df["schedule_relationship"].fillna("Scheduled") != "Canceled"].copy()
+
+        # Rename columns to legacy internal names
+        rename_map = {
+            "route_id": "Route",
+            "direction_id": "Direction",
+            "trip_id_performed": "TripID",
+            "schedule_trip_start": "Scheduled Start Time",
+            "schedule_trip_end": "Scheduled Finish Time",
+            "actual_trip_start": "Actual Start Time",
+            "actual_trip_end": "Actual Finish Time",
+        }
+        df = df.rename(columns=rename_map)
+
+        # Convert timestamps
+        for col in (
+            "Scheduled Start Time",
+            "Scheduled Finish Time",
+            "Actual Start Time",
+            "Actual Finish Time",
+        ):
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+
+        # Derive trip_start_time (HH:MM) from the full timestamp
+        # Format as HH:MM
+        df[TIME_COL_NAME] = df["Scheduled Start Time"].dt.strftime("%H:%M")
+
+        # Ensure Direction is string for consistent handling
+        if "Direction" in df.columns:
+            df["Direction"] = df["Direction"].astype(str)
+
+        # Flag as TIDES so we can skip legacy normalization steps
+        df["_is_tides"] = True
+
+    else:
+        # Legacy Logic
+        for col in (
+            "Scheduled Start Time",
+            "Scheduled Finish Time",
+            "Actual Start Time",
+            "Actual Finish Time",
+        ):
+            df[col] = pd.to_datetime(df[col], errors="coerce")
+        df["_is_tides"] = False
+
     return df
 
 
@@ -285,6 +334,10 @@ def extract_trip_start_time(df: pd.DataFrame, trip_col: str = "Trip") -> pd.Data
     Returns:
         Copy of input DataFrame with a new 'trip_start_time' column.
     """
+    # If the time column is already populated (e.g. TIDES data), skip extraction
+    if TIME_COL_NAME in df.columns:
+        return df
+
     df = df.copy()
     df[TIME_COL_NAME] = df[trip_col].str.extract(r"^\s*([0-2]?\d:[0-5]\d)")[0]
     return df
@@ -1003,8 +1056,16 @@ def main() -> None:  # pragma: no cover
             .pipe(filter_service_day, SERVICE_DAY_FILTER)
             .pipe(add_deviation_cols)
             .pipe(add_otp_flag)  # adds both on_time & within_window
-            .pipe(normalize_directions_column, ALLOWED_DIRECTIONS)  # normalize Direction values
         )
+
+        # Conditionally normalize directions (legacy only)
+        # For TIDES, we preserve the 0/1 IDs as-is.
+        if not base_df.get("_is_tides", pd.Series([False] * len(base_df))).any():
+            base_df = normalize_directions_column(base_df, ALLOWED_DIRECTIONS)
+
+        # Drop the helper column if present
+        if "_is_tides" in base_df.columns:
+            base_df = base_df.drop(columns=["_is_tides"])
 
         if base_df.empty:
             logging.warning("   ⚠  No rows left after filtering; skipping route.")
