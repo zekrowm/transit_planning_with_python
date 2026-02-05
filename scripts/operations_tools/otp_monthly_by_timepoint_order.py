@@ -85,6 +85,10 @@ WRITE_TIMEPOINT_LOOKUPS: bool = True
 GENERATE_LINE_PLOTS: bool = True
 PLOT_DPI: int = 160
 
+# TIDES-specific configuration
+OTP_EARLY_MIN: int = -1
+OTP_LATE_MIN: int = 6
+
 # -----------------------------------------------------------------------------
 # LOGGING
 # -----------------------------------------------------------------------------
@@ -626,6 +630,109 @@ def save_variation_line_plot(
     plt.close()
 
 
+def preprocess_tides_data(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert TIDES operational data (trips+stops) into the internal analysis format.
+
+    Performs the following:
+      1. Filters out 'Canceled' trips.
+      2. Calculates deviations from scheduled vs actual departure times.
+      3. Classifies each stop visit as On Time, Early, or Late based on OTP thresholds.
+      4. Maps TIDES columns to the script's expected internal column names.
+    """
+    logging.info("Detected TIDES input format. Preprocessing...")
+
+    # Filter out canceled trips if column exists
+    if "schedule_relationship" in df.columns:
+        df = df[df["schedule_relationship"].fillna("Scheduled") != "Canceled"].copy()
+
+    # Ensure required date/time columns are parsed
+    for col in ["schedule_departure_time", "actual_departure_time"]:
+        df[col] = pd.to_datetime(df[col], errors="coerce")
+
+    # Calculate deviation in minutes (Actual - Scheduled)
+    dev_minutes = (
+        df["actual_departure_time"] - df["schedule_departure_time"]
+    ).dt.total_seconds() / 60
+
+    # Calculate OTP buckets
+    # On Time: OTP_EARLY_MIN <= dev <= OTP_LATE_MIN
+    # Early: dev < OTP_EARLY_MIN
+    # Late: dev > OTP_LATE_MIN
+    on_time_mask = dev_minutes.between(OTP_EARLY_MIN, OTP_LATE_MIN, inclusive="both")
+    early_mask = dev_minutes < OTP_EARLY_MIN
+    late_mask = dev_minutes > OTP_LATE_MIN
+
+    df["Sum # On Time"] = on_time_mask.astype(int)
+    df["Sum # Early"] = early_mask.astype(int)
+    df["Sum # Late"] = late_mask.astype(int)
+
+    # Map columns
+    # TIDES -> Internal
+    # route_id -> Route
+    # direction_id -> Direction
+    # pattern_id -> Variation
+    # scheduled_stop_sequence -> Timepoint Order
+    # stop_id -> Timepoint ID (and Description if missing)
+    # service_date -> Year-Month (formatted as YYYY-MM)
+
+    # Ensure route/direction exist (assumed joined or present)
+    if "route_id" not in df.columns:
+        sys.exit("ERROR: TIDES input missing 'route_id' column.")
+    if "direction_id" not in df.columns:
+        sys.exit("ERROR: TIDES input missing 'direction_id' column.")
+
+    df["Route"] = df["route_id"]
+    df["Direction"] = df["direction_id"]
+    df["Variation"] = df.get("pattern_id", "UNKNOWN")
+    df["Timepoint Order"] = df.get("scheduled_stop_sequence")
+
+    # Handle Timepoint Description
+    if "Timepoint Description" not in df.columns:
+        # Use stop_name if available, else stop_id
+        if "stop_name" in df.columns:
+            df["Timepoint Description"] = df["stop_name"]
+        else:
+            df["Timepoint Description"] = df.get("stop_id", "UNKNOWN")
+
+    df["Timepoint ID"] = df.get("stop_id", "UNKNOWN")
+
+    # Construct Year-Month from service_date
+    if "service_date" in df.columns:
+        # Parse service_date to ensure it's a datetime then format
+        s_date = pd.to_datetime(df["service_date"], errors="coerce")
+        df["Year-Month"] = s_date.dt.to_period("M").astype(str)
+
+    # Filter out rows where Timepoint Order or Schedule Time is missing
+    # We cannot calculate OTP or aggregate correctly without these.
+    # (e.g., 'Added' stops might lack a schedule)
+    pre_len = len(df)
+    df = df.dropna(subset=["Timepoint Order", "schedule_departure_time"])
+    post_len = len(df)
+    if pre_len != post_len:
+        logging.info(
+            "Dropped %d rows missing schedule info or timepoint order.", pre_len - post_len
+        )
+
+    # Keep only necessary columns for downstream processing
+    # The downstream expects: Route, Direction, Variation, Timepoint Order, Year-Month,
+    # Sum # On Time, Sum # Early, Sum # Late, Timepoint ID, Timepoint Description
+    cols = [
+        "Route",
+        "Direction",
+        "Variation",
+        "Timepoint Order",
+        "Year-Month",
+        "Sum # On Time",
+        "Sum # Early",
+        "Sum # Late",
+        "Timepoint ID",
+        "Timepoint Description",
+    ]
+    # Filter to cols that exist
+    cols = [c for c in cols if c in df.columns]
+    return df[cols].copy()
+
+
 # =============================================================================
 # OUTPUT BUILDERS
 # =============================================================================
@@ -781,22 +888,34 @@ def main() -> None:
 
     df_raw = pd.read_csv(input_path)
 
-    required = [
-        "Route",
-        "Direction",
-        "Timepoint Order",
-        "Sum # On Time",
-        "Sum # Early",
-        "Sum # Late",
-    ]
-    missing = [c for c in required if c not in df_raw.columns]
-    if missing:
-        sys.exit(f"ERROR: missing required columns: {missing}")
+    # Detect TIDES signature
+    tides_signature = ["service_date", "schedule_departure_time", "actual_departure_time"]
+    is_tides = all(c in df_raw.columns for c in tides_signature)
+
+    if is_tides:
+        df_raw = preprocess_tides_data(df_raw)
+        # TIDES data implies directions are IDs (e.g. 0, 1) and should not be normalized
+        # to cardinal directions like NORTHBOUND.
+    else:
+        required = [
+            "Route",
+            "Direction",
+            "Timepoint Order",
+            "Sum # On Time",
+            "Sum # Early",
+            "Sum # Late",
+        ]
+        missing = [c for c in required if c not in df_raw.columns]
+        if missing:
+            sys.exit(f"ERROR: missing required columns: {missing}")
 
     # Normalize / enrich --------------------------------------------------------
     df_raw["Short Route"] = df_raw["Route"].astype(str).apply(make_short_route)
     df_raw = normalize_variation_column(df_raw)
-    df_raw = normalize_directions_column(df_raw, ALLOWED_DIRECTIONS)
+
+    if not is_tides:
+        df_raw = normalize_directions_column(df_raw, ALLOWED_DIRECTIONS)
+
     df_raw = normalize_timepoint_order_column(df_raw)
 
     # Monthly grain -------------------------------------------------------------
