@@ -1,7 +1,6 @@
 import sys
-import os
 from pathlib import Path
-import pytest
+
 import pandas as pd
 
 # Add the script directory to path to import the module
@@ -9,21 +8,20 @@ import pandas as pd
 script_dir = Path("scripts/operations_tools").resolve()
 sys.path.append(str(script_dir))
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock  # noqa: E402
 
 # Mock visualization libraries to allow tests to run in environments without them
 sys.modules["matplotlib"] = MagicMock()
 sys.modules["matplotlib.pyplot"] = MagicMock()
 sys.modules["seaborn"] = MagicMock()
 
-import trip_event_runtime_diagnostics as target
+import trip_event_runtime_diagnostics as target  # noqa: E402
 
 FIXTURE_PATH = Path("tests/fixtures/trips_performed.csv")
 
 
-def test_load_trip_files_tides_support():
+def test_load_trip_files_tides_support() -> None:
     """Verify load_trip_files handles TIDES data correctly."""
-
     # 1. Load the data using the target function
     df = target.load_trip_files([FIXTURE_PATH])
 
@@ -84,7 +82,7 @@ def test_load_trip_files_tides_support():
     )
 
 
-def test_extract_trip_start_time_skip():
+def test_extract_trip_start_time_skip() -> None:
     """Verify extract_trip_start_time returns early if column exists."""
     df = pd.DataFrame({"trip_start_time": ["10:00"], "Trip": ["TRIP_1000"]})
     res = target.extract_trip_start_time(df)
