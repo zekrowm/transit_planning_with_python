@@ -1,6 +1,6 @@
 # Transit Planning With Python
 
-Welcome to **Transit Planning With Python**, a toolkit of off‑the‑shelf Python scripts designed for data‑driven transit planning at medium‑sized agencies. Each tool focuses on accomplishing a common task or solving a common challenge in transit analysis and planning. The most common input is static ***General Transit Feed Specification (GTFS)*** data, but ridership data, operational data, Census data, and road network data are also commonly used.
+Welcome to **Transit Planning With Python**, a toolkit of off‑the‑shelf Python scripts designed for data‑driven transit planning at medium‑sized agencies. Each tool focuses on accomplishing a common task or solving a common challenge in transit analysis and planning. The most common input is static ***General Transit Feed Specification (GTFS)*** data, but TIDES operational data, Census data, ridership data, and road network data are also commonly used.
 
 ## 🚀 Features
 
