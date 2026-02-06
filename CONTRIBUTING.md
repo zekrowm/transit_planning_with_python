@@ -23,10 +23,10 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
   - Prefer inline variable configuration over `argparse`.
 - Use intuitive success messages at the end of script execution.
   - e.g., `print("Script completed successfully.")` or equivalent `logging` call.
-- Do **not import** functions from the shared `helpers/` directory at runtime.
+- Do **not import** functions from the shared `utils/` directory at runtime.
   - Instead, **copy the relevant helper functions** into your script.
   - This keeps each script self-contained and easier for beginners to understand, run, and modify.
-- The `helpers/` directory holds the **canonical version** of shared functions. Any differences between a script’s local copy and the canonical version will be flagged in CI.
+- The `utils/` directory holds the **canonical version** of shared functions. Any differences between a script’s local copy and the canonical version will be flagged in CI.
 
 ## ⚙️ Runtime Behavior
 
@@ -60,14 +60,14 @@ New or modified scripts under `scripts/` **must be manually tested** before open
 
 ### 🧩 Unit Tests for Helper Functions
 
-If you add or significantly modify a function in the `helpers/` directory:
+If you add or significantly modify a function in the `utils/` directory:
 
 - Write a **unit test** that exercises its normal behavior and at least one error condition.
 - Save new tests under `tests/unit/` following the naming pattern `test_<module>.py`.
 - Use small, synthetic input data—do **not** rely on external files or network access.
 - Tests should run quickly (<1 s each) and be deterministic.
 - These tests protect against silent failures caused by future changes to dependencies (e.g., pandas, geopandas).
-- A pull request adding or modifying helpers **without** a corresponding test may be asked to add one before review.
+- A pull request adding or modifying utils **without** a corresponding test may be asked to add one before review.
 
 ## 🧼 Code Style
 
@@ -89,9 +89,9 @@ Most formatting issues (indentation, line length, spacing) are auto-corrected by
 
 - Add new scripts to the appropriate subfolder within `scripts/`, based on function (e.g., `ridership_tools/`, `gtfs_exports/`).
 - If you create a helper that’s reused across multiple scripts:
-  - Add the canonical version to the appropriate file under `helpers/`.
+  - Add the canonical version to the appropriate file under `utils/`.
   - Then copy that helper into any script that uses it.
-- Do **not** import functions from one script into another or from `helpers/` at runtime.
+- Do **not** import functions from one script into another or from `utils/` at runtime.
 
 ## 🌳 GitHub Contribution Workflow
 

@@ -18,6 +18,9 @@ def tides_input_csv(tmp_path: Path) -> Path:
 
     # Add simulated joined columns
     # Pattern is PAT_30_WB or PAT_30_EB.
+    df["pattern_id"] = df["pattern_id"].map(
+        {"shp-101-01": "PAT_30_WB", "shp-101-51": "PAT_30_EB"}
+    )
     df["route_id"] = "30"
     df["direction_id"] = df["pattern_id"].apply(lambda x: "0" if "WB" in x else "1")
 
