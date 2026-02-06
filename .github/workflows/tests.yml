@@ -30,4 +30,4 @@ jobs:
         env:
           PYTHONPATH: "."
         run: |
-          pytest -q --cov=helpers --cov-report=term-missing:skip-covered
+          pytest -q --cov=utils --cov-report=term-missing:skip-covered
