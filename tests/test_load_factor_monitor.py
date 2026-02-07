@@ -3,6 +3,7 @@ import pytest
 import pandas as pd
 from scripts.ridership_tools import load_factor_monitor
 
+
 # Define a fixture for the CSV data
 @pytest.fixture
 def input_df():
@@ -19,24 +20,17 @@ def input_df():
 
     return df
 
+
 def test_process_data_structure(input_df):
     """Test that process_data adds the required columns and handles basic logic."""
     processed = load_factor_monitor.process_data(
-        input_df,
-        bus_capacity=39,
-        filter_in_routes=[],
-        filter_out_routes=[],
-        decimals=4
+        input_df, bus_capacity=39, filter_in_routes=[], filter_out_routes=[], decimals=4
     )
 
-    expected_cols = [
-        "SERVICE_PERIOD",
-        "LOAD_FACTOR",
-        "LOAD_FACTOR_VIOLATION",
-        "ROUTE_LIMIT_TYPE"
-    ]
+    expected_cols = ["SERVICE_PERIOD", "LOAD_FACTOR", "LOAD_FACTOR_VIOLATION", "ROUTE_LIMIT_TYPE"]
     for col in expected_cols:
         assert col in processed.columns
+
 
 def test_process_data_calculations(input_df):
     """Test specific calculations for load factor and violations."""
@@ -46,11 +40,7 @@ def test_process_data_calculations(input_df):
     # Should be a violation.
 
     processed = load_factor_monitor.process_data(
-        input_df,
-        bus_capacity=39,
-        filter_in_routes=[],
-        filter_out_routes=[],
-        decimals=4
+        input_df, bus_capacity=39, filter_in_routes=[], filter_out_routes=[], decimals=4
     )
 
     # Find the row for 20B, Inbound, 17:45 (Serial 5)
@@ -70,27 +60,21 @@ def test_process_data_calculations(input_df):
     row_9 = processed[processed["SERIAL_NUMBER"] == 9].iloc[0]
     assert row_9["SERVICE_PERIOD"] == "Other"
 
+
 def test_process_data_filtering(input_df):
     """Test route filtering logic."""
     # Filter IN only 10A
     processed_in = load_factor_monitor.process_data(
-        input_df.copy(),
-        bus_capacity=39,
-        filter_in_routes=["10A"],
-        filter_out_routes=[],
-        decimals=4
+        input_df.copy(), bus_capacity=39, filter_in_routes=["10A"], filter_out_routes=[], decimals=4
     )
     assert all(processed_in["ROUTE_NAME"] == "10A")
 
     # Filter OUT 10A
     processed_out = load_factor_monitor.process_data(
-        input_df.copy(),
-        bus_capacity=39,
-        filter_in_routes=[],
-        filter_out_routes=["10A"],
-        decimals=4
+        input_df.copy(), bus_capacity=39, filter_in_routes=[], filter_out_routes=["10A"], decimals=4
     )
     assert "10A" not in processed_out["ROUTE_NAME"].values
+
 
 def test_integration_exports(input_df, tmp_path, monkeypatch):
     """Integration test for the export functions using temporary directory."""
@@ -102,11 +86,7 @@ def test_integration_exports(input_df, tmp_path, monkeypatch):
     monkeypatch.setattr(load_factor_monitor, "OUTPUT_FILE", str(fake_output_xlsx))
 
     processed = load_factor_monitor.process_data(
-        input_df,
-        bus_capacity=39,
-        filter_in_routes=[],
-        filter_out_routes=[],
-        decimals=4
+        input_df, bus_capacity=39, filter_in_routes=[], filter_out_routes=[], decimals=4
     )
 
     # 1. Export CSV
@@ -134,4 +114,4 @@ def test_integration_exports(input_df, tmp_path, monkeypatch):
 
     # Verify content of violation log
     content = log_out.read_text(encoding="utf-8")
-    assert "20B" in content # Should be listed as violation
+    assert "20B" in content  # Should be listed as violation
