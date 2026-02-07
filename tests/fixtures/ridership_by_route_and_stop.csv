@@ -1,0 +1,28 @@
+TIME_PERIOD,ROUTE_NAME,STOP,STOP_ID,BOARD_ALL,ALIGHT_ALL
+AM PEAK,10A,Main St & 1st Ave,1001,12.4,3.2
+AM PEAK,10B,Main St & 1st Ave,1001,18.1,6.7
+PM PEAK,10A,Main St & 1st Ave,1001,22,11.9
+MIDDAY,10A,Main St & 1st Ave,1001,30,28
+AM PEAK,10A,Broadway & 3rd St,2002,4.6,2.1
+PM PEAK,10A,Broadway & 3rd St,2002,7.3,5.4
+MIDDAY,10A,Broadway & 3rd St,2002,9.8,6.2
+AM PEAK,20X,Elm St & Park Ave,3003,26.2,14.5
+PM PEAK,20X,Elm St & Park Ave,3003,31.7,18.9
+PM PEAK,20Y,Elm St & Park Ave,3003,19.4,9.8
+AM PEAK,30,Central Station Bay A,4004,42,38.1
+AM PEAK,30,Central Station Bay B,4005,15.6,12.3
+PM PEAK,30,Central Station Bay A,4004,55.2,47
+PM PEAK,30,Central Station Bay B,4005,18.9,16.2
+AM PEAK,42,Oak Rd & Pine St,5006,3.1,1.4
+PM PEAK,42,Oak Rd & Pine St,5006,4.8,2.9
+AM PEAK,55A,Airport Terminal 1,6007,60,52.4
+AM PEAK,55B,Airport Terminal 1,6007,48.7,44.1
+PM PEAK,55A,Airport Terminal 1,6007,72.3,65
+PM PEAK,55B,Airport Terminal 1,6007,58.9,54.2
+AM PEAK,77,University Loop North,7008,9.2,7.6
+PM PEAK,77,University Loop North,7008,11.8,10.1
+MIDDAY,77,University Loop North,7008,14.5,12
+AM PEAK,90,Industrial Rd & Depot,8009,0.9,0.4
+PM PEAK,90,Industrial Rd & Depot,8009,1.2,0.6
+AM PEAK,100,Downtown Transit Center,9010,85.6,79.3
+PM PEAK,100,Downtown Transit Center,9010,94.1,88.7
