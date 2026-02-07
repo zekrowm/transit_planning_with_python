@@ -16,9 +16,7 @@ def input_df() -> pd.DataFrame:
     # The CSV has strings "HH:MM". We need to convert them.
     # We use errors='coerce' to handle the empty string in row 9, which becomes NaT.
     # We keep them as Timestamps because assign_service_period handles Timestamp.hour.
-    df["TRIP_START_TIME"] = pd.to_datetime(
-        df["TRIP_START_TIME"], format="%H:%M", errors="coerce"
-    )
+    df["TRIP_START_TIME"] = pd.to_datetime(df["TRIP_START_TIME"], format="%H:%M", errors="coerce")
 
     return df
 
