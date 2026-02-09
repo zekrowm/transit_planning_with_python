@@ -848,33 +848,47 @@ def load_gtfs_data(
 ) -> dict[str, pd.DataFrame]:
     """Load one or more GTFS text files into memory.
 
-    Loads required GTFS files and any optional files that exist. Raises on missing
-    required files but not on optional ones.
-
     Args:
-        gtfs_folder_path: Path to folder containing the GTFS feed.
-        files: Explicit sequence of file names to load. If None, defaults to
-            REQUIRED_GTFS_FILES plus any OPTIONAL_GTFS_FILES found.
-        dtype: Passed to pandas.read_csv(dtype=…) to control column dtypes.
+        gtfs_folder_path: Absolute or relative path to the folder
+            containing the GTFS feed.
+        files: Explicit sequence of file names to load. If ``None``,
+            the standard 13 GTFS text files are attempted.
+        dtype: Value forwarded to :pyfunc:`pandas.read_csv(dtype=…)` to
+            control column dtypes. Supply a mapping for per-column dtypes.
 
     Returns:
-        Mapping of file stem → dataframe, e.g., data["trips"].
+        Mapping of file stem → :class:`pandas.DataFrame`; for example,
+        ``data["trips"]`` holds the parsed *trips.txt* table.
 
     Raises:
-        OSError: Folder missing or requested file not present.
+        OSError: Folder missing or one of *files* not present.
         ValueError: Empty file or CSV parser failure.
-        RuntimeError: OS error while reading a file.
+        RuntimeError: Generic OS error while reading a file.
+
+    Notes:
+        All columns default to ``str`` to avoid pandas’ type-inference
+        pitfalls (e.g. leading zeros in IDs).
     """
     if not os.path.exists(gtfs_folder_path):
         raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
 
-    # Default behavior: required + optional that actually exist
     if files is None:
-        files = list(REQUIRED_GTFS_FILES) + [
-            f for f in OPTIONAL_GTFS_FILES if os.path.exists(os.path.join(gtfs_folder_path, f))
-        ]
+        files = (
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt",
+        )
 
-    # Validate presence for the provided list
     missing = [
         file_name
         for file_name in files
@@ -891,12 +905,15 @@ def load_gtfs_data(
             df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
+
         except pd.errors.EmptyDataError as exc:
             raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
+
         except pd.errors.ParserError as exc:
             raise ValueError(
                 f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
             ) from exc
+
         except OSError as exc:
             raise RuntimeError(
                 f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
