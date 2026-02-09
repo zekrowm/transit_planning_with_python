@@ -278,9 +278,6 @@ def load_gtfs_data(
     return data
 
 
-
-
-
 def _apply_route_filters(df: pd.DataFrame) -> pd.DataFrame:
     """Apply whitelist/blacklist filters by route_short_name."""
     if "route_short_name" not in df.columns:

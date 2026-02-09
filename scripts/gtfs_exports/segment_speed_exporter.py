@@ -260,9 +260,6 @@ def load_gtfs_data(
     return data
 
 
-
-
-
 def segment_metrics(grp: pd.DataFrame) -> Tuple[SegSpeeds, float, int]:
     """Derive per-segment speeds and trip totals for one trip.
 

@@ -126,9 +126,6 @@ def load_gtfs_data(
     return data
 
 
-
-
-
 def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
     """Reads GTFS 'stops.txt' file into a Point GeoDataFrame.
 

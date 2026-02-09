@@ -136,9 +136,6 @@ def load_gtfs_data(
     return data
 
 
-
-
-
 def classify_direction(
     line_4326: LineString,
     line_projected: LineString,

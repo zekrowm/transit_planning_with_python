@@ -185,9 +185,6 @@ def validate_gtfs_files_exist(
             logging.warning("Missing GTFS file: %s", file_name)
 
 
-
-
-
 def load_stops(stops_txt: Path) -> pd.DataFrame:
     """Load GTFS stops.txt with minimal validation."""
     df = pd.read_csv(stops_txt, dtype={"stop_id": "string", "stop_name": "string"})
