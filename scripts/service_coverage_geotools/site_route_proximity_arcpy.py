@@ -29,10 +29,12 @@ ArcGIS Pro (arcpy) and pandas (bundled with Pro).
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable, Optional
 
 import arcpy
 import pandas as pd
@@ -195,31 +197,88 @@ def _polygon_to_point_fc(poly_geom: arcpy.Geometry, sr_proj: arcpy.SpatialRefere
     return pt_fc
 
 
-def _gtfs_read_required(folder: str) -> dict[str, pd.DataFrame]:
-    """Read required GTFS tables into pandas DataFrames.
+def load_gtfs_data(
+    gtfs_folder_path: str,
+    files: Optional[Sequence[str]] = None,
+    dtype: str | type[str] | Mapping[str, Any] = str,
+) -> dict[str, pd.DataFrame]:
+    """Load one or more GTFS text files into memory.
 
     Args:
-        folder: Directory containing GTFS text files.
+        gtfs_folder_path: Absolute or relative path to the folder
+            containing the GTFS feed.
+        files: Explicit sequence of file names to load. If ``None``,
+            the standard 13 GTFS text files are attempted.
+        dtype: Value forwarded to :pyfunc:`pandas.read_csv(dtype=…)` to
+            control column dtypes. Supply a mapping for per-column dtypes.
 
     Returns:
-        Mapping of table name to DataFrame.
+        Mapping of file stem → :class:`pandas.DataFrame`; for example,
+        ``data["trips"]`` holds the parsed *trips.txt* table.
 
     Raises:
-        FileNotFoundError: If any required GTFS file is missing.
-    """
-    required = ("stops.txt", "stop_times.txt", "trips.txt", "routes.txt")
-    for fn in required:
-        fp = os.path.join(folder, fn)
-        if not os.path.exists(fp):
-            raise FileNotFoundError(f"Missing GTFS file → {fp}")
+        OSError: Folder missing or one of *files* not present.
+        ValueError: Empty file or CSV parser failure.
+        RuntimeError: Generic OS error while reading a file.
 
-    dfs = {
-        "stops": pd.read_csv(os.path.join(folder, "stops.txt"), dtype=str),
-        "stop_times": pd.read_csv(os.path.join(folder, "stop_times.txt"), dtype=str),
-        "trips": pd.read_csv(os.path.join(folder, "trips.txt"), dtype=str),
-        "routes": pd.read_csv(os.path.join(folder, "routes.txt"), dtype=str),
-    }
-    return dfs
+    Notes:
+        All columns default to ``str`` to avoid pandas’ type-inference
+        pitfalls (e.g. leading zeros in IDs).
+    """
+    if not os.path.exists(gtfs_folder_path):
+        raise OSError(f"The directory '{gtfs_folder_path}' does not exist.")
+
+    if files is None:
+        files = (
+            "agency.txt",
+            "stops.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "calendar.txt",
+            "calendar_dates.txt",
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "feed_info.txt",
+            "frequencies.txt",
+            "shapes.txt",
+            "transfers.txt",
+        )
+
+    missing = [
+        file_name
+        for file_name in files
+        if not os.path.exists(os.path.join(gtfs_folder_path, file_name))
+    ]
+    if missing:
+        raise OSError(f"Missing GTFS files in '{gtfs_folder_path}': {', '.join(missing)}")
+
+    data: dict[str, pd.DataFrame] = {}
+    for file_name in files:
+        key = file_name.replace(".txt", "")
+        file_path = os.path.join(gtfs_folder_path, file_name)
+        try:
+            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            data[key] = df
+            logging.info("Loaded %s (%d records).", file_name, len(df))
+
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError(f"File '{file_name}' in '{gtfs_folder_path}' is empty.") from exc
+
+        except pd.errors.ParserError as exc:
+            raise ValueError(
+                f"Parser error in '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+        except OSError as exc:
+            raise RuntimeError(
+                f"OS error reading file '{file_name}' in '{gtfs_folder_path}': {exc}"
+            ) from exc
+
+    return data
+
+
+
 
 
 def _apply_route_filters(df: pd.DataFrame) -> pd.DataFrame:
@@ -928,7 +987,11 @@ def main() -> None:
 
         # Load GTFS and build stop→trip→route mapping
         global gtfs  # used in helper merges for stop_name previews
-        gtfs = _gtfs_read_required(GTFS_FOLDER)
+        gtfs = load_gtfs_data(
+            GTFS_FOLDER,
+            files=["stops.txt", "stop_times.txt", "trips.txt", "routes.txt"],
+            dtype=str,
+        )
 
         # Sanity: enforce unique stop_id
         if gtfs["stops"]["stop_id"].duplicated().any():

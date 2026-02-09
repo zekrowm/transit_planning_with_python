@@ -210,6 +210,9 @@ def load_gtfs_data(
     return data
 
 
+
+
+
 def filter_stops(gtfs_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Keep only stops that actually appear in stop_times and are boarding locations."""
     stops = gtfs_data["stops"].copy()

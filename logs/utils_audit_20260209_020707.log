@@ -1,0 +1,24 @@
+2026-02-09 02:07:07,366 INFO Audit log → logs/utils_audit_20260209_020707.log
+2026-02-09 02:07:07,374 INFO Canonical source: /app/utils
+2026-02-09 02:07:07,374 INFO Total canonical functions: 2
+2026-02-09 02:07:07,374 INFO ── auditing function: validate_gtfs_files_exist ──
+2026-02-09 02:07:09,279 INFO   ✓ 1 identical copy(ies)
+2026-02-09 02:07:09,279 INFO       /app/scripts/data_quality/gtfs_stop_proximity_qc.py
+2026-02-09 02:07:09,280 INFO ── auditing function: load_gtfs_data ──
+2026-02-09 02:07:11,241 INFO   ✓ 15 identical copy(ies)
+2026-02-09 02:07:11,241 INFO       /app/scripts/field_tools/ridecheck_cluster_checklists.py
+2026-02-09 02:07:11,241 INFO       /app/scripts/field_tools/printable_block_schedules.py
+2026-02-09 02:07:11,241 INFO       /app/scripts/block_and_bay_tools/gtfs_block_status_timeline.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/data_quality/stop_vs_roadname_checker_gpd.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/network_analysis/route_direction_classifier.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/service_coverage_geotools/gtfs_census_catchment_analysis_gpd.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/service_coverage_geotools/gtfs_service_by_district_gpd.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/service_coverage_geotools/site_route_proximity_arcpy.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/service_coverage_geotools/gtfs_census_catchment_arcpy.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/service_coverage_geotools/gtfs_service_by_district_arcpy.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/gtfs_exports/segment_speed_exporter.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/gtfs_exports/bus_block_exporter.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/gtfs_exports/timepoint_schedule_exporter.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/gtfs_exports/gtfs_to_shapefile_gpd.py
+2026-02-09 02:07:11,242 INFO       /app/scripts/gtfs_exports/stop_pattern_exporter.py
+2026-02-09 02:07:11,242 INFO Audit finished – all duplicates match the canonical code.
