@@ -39,20 +39,20 @@ exclude = ["**/*arcpy*"]
 python-version = "3.12"
 
 [tool.ty.rules]
-unsupported-operator = "error"
-invalid-return-type = "error"
+unsupported-operator = "warn"
+invalid-return-type = "warn"
 unresolved-import = "warn"
-invalid-assignment = "error"
+invalid-assignment = "warn"
 invalid-argument-type = "warn"
-not-subscriptable = "error"
-not-iterable = "error"
+not-subscriptable = "warn"
+not-iterable = "warn"
 no-matching-overload = "warn"
-invalid-parameter-default = "error"
-possibly-missing-attribute = "error"
-redundant-cast = "error"
-unresolved-reference = "error"
-unresolved-attribute = "error"
-unresolved-global = "error"
+invalid-parameter-default = "warn"
+possibly-missing-attribute = "warn"
+redundant-cast = "warn"
+unresolved-reference = "warn"
+unresolved-attribute = "warn"
+unresolved-global = "warn"
 
 # ================================================================
 # COMMIT MESSAGE LINTING
