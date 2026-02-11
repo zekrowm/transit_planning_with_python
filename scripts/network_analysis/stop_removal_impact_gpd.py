@@ -309,8 +309,8 @@ def load_gtfs_stops(gtfs_dir: Path, target_crs: int | str) -> gpd.GeoDataFrame:
     stops_csv = gtfs_dir / "stops.txt"
     df = pd.read_csv(stops_csv, dtype=str)
     df = df.drop_duplicates("stop_id")
-    gdf = gpd.GeoDataFrame(
-        df,
+    gdf = cast("Any", gpd.GeoDataFrame)(
+        data=df,
         geometry=gpd.points_from_xy(df.stop_lon.astype(float), df.stop_lat.astype(float)),
         crs="EPSG:4326",
     ).to_crs(target_crs)
@@ -593,7 +593,7 @@ def coverage_polygon(stops: gpd.GeoDataFrame, buffer_miles: float) -> gpd.GeoDat
     """Dissolved coverage polygon using feet buffers (CRS in US ft)."""
     radius_ft = buffer_miles * FT_PER_MILE
     dissolved = stops.buffer(radius_ft).union_all()
-    return gpd.GeoDataFrame(geometry=[dissolved], crs=stops.crs)
+    return cast("Any", gpd.GeoDataFrame)(data=None, geometry=[dissolved], crs=stops.crs)
 
 
 # -----------------------------------------------------------------------------
@@ -614,8 +614,8 @@ def export_results(
 
     ok = df[df.path_geom.notna()]
     if not ok.empty:
-        gdf_lines = gpd.GeoDataFrame(
-            ok[
+        gdf_lines = cast("Any", gpd.GeoDataFrame)(
+            data=ok[
                 [
                     "stop_name",
                     "stop_id",
@@ -630,8 +630,8 @@ def export_results(
         )
         gdf_lines.to_file(out_dir / "deleted_to_nearest_paths.shp")
 
-    gdf_pts = gpd.GeoDataFrame(
-        df[
+    gdf_pts = cast("Any", gpd.GeoDataFrame)(
+        data=df[
             [
                 "stop_name",
                 "stop_id",
@@ -844,7 +844,8 @@ def main() -> None:
             logging.warning("Deleted stop_id %s not found in GTFS.", sid)
             continue
         row = row.iloc[0]
-        x, y = float(row.geometry.x), float(row.geometry.y)
+        pt = cast("Point", row.geometry)
+        x, y = float(pt.x), float(pt.y)
 
         snapped_row = snap_map.loc[snap_map.stop_id == sid]
         off_net = snapped_row.empty or pd.isna(snapped_row.iloc[0].edge_id)
@@ -887,7 +888,7 @@ def main() -> None:
             tgt = kept_stops.iloc[i]
             tgt_sid = str(tgt.stop_id)
 
-            lin_ft = float(row.geometry.distance(tgt.geometry))
+            lin_ft = float(cast("Point", row.geometry).distance(tgt.geometry))
             net_ft, path_geom = stop_to_stop_network(
                 G, segments, edge_endpoints, snap_map, sid, tgt_sid
             )
@@ -898,7 +899,8 @@ def main() -> None:
                 math.isinf(net_ft)
                 or net_ft > max(ACROSS_STREET_ABS_FT, ACROSS_STREET_RATIO * lin_ft)  # noqa: E501
             ):
-                path_geom = LineString([(x, y), (float(tgt.geometry.x), float(tgt.geometry.y))])
+                tgt_pt = cast("Point", tgt.geometry)
+                path_geom = LineString([(x, y), (float(tgt_pt.x), float(tgt_pt.y))])
                 net_ft = lin_ft
                 flag = "across_street_override"
 

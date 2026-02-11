@@ -20,7 +20,7 @@ import logging
 import math
 import os
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -116,7 +116,7 @@ def load_gtfs_data(
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            df = pd.read_csv(file_path, dtype=cast("Any", dtype), low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
 
@@ -187,7 +187,9 @@ def plot_route_shape(
     'N' arrow for orientation in the top-left corner of the map.
     """
     if not isinstance(gdf_shape, gpd.GeoDataFrame):
-        gdf_shape = gpd.GeoDataFrame([gdf_shape], columns=gdf_shape.index, crs="EPSG:4326")
+        gdf_shape = cast("Any", gpd.GeoDataFrame)(
+            data=[gdf_shape], columns=gdf_shape.index, crs="EPSG:4326"
+        )
 
     gdf_shape_4326 = gdf_shape.to_crs(epsg=4326)
     shape_line = gdf_shape_4326.iloc[0].geometry
@@ -264,7 +266,9 @@ def create_lines_from_shapes(shapes: pd.DataFrame) -> gpd.GeoDataFrame:
         line = LineString(zip(group["shape_pt_lon"], group["shape_pt_lat"], strict=True))
         lines.append((sid, line))
 
-    gdf = gpd.GeoDataFrame(lines, columns=["shape_id", "geometry"], crs="EPSG:4326")
+    gdf = cast("Any", gpd.GeoDataFrame)(
+        data=lines, columns=["shape_id", "geometry"], crs="EPSG:4326"
+    )
     return gdf
 
 

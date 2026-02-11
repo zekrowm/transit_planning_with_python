@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import geopandas as gpd
 import pandas as pd
@@ -84,7 +84,7 @@ def create_projected_stops_gdf(
     # 2) Create a GeoDataFrame using WGS84
     wgs84_crs = "EPSG:4326"
     geometry = gpd.points_from_xy(x=stops_df["stop_lon"], y=stops_df["stop_lat"])
-    stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry, crs=wgs84_crs)
+    stops_gdf = cast("Any", gpd.GeoDataFrame)(data=stops_df, geometry=geometry, crs=wgs84_crs)
 
     # 3) Reproject to the target CRS
     stops_projected = stops_gdf.to_crs(epsg=epsg_out)
@@ -162,19 +162,23 @@ def build_route_district_matrix(
     # Build stop_id -> set of route_ids
     stop_id_to_route_ids: dict[str, set[str]] = {}
     for row in stop_times_df.itertuples(index=False):
-        trip_id = row.trip_id
-        stop_id = row.stop_id
+        trip_id = str(row.trip_id)
+        stop_id = str(row.stop_id)
         route_id = trip_id_to_route_id.get(trip_id)
         if route_id:
-            stop_id_to_route_ids.setdefault(stop_id, set()).add(route_id)
+            if stop_id not in stop_id_to_route_ids:
+                stop_id_to_route_ids[stop_id] = set()
+            stop_id_to_route_ids[stop_id].add(route_id)
 
     # Gather district info for each stop_id from `intersect_gdf`
     # `intersect_gdf` must have columns: "stop_id" (from stops), and the district field
     stop_id_to_districts: dict[str, set[Any]] = {}
     for _, row in intersect_gdf.iterrows():
-        stop_id_val = row["stop_id"]
+        stop_id_val = str(row["stop_id"])
         dist_val = row[district_field]
-        stop_id_to_districts.setdefault(stop_id_val, set()).add(dist_val)
+        if stop_id_val not in stop_id_to_districts:
+            stop_id_to_districts[stop_id_val] = set()
+        stop_id_to_districts[stop_id_val].add(dist_val)
 
     # Build route -> set of districts
     route_to_districts: dict[str, set[Any]] = {}
@@ -182,7 +186,9 @@ def build_route_district_matrix(
         if stop_id in stop_id_to_districts:
             these_districts = stop_id_to_districts[stop_id]
             for rt_id in route_ids:
-                route_to_districts.setdefault(rt_id, set()).update(these_districts)
+                if rt_id not in route_to_districts:
+                    route_to_districts[rt_id] = set()
+                route_to_districts[rt_id].update(these_districts)
 
     # Build final matrix with route_short_name as rows, each district as a column
     all_route_ids = sorted(
@@ -287,7 +293,7 @@ def load_gtfs_data(
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            df = pd.read_csv(file_path, dtype=cast("Any", dtype), low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
 

@@ -161,7 +161,7 @@ def save_output(gdf: GeoDataFrame, out_path: str) -> None:
         driver = None  # let Fiona infer (GeoPackage, Parquet, etc.)
 
     LOGGER.info("Writing output → %s", path.resolve())
-    gdf.to_file(out_path, driver=driver, index=False)
+    gdf.to_file(Path(out_path), driver=driver, index=False)
     LOGGER.info("Finished")
 
 

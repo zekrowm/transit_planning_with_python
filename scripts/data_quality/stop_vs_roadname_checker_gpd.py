@@ -18,7 +18,7 @@ import logging
 import os
 import re
 from collections.abc import Mapping, Sequence
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, cast
 
 import geopandas as gpd
 import pandas as pd
@@ -150,8 +150,8 @@ def load_stops(stops_df: pd.DataFrame, crs: str = STOPS_CRS) -> gpd.GeoDataFrame
     stops_df["stop_lat"] = stops_df["stop_lat"].astype(float)
     stops_df["stop_lon"] = stops_df["stop_lon"].astype(float)
 
-    gdf = gpd.GeoDataFrame(
-        stops_df,
+    gdf = cast("Any", gpd.GeoDataFrame)(
+        data=stops_df,
         geometry=gpd.points_from_xy(stops_df["stop_lon"], stops_df["stop_lat"]),
         crs=crs,
     )
@@ -460,7 +460,7 @@ def load_gtfs_data(
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            df = pd.read_csv(file_path, dtype=cast("Any", dtype), low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
 

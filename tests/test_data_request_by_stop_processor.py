@@ -35,7 +35,7 @@ def test_full_processing_integration() -> None:
     """Verify the full processing pipeline using the CSV fixture."""
     # 1. Load the fixture data
     if not FIXTURE_PATH.exists():
-        pytest.fail(f"Fixture file not found at {FIXTURE_PATH}")
+        raise AssertionError(f"Fixture file not found at {FIXTURE_PATH}")
 
     fixture_df = pd.read_csv(FIXTURE_PATH)
 

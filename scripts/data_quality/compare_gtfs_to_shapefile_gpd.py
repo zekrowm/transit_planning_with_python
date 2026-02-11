@@ -18,7 +18,7 @@ import re
 import warnings
 from math import isfinite
 from pathlib import Path
-from typing import Iterable, Optional, Tuple, Union
+from typing import Any, Iterable, Optional, Tuple, Union, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -210,8 +210,8 @@ def _build_shapes_gdf(shapes_df: pd.DataFrame, target_epsg: int | None) -> gpd.G
     if not parts:
         raise ValueError("No valid shapes constructed from shapes.txt")
 
-    g = gpd.GeoDataFrame(
-        [{"shape_id": sid, "geometry": geom} for sid, geom in parts],
+    g = cast("Any", gpd.GeoDataFrame)(
+        data=[{"shape_id": sid, "geometry": geom} for sid, geom in parts],
         crs="EPSG:4326",
     )
     g = g.to_crs(epsg=target_epsg) if target_epsg else g
@@ -230,8 +230,8 @@ def _stops_gdf(stops_df: pd.DataFrame, target_epsg: int | None) -> gpd.GeoDataFr
     sdf["stop_lat"] = sdf["stop_lat"].astype(float)
     sdf["stop_lon"] = sdf["stop_lon"].astype(float)
 
-    g = gpd.GeoDataFrame(
-        sdf[["stop_id"]].assign(
+    g = cast("Any", gpd.GeoDataFrame)(
+        data=sdf[["stop_id"]].assign(
             geometry=[
                 Point(lon, lat) for lon, lat in zip(sdf["stop_lon"], sdf["stop_lat"], strict=True)
             ]
@@ -556,7 +556,7 @@ def compute_per_route_metrics() -> pd.DataFrame:
                 buffer_feet = buffer_units * to_feet if isfinite(buffer_units) else float("nan")
             else:
                 gtfs_line = None
-                stops_sel = gpd.GeoDataFrame(geometry=[], crs=stops_gdf.crs)
+                stops_sel = cast("Any", gpd.GeoDataFrame)(data=[], geometry=[], crs=stops_gdf.crs)
                 shape_pick, stops_pick = "none", "none"
                 buffer_units = float("nan")
                 buffer_feet = float("nan")

@@ -32,7 +32,7 @@ import re
 import sys
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Sequence
+from typing import Any, List, Sequence, cast
 
 import geopandas as gpd
 import pandas as pd
@@ -190,8 +190,8 @@ def merge_shapefiles(shp_paths: Sequence[str]) -> gpd.GeoDataFrame:
             "CRS mismatch between input layers: %s.  Re-project first." % ", ".join(crs_set)
         )
 
-    merged = gpd.GeoDataFrame(
-        pd.concat(gdfs, ignore_index=True), crs=gdfs[0].crs, geometry="geometry"
+    merged = cast("Any", gpd.GeoDataFrame)(
+        data=pd.concat(gdfs, ignore_index=True), crs=gdfs[0].crs, geometry="geometry"
     )
     LOGGER.info("Merged %d input files → %d features", len(shp_paths), len(merged))
     return merged

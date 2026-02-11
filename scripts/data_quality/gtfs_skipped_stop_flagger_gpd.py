@@ -27,7 +27,7 @@ import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -306,7 +306,7 @@ def build_shapes_gdf(shapes_df: pd.DataFrame, crs: str) -> gpd.GeoDataFrame:
             continue
         records.append({"shape_id": str(shape_id), "geometry": LineString(points)})
 
-    shapes_gdf = gpd.GeoDataFrame(records, crs=crs)
+    shapes_gdf = cast("Any", gpd.GeoDataFrame)(data=records, crs=crs)
     shapes_gdf.set_index("shape_id", inplace=True)
     return shapes_gdf
 
@@ -351,7 +351,7 @@ def build_stops_gdf(
     stops_df[stop_key_field] = stops_df[stop_key_field].astype(str)
 
     geometry = gpd.points_from_xy(stops_df["stop_lon"], stops_df["stop_lat"])
-    stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry, crs=crs)
+    stops_gdf = cast("Any", gpd.GeoDataFrame)(data=stops_df, geometry=geometry, crs=crs)
     stops_gdf.set_index(stop_key_field, inplace=True)
     return stops_gdf
 
@@ -1566,8 +1566,8 @@ def prepare_gtfs_context() -> GTFSContext:
             stop_times_df=stop_times_df,
             shapes_df=shapes_df,
             routes_df=routes_df,
-            stops_gdf_geo=gpd.GeoDataFrame(),
-            stops_gdf_proj=gpd.GeoDataFrame(),
+            stops_gdf_geo=cast("Any", gpd.GeoDataFrame)(data=[], geometry=[]),
+            stops_gdf_proj=cast("Any", gpd.GeoDataFrame)(data=[], geometry=[]),
             stop_key_lookup=stop_key_lookup,
             stop_names=stop_names,
             route_sequences={},

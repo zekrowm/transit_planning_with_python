@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from typing import Any, cast
 
 import geopandas as gpd
 import pandas as pd
@@ -91,8 +92,8 @@ def _load_locations(
     if source == "manual":
         if not manual_list:
             raise ValueError("manual_list must be provided when LOCATION_SOURCE='manual'")
-        gdf = gpd.GeoDataFrame(
-            manual_list,
+        gdf = cast("Any", gpd.GeoDataFrame)(
+            data=manual_list,
             geometry=[Point(d["longitude"], d["latitude"]) for d in manual_list],
             crs="EPSG:4326",
         )
@@ -117,8 +118,8 @@ def _stops_to_gdf(stops: pd.DataFrame) -> gpd.GeoDataFrame:
     stops = stops.assign(
         stop_lat=stops.stop_lat.astype(float), stop_lon=stops.stop_lon.astype(float)
     )
-    return gpd.GeoDataFrame(
-        stops,
+    return cast("Any", gpd.GeoDataFrame)(
+        data=stops,
         geometry=gpd.points_from_xy(stops.stop_lon, stops.stop_lat),
         crs="EPSG:4326",
     )

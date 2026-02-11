@@ -38,7 +38,7 @@ import math
 import os
 from collections.abc import Mapping, Sequence
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, cast
 
 import pandas as pd
 from openpyxl.styles import Alignment, Font
@@ -213,7 +213,7 @@ def load_gtfs_data(
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            df = pd.read_csv(file_path, dtype=cast("Any", dtype), low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
 
@@ -535,7 +535,7 @@ def export_to_excel(df: pd.DataFrame, output_file: str) -> None:
 
         # Bold rows for special routes
         if "route_short_name" in df.columns and SPECIAL_ROUTES:
-            route_idx = int(df.columns.get_loc("route_short_name")) + 1
+            route_idx = int(cast("int", df.columns.get_loc("route_short_name"))) + 1
             for row_idx in range(2, ws.max_row + 1):
                 val = ws.cell(row=row_idx, column=route_idx).value
                 if str(val) in SPECIAL_ROUTES:
@@ -637,8 +637,8 @@ def process_cluster_slice(
         )
 
     # Placeholders
-    df.insert(int(df.columns.get_loc("arrival_time")) + 1, "act_arrival", "________")
-    df.insert(int(df.columns.get_loc("departure_time")) + 1, "act_departure", "________")
+    df.insert(int(cast("int", df.columns.get_loc("arrival_time"))) + 1, "act_arrival", "________")
+    df.insert(int(cast("int", df.columns.get_loc("departure_time"))) + 1, "act_departure", "________")
 
     if "sequence_long" in df.columns:
         df.loc[df["sequence_long"] == "start", "act_arrival"] = "__XXXX__"

@@ -38,7 +38,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, Sequence, Tuple, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -207,8 +207,8 @@ def _build_stops_gdf(
     served = stop_times[stop_times["trip_id"].isin(trips["trip_id"])]
     stops = stops[stops["stop_id"].isin(served["stop_id"])].copy()
 
-    gdf = gpd.GeoDataFrame(
-        stops,
+    gdf = cast("Any", gpd.GeoDataFrame)(
+        data=stops,
         geometry=gpd.points_from_xy(stops.stop_lon, stops.stop_lat),
         crs="EPSG:4326",
     ).to_crs(crs)
@@ -254,7 +254,9 @@ def _build_routes_gdf(
         .reset_index()
     )
 
-    gdf = gpd.GeoDataFrame(lines, geometry="geometry", crs="EPSG:4326").to_crs(crs)
+    gdf = cast("Any", gpd.GeoDataFrame)(
+        data=lines, geometry="geometry", crs="EPSG:4326"
+    ).to_crs(crs)
     gdf = gdf.merge(
         trips.drop_duplicates("shape_id")[["shape_id", "route_id", "direction_id"]],
         on="shape_id",
@@ -421,7 +423,7 @@ def _flag_left_turn_spacing(
         log_path.name,
         "no issues" if not flagged else f"{len(flagged):,} issues",
     )
-    return gpd.GeoDataFrame(flagged, crs=stops_gdf.crs)
+    return cast("Any", gpd.GeoDataFrame)(data=flagged, crs=stops_gdf.crs)
 
 
 def _export_flagged_pngs(

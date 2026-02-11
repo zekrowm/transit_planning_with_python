@@ -22,7 +22,7 @@ import logging
 import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Final, Optional
+from typing import Any, Final, Optional, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -348,9 +348,15 @@ def do_network_analysis(
         lambda row: Point(row["stop_lon"], row["stop_lat"]),
         axis=1,
     )
-    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
-        epsg=CRS_EPSG_CODE
-    )
+    stops_gdf = cast("Any", gpd.GeoDataFrame)(
+        data=final_stops_df, geometry="geometry", crs="EPSG:4326"
+    ).to_crs(epsg=CRS_EPSG_CODE)
+    stops_gdf = cast("Any", gpd.GeoDataFrame)(
+        data=final_stops_df, geometry="geometry", crs="EPSG:4326"
+    ).to_crs(epsg=CRS_EPSG_CODE)
+    stops_gdf = cast("Any", gpd.GeoDataFrame)(
+        data=final_stops_df, geometry="geometry", crs="EPSG:4326"
+    ).to_crs(epsg=CRS_EPSG_CODE)
 
     # 7) Compute variable buffer distances
     buffer_m = (
@@ -388,7 +394,7 @@ def do_network_analysis(
 
     os.makedirs(output_dir, exist_ok=True)
     shp_path = os.path.join(output_dir, "all_routes_service_buffer_data.shp")
-    clipped_result.to_file(shp_path)
+    clipped_result.to_file(Path(shp_path))
     logging.info("Exported network shapefile: %s", shp_path)
 
     xlsx_path = os.path.join(output_dir, "all_routes_service_buffer_data.xlsx")
@@ -450,7 +456,7 @@ def do_route_by_route_analysis(
     final_stops_df["geometry"] = final_stops_df.apply(
         lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
     )
-    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
+    stops_gdf = gpd.GeoDataFrame(data=final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
         epsg=CRS_EPSG_CODE
     )
 
@@ -499,7 +505,7 @@ def do_route_by_route_analysis(
         # Shapefile export
         os.makedirs(output_dir, exist_ok=True)
         shp_path = os.path.join(output_dir, f"{route_name}_service_buffer_data.shp")
-        clipped_result.to_file(shp_path)
+        clipped_result.to_file(Path(shp_path))
         logging.info("Exported shapefile for route %s: %s", route_name, shp_path)
 
         # Export summary to Excel
@@ -563,7 +569,7 @@ def do_stop_by_stop_analysis(
     final_stops_df["geometry"] = final_stops_df.apply(
         lambda row: Point(row["stop_lon"], row["stop_lat"]), axis=1
     )
-    stops_gdf = gpd.GeoDataFrame(final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
+    stops_gdf = gpd.GeoDataFrame(data=final_stops_df, geometry="geometry", crs="EPSG:4326").to_crs(
         epsg=CRS_EPSG_CODE
     )
 
@@ -611,7 +617,7 @@ def do_stop_by_stop_analysis(
 
         # Export shapefile
         shp_path = os.path.join(output_dir, f"stop_{stop_id_str}_service_buffer_data.shp")
-        clipped_result.to_file(shp_path)
+        clipped_result.to_file(Path(shp_path))
         logging.info("Exported shapefile for stop %s: %s", stop_id_str, shp_path)
 
         # Export summary to Excel
@@ -736,7 +742,7 @@ def load_gtfs_data(
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            df = pd.read_csv(file_path, dtype=cast("Any", dtype), low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
 

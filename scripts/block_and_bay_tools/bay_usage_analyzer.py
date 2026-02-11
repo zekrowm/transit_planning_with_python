@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
 import pandas as pd
 from openpyxl.styles import Font
@@ -167,7 +167,7 @@ def normalize_stop_id(stop_id: object) -> Optional[str]:
     str | None
         Cleaned stop ID or *None* if ``stop_id`` is NaN.
     """
-    if pd.isna(stop_id):
+    if pd.isna(cast("Any", stop_id)):
         return None
     sid_str = str(stop_id).strip()
     if sid_str.endswith(".0"):
@@ -443,7 +443,7 @@ def run_step2_conflict_detection() -> None:
             sub.to_excel(writer, sheet_name="AllStops", index=False)
 
             # Bold the conflict rows in “AllStops”
-            conflict_col_index = int(sub.columns.get_loc("ConflictType")) + 1  # 1-based
+            conflict_col_index = int(cast("int", sub.columns.get_loc("ConflictType"))) + 1  # 1-based
             worksheet_all = writer.sheets["AllStops"]
             for row_idx in range(2, len(sub) + 2):  # data start row 2
                 conflict_val = worksheet_all.cell(
@@ -470,7 +470,7 @@ def run_step2_conflict_detection() -> None:
                 stop_df.to_excel(writer, sheet_name=sheet_name, index=False)
 
                 # Bold the conflict rows in each stop’s sheet
-                conflict_col_index_stop = int(stop_df.columns.get_loc("ConflictType")) + 1
+                conflict_col_index_stop = int(cast("int", stop_df.columns.get_loc("ConflictType"))) + 1
                 worksheet_stop = writer.sheets[sheet_name]
                 for row_idx in range(2, len(stop_df) + 2):
                     conflict_val = worksheet_stop.cell(

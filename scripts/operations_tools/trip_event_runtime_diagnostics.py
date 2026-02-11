@@ -25,7 +25,7 @@ import re
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, Final, Iterable, List, Sequence, TypeAlias
+from typing import Callable, Final, Iterable, List, Sequence, TypeAlias, cast
 
 # May need to comment out TypeAlias import for old ArcPro Python versions
 import matplotlib.pyplot as plt
@@ -959,7 +959,7 @@ def suggest_time_bands(
     k0 = max(int(np.ceil(np.sqrt(n))), 2)
     k = k0 if max_bands is None or max_bands <= 0 else min(k0, max_bands)
 
-    breaks = _fisher_jenks(df["runtime_p85_min"].to_numpy(), k=k)
+    breaks = _fisher_jenks(cast("Sequence[float]", df["runtime_p85_min"].to_numpy()), k=k)
 
     labels = np.zeros(n, dtype=int)
     for _i, b in enumerate(breaks, start=1):
@@ -976,7 +976,7 @@ def suggest_time_bands(
                 changed = False
                 continue
             for bid in small:
-                idx = int(sizes.index.get_loc(bid))
+                idx = int(cast("int", sizes.index.get_loc(bid)))
                 opts = []
                 if idx > 0:
                     left = sizes.index[idx - 1]

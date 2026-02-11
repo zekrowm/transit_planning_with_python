@@ -22,7 +22,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple, cast
 
 import geopandas as gpd
 import numpy as np
@@ -284,8 +284,8 @@ def _build_stops_gdf(
     served = stop_times.loc[stop_times["trip_id"].isin(trips["trip_id"])]
     stops = stops.loc[stops["stop_id"].isin(served["stop_id"])].copy()
 
-    gdf = gpd.GeoDataFrame(
-        stops,
+    gdf = cast("Any", gpd.GeoDataFrame)(
+        data=stops,
         geometry=gpd.points_from_xy(stops.stop_lon, stops.stop_lat),
         crs="EPSG:4326",
     ).to_crs(crs)
@@ -330,7 +330,9 @@ def _build_routes_gdf(
         .reset_index()
     )
 
-    gdf = gpd.GeoDataFrame(lines, geometry="geometry", crs="EPSG:4326").to_crs(crs)
+    gdf = cast("Any", gpd.GeoDataFrame)(
+        data=lines, geometry="geometry", crs="EPSG:4326"
+    ).to_crs(crs)
 
     gdf = gdf.merge(
         trips.drop_duplicates("shape_id")[["shape_id", "route_id", "direction_id"]],
@@ -407,7 +409,7 @@ def _split_into_segments(
                     }
                 )
 
-    seg_gdf = gpd.GeoDataFrame(seg_records, crs=crs)
+    seg_gdf = cast("Any", gpd.GeoDataFrame)(data=seg_records, crs=crs)
     seg_gdf["length_ft"] = seg_gdf.length * (1.0 if "2263" in crs else 3.28084)
     logging.info("Segments GDF – generated %d pieces.", len(seg_gdf))
     return seg_gdf
