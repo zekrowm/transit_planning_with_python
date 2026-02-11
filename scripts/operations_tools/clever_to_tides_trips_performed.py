@@ -284,22 +284,18 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
     sched_start_dt = pd.to_datetime(
         normalize_dt_series(df["Scheduled Start Time"]),
         errors="coerce",
-        infer_datetime_format=True,
     )
     sched_end_dt = pd.to_datetime(
         normalize_dt_series(df["Scheduled Finish Time"]),
         errors="coerce",
-        infer_datetime_format=True,
     )
     actual_start_dt = pd.to_datetime(
         normalize_dt_series(df["Actual Start Time"]),
         errors="coerce",
-        infer_datetime_format=True,
     )
     actual_end_dt = pd.to_datetime(
         normalize_dt_series(df["Actual Finish Time"]),
         errors="coerce",
-        infer_datetime_format=True,
     )
 
     # Date the trip: prefer scheduled start; fallback to actual start

@@ -191,7 +191,7 @@ def merge_shapefiles(shp_paths: Sequence[str]) -> gpd.GeoDataFrame:
         )
 
     merged = gpd.GeoDataFrame(
-        pd.concat(gdfs, ignore_index=True), crs=gdfs[0].crs, geometry="geometry"
+        data=pd.concat(gdfs, ignore_index=True), crs=gdfs[0].crs, geometry="geometry"
     )
     LOGGER.info("Merged %d input files → %d features", len(shp_paths), len(merged))
     return merged
@@ -264,7 +264,7 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
         os.makedirs(out_dir, exist_ok=True)
 
     LOGGER.info("Writing %d features → %s", len(gdf), out_path)
-    gdf.to_file(out_path)
+    gdf.to_file(Path(out_path))
     LOGGER.info("Output written successfully")
 
 

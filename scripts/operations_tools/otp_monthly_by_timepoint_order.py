@@ -364,7 +364,7 @@ def add_year_month_column(df: pd.DataFrame) -> pd.DataFrame:
 
     date_parsed = None
     if "Date" in df.columns:
-        date_parsed = pd.to_datetime(df["Date"], errors="coerce", infer_datetime_format=True)
+        date_parsed = pd.to_datetime(df["Date"], errors="coerce")
         if date_parsed.notna().any():
             df["Year-Month"] = date_parsed.dt.to_period("M").astype(str)
         else:

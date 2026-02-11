@@ -25,7 +25,7 @@ import logging
 import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import pandas as pd
 
@@ -140,7 +140,8 @@ def load_gtfs_data(
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            # Cast dtype to Any to satisfy static analysis
+            df = pd.read_csv(file_path, dtype=cast("Any", dtype), low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
 
@@ -530,7 +531,7 @@ def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame) -> pd.DataFrame
     return df_out
 
 
-def _build_schedule_rows(  # type: ignore[override]
+def _build_schedule_rows(
     trips_summary: list[dict[str, Any]],
     timeline: range,
     block_id: str,

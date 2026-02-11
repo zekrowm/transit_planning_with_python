@@ -228,10 +228,10 @@ def safe_nearest(seg_index: STRtree, pt: Point) -> int | LineString:
     """Return the nearest result from an STRtree (Shapely 2.x or pygeos style)."""
     try:
         # Shapely 1.x
-        return seg_index.nearest(pt)  # type: ignore[no-any-return]
+        return seg_index.nearest(pt)
     except TypeError:
         # Shapely 2.x
-        return seg_index.nearest(pt)[0]  # type: ignore[no-any-return]
+        return seg_index.nearest(pt)[0]
 
 
 def linestring_substring(line: LineString, start_m: float, end_m: float) -> LineString:
@@ -266,7 +266,7 @@ def explode_segments(centerlines: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     segs = segs[segs.geom_type == "LineString"].copy()
     segs.reset_index(drop=True, inplace=True)
     segs["edge_id"] = segs.index.astype(int)
-    return segs[["edge_id", "geometry"]]  # type: ignore[no-any-return]
+    return segs[["edge_id", "geometry"]]
 
 
 def build_graph(

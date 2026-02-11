@@ -27,7 +27,7 @@ import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -306,7 +306,7 @@ def build_shapes_gdf(shapes_df: pd.DataFrame, crs: str) -> gpd.GeoDataFrame:
             continue
         records.append({"shape_id": str(shape_id), "geometry": LineString(points)})
 
-    shapes_gdf = gpd.GeoDataFrame(records, crs=crs)
+    shapes_gdf = gpd.GeoDataFrame(data=records, crs=crs)
     shapes_gdf.set_index("shape_id", inplace=True)
     return shapes_gdf
 
@@ -351,7 +351,7 @@ def build_stops_gdf(
     stops_df[stop_key_field] = stops_df[stop_key_field].astype(str)
 
     geometry = gpd.points_from_xy(stops_df["stop_lon"], stops_df["stop_lat"])
-    stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry, crs=crs)
+    stops_gdf = gpd.GeoDataFrame(data=stops_df, geometry=geometry, crs=crs)
     stops_gdf.set_index(stop_key_field, inplace=True)
     return stops_gdf
 
@@ -1130,7 +1130,7 @@ def plot_mismatch_segment(
         for key in keys:
             if key not in stops_gdf_geo.index:
                 continue
-            pt = stops_gdf_geo.loc[key, "geometry"]
+            pt = cast(Point, stops_gdf_geo.loc[key, "geometry"])
             xs.append(pt.x)
             ys.append(pt.y)
         if xs:
@@ -1157,7 +1157,7 @@ def plot_mismatch_segment(
     for key in sorted(unique_base.union(unique_other)):
         if key not in stops_gdf_geo.index:
             continue
-        pt = stops_gdf_geo.loc[key, "geometry"]
+        pt = cast(Point, stops_gdf_geo.loc[key, "geometry"])
         label = stop_names.get(key, key)
         ax.annotate(
             label,
@@ -1303,7 +1303,7 @@ def plot_route_pair_overview(
         for key in keys:
             if key not in ctx.stops_gdf_geo.index:
                 continue
-            pt = ctx.stops_gdf_geo.loc[key, "geometry"]
+            pt = cast(Point, ctx.stops_gdf_geo.loc[key, "geometry"])
             xs.append(pt.x)
             ys.append(pt.y)
         if xs:
@@ -1327,7 +1327,7 @@ def plot_route_pair_overview(
         for key in keys:
             if key not in ctx.stops_gdf_proj.index:
                 continue
-            pt_proj = ctx.stops_gdf_proj.loc[key, "geometry"]
+            pt_proj = cast(Point, ctx.stops_gdf_proj.loc[key, "geometry"])
             d_base = pt_proj.distance(base_geom_proj)
             d_other = pt_proj.distance(other_geom_proj)
 

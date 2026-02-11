@@ -285,7 +285,7 @@ def _build_stops_gdf(
     stops = stops.loc[stops["stop_id"].isin(served["stop_id"])].copy()
 
     gdf = gpd.GeoDataFrame(
-        stops,
+        data=stops,
         geometry=gpd.points_from_xy(stops.stop_lon, stops.stop_lat),
         crs="EPSG:4326",
     ).to_crs(crs)
@@ -330,7 +330,7 @@ def _build_routes_gdf(
         .reset_index()
     )
 
-    gdf = gpd.GeoDataFrame(lines, geometry="geometry", crs="EPSG:4326").to_crs(crs)
+    gdf = gpd.GeoDataFrame(data=lines, geometry="geometry", crs="EPSG:4326").to_crs(crs)
 
     gdf = gdf.merge(
         trips.drop_duplicates("shape_id")[["shape_id", "route_id", "direction_id"]],
@@ -407,7 +407,7 @@ def _split_into_segments(
                     }
                 )
 
-    seg_gdf = gpd.GeoDataFrame(seg_records, crs=crs)
+    seg_gdf = gpd.GeoDataFrame(data=seg_records, crs=crs)
     seg_gdf["length_ft"] = seg_gdf.length * (1.0 if "2263" in crs else 3.28084)
     logging.info("Segments GDF – generated %d pieces.", len(seg_gdf))
     return seg_gdf
@@ -425,7 +425,7 @@ def _export_segments_by_route_dir(seg_gdf: gpd.GeoDataFrame, out_dir: Path) -> N
     for (rid, drn), grp in seg_gdf.groupby(["route_id", "direction_id"]):
         suffix = f"dir{drn}"
         fname = f"{rid}_{suffix}.shp"
-        grp_gdf: gpd.GeoDataFrame = grp  # type: ignore[assignment]
+        grp_gdf: gpd.GeoDataFrame = grp
         grp_gdf.to_file(out_dir / fname)
         logging.info("Wrote %s", fname)
 

@@ -17,7 +17,7 @@ import logging
 import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, cast
 
 import geopandas as gpd
 import pandas as pd
@@ -106,7 +106,8 @@ def load_gtfs_data(
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            # Cast dtype to Any to satisfy static analysis
+            df = pd.read_csv(file_path, dtype=cast("Any", dtype), low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
 
@@ -171,11 +172,13 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
     if df.empty:
         logging.warning("Warning: No valid stop data found after cleaning.")
-        return gpd.GeoDataFrame(columns=list(required) + ["geometry"], geometry=[], crs=GTFS_CRS)
+        return gpd.GeoDataFrame(
+            data=None, columns=list(required) + ["geometry"], geometry=[], crs=GTFS_CRS
+        )
 
     try:
         geometry = [Point(xy) for xy in zip(df["stop_lon"], df["stop_lat"], strict=True)]
-        gdf = gpd.GeoDataFrame(df, geometry=geometry, crs=GTFS_CRS)
+        gdf = gpd.GeoDataFrame(data=df, geometry=geometry, crs=GTFS_CRS)
     except Exception as e:
         raise ValueError(f"Stop geometry creation failed: {e}") from e
 
@@ -205,7 +208,9 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
     """
     if not (gtfs_dir / "shapes.txt").exists():
         logging.info("Info: Optional file 'shapes.txt' not found. Skipping shapes.")
-        return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
+        return gpd.GeoDataFrame(
+            data=None, columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS
+        )
 
     try:
         data = load_gtfs_data(str(gtfs_dir), files=["shapes.txt"], dtype={"shape_id": str})
@@ -237,7 +242,9 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
     if df.empty:
         logging.warning("Warning: No valid shape point data found after cleaning.")
-        return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
+        return gpd.GeoDataFrame(
+            data=None, columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS
+        )
 
     # Ensure sequence is integer and sort points correctly
     df["shape_pt_sequence"] = df["shape_pt_sequence"].astype(int)
@@ -260,9 +267,11 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
     if not records:
         logging.warning("Warning: No valid line geometries constructed from shapes.txt.")
-        return gpd.GeoDataFrame(columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS)
+        return gpd.GeoDataFrame(
+            data=None, columns=["shape_id", "geometry"], geometry=[], crs=GTFS_CRS
+        )
 
-    gdf = gpd.GeoDataFrame(records, crs=GTFS_CRS)
+    gdf = gpd.GeoDataFrame(data=records, crs=GTFS_CRS)
     return gdf
 
 

@@ -120,7 +120,7 @@ def _prepare_route_buffers(
         .apply(lambda grp: LineString(grp[["shape_pt_lon", "shape_pt_lat"]].to_numpy(dtype=float)))
         .to_frame(name="geometry")
     )
-    shapes_gdf = gpd.GeoDataFrame(lines, geometry="geometry", crs="EPSG:4326")
+    shapes_gdf = gpd.GeoDataFrame(data=lines, geometry="geometry", crs="EPSG:4326")
 
     # Trips to route mapping
     trips = tables["trips"][["route_id", "trip_id", "shape_id"]]
@@ -133,7 +133,7 @@ def _prepare_route_buffers(
     # Stops GeoDataFrame
     stops = tables["stops"][["stop_id", "stop_lat", "stop_lon"]].copy()
     stops = gpd.GeoDataFrame(
-        stops,
+        data=stops,
         geometry=gpd.points_from_xy(stops.stop_lon, stops.stop_lat),
         crs="EPSG:4326",
     )
@@ -170,7 +170,7 @@ def _prepare_route_buffers(
         buf = unary_union(list(geoms)).buffer(buff_dist_m)
         buffers.append({"route_id": route_id, "geometry": buf})
 
-    buffer_gdf = gpd.GeoDataFrame(buffers, geometry="geometry", crs=projected_crs)
+    buffer_gdf = gpd.GeoDataFrame(data=buffers, geometry="geometry", crs=projected_crs)
     return buffer_gdf
 
 

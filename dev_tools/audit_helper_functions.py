@@ -126,11 +126,11 @@ def _collect_canonical_funcs(
                     logging.warning(
                         "Duplicate canonical definition of %s: keeping first (%s), ignoring %s",
                         name,
-                        funcs[name].norm_ast.__dict__.get("__file__", "<unknown>"),  # type: ignore[attr-defined]
+                        funcs[name].norm_ast.__dict__.get("__file__", "<unknown>"),
                         path,
                     )
                     continue
-                cn.norm_ast.__dict__["__file__"] = str(path)  # type: ignore[attr-defined]
+                cn.norm_ast.__dict__["__file__"] = str(path)
                 funcs[name] = cn
         except RuntimeError as err:
             logging.warning("%s", err)

@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import geopandas as gpd
 import pandas as pd
@@ -84,7 +84,7 @@ def create_projected_stops_gdf(
     # 2) Create a GeoDataFrame using WGS84
     wgs84_crs = "EPSG:4326"
     geometry = gpd.points_from_xy(x=stops_df["stop_lon"], y=stops_df["stop_lat"])
-    stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry, crs=wgs84_crs)
+    stops_gdf = gpd.GeoDataFrame(data=stops_df, geometry=geometry, crs=wgs84_crs)
 
     # 3) Reproject to the target CRS
     stops_projected = stops_gdf.to_crs(epsg=epsg_out)
@@ -287,7 +287,8 @@ def load_gtfs_data(
         key = file_name.replace(".txt", "")
         file_path = os.path.join(gtfs_folder_path, file_name)
         try:
-            df = pd.read_csv(file_path, dtype=dtype, low_memory=False)
+            # Cast dtype to Any to satisfy static analysis
+            df = pd.read_csv(file_path, dtype=cast("Any", dtype), low_memory=False)
             data[key] = df
             logging.info("Loaded %s (%d records).", file_name, len(df))
 

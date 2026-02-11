@@ -160,7 +160,7 @@ def load_bus_stops(logger: logging.Logger) -> tuple[gpd.GeoDataFrame, str]:
         )
 
         gdf = gpd.GeoDataFrame(
-            df,
+            data=df,
             geometry=gpd.points_from_xy(df[GTFS_LON_FIELD], df[GTFS_LAT_FIELD]),
             crs="EPSG:4326",
         )
@@ -260,7 +260,7 @@ def merge_ridership(
     )
 
     logger.info("Matched stops after join: %d", len(out))
-    return gpd.GeoDataFrame(out, geometry="geometry", crs=stops.crs)
+    return gpd.GeoDataFrame(data=out, geometry="geometry", crs=stops.crs)
 
 
 def add_output_ridership_fields(stops_joined: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -300,7 +300,7 @@ def aggregate_by_polygon(
         polygons_out[c] = polygons_out[c].fillna(0.0)
 
     logger.info("Polygon aggregation complete. Polygons: %d", len(polygons_out))
-    return gpd.GeoDataFrame(polygons_out, geometry="geometry", crs=polygons.crs)
+    return gpd.GeoDataFrame(data=polygons_out, geometry="geometry", crs=polygons.crs)
 
 
 # =============================================================================
