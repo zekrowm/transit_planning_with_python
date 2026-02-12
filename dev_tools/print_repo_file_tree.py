@@ -53,19 +53,27 @@ def build_tree(root: str) -> Dict[str, Any]:
 
 
 def build_lines(tree: Dict[str, Any], root_name: str) -> List[str]:
-    """Convert nested dict to list of tree lines with connectors."""
+    """Convert nested dict to list of tree lines with connectors.
+
+    Ordering matches GitHub's repo file list behavior:
+    - Directories first, then files
+    - Alphabetical (Python's default lexicographic, case-sensitive) within each group
+    """
     lines = [f"{root_name}/"]
 
     def recurse(node: Dict[str, Any], prefix: str) -> None:
         files = node.get("__files__", [])
         dirs = sorted(k for k in node.keys() if k != "__files__")
-        entries = [(f, "file") for f in files] + [(d, "dir") for d in dirs]
+
+        # GitHub-style ordering: directories first, then files.
+        entries = [(d, "dir") for d in dirs] + [(f, "file") for f in files]
 
         for idx, (name, typ) in enumerate(entries):
             is_last = idx == len(entries) - 1
             connector = "└── " if is_last else "├── "
             suffix = "/" if typ == "dir" else ""
             lines.append(f"{prefix}{connector}{name}{suffix}")
+
             if typ == "dir":
                 extension = "    " if is_last else "│   "
                 recurse(node[name], prefix + extension)
