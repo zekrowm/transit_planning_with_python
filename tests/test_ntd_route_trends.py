@@ -1,8 +1,9 @@
 import pandas as pd
 import pytest
 import matplotlib
+
 # Use Agg backend to avoid display issues during testing
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -11,12 +12,14 @@ from datetime import datetime
 # Import the script to be tested
 from scripts.ridership_tools import ntd_route_trends
 
+
 # Fixture to load the CSV data
 @pytest.fixture
 def input_df() -> pd.DataFrame:
     csv_path = Path("tests/fixtures/ntd_monthly_multi_month.csv")
     df = pd.read_csv(csv_path)
     return df
+
 
 def test_ntd_route_trends_integration(input_df, tmp_path):
     """
@@ -74,11 +77,13 @@ def test_ntd_route_trends_integration(input_df, tmp_path):
         # Fixture has "Weekday", "Saturday", "Sunday" which are already correct,
         # but for safety we can apply the script's normalizer if needed.
         # The script's normalise_service_period handles "Weekday" -> "Weekday".
-        period_df["SERVICE_PERIOD"] = period_df["SERVICE_PERIOD"].apply(ntd_route_trends.normalise_service_period)
+        period_df["SERVICE_PERIOD"] = period_df["SERVICE_PERIOD"].apply(
+            ntd_route_trends.normalise_service_period
+        )
 
         # Ensure numeric types for MTH_BOARD and DAYS
-        period_df["MTH_BOARD"] = pd.to_numeric(period_df["MTH_BOARD"], errors='coerce')
-        period_df["DAYS"] = pd.to_numeric(period_df["DAYS"], errors='coerce')
+        period_df["MTH_BOARD"] = pd.to_numeric(period_df["MTH_BOARD"], errors="coerce")
+        period_df["DAYS"] = pd.to_numeric(period_df["DAYS"], errors="coerce")
 
         # Add metadata columns that read_month_workbook appends
         period_df["period"] = period
@@ -88,13 +93,14 @@ def test_ntd_route_trends_integration(input_df, tmp_path):
 
     # --- Apply Patches ---
 
-    with patch.object(ntd_route_trends, "PERIODS", test_periods), \
-         patch.object(ntd_route_trends, "START_MONTH", start_month), \
-         patch.object(ntd_route_trends, "END_MONTH", end_month), \
-         patch.object(ntd_route_trends, "ROUTES", test_routes), \
-         patch.object(ntd_route_trends, "OUTPUT_ROOT", tmp_path), \
-         patch.object(ntd_route_trends, "read_month_workbook", side_effect=mock_read_month_workbook):
-
+    with (
+        patch.object(ntd_route_trends, "PERIODS", test_periods),
+        patch.object(ntd_route_trends, "START_MONTH", start_month),
+        patch.object(ntd_route_trends, "END_MONTH", end_month),
+        patch.object(ntd_route_trends, "ROUTES", test_routes),
+        patch.object(ntd_route_trends, "OUTPUT_ROOT", tmp_path),
+        patch.object(ntd_route_trends, "read_month_workbook", side_effect=mock_read_month_workbook),
+    ):
         # Run the main function
         ntd_route_trends.main()
 
@@ -109,7 +115,9 @@ def test_ntd_route_trends_integration(input_df, tmp_path):
 
     # 2. Verify filtering: Route 303 (present in fixture but not in ROUTES) should NOT have a directory
     route_303_dir = tmp_path / "route_303"
-    assert not route_303_dir.exists(), "Output directory for route 303 should NOT exist (filtering check)"
+    assert not route_303_dir.exists(), (
+        "Output directory for route 303 should NOT exist (filtering check)"
+    )
 
     # 3. Verify files inside route directory
     expected_files = [
@@ -117,7 +125,7 @@ def test_ntd_route_trends_integration(input_df, tmp_path):
         "monthly_wide.csv",
         "outage_flags.csv",
         "plots/monthly_totals.png",
-        "plots/daily_averages.png"
+        "plots/daily_averages.png",
     ]
 
     for filename in expected_files:
