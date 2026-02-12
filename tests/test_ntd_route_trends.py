@@ -1,10 +1,18 @@
 import pandas as pd
 import pytest
-import matplotlib
 
-# Use Agg backend to avoid display issues during testing
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+# Try importing matplotlib, skip test if missing
+try:
+    import matplotlib
+
+    # Use Agg backend to avoid display issues during testing
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 from datetime import datetime
@@ -26,6 +34,8 @@ def test_ntd_route_trends_integration(input_df, tmp_path):
     Integration test for ntd_route_trends script using a multi-month CSV fixture.
     Mocks read_month_workbook to serve data from the fixture instead of Excel files.
     """
+    if not HAS_MATPLOTLIB:
+        pytest.skip("Matplotlib not installed, skipping plotting integration test")
 
     # --- Setup Configuration Patches ---
 
