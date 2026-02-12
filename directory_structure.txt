@@ -46,6 +46,7 @@ transit_planning_with_python/
 │   │   └── timepoint_schedule_exporter.py
 │   ├── network_analysis/
 │   │   ├── audit_turn_clearance.py
+│   │   ├── gtfs_stop_compare.py
 │   │   ├── route_direction_classifier.py
 │   │   ├── stop_impacts_target_routes.py
 │   │   ├── stop_removal_impact_gpd.py
