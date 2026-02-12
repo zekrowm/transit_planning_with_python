@@ -392,7 +392,12 @@ def flag_outages(
                 }
             )
 
-    out = pd.DataFrame(flags).drop_duplicates(ignore_index=True)
+    if not flags:
+        out = pd.DataFrame(
+            columns=["route", "period", "service_period", "flag", "mth_board", "days"]
+        )
+    else:
+        out = pd.DataFrame(flags).drop_duplicates(ignore_index=True)
 
     for _, f in out.iterrows():
         logging.warning(
