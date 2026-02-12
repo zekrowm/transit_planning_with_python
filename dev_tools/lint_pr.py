@@ -12,6 +12,7 @@ Where:
     <scope> is optional, lowercase alphanumeric with hyphens
     <Description> starts with a capital letter
 """
+
 import re
 import sys
 
