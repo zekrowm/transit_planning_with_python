@@ -1,20 +1,30 @@
-import pandas as pd
-import pytest
+import sys
+from unittest.mock import MagicMock
 
-# Try importing matplotlib, skip test if missing
+# -- MOCK MATPLOTLIB BEFORE IMPORTING SCRIPT --
+# This prevents ModuleNotFoundError if matplotlib is not installed in the environment.
 try:
     import matplotlib
 
-    # Use Agg backend to avoid display issues during testing
+    # Use Agg backend if real matplotlib is present
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     HAS_MATPLOTLIB = True
 except ImportError:
+    # If not present, install a mock into sys.modules
+    mock_mpl = MagicMock()
+    mock_plt = MagicMock()
+    # Mock specific submodules used by ntd_route_trends.py
+    sys.modules["matplotlib"] = mock_mpl
+    sys.modules["matplotlib.pyplot"] = mock_plt
+    sys.modules["matplotlib.dates"] = MagicMock()
     HAS_MATPLOTLIB = False
 
+import pandas as pd
+import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from datetime import datetime
 
 # Import the script to be tested
@@ -34,14 +44,10 @@ def test_ntd_route_trends_integration(input_df, tmp_path):
     Integration test for ntd_route_trends script using a multi-month CSV fixture.
     Mocks read_month_workbook to serve data from the fixture instead of Excel files.
     """
-    if not HAS_MATPLOTLIB:
-        pytest.skip("Matplotlib not installed, skipping plotting integration test")
 
     # --- Setup Configuration Patches ---
 
     # 1. Define the months available in the fixture (Dec 2025 - Feb 2026)
-    # The script expects keys like "Dec-2025" and parses them with "%b-%Y".
-    # The fixture has "December 2025". We map them in the mock.
     test_periods = {
         "Dec-2025": ntd_route_trends.PeriodSpec("dummy.xlsx", "Sheet1"),
         "Jan-2026": ntd_route_trends.PeriodSpec("dummy.xlsx", "Sheet1"),
@@ -53,8 +59,6 @@ def test_ntd_route_trends_integration(input_df, tmp_path):
     end_month = "Feb-2026"
 
     # 3. Define routes to process (Subset of what's in fixture to test filtering)
-    # Fixture has: 101, 202, 303, 404, 505.
-    # We select 101 and 202. 303+ should be ignored.
     test_routes = ["101", "202"]
 
     # --- Define Mock for read_month_workbook ---
@@ -134,16 +138,26 @@ def test_ntd_route_trends_integration(input_df, tmp_path):
         "monthly_long.csv",
         "monthly_wide.csv",
         "outage_flags.csv",
-        "plots/monthly_totals.png",
-        "plots/daily_averages.png",
+        # Plots might be mocked or real depending on HAS_MATPLOTLIB, but ntd_route_trends.export_route calls plot functions regardless.
+        # If mocked, files won't be created unless the mock is configured to do so (it isn't).
+        # However, export_route calls plt.savefig. If plt is mocked, savefig is a Mock call.
+        # If plt is real (Agg), files are created.
     ]
 
-    for filename in expected_files:
+    # We only check for CSVs which are pandas-driven and independent of matplotlib
+    csv_files = ["monthly_long.csv", "monthly_wide.csv", "outage_flags.csv"]
+
+    for filename in csv_files:
         file_path = route_101_dir / filename
         assert file_path.exists(), f"Expected output file {filename} missing for route 101"
 
+    # Check for plots only if we had real matplotlib
+    if HAS_MATPLOTLIB:
+        for filename in ["plots/monthly_totals.png", "plots/daily_averages.png"]:
+            file_path = route_101_dir / filename
+            assert file_path.exists(), f"Expected plot file {filename} missing for route 101"
+
     # 4. Verify content of monthly_long.csv for Route 101
-    # Check that we have data for the 3 months
     df_long = pd.read_csv(route_101_dir / "monthly_long.csv")
     assert len(df_long) >= 3, "Should have data rows for the 3 months"
     assert "Dec-2025" in df_long["period"].unique()
