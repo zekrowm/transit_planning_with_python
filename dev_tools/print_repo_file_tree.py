@@ -17,7 +17,7 @@ Outputs:
 
 import os
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # ==================================================================================================
 # CONFIGURATION
@@ -40,7 +40,10 @@ def build_tree(root: str) -> Dict[str, Any]:
       '__files__' -> sorted list of filenames in this dir
     """
     tree = {}
-    for dirpath, _, files in os.walk(root):
+    for dirpath, dirs, files in os.walk(root):
+        # Exclude .git and __pycache__ directories
+        dirs[:] = [d for d in dirs if d not in (".git", "__pycache__")]
+
         if not files:
             continue
         rel = os.path.relpath(dirpath, root)
@@ -87,10 +90,16 @@ def build_lines(tree: Dict[str, Any], root_name: str) -> List[str]:
 # ==================================================================================================
 
 
-def main(directory: str, output_dir: str, output_filename: str) -> None:
+def main(
+    directory: str,
+    output_dir: str,
+    output_filename: str,
+    root_name: Optional[str] = None,
+) -> None:
     """Generate and output the directory tree for all files."""
     tree = build_tree(directory)
-    root_name = os.path.basename(os.path.abspath(directory)) or directory
+    if root_name is None:
+        root_name = os.path.basename(os.path.abspath(directory)) or directory
     lines = build_lines(tree, root_name)
 
     # Print to console
