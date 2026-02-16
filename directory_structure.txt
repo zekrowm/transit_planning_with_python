@@ -12,9 +12,6 @@ transit_planning_with_python/
 │   ├── lint_pr.py
 │   └── print_repo_file_tree.py
 ├── scripts/
-│   ├── block_and_bay_tools/
-│   │   ├── bay_usage_analyzer.py
-│   │   └── gtfs_block_status_timeline.py
 │   ├── census_tools/
 │   │   ├── uscensus_blocks_merge_arcpy.py
 │   │   ├── uscensus_blocks_merge_gpd.py
@@ -31,12 +28,14 @@ transit_planning_with_python/
 │   │   ├── stop_vs_roadname_checker_arcpy.py
 │   │   └── stop_vs_roadname_checker_gpd.py
 │   ├── facilities_tools/
+│   │   ├── bay_usage_analyzer.py
 │   │   └── flag_stop_upgrades.py
 │   ├── field_tools/
 │   │   ├── printable_block_schedules.py
 │   │   ├── ridecheck_cluster_checklists.py
 │   │   └── ridecheck_results_processor.py
 │   ├── gtfs_exports/
+│   │   ├── block_status_timeline_exporter.py
 │   │   ├── bus_block_exporter.py
 │   │   ├── gtfs_to_shapefile_arcpy.py
 │   │   ├── gtfs_to_shapefile_gpd.py
