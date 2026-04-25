@@ -34,6 +34,13 @@ ROADWAYS_PATH = r"path\to\your\roadways.shp"
 OUTPUT_DIR = r"path\to\output"  # any writable folder
 OUTPUT_CSV = "potential_typos.csv"
 
+# Which GTFS identifier to emit in the output CSV.
+# Some agencies use stop_id as the human-facing identifier; others use stop_code.
+# Allowed values: "stop_id", "stop_code", or "both".
+# If "stop_code" is chosen but the column is absent or blank for a row, the
+# script falls back to stop_id for that row (and logs a warning).
+STOP_ID_FIELD = "stop_id"
+
 # Spatial references
 STOPS_CRS = 4326  # GTFS lat/lon – WGS-84
 TARGET_CRS = 2248  # example: VA North (US ft). change if needed
@@ -42,6 +49,64 @@ TARGET_CRS = 2248  # example: VA North (US ft). change if needed
 BUFFER_DISTANCE = 50
 BUFFER_DISTANCE_UNIT = "feet"  # 'feet' or 'meters'
 SIMILARITY_THRESHOLD = 80  # 0-100
+
+# --- False-positive suppression ---------------------------------------------
+# Most false positives on a manually-reviewed sample fall into three buckets:
+#   1. Abbreviation expansions the normalizer doesn't undo ("mt" vs "mount",
+#      "st" vs "saint", directional prefixes "s"/"south", "t" for "thomas",
+#      "vlg" for "village", "stn" for "station", etc.).
+#   2. Modifier-stripping asymmetry: the fragment keeps a trailing street-type
+#      the normalizer didn't catch (e.g. "la" for lane in "sherwood hall la"
+#      vs clean road "sherwood hall").
+#   3. One string fully contained in the other (e.g. "kingstowne vlg" vs
+#      "kingstowne village"); difflib flags these because they're short and
+#      share a prefix, but they're not typos.
+# When SUPPRESS_OBVIOUS_FALSE_POSITIVES is True, matches caused by these
+# patterns are dropped. The true typos in the sample do NOT exhibit these
+# patterns (typos are single-character swaps/insertions/deletions inside an
+# otherwise-equal-length word), so suppression is safe. Set to False if you
+# want to see every candidate and filter manually.
+SUPPRESS_OBVIOUS_FALSE_POSITIVES = True
+
+# Extra abbreviation pairs the normalizer's modifier list doesn't cover.
+# Keys are short forms, values are long forms. Applied as whole-word matches
+# in both directions when comparing a fragment to a candidate road.
+EXTRA_ABBREVIATIONS = {
+    "mt": "mount",
+    "st": "saint",  # only applies when followed by a non-type word; rare
+    "ft": "fort",
+    "n": "north",
+    "s": "south",
+    "e": "east",
+    "w": "west",
+    "ne": "northeast",
+    "nw": "northwest",
+    "se": "southeast",
+    "sw": "southwest",
+    "vlg": "village",
+    "stn": "station",
+    "mem": "memorial",
+    "vern": "vernon",
+    "crk": "creek",
+    "lil": "little",
+    "frst": "forest",
+    "vly": "valley",
+    "t": "thomas",  # "T JEFFERSON DR"
+}
+
+# --- Truncation detection ---------------------------------------------------
+# GTFS-adjacent databases frequently impose VARCHAR limits (commonly 32 or 35
+# characters) on stop_name. When a name hits that limit, it ends abruptly —
+# "FAIRFAX COUNTY PKWY @ WHITLERS CREE", "MOUNT VERNON MEMORIAL HWY @ RICHMON",
+# "KINGSTOWNE VILLAGE PKWY @ CROSS GAT". Fuzzy matching on these produces
+# spurious "typo" flags because the real issue is truncation, not misspelling.
+#
+# When FLAG_SUSPECTED_TRUNCATIONS is True, any stop whose name length is
+# >= SUSPECTED_TRUNCATION_THRESHOLD is tagged in a separate output column so
+# planners can route them to a different workflow (e.g. check against the
+# upstream system-of-record). They are NOT removed from the CSV.
+FLAG_SUSPECTED_TRUNCATIONS = True
+SUSPECTED_TRUNCATION_THRESHOLD = 30  # characters; common limits are 32 and 35
 
 # Roadway field requirements
 REQUIRED_COLUMNS_ROADWAY = [
@@ -128,6 +193,50 @@ def load_gtfs_stops(folder: str) -> pd.DataFrame:
     return df
 
 
+def load_gtfs_stops_with_ids(folder: str, id_field: str) -> pd.DataFrame:
+    """Loads GTFS stops from stops.txt into a pandas DataFrame.
+
+    Args:
+        folder: The path to the folder containing the GTFS `stops.txt` file.
+        id_field: Which identifier to validate presence of. One of
+            "stop_id", "stop_code", or "both". stop_id is always required by
+            the GTFS spec and is always loaded; stop_code is optional.
+
+    Returns:
+        A pandas DataFrame with stop data. Always has stop_id, stop_name,
+        stop_lat, stop_lon. Has stop_code if the column exists in stops.txt
+        (populated with empty string where null).
+
+    Raises:
+        FileNotFoundError: If `stops.txt` is not found in the specified folder.
+        ValueError: If `stops.txt` is missing required columns, or if
+            id_field is "stop_code" or "both" but stop_code is absent.
+    """
+    path = os.path.join(folder, "stops.txt")
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"stops.txt not found in {folder}")
+    df = pd.read_csv(path, dtype=str, low_memory=False)
+    need = {"stop_id", "stop_name", "stop_lat", "stop_lon"}
+    missing = need - set(df.columns)
+    if missing:
+        raise ValueError(f"stops.txt missing columns: {', '.join(sorted(missing))}")
+
+    if id_field in ("stop_code", "both"):
+        if "stop_code" not in df.columns:
+            raise ValueError(
+                f"STOP_ID_FIELD={id_field!r} but stops.txt has no stop_code column."
+            )
+        df["stop_code"] = df["stop_code"].fillna("").astype(str)
+    elif id_field != "stop_id":
+        raise ValueError(
+            f"STOP_ID_FIELD must be 'stop_id', 'stop_code', or 'both'; got {id_field!r}"
+        )
+
+    df["stop_lat"] = df["stop_lat"].astype(float)
+    df["stop_lon"] = df["stop_lon"].astype(float)
+    return df
+
+
 def normalize_street(name: str, mods: set[str]) -> str:
     """Cleans and standardizes a street name string.
 
@@ -185,6 +294,118 @@ def dl_score(a: str, b: str) -> float:
         A similarity score between 0.0 and 100.0.
     """
     return difflib.SequenceMatcher(None, a, b).ratio() * 100
+
+
+def _expand_abbreviations(s: str, abbr: dict[str, str]) -> str:
+    """Return `s` with short forms in `abbr` expanded to their long forms.
+
+    Applied as whole-word substitutions. Used only for false-positive filtering,
+    not for the similarity scoring itself.
+    """
+    if not s:
+        return s
+    tokens = s.split()
+    return " ".join(abbr.get(t, t) for t in tokens)
+
+
+def is_likely_false_positive(
+    frag: str,
+    road_clean: str,
+    abbr: dict[str, str],
+) -> bool:
+    """Return True if a fragment↔road match is probably NOT a typo.
+
+    Three cheap heuristics, tuned against a manually-labeled sample:
+
+      1. Abbreviation equivalence: expanding short forms (mt→mount, s→south,
+         vlg→village, …) on either side makes them equal. Example:
+         "mt vernon" vs "mount vernon" → equal after expansion.
+
+      2. Containment: one string fully contains the other as whole words.
+         Example: "kingstowne vlg" ⊂ "kingstowne village", "harrison" ⊂
+         "harrison la". True typos alter characters within a word; they don't
+         produce clean substring relationships.
+
+      3. Trailing-token residue: the fragment has an extra trailing token the
+         normalizer missed (e.g. "prices la" vs "prices"). Dropping the last
+         token makes them equal.
+    """
+    frag = (frag or "").strip().lower()
+    road_clean = (road_clean or "").strip().lower()
+    if not frag or not road_clean or frag == road_clean:
+        return False
+
+    # (1) Abbreviation equivalence, both directions.
+    if _expand_abbreviations(frag, abbr) == _expand_abbreviations(road_clean, abbr):
+        return True
+
+    # (2) Whole-word containment (tokenize to avoid matching inside words).
+    f_tokens, r_tokens = frag.split(), road_clean.split()
+    if len(f_tokens) != len(r_tokens):
+        shorter, longer = sorted([f_tokens, r_tokens], key=len)
+        # shorter appears as a contiguous run inside longer?
+        for i in range(len(longer) - len(shorter) + 1):
+            if longer[i : i + len(shorter)] == shorter:
+                return True
+
+    # (3) Trailing-token residue (last token differs, rest matches exactly).
+    if len(f_tokens) == len(r_tokens) + 1 and f_tokens[:-1] == r_tokens:
+        return True
+    if len(r_tokens) == len(f_tokens) + 1 and r_tokens[:-1] == f_tokens:
+        return True
+
+    return False
+
+
+def annotate_output(
+    typos: pd.DataFrame,
+    stops_df: pd.DataFrame,
+    id_field: str,
+    flag_trunc: bool,
+    trunc_threshold: int,
+) -> pd.DataFrame:
+    """Post-process the typo DataFrame: attach chosen identifier and flags.
+
+    Adds columns based on STOP_ID_FIELD:
+      - "stop_id"  → leave stop_id, drop nothing
+      - "stop_code" → add stop_code (looked up from stops_df), fall back to
+        stop_id where stop_code is blank
+      - "both"     → include both columns
+
+    Adds `suspected_truncation` boolean column when flag_trunc is True,
+    based on length of stop_name.
+    """
+    if typos.empty:
+        return typos
+
+    # Attach stop_code if requested.
+    if id_field in ("stop_code", "both"):
+        code_map = dict(zip(stops_df["stop_id"].astype(str), stops_df["stop_code"]))  # noqa: B905
+        typos["stop_code"] = typos["stop_id"].map(code_map).fillna("")
+        if id_field == "stop_code":
+            # Fall back to stop_id wherever stop_code is blank.
+            blank = typos["stop_code"].str.len() == 0
+            if blank.any():
+                logging.warning(
+                    "%d rows had blank stop_code; keeping stop_id as fallback identifier.",
+                    int(blank.sum()),
+                )
+            # Reorder: stop_code first, stop_id only as fallback column.
+            cols = ["stop_code", "stop_id"] + [
+                c for c in typos.columns if c not in ("stop_id", "stop_code")
+            ]
+            typos = typos[cols]
+        else:  # both
+            cols = ["stop_id", "stop_code"] + [
+                c for c in typos.columns if c not in ("stop_id", "stop_code")
+            ]
+            typos = typos[cols]
+
+    # Truncation flag.
+    if flag_trunc:
+        typos["suspected_truncation"] = typos["stop_name"].str.len() >= trunc_threshold
+
+    return typos
 
 
 def make_stops_fc(df: pd.DataFrame, out_fc: str, sr: int) -> None:
@@ -379,6 +600,9 @@ def detect_typos(
     road_clean: dict[str, set[str]],
     mods: set[str],
     thresh: int,
+    suppress_fp: bool,
+    abbr: dict[str, str],
+    trunc_threshold: int | None,
 ) -> pd.DataFrame:
     """Compares stop name parts to nearby road names to find likely typos.
 
@@ -393,18 +617,33 @@ def detect_typos(
         road_clean: A mapping from a normalized road name to its original form(s).
         mods: A set of modifiers to remove during name normalization.
         thresh: The similarity score (0-100) threshold for flagging a typo.
+        suppress_fp: If True, drop matches that look like abbreviation
+            expansions, whole-word containment, or trailing-token residue
+            (see `is_likely_false_positive`).
+        abbr: Abbreviation dictionary used by the false-positive filter.
+        trunc_threshold: Stop-name length at/above which suppression is
+            bypassed — the planner always sees suspected truncations, even
+            if their fuzzy match resembles a harmless containment or
+            trailing-token pattern (the "missing" token is often the real
+            clue to the truncation). Pass None to disable this bypass.
 
     Returns:
         A pandas DataFrame containing details of each potential typo found.
     """
     universe = set(road_clean.keys())
     out_rows = []
+    suppressed = 0
 
     for rec in stops_df.itertuples(index=False):
         # Ensure sid and sname are strings to satisfy the type checker
         sid, sname = str(rec.stop_id), str(rec.stop_name)
         pieces = split_stop_name(sname, mods)
         candidates = stop2roads.get(sid, universe)
+        # Truncation bypass: long stop names are almost certainly field-length
+        # truncations, and their fuzzy matches often look like harmless
+        # containment ("woodland pond l" ⊂ "woodland pond ln"). Don't suppress
+        # them — the planner needs to see them to correct the source data.
+        trunc_bypass = trunc_threshold is not None and len(sname) >= trunc_threshold
 
         for frag in pieces:
             if frag in candidates:
@@ -412,6 +651,13 @@ def detect_typos(
             for match in difflib.get_close_matches(frag, candidates, n=3, cutoff=thresh / 100):
                 score = dl_score(frag, match)
                 if thresh <= score < 100:
+                    if (
+                        suppress_fp
+                        and not trunc_bypass
+                        and is_likely_false_positive(frag, match, abbr)
+                    ):
+                        suppressed += 1
+                        continue
                     for orig in road_clean.get(match, {match}):
                         out_rows.append(
                             {
@@ -423,6 +669,9 @@ def detect_typos(
                                 "similarity_score": round(score, 1),
                             }
                         )
+
+    if suppress_fp:
+        logging.info("Suppressed %d likely false positives (abbr/containment/residue).", suppressed)
 
     if not out_rows:
         return pd.DataFrame()
@@ -441,8 +690,8 @@ def main() -> None:
     WORK_GDB = create_work_gdb(OUTPUT_DIR)
 
     # GTFS stops
-    logging.info("Loading GTFS stops …")
-    stops_df = load_gtfs_stops(GTFS_FOLDER)
+    logging.info("Loading GTFS stops (identifier mode: %s) …", STOP_ID_FIELD)
+    stops_df = load_gtfs_stops_with_ids(GTFS_FOLDER, STOP_ID_FIELD)
     stops_raw = fgdb_path(WORK_GDB, "stops_raw")
     make_stops_fc(stops_df, stops_raw, STOPS_CRS)
 
@@ -478,7 +727,25 @@ def main() -> None:
 
     # Detect typos
     logging.info("Running difflib matching …")
-    typos = detect_typos(stops_df, stop2rd, r_clean, mods, SIMILARITY_THRESHOLD)
+    typos = detect_typos(
+        stops_df,
+        stop2rd,
+        r_clean,
+        mods,
+        SIMILARITY_THRESHOLD,
+        SUPPRESS_OBVIOUS_FALSE_POSITIVES,
+        EXTRA_ABBREVIATIONS,
+        SUSPECTED_TRUNCATION_THRESHOLD if FLAG_SUSPECTED_TRUNCATIONS else None,
+    )
+
+    # Annotate with chosen identifier and truncation flag.
+    typos = annotate_output(
+        typos,
+        stops_df,
+        STOP_ID_FIELD,
+        FLAG_SUSPECTED_TRUNCATIONS,
+        SUSPECTED_TRUNCATION_THRESHOLD,
+    )
 
     # Output
     out_csv = os.path.join(OUTPUT_DIR, OUTPUT_CSV)
@@ -486,7 +753,16 @@ def main() -> None:
         logging.info("No potential typos found.")
     else:
         typos.to_csv(out_csv, index=False)
-        logging.info("Wrote %d rows → %s", len(typos), out_csv)
+        if FLAG_SUSPECTED_TRUNCATIONS and "suspected_truncation" in typos.columns:
+            n_trunc = int(typos["suspected_truncation"].sum())
+            logging.info(
+                "Wrote %d rows → %s (of which %d flagged as suspected truncations)",
+                len(typos),
+                out_csv,
+                n_trunc,
+            )
+        else:
+            logging.info("Wrote %d rows → %s", len(typos), out_csv)
 
     logging.info("All done. Workspace retained at %s for inspection.", WORK_GDB)
 
