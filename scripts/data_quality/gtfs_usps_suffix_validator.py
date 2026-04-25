@@ -6,6 +6,8 @@ modification of the exemption file and every time an error report CSV
 is written.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 import sys
@@ -267,42 +269,124 @@ def tokenize(text: str) -> List[str]:
 
 
 def load_word_list(path: Path | None) -> Set[str]:
-    """Return a set of uppercase words contained (one per line) in *path*."""
-    if path is None or not path.exists():
+    """Return a set of uppercase words contained (one per line) in *path*.
+
+    If *path* is None, does not exist, or is not a regular file, log a
+    warning and return an empty set instead of crashing.
+    """
+    if path is None:
+        LOGGER.warning("No approved-words file provided; proceeding with USPS list only.")
         return set()
-    return {ln.strip().upper() for ln in path.read_text("utf-8").splitlines() if ln.strip()}
+
+    if not path.exists():
+        LOGGER.warning(
+            "Approved-words file does not exist: %s — proceeding with USPS list only.", path
+        )
+        return set()
+
+    if not path.is_file():
+        LOGGER.warning(
+            "Approved-words path is not a regular file: %s — proceeding with USPS list only.", path
+        )
+        return set()
+
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        LOGGER.warning(
+            "Could not read approved-words file %s (%s) — proceeding with USPS list only.",
+            path,
+            exc,
+        )
+        return set()
+
+    words = {ln.strip().upper() for ln in text.splitlines() if ln.strip()}
+    LOGGER.info("Loaded %d approved word(s) from %s", len(words), path)
+    return words
 
 
 def interactive_classify(tokens: Iterable[str]) -> Set[str]:
-    """Ask the user (stdin) to approve or reject each token."""
+    """Ask the user (stdin) to approve or reject each token.
+
+    Prompts accept:
+        y / yes  → token is valid (added to approved set)
+        n / no   → token is not valid (skipped)
+        q / quit → stop prompting; keep everything approved so far,
+                   treat all remaining tokens as 'n'.
+    """
     approved: set[str] = set()
-    for tok in sorted(set(tokens)):
+    token_list = sorted(set(tokens))
+    total = len(token_list)
+
+    for idx, tok in enumerate(token_list):
         while True:
-            ans = input(f"Treat '{tok}' as VALID? [y/n] ").strip().lower()
+            ans = input(f"[{idx + 1}/{total}] Treat '{tok}' as VALID? [y/n/q] ").strip().lower()
             if ans in {"y", "yes"}:
                 approved.add(tok)
                 break
             if ans in {"n", "no"}:
                 break
-            logging.info("Please answer y or n.")
+            if ans in {"q", "quit"}:
+                remaining = total - idx
+                LOGGER.warning(
+                    "User exited interactive review early: %d of %d token(s) were not considered "
+                    "and will be treated as invalid. %d token(s) approved before exit.",
+                    remaining,
+                    total,
+                    len(approved),
+                )
+                return approved
+            LOGGER.info("Please answer y, n, or q.")
+
     return approved
 
 
 def append_words(path: Path, words: Iterable[str]) -> None:
-    """Append *words* to *path*, logging every create or update event."""
-    existing: set[str] = load_word_list(path)
-    new: list[str] = sorted(set(words) - existing)
+    """Append *words* to *path*, logging every create or update event.
+
+    If *path* points at a directory, is otherwise unwritable, or cannot be
+    created, log a warning and return without raising — so interactive
+    approvals from this session are not lost to an exception.
+    """
+    words = set(words)
+    if not words:
+        return
+
+    # Guard against path being a directory (e.g. Path('.') from an empty config value).
+    if path.exists() and not path.is_file():
+        LOGGER.warning(
+            "Cannot append approved words: %s is not a regular file. "
+            "%d approval(s) from this session were NOT persisted: %s",
+            path,
+            len(words),
+            ", ".join(sorted(words)),
+        )
+        return
+
+    existing: set[str] = load_word_list(path) if path.is_file() else set()
+    new: list[str] = sorted(words - existing)
     if not new:
         LOGGER.debug("No new exemptions to write → %s", path)
         return
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    action = "CREATED" if not path.exists() else "UPDATED"
-    LOGGER.info("%s %s with %d new word(s): %s", action, path, len(new), ", ".join(new))
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        action = "CREATED" if not path.is_file() else "UPDATED"
+        with path.open("a", encoding="utf-8") as fh:
+            for w in new:
+                fh.write(f"{w}\n")
+    except (OSError, PermissionError) as exc:
+        LOGGER.warning(
+            "Failed to write approved words to %s (%s). "
+            "%d approval(s) from this session were NOT persisted: %s",
+            path,
+            exc,
+            len(new),
+            ", ".join(new),
+        )
+        return
 
-    with path.open("a", encoding="utf-8") as fh:
-        for w in new:
-            fh.write(f"{w}\n")
+    LOGGER.info("%s %s with %d new word(s): %s", action, path, len(new), ", ".join(new))
 
 
 def find_offending_words(name: str, valid: Set[str]) -> List[str]:
