@@ -23,7 +23,7 @@ Fieldwork Tools
 Network Analysis
 
 - ***Route Identification:*** Quickly find transit routes operating near a defined point.
-- ***Isochrone and Accessibility*** Mapping: Build transit and roadway networks to analyze travel times and service coverage.
+- ***Isochrone and Accessibility Mapping:*** Build transit and roadway networks to analyze travel times and service coverage.
 
 GTFS Validation and Export
 
@@ -58,7 +58,7 @@ The **transit_planning_with_python** tools are designed to work on most systems 
    - On a personal system, you can install Python and any libraries using `pip` without organization restrictions.
    - Keep in mind that `arcpy` is unavailable outside of ArcPro/ArcMap environments, so certain features relying on `arcpy` won't work.
 
-Where possible, we will provide both `arcpy` and `geopandas` versions of geospatial scripts to accomodate these different setups.
+Where possible, we will provide both `arcpy` and `geopandas` versions of geospatial scripts to accommodate these different setups.
 
 ---
 
@@ -74,7 +74,7 @@ Where possible, we will provide both `arcpy` and `geopandas` versions of geospat
      ```
 
 2. **Get the Script(s) You Need**
-   - Navigate to scripts that are useful to you and your agency. Then copy and paste their contents into an active notebook file or download them        as .py files. You do not need a GitHub account to do this.
+   - Navigate to scripts that are useful to you and your agency. Then copy and paste their contents into an active notebook file or download them as .py files. You do not need a GitHub account to do this.
    - Alternately, you can clone or download the whole repository from GitHub.
  
 3. **Run the Script**
@@ -107,7 +107,7 @@ Jupyter Notebook is a powerful tool for running Python scripts in an interactive
 
 3. **Launch JupyterLab**
    - After installation, search for "Command Prompt" and open it like any other program on your computer.
-   - From the Command Prompt, type the following into the Command command and press Enter:
+   - From the Command Prompt, type the following and press Enter:
      ```bash
      jupyter lab
      ```
