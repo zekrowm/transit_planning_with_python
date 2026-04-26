@@ -34,7 +34,7 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 - Implement **graceful, actionable error handling** — no cryptic tracebacks.
 - Use placeholder filenames that are clean, minimal, and safe to run (e.g., r"Path\\To\\Output_Folder", "input_data.csv").
 - Default to:
-  - **Washington, DC CRS** unless otherwise noted.
+  - **Washington, DC CRS** unless otherwise noted (chosen because DC is the U.S. capital).
   - **Imperial units** (feet/miles), with metric options clearly noted when used.
 
 ## 🧪 Testing & Review
@@ -42,7 +42,7 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 - All commits and **Pull Request titles** must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
 - All pull requests are automatically tested for:
   - Style and formatting using `ruff`.
-  - Static typing using `ty`.
+  - Static typing using [`ty`](https://github.com/astral-sh/ty).
   - Unit tests (where present) using `pytest`.
 - You do **not** need to run linters or type checkers manually, but you **must fix** any issues flagged by the CI pipeline before requesting a review.
 
@@ -50,7 +50,7 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 New or modified scripts under `scripts/` **must be manually tested** before opening a PR. See the checklist below.
 
 **Manual test checklist (scripts):**
-- [ ] Script runs end-to-end with clean console output (or appropriate logging).
+- [ ] Script runs end-to-end with appropriate logging output.
 - [ ] Configuration section at the top is clear and minimal; defaults produce a safe no-op or sample run.
 - [ ] Input/output paths are valid; exported files are created with expected names and sizes.
 - [ ] Error messages are actionable (no cryptic tracebacks for expected user mistakes).
