@@ -40,6 +40,13 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 ## 🧪 Testing & Review
 
 - All commits and **Pull Request titles** must use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for clear project history.
+
+**PR title format:** `<type>(<optional-scope>): <description>`
+- Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`
+- Scope (optional): lowercase letters, digits, and hyphens only
+- Description: starts with a lowercase letter
+
+Example: `feat(gtfs): add stop spacing validator`
 - All pull requests are automatically tested for:
   - Style and formatting using `ruff`.
   - Static typing using [`ty`](https://github.com/astral-sh/ty).
