@@ -185,8 +185,8 @@ def _merge_ridership_and_amenities(rider_df: pd.DataFrame, amen_df: pd.DataFrame
         alt = f"{col}_amen"
         if alt in merged.columns:
             merged[col] = merged[col].fillna(merged[alt])
-            merged.drop(columns=[alt], inplace=True)
-    merged.drop(columns=[AMENITY_JOIN_FIELD], errors="ignore", inplace=True)
+            merged = merged.drop(columns=[alt])
+    merged = merged.drop(columns=[AMENITY_JOIN_FIELD], errors="ignore")
     return merged
 
 

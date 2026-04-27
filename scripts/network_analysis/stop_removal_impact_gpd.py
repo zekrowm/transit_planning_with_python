@@ -109,9 +109,9 @@ def _load_backdrop_layer_for_plots(
         return None
 
     gdf = gdf.to_crs(target_crs)
-    gdf = gdf[gdf.geometry.notnull()].copy()
+    gdf = gdf[gdf.geometry.notna()].copy()
     gdf = gdf[gdf.geom_type.isin(["LineString", "MultiLineString"])][["geometry"]]
-    gdf.reset_index(drop=True, inplace=True)
+    gdf = gdf.reset_index(drop=True)
     return gdf
 
 
@@ -262,9 +262,9 @@ def load_centerlines(path: Path, target_crs: int | str) -> gpd.GeoDataFrame:
 def explode_segments(centerlines: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Explode to pure LineStrings and assign a stable edge_id."""
     segs = centerlines.explode(index_parts=False, ignore_index=True)
-    segs = segs[segs.geometry.notnull()].copy()
+    segs = segs[segs.geometry.notna()].copy()
     segs = segs[segs.geom_type == "LineString"].copy()
-    segs.reset_index(drop=True, inplace=True)
+    segs = segs.reset_index(drop=True)
     segs["edge_id"] = segs.index.astype(int)
     return segs[["edge_id", "geometry"]]  # type: ignore[no-any-return]
 
@@ -338,8 +338,8 @@ def snap_stops_to_segments(
     """
     rows: List[dict] = []
 
-    seg_geoms = segments.geometry.values
-    seg_eids = segments.edge_id.values
+    seg_geoms = segments.geometry.to_numpy()
+    seg_eids = segments.edge_id.to_numpy()
 
     for sid, sname, scode, pt in zip(
         stops["stop_id"],
@@ -544,8 +544,8 @@ def stop_to_stop_network(
     eid_b = int(rb.edge_id)
     u_a, v_a = edge_endpoints[eid_a]
     u_b, v_b = edge_endpoints[eid_b]
-    seg_a: LineString = segments.loc[segments.edge_id == eid_a, "geometry"].values[0]
-    seg_b: LineString = segments.loc[segments.edge_id == eid_b, "geometry"].values[0]
+    seg_a: LineString = segments.loc[segments.edge_id == eid_a, "geometry"].to_numpy()[0]
+    seg_b: LineString = segments.loc[segments.edge_id == eid_b, "geometry"].to_numpy()[0]
     s_a, s_b = float(ra.s_ft), float(rb.s_ft)
     to_u_a, to_v_a = float(ra.to_u_ft), float(ra.to_v_ft)
     to_u_b, to_v_b = float(rb.to_u_ft), float(rb.to_v_ft)

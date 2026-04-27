@@ -766,7 +766,7 @@ def pivot_monthly_by_stop(
             )
         )
 
-        pivot = g.pivot(index="Year-Month", columns="TPORD", values=metric)
+        pivot = g.pivot_table(index="Year-Month", columns="TPORD", values=metric, aggfunc="first")
 
         missing_cols = [o for o in cfg_orders if o not in pivot.columns]
         if missing_cols:

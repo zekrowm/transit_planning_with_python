@@ -75,7 +75,7 @@ def test_full_processing_integration() -> None:
         # Check filtered_data (Original sheet)
         # Should contain all rows since we didn't filter by route/stop
         # And it should contain MIDDAY even though it's not in TIME_PERIODS config
-        assert "MIDDAY" in filtered_data["TIME_PERIOD"].values, (
+        assert "MIDDAY" in filtered_data["TIME_PERIOD"].to_numpy(), (
             "MIDDAY rows should be preserved in Original sheet"
         )
 

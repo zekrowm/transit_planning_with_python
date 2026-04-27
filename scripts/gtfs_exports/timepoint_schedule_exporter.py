@@ -186,7 +186,7 @@ def prepare_timepoints(stop_times: pd.DataFrame) -> pd.DataFrame:
     """
     stop_times = stop_times.copy()
     stop_times["stop_sequence"] = pd.to_numeric(stop_times["stop_sequence"], errors="coerce")
-    if stop_times["stop_sequence"].isnull().any():
+    if stop_times["stop_sequence"].isna().any():
         # Using logging instead of print for consistency, though this could be print too.
         logging.warning("Some 'stop_sequence' values could not be converted to numeric.")
 
@@ -211,7 +211,7 @@ def remove_empty_schedule_columns(input_df: pd.DataFrame) -> pd.DataFrame:
     """
     schedule_cols = [col for col in input_df.columns if col.endswith("Schedule")]
     all_blank_cols = [col for col in schedule_cols if (input_df[col] == MISSING_TIME).all()]
-    input_df.drop(columns=all_blank_cols, inplace=True)
+    input_df = input_df.drop(columns=all_blank_cols)
     return input_df
 
 
@@ -436,7 +436,7 @@ def get_master_trip_stops(
 
     # Extract that trip’s stops in ascending sequence
     master_data = subset_tp[subset_tp["trip_id"] == master_trip_id].copy()
-    master_data.sort_values("stop_sequence", inplace=True)
+    master_data = master_data.sort_values("stop_sequence")
 
     # Merge to get stop_name
     master_data = master_data.merge(stops_df[["stop_id", "stop_name"]], how="left", on="stop_id")
@@ -447,7 +447,7 @@ def get_master_trip_stops(
     for _, row_2 in master_data.iterrows():
         sid = row_2["stop_id"]
         sseq = row_2["stop_sequence"]
-        base_name = row_2["stop_name"] if pd.notnull(row_2["stop_name"]) else f"Unknown stop {sid}"
+        base_name = row_2["stop_name"] if pd.notna(row_2["stop_name"]) else f"Unknown stop {sid}"
 
         occurrence_counter[sid] += 1
         nth = occurrence_counter[sid]
@@ -511,7 +511,7 @@ def process_single_trip(
         )
         route_name_val = "Unknown Route"
     else:
-        route_name_val = route_name_rows.values[0]
+        route_name_val = route_name_rows.to_numpy()[0]
 
     trip_headsign = trip_info.get("trip_headsign", "")
     direction_id = trip_info.get("direction_id", "")
@@ -656,8 +656,8 @@ def process_trips_for_direction(params: dict[str, Any]) -> pd.DataFrame:
         return pd.DataFrame()
 
     out_df = pd.DataFrame(rows, columns=col_names)
-    out_df.sort_values(by="sort_time", inplace=True)
-    out_df.drop(columns=["sort_time"], inplace=True)
+    out_df = out_df.sort_values(by="sort_time")
+    out_df = out_df.drop(columns=["sort_time"])
 
     safe_check_schedule_order(out_df, stop_names_ordered, route_short, sched_type, dir_id)
     remove_empty_schedule_columns(out_df)

@@ -382,8 +382,8 @@ def create_and_save_pivots(
             # Sort chronologically via Trip
             if "Trip" in direction_df.columns:
                 direction_df["time_sort"] = direction_df["Trip"].apply(parse_trip_time)
-                direction_df.sort_values("time_sort", inplace=True, na_position="last")
-                direction_df.drop(columns="time_sort", inplace=True)
+                direction_df = direction_df.sort_values("time_sort", na_position="last")
+                direction_df = direction_df.drop(columns="time_sort")
 
             sorted_idx = (
                 direction_df[["Branch", "Direction", "TripNo", "Variation", "Trip"]]

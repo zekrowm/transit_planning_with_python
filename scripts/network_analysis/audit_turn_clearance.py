@@ -361,8 +361,8 @@ def _flag_left_turn_spacing(
                 continue
 
             served["dist_along"] = served.geometry.apply(line.project)
-            served.sort_values("dist_along", inplace=True)
-            served.drop_duplicates("dist_along", inplace=True)
+            served = served.sort_values("dist_along")
+            served = served.drop_duplicates("dist_along")
 
             # left-turn vertices
             lefts = _find_left_turns(

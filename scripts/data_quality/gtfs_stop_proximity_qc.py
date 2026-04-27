@@ -325,8 +325,8 @@ def find_close_stop_pairs(
     n = len(work)
 
     for i in range(n):
-        xi = float(work.at[i, "x_m"])
-        yi = float(work.at[i, "y_m"])
+        xi = float(work.loc[i, "x_m"])
+        yi = float(work.loc[i, "y_m"])
         cell_i = _grid_cell(xi, yi, params.cell_size_m)
 
         for nc in _neighbor_cells(cell_i):
@@ -334,13 +334,13 @@ def find_close_stop_pairs(
                 if j <= i:
                     continue
 
-                i_safe = bool(work.at[i, "is_safe_stop"])
-                j_safe = bool(work.at[j, "is_safe_stop"])
+                i_safe = bool(work.loc[i, "is_safe_stop"])
+                j_safe = bool(work.loc[j, "is_safe_stop"])
                 if pass_safe_stops and (i_safe or j_safe):
                     continue
 
-                stop_id_a = str(work.at[i, "stop_id"])
-                stop_id_b = str(work.at[j, "stop_id"])
+                stop_id_a = str(work.loc[i, "stop_id"])
+                stop_id_b = str(work.loc[j, "stop_id"])
 
                 if exclude_opposite_direction_same_route_pairs and stop_route_dir_index:
                     if is_opposite_direction_pair_same_route(
@@ -350,8 +350,8 @@ def find_close_stop_pairs(
                     ):
                         continue
 
-                dx = float(work.at[j, "x_m"]) - xi
-                dy = float(work.at[j, "y_m"]) - yi
+                dx = float(work.loc[j, "x_m"]) - xi
+                dy = float(work.loc[j, "y_m"]) - yi
 
                 if abs(dx) > threshold_m or abs(dy) > threshold_m:
                     continue
@@ -363,10 +363,10 @@ def find_close_stop_pairs(
                 rows.append(
                     {
                         "stop_id_a": stop_id_a,
-                        "stop_name_a": work.at[i, "stop_name"],
+                        "stop_name_a": work.loc[i, "stop_name"],
                         "is_safe_a": i_safe,
                         "stop_id_b": stop_id_b,
-                        "stop_name_b": work.at[j, "stop_name"],
+                        "stop_name_b": work.loc[j, "stop_name"],
                         "is_safe_b": j_safe,
                         "distance_feet": round(dist_ft, 2),
                         "threshold_feet": threshold_feet,

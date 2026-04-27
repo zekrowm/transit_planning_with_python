@@ -325,17 +325,16 @@ def do_network_analysis(
         return
 
     # 2) Subset trips to only final routes
-    trips_merged = pd.merge(
-        trips,
+    trips_merged = trips.merge(
         final_routes_df[["route_id", "route_short_name"]],
         on="route_id",
     )
 
     # 3) Merge trips with stop_times
-    merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
+    merged_data = stop_times.merge(trips_merged, on="trip_id")
 
     # 4) Merge with stops
-    merged_data = pd.merge(merged_data, stops_df, on="stop_id")
+    merged_data = merged_data.merge(stops_df, on="stop_id")
 
     # 5) Filter final stops
     final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
@@ -436,9 +435,9 @@ def do_route_by_route_analysis(
         return
 
     # Merge the relevant GTFS data
-    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
-    merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
-    merged_data = pd.merge(merged_data, stops_df, on="stop_id")
+    trips_merged = trips.merge(final_routes_df[["route_id", "route_short_name"]], on="route_id")
+    merged_data = stop_times.merge(trips_merged, on="trip_id")
+    merged_data = merged_data.merge(stops_df, on="stop_id")
 
     # Filter stops per user-specified ID filters
     final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)
@@ -549,9 +548,9 @@ def do_stop_by_stop_analysis(
         return
 
     # Merge the relevant GTFS data
-    trips_merged = pd.merge(trips, final_routes_df[["route_id", "route_short_name"]], on="route_id")
-    merged_data = pd.merge(stop_times, trips_merged, on="trip_id")
-    merged_data = pd.merge(merged_data, stops_df, on="stop_id")
+    trips_merged = trips.merge(final_routes_df[["route_id", "route_short_name"]], on="route_id")
+    merged_data = stop_times.merge(trips_merged, on="trip_id")
+    merged_data = merged_data.merge(stops_df, on="stop_id")
 
     # Filter stops per user-specified ID filters
     final_stops_df = get_included_stops(merged_data, stop_ids_to_include, stop_ids_to_exclude)

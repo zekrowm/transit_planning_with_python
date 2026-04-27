@@ -235,7 +235,7 @@ def extract_modifiers(
             unique_vals = roadways_gdf[mapped_field].dropna().unique()
             modifiers.update(unique_vals)
     modifiers = set(
-        str(mod).lower().strip() for mod in modifiers if pd.notnull(mod) and str(mod).strip()
+        str(mod).lower().strip() for mod in modifiers if pd.notna(mod) and str(mod).strip()
     )
     return modifiers
 
@@ -250,7 +250,7 @@ def normalize_street_name(name: str, modifiers_set: Set[str]) -> str:
     Returns:
         str: The normalized street name.
     """
-    if pd.isnull(name) or not isinstance(name, str):
+    if pd.isna(name) or not isinstance(name, str):
         return ""
     if modifiers_set:
         pattern = r"\b(" + "|".join(re.escape(m) for m in modifiers_set) + r")\b"
@@ -303,7 +303,7 @@ def extract_street_names(stop_name: str, modifiers: Set[str]) -> List[str]:
     Returns:
         list: A list of normalized street names extracted from the stop name.
     """
-    if pd.isnull(stop_name) or not isinstance(stop_name, str):
+    if pd.isna(stop_name) or not isinstance(stop_name, str):
         return []
     separators = [" @ ", " and ", " & ", "/", " intersection of "]
     pattern = "|".join(map(re.escape, separators))

@@ -248,7 +248,7 @@ def read_excel_data() -> dict[str, pd.DataFrame]:
             )
 
         # --- cleansing ----------------------------------------------------- #
-        df.dropna(subset=["ROUTE_NAME", "MTH_BOARD"], inplace=True)
+        df = df.dropna(subset=["ROUTE_NAME", "MTH_BOARD"])
         df = df[df["MTH_BOARD"] != 0]
         df = df[df["SERVICE_PERIOD"].isin(SERVICE_PERIODS)].copy()
         df["ROUTE_NAME"] = (
@@ -360,7 +360,7 @@ def route_level_summary(df: pd.DataFrame) -> pd.DataFrame:
     totals["PASSENGERS_PER_MILE"] = safe_div_vec(totals["MTH_BOARD"], totals["MTH_REV_MILES"], 3)
     totals["DAILY_AVG"] = safe_div_vec(totals["MTH_BOARD"], totals["DAYS"])
 
-    totals.sort_values(["ROUTE_NAME", "service_type"], inplace=True, ignore_index=True)
+    totals = totals.sort_values(["ROUTE_NAME", "service_type"], ignore_index=True)
     return totals
 
 
@@ -484,8 +484,8 @@ def build_monthly_timeseries(all_data: pd.DataFrame) -> pd.DataFrame:
         if not row.empty:
             # iat[0] returns a scalar that MyPy sees as very broad.
             # Explicit cast or float conversion helps.
-            board_val = row["MTH_BOARD"].iat[0]
-            days_val = row["DAYS"].iat[0]
+            board_val = row["MTH_BOARD"].iloc[0]
+            days_val = row["DAYS"].iloc[0]
             # Ensure we are converting something float-compatible
             return float(board_val), float(days_val)
         return 0.0, 0.0
@@ -564,7 +564,7 @@ def plot_metric_over_time(df_time: pd.DataFrame, metric: str) -> None:
     for route in sorted(df_m["route"].unique()):
         df_r = df_m[df_m["route"] == route]
         y_vals = [
-            df_r.loc[df_r["period"] == p, metric].squeeze() if p in df_r["period"].values else None
+            df_r.loc[df_r["period"] == p, metric].squeeze() if p in df_r["period"].to_numpy() else None
             for p in ORDERED_PERIODS
         ]
         if all(v is None or pd.isna(v) for v in y_vals):

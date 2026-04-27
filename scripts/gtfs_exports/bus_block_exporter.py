@@ -508,24 +508,24 @@ def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame) -> pd.DataFrame
     target_statuses: set[str] = {"DWELL", "LAYOVER", "LOADING"}
 
     for idx in df_out.index:
-        stop_id = df_out.at[idx, "Stop ID"]
+        stop_id = df_out.loc[idx, "Stop ID"]
 
         # ── update the “memory” whenever we see a fully populated stop row ───────────
         if pd.notna(stop_id) and str(stop_id).strip():
             last["Stop ID"] = stop_id
-            last["Stop Name"] = df_out.at[idx, "Stop Name"]
-            last["Stop Sequence"] = df_out.at[idx, "Stop Sequence"]
-            last["Arrival Time"] = df_out.at[idx, "Arrival Time"]
-            last["Departure Time"] = df_out.at[idx, "Departure Time"]
-            last["Trip ID"] = df_out.at[idx, "Trip ID"]
+            last["Stop Name"] = df_out.loc[idx, "Stop Name"]
+            last["Stop Sequence"] = df_out.loc[idx, "Stop Sequence"]
+            last["Arrival Time"] = df_out.loc[idx, "Arrival Time"]
+            last["Departure Time"] = df_out.loc[idx, "Departure Time"]
+            last["Trip ID"] = df_out.loc[idx, "Trip ID"]
             continue
 
         # ── backfill rows that qualify ─────────────────────────────────────────────
-        status = df_out.at[idx, "Status"]
+        status = df_out.loc[idx, "Status"]
         if status in target_statuses and last["Stop ID"] is not None:
             for col, val in last.items():
-                if not df_out.at[idx, col]:
-                    df_out.at[idx, col] = val
+                if not df_out.loc[idx, col]:
+                    df_out.loc[idx, col] = val
 
     return df_out
 

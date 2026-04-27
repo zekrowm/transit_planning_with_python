@@ -114,7 +114,7 @@ def _prepare_route_buffers(
         raise ValueError("shapes.txt missing required columns")
 
     # Convert shape points to LineStrings
-    shapes_df.sort_values(["shape_id", "shape_pt_sequence"], inplace=True)
+    shapes_df = shapes_df.sort_values(["shape_id", "shape_pt_sequence"])
     lines = (
         shapes_df.groupby("shape_id")
         .apply(lambda grp: LineString(grp[["shape_pt_lon", "shape_pt_lat"]].to_numpy(dtype=float)))

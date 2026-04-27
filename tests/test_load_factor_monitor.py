@@ -94,7 +94,7 @@ def test_process_data_filtering(input_df) -> None:
         filter_out_routes=["10A"],
         decimals=4,
     )
-    assert "10A" not in processed_out["ROUTE_NAME"].values
+    assert "10A" not in processed_out["ROUTE_NAME"].to_numpy()
 
 
 def test_integration_exports(input_df, tmp_path, monkeypatch) -> None:

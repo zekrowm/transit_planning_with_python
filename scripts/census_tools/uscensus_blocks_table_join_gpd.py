@@ -195,7 +195,7 @@ def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> No
             max_len,
             renames,
         )
-        gdf.rename(columns=renames, inplace=True)
+        gdf = gdf.rename(columns=renames)
 
 
 # -----------------------------------------------------------------------------

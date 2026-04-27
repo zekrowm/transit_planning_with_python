@@ -335,30 +335,30 @@ def fill_stop_ids_for_dwell_layover_loading(
     last_trip_id = None
 
     for idx in df_out.index:
-        status = df_out.at[idx, "Status"]
-        stop_id = df_out.at[idx, "Stop ID"]
+        status = df_out.loc[idx, "Status"]
+        stop_id = df_out.loc[idx, "Stop ID"]
         if stop_id:
             # Update "last known" stop info
             last_stop_id = stop_id
-            last_stop_name = df_out.at[idx, "Stop Name"]
-            last_stop_seq = df_out.at[idx, "Stop Sequence"]
-            last_arr = df_out.at[idx, "Arrival Time"]
-            last_dep = df_out.at[idx, "Departure Time"]
-            last_trip_id = df_out.at[idx, "Trip ID"]
+            last_stop_name = df_out.loc[idx, "Stop Name"]
+            last_stop_seq = df_out.loc[idx, "Stop Sequence"]
+            last_arr = df_out.loc[idx, "Arrival Time"]
+            last_dep = df_out.loc[idx, "Departure Time"]
+            last_trip_id = df_out.loc[idx, "Trip ID"]
         else:
             if status in ["DWELL", "LAYOVER", "LOADING"]:
                 if last_stop_id is not None:
-                    df_out.at[idx, "Stop ID"] = last_stop_id
+                    df_out.loc[idx, "Stop ID"] = last_stop_id
                 if last_stop_name is not None:
-                    df_out.at[idx, "Stop Name"] = last_stop_name
+                    df_out.loc[idx, "Stop Name"] = last_stop_name
                 if last_stop_seq is not None:
-                    df_out.at[idx, "Stop Sequence"] = last_stop_seq
+                    df_out.loc[idx, "Stop Sequence"] = last_stop_seq
                 if last_arr is not None:
-                    df_out.at[idx, "Arrival Time"] = last_arr
+                    df_out.loc[idx, "Arrival Time"] = last_arr
                 if last_dep is not None:
-                    df_out.at[idx, "Departure Time"] = last_dep
+                    df_out.loc[idx, "Departure Time"] = last_dep
                 if last_trip_id is not None:
-                    df_out.at[idx, "Trip ID"] = last_trip_id
+                    df_out.loc[idx, "Trip ID"] = last_trip_id
     return df_out
 
 
@@ -646,13 +646,13 @@ def _merge_and_filter_data(
         stops_df["stop_code"] = None
 
     # Merge stop_times + trips
-    merged_df = pd.merge(stop_times_df, trips_df, on="trip_id", how="left")
+    merged_df = stop_times_df.merge(trips_df, on="trip_id", how="left")
 
     # Merge with stops to get stop_name, stop_code, timepoint
     stops_merge_cols = ["stop_id", "stop_name", "stop_code"]
     if "timepoint" in stops_df.columns:
         stops_merge_cols.append("timepoint")
-    merged_df = pd.merge(merged_df, stops_df[stops_merge_cols], on="stop_id", how="left")
+    merged_df = merged_df.merge(stops_df[stops_merge_cols], on="stop_id", how="left")
 
     # Mark first/last stops
     merged_df = mark_first_and_last_stops(merged_df)
@@ -719,8 +719,7 @@ def run_step1_gtfs_to_blocks() -> None:
     if routes_df is not None and "route_short_name" in routes_df.columns:
         logging.info("Merging routes.txt with trips ...")
         if "route_short_name" not in trips_df.columns:
-            trips_df = pd.merge(
-                trips_df,
+            trips_df = trips_df.merge(
                 routes_df[["route_id", "route_short_name"]],
                 on="route_id",
                 how="left",
@@ -756,7 +755,7 @@ def run_step1_gtfs_to_blocks() -> None:
             continue
 
         block_schedule_df = process_block(block_data, blk_id, timeline, BUS_STOP_CLUSTERS_STEP1)
-        block_schedule_df.sort_values("Timestamp", inplace=True)
+        block_schedule_df = block_schedule_df.sort_values("Timestamp")
 
         block_route_ids = block_data["route_id"].dropna().unique()
         if len(block_route_ids) > 0:

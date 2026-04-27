@@ -596,7 +596,13 @@ def write_summary_table(df: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
-    summary = summary.join(trip_grp["actual_runtime_min"].apply(_runtime_stats).unstack())
+    _runtime_df = trip_grp["actual_runtime_min"].apply(_runtime_stats)
+    if isinstance(_runtime_df.index, pd.MultiIndex):
+        _runtime_df = _runtime_df.pivot_table(
+            index=_runtime_df.index.get_level_values(0),
+            aggfunc="first",
+        )
+    summary = summary.join(_runtime_df)
 
     # New, clearer columns kept in parallel for one cycle
     summary["pct_within_window"] = summary["otp_pct"]
@@ -604,8 +610,8 @@ def write_summary_table(df: pd.DataFrame) -> pd.DataFrame:
     summary["below_target_pct"] = summary["under_target"]
 
     # Chronological order improves readability
-    summary.reset_index(drop=False, inplace=True)
-    summary.sort_values(by=TIME_COL_NAME, inplace=True, ignore_index=True)
+    summary = summary.reset_index(drop=False)
+    summary = summary.sort_values(by=TIME_COL_NAME, ignore_index=True)
 
     summary.to_excel(
         OUTPUT_DIR / f"trip_summary_{_day_tag()}.xlsx",
@@ -664,8 +670,8 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
     summary = pd.DataFrame(
         {
             "trip_start_time": sched_runtime.index,
-            "scheduled_min": sched_runtime.values,
-            "p85_min": p85_runtime.values,
+            "scheduled_min": sched_runtime.to_numpy(),
+            "p85_min": p85_runtime.to_numpy(),
         }
     ).dropna(subset=["scheduled_min", "p85_min"])
 

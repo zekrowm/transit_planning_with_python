@@ -437,7 +437,7 @@ def run_step2_conflict_detection() -> None:
         logging.info("Building conflict output for cluster '%s' → %s", cname, out_path)
 
         # Sort by timestamp, then by block or stop ID
-        sub.sort_values(["Timestamp", "Block", "Stop ID"], inplace=True)
+        sub = sub.sort_values(["Timestamp", "Block", "Stop ID"])
 
         with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
             # 3a) “AllStops” sheet

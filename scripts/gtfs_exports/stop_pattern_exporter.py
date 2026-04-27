@@ -221,9 +221,7 @@ def filter_trips(
     Returns:
         Filtered DataFrame of trips.
     """
-    merged = pd.merge(
-        trips_df, routes_df[["route_id", "route_short_name"]], on="route_id", how="left"
-    )
+    merged = trips_df.merge(routes_df[["route_id", "route_short_name"]], on="route_id", how="left")
     # Filter in
     if FILTER_IN_ROUTE_SHORT_NAMES:
         merged = merged[merged["route_short_name"].isin(FILTER_IN_ROUTE_SHORT_NAMES)]
@@ -258,8 +256,7 @@ def generate_unique_patterns(
     Returns:
         Dictionary mapping unique (route, direction, service, stops) to metadata.
     """
-    tmp = pd.merge(
-        stop_times_df,
+    tmp = stop_times_df.merge(
         trips_df[["trip_id", "route_id", "direction_id", "service_id"]],
         on="trip_id",
         how="inner",
@@ -267,7 +264,7 @@ def generate_unique_patterns(
     if "shape_dist_traveled" not in tmp.columns:
         tmp["shape_dist_traveled"] = np.nan  # Will be float due to np.nan
 
-    tmp = pd.merge(tmp, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
+    tmp = tmp.merge(stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
 
     # Ensure stop_sequence is numeric for correct sorting
     if "stop_sequence" in tmp.columns:
@@ -282,7 +279,7 @@ def generate_unique_patterns(
         )
         return {}
 
-    tmp.sort_values(["trip_id", "stop_sequence"], inplace=True)
+    tmp = tmp.sort_values(["trip_id", "stop_sequence"])
 
     # If we only want timepoints
     # timepoint column was converted to numeric earlier if it exists
@@ -330,10 +327,10 @@ def generate_unique_patterns(
             if prev_dist_val is None:
                 dist_str = "-"
             else:
-                if pd.notnull(shape_val) and pd.notnull(prev_dist_val):
+                if pd.notna(shape_val) and pd.notna(prev_dist_val):
                     diff_numeric = shape_val - prev_dist_val
                     diff_miles = convert_dist_to_miles(diff_numeric, INPUT_DISTANCE_UNIT)
-                    if pd.notnull(diff_miles) and isinstance(diff_miles, (int, float)):
+                    if pd.notna(diff_miles) and isinstance(diff_miles, (int, float)):
                         dist_str = f"{diff_miles:.2f}" if diff_miles != 0 else "0.00"
                     else:
                         dist_str = ""
@@ -342,7 +339,7 @@ def generate_unique_patterns(
 
             stops_for_trip.append((stop_id_val, dist_str))
 
-            if pd.notnull(shape_val):
+            if pd.notna(shape_val):
                 prev_dist_val = shape_val
 
         # Validate timepoint distance
@@ -566,7 +563,7 @@ def find_master_trip_stops(
 
     # stop_sequence is numeric
     best_group = st_sub[st_sub["trip_id"] == best_trip_id].sort_values("stop_sequence")
-    best_group = pd.merge(best_group, stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
+    best_group = best_group.merge(stops_df[["stop_id", "stop_name"]], on="stop_id", how="left")
 
     out_list = []
     for _, row in best_group.iterrows():

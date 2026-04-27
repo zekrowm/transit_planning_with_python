@@ -70,7 +70,7 @@ def time_to_seconds(time_str: str) -> Union[float, int]:
     Returns:
         Non-negative number of seconds, or :pydata:`math.nan` on failure.
     """
-    if pd.isnull(time_str):
+    if pd.isna(time_str):
         return math.nan
 
     parts = time_str.strip().split(":")
@@ -97,7 +97,7 @@ def format_hhmm(total_seconds: Union[int, float]) -> str:
     Returns:
         Two-digit hour and minute representation (24-hour clock).
     """
-    if pd.isnull(total_seconds) or total_seconds < 0:
+    if pd.isna(total_seconds) or total_seconds < 0:
         return ""
     hours = int(total_seconds // 3600)
     minutes = int((total_seconds % 3600) // 60)
@@ -256,7 +256,7 @@ def prepare_stop_times(
     stop_times_df = stop_times_df.dropna(subset=["block_id"])
     stop_times_df["stop_sequence"] = pd.to_numeric(stop_times_df["stop_sequence"], errors="coerce")
     stop_times_df = stop_times_df.dropna(subset=["stop_sequence"])
-    stop_times_df.sort_values(["block_id", "trip_id", "stop_sequence"], inplace=True)
+    stop_times_df = stop_times_df.sort_values(["block_id", "trip_id", "stop_sequence"])
 
     return stop_times_df
 
@@ -309,7 +309,7 @@ def export_blocks(stop_times_df: pd.DataFrame) -> None:
             "scheduled_time_hhmm",
         ]
         final_df = block_subset[out_cols].copy()
-        final_df.rename(
+        final_df = final_df.rename(
             columns={
                 "block_id": "Block ID",
                 "route_short_name": "Route",
@@ -321,7 +321,6 @@ def export_blocks(stop_times_df: pd.DataFrame) -> None:
                 "stop_name": "Stop Name",
                 "scheduled_time_hhmm": "Scheduled Time",
             },
-            inplace=True,
         )
 
         # Insert placeholders
@@ -350,7 +349,7 @@ def export_blocks(stop_times_df: pd.DataFrame) -> None:
             ]
         ]
 
-        final_df.sort_values(by=["Trip Start Time", "Trip ID", "Stop Sequence"], inplace=True)
+        final_df = final_df.sort_values(by=["Trip Start Time", "Trip ID", "Stop Sequence"])
 
         filename = f"block_{block_id}_schedule_printable.xlsx"
         output_path = os.path.join(BASE_OUTPUT_PATH, filename)

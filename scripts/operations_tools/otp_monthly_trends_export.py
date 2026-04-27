@@ -384,8 +384,8 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             base_color = line_on.get_color()
             plt.fill_between(
                 x,
-                min_map.values.astype(float),
-                max_map.values.astype(float),
+                min_map.to_numpy().astype(float),
+                max_map.to_numpy().astype(float),
                 alpha=0.2,
                 label="Weekday OTP range (min–max Mon–Fri)",
                 facecolor=base_color,

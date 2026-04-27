@@ -221,16 +221,12 @@ def merge_ridership_and_csv(
     if IS_GTFS_INPUT:
         df_excel["STOP_ID"] = df_excel["STOP_ID"].astype(str)
         df_csv[GTFS_KEY_FIELD] = df_csv[GTFS_KEY_FIELD].astype(str)
-        df_joined = pd.merge(
-            df_excel, df_csv, left_on="STOP_ID", right_on=GTFS_KEY_FIELD, how="inner"
-        )
+        df_joined = df_excel.merge(df_csv, left_on="STOP_ID", right_on=GTFS_KEY_FIELD, how="inner")
         key_field = GTFS_KEY_FIELD
     else:
         df_excel["STOP_ID"] = df_excel["STOP_ID"].astype(str)
         df_csv[SHAPE_KEY_FIELD] = df_csv[SHAPE_KEY_FIELD].astype(str)
-        df_joined = pd.merge(
-            df_excel, df_csv, left_on="STOP_ID", right_on=SHAPE_KEY_FIELD, how="inner"
-        )
+        df_joined = df_excel.merge(df_csv, left_on="STOP_ID", right_on=SHAPE_KEY_FIELD, how="inner")
         key_field = SHAPE_KEY_FIELD
 
     logger.info(

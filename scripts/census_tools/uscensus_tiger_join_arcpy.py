@@ -230,7 +230,7 @@ def _load_and_concat(
         _clean_name_cols(df)
 
         if rename:
-            df.rename(columns=rename, inplace=True)
+            df = df.rename(columns=rename)
             if not callable(usecols) and usecols is None:
                 keep = {GEO_ID_COL, "GEOID", "NAME", *rename.values()}
                 df = df.loc[:, df.columns.intersection(keep)]
@@ -328,7 +328,7 @@ def _build_block_df(inp: _BlockInputs) -> pd.DataFrame:
         geostr = jobs["w_geocode"].astype(str).str.replace(r"\D", "", regex=True).str.zfill(15)
         jobs["GEOID"] = geostr
         jobs[GEO_ID_COL] = "1000000US" + geostr
-        jobs.drop(columns="w_geocode", inplace=True)
+        jobs = jobs.drop(columns="w_geocode")
 
     df = _merge_on_geo_id(pop, hh)
     df = _merge_on_geo_id(df, jobs)
@@ -365,7 +365,7 @@ def _derive_income(df: pd.DataFrame) -> pd.DataFrame:
     ]
     df["low_income"] = df[bands].sum(axis=1)
     df["perc_low_income"] = df["low_income"] / df["total_hh"]
-    df.drop(columns="total_hh", inplace=True)
+    df = df.drop(columns="total_hh")
     return df
 
 
@@ -373,7 +373,7 @@ def _derive_ethnicity(df: pd.DataFrame) -> pd.DataFrame:
     minority = ["black", "native", "asian", "pac_isl", "other", "multi"]
     df["minority"] = df[minority].sum(axis=1)
     df["perc_minority"] = df["minority"] / df["total_pop"]
-    df.drop(columns="total_pop", inplace=True)
+    df = df.drop(columns="total_pop")
     return df
 
 
@@ -416,7 +416,7 @@ def _derive_age(df: pd.DataFrame) -> pd.DataFrame:
     if "total_pop" in df.columns:
         df["perc_youth"] = (df["all_youth"] / df["total_pop"]).round(3)
         df["perc_elderly"] = (df["all_elderly"] / df["total_pop"]).round(3)
-        df.drop(columns="total_pop", inplace=True)
+        df = df.drop(columns="total_pop")
     return df
 
 
