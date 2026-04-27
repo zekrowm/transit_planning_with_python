@@ -155,7 +155,7 @@ def save_output(gdf: GeoDataFrame, out_path: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     if out_path.lower().endswith(".shp"):
-        _truncate_field_names(gdf)
+        gdf = _truncate_field_names(gdf)
         driver: str | None = "ESRI Shapefile"
     else:
         driver = None  # let Fiona infer (GeoPackage, Parquet, etc.)
@@ -165,11 +165,12 @@ def save_output(gdf: GeoDataFrame, out_path: str) -> None:
     LOGGER.info("Finished")
 
 
-def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> None:
+def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> GeoDataFrame:
     """Ensure every attribute name fits the Shapefile 10-char DBF limit.
 
-    Renames are applied **in place**.  When a truncated name collides
-    with one already used, a numeric suffix is appended to make it unique.
+    When a truncated name collides with one already used, a numeric suffix is
+    appended to make it unique. Returns a new GeoDataFrame with renamed columns
+    (or the input unchanged if no truncation was needed).
     """
     renames: dict[str, str] = {}
     seen: set[str] = set()
@@ -195,7 +196,8 @@ def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> No
             max_len,
             renames,
         )
-        gdf.rename(columns=renames, inplace=True)
+        gdf = gdf.rename(columns=renames)
+    return gdf
 
 
 # -----------------------------------------------------------------------------
@@ -232,3 +234,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    
