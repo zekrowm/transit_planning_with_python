@@ -40,8 +40,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-INPUT_CSV: Path = Path(r"Path\To\Event Runtime Analysis.csv")
-OUTPUT_CSV: Path = Path(r"Path\To\trips_performed.csv")
+INPUT_CSV: Path = Path("Path/To/Event Runtime Analysis.csv")
+OUTPUT_CSV: Path = Path("Path/To/trips_performed.csv")
 
 # If set (e.g., "Revenue"), keeps only CLEVER Trip Type == this value.
 # If None/blank, keeps everything and logs nothing about filtering.

@@ -37,8 +37,8 @@ import seaborn as sns
 # CONFIGURATION
 # =============================================================================
 
-INPUT_ROOT_DIR: Final[Path] = Path(r"Path\To\Your\Data_Folder_with_observed_trips")
-OUTPUT_ROOT_DIR: Final[Path] = Path(r"Path\To\Your\Output_Folder")
+INPUT_ROOT_DIR: Final[Path] = Path("Path/To/Your/Data_Folder_with_observed_trips")
+OUTPUT_ROOT_DIR: Final[Path] = Path("Path/To/Your/Output_Folder")
 
 ROUTES_TO_INCLUDE: Final[set[str]] = {"101", "202"}  # optional whitelist
 

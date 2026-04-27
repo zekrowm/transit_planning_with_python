@@ -33,8 +33,8 @@ import pandas as pd
 # CONFIGURATION
 # ==============================================================================
 
-GTFS_FOLDER_PATH: str = r"Path\To\Your\GTFS_Folder"
-OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
+GTFS_FOLDER_PATH: str = "Path/To/Your/GTFS_Folder"
+OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
 
 ROUTE_SHORTNAME_FILTER: list[str] = []  # e.g. ["350", "353"]; [] = all
 AGGREGATE_BY_ROUTE_DIR: bool = False  # False → block XLSX; True → route/dir XLSX

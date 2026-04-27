@@ -34,10 +34,10 @@ import pandas as pd
 # =============================================================================
 
 # Ridership source workbook
-RIDERSHIP_XLSX: Path = Path(r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).xlsx")
+RIDERSHIP_XLSX: Path = Path("Your/File/Path/To/STOP_USAGE_(BY_STOP_ID).xlsx")
 RIDERSHIP_SHEET: int | str = 0
 # Output folder (Excel + TXT will be written here)
-OUTPUT_FOLDER: Path = Path(r"Your\Folder\Path\To\Output")
+OUTPUT_FOLDER: Path = Path("Your/Folder/Path/To/Output")
 OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 
 # Fields in ridership workbook
@@ -59,7 +59,7 @@ AGGREGATE_BY_STOP: bool | str = "auto"
 # OPTIONAL SECOND WORKBOOK – AMENITY DETAILS
 # -----------------------------------------------------------------------------
 
-AMENITIES_XLSX: Path = Path(r"Your\File\Path\To\bus_stop_amenities.xlsx")
+AMENITIES_XLSX: Path = Path("Your/File/Path/To/bus_stop_amenities.xlsx")
 AMENITIES_SHEET: int | str = 0
 AMENITY_JOIN_FIELD: str = "stop_code"
 TXT_LOG_PATH: Path = OUTPUT_FOLDER / "stops_needing_improvement.txt"

@@ -38,8 +38,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-DATA_ROOT: Final[Path] = Path(r"Path\To\Your\Input_Folder")
-OUTPUT_ROOT: Final[Path] = Path(r"Path\To\Your\Output_Folder")
+DATA_ROOT: Final[Path] = Path("Path/To/Your/Input_Folder")
+OUTPUT_ROOT: Final[Path] = Path("Path/To/Your/Output_Folder")
 
 # Requested overall date range (inclusive month starts).
 START_MONTH: Final[str] = "Jan-2024"

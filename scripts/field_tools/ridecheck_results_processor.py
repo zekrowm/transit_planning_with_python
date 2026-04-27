@@ -28,8 +28,8 @@ from openpyxl.worksheet.worksheet import Worksheet
 # CONFIGURATION
 # =============================================================================
 
-OBSERVED_DATA_PATH = r"\\Path\To\Your\Field_Data_Folder"
-ANALYSIS_RESULTS_PATH = r"\\Path\To\Your\Output_Folder"
+OBSERVED_DATA_PATH = "Path/To/Your/Field_Data_Folder"
+ANALYSIS_RESULTS_PATH = "Path/To/Your/Output_Folder"
 
 EARLY_TOLERANCE_MIN = -1  # minutes early that STILL counts on-time
 LATE_TOLERANCE_MIN = 6  # minutes late  that STILL counts on-time
