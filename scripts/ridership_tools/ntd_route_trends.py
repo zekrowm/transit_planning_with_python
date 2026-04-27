@@ -438,7 +438,7 @@ def apply_manual_fixes(monthly_long: pd.DataFrame, flags: pd.DataFrame) -> pd.Da
             {"missing_service_period", "missing_entry", "zero_ridership_nonzero_days"}
         )
     ].copy()
-    fixable.sort_values(["route", "period", "service_period", "flag"], inplace=True)
+    fixable = fixable.sort_values(["route", "period", "service_period", "flag"])
 
     for _, f in fixable.iterrows():
         if stop:
@@ -527,7 +527,7 @@ def to_wide(monthly_long: pd.DataFrame) -> pd.DataFrame:
     avgs.columns = [f"{c.lower()}_avg" for c in avgs.columns]
 
     out = pd.concat([totals, avgs], axis=1).reset_index()
-    out.sort_values(["route", "period_dt"], inplace=True, ignore_index=True)
+    out = out.sort_values(["route", "period_dt"], ignore_index=True)
     return out
 
 

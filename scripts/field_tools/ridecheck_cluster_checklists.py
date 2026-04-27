@@ -715,7 +715,7 @@ def process_cluster_slice(
                 et = pd.to_datetime(end_s, format="%H:%M").time()
                 atimes = pd.to_datetime(df["arrival_time"], format="%H:%M", errors="coerce").dt.time
 
-                mask = pd.notnull(atimes) & (atimes >= st) & (atimes <= et)
+                mask = pd.notna(atimes) & (atimes >= st) & (atimes <= et)
                 subset = df.loc[mask].copy()
 
                 if subset.empty:

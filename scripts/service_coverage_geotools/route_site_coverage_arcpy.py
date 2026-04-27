@@ -337,8 +337,8 @@ def _build_nearby_stop_pairs(
     cell_size_deg = 0.0005
     bin_map: Dict[int, Tuple[int, int]] = {}
     for idx in range(len(work)):
-        lat = float(work.at[idx, "stop_lat"])
-        lon = float(work.at[idx, "stop_lon"])
+        lat = float(work.loc[idx, "stop_lat"])
+        lon = float(work.loc[idx, "stop_lon"])
         bin_map[idx] = (
             int(lat / cell_size_deg),
             int(lon / cell_size_deg),
@@ -368,17 +368,17 @@ def _build_nearby_stop_pairs(
                             continue
                         seen.add(key)
 
-                        lat1 = float(work.at[i, "stop_lat"])
-                        lon1 = float(work.at[i, "stop_lon"])
-                        lat2 = float(work.at[j, "stop_lat"])
-                        lon2 = float(work.at[j, "stop_lon"])
+                        lat1 = float(work.loc[i, "stop_lat"])
+                        lon1 = float(work.loc[i, "stop_lon"])
+                        lat2 = float(work.loc[j, "stop_lat"])
+                        lon2 = float(work.loc[j, "stop_lon"])
                         dist_ft = _haversine_distance_ft(lat1, lon1, lat2, lon2)
 
                         if dist_ft <= max_dist_ft:
                             pairs.append(
                                 {
-                                    "stop_id_a": work.at[i, "stop_id"],
-                                    "stop_id_b": work.at[j, "stop_id"],
+                                    "stop_id_a": work.loc[i, "stop_id"],
+                                    "stop_id_b": work.loc[j, "stop_id"],
                                     "distance_ft": dist_ft,
                                 },
                             )
@@ -811,7 +811,7 @@ def _build_route_geometry_from_shapes(
         seg = shapes_df[shapes_df["shape_id"] == sid].copy()
         if seg.empty:
             continue
-        seg.sort_values("shape_pt_sequence", inplace=True)
+        seg = seg.sort_values("shape_pt_sequence")
 
         pts = [
             arcpy.Point(lon, lat)

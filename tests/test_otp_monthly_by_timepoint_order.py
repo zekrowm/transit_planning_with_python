@@ -60,8 +60,8 @@ def test_tides_data_processing(tides_input_csv: Path, tmp_path: Path) -> None:
 
     df_var = pd.read_csv(variation_index)
     # Expect rows for PAT_30_WB and PAT_30_EB
-    assert "PAT_30_WB" in df_var["Variation"].values
-    assert "PAT_30_EB" in df_var["Variation"].values
+    assert "PAT_30_WB" in df_var["Variation"].to_numpy()
+    assert "PAT_30_EB" in df_var["Variation"].to_numpy()
 
     # Check for specific output file
     # Format: {route}_{direction}_{variation_slug}_n{count}_pct.csv
@@ -77,4 +77,4 @@ def test_tides_data_processing(tides_input_csv: Path, tmp_path: Path) -> None:
     # Read output and verify some content
     df_pct = pd.read_csv(expected_pct_file)
     assert "Year-Month" in df_pct.columns
-    assert "2025-03" in df_pct["Year-Month"].values
+    assert "2025-03" in df_pct["Year-Month"].to_numpy()

@@ -54,11 +54,11 @@ def test_load_trip_files_tides_support() -> None:
 
     # Check Canceled is gone
     # Row 10 trip_id_performed is TP20250320_010
-    assert "TP20250320_010" not in df["TripID"].values, "Canceled trip should be filtered out"
+    assert "TP20250320_010" not in df["TripID"].to_numpy(), "Canceled trip should be filtered out"
 
     # Check Deadhead is gone
     # Row 3 TP20250318_003
-    assert "TP20250318_003" not in df["TripID"].values, "Deadhead trip should be filtered out"
+    assert "TP20250318_003" not in df["TripID"].to_numpy(), "Deadhead trip should be filtered out"
 
     # 4. Assert Time Extraction
     # Row 1: 2025-03-18T06:00:00 -> 06:00

@@ -161,7 +161,7 @@ def read_stops(gtfs_dir: Path) -> gpd.GeoDataFrame:
             )
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
-            df.dropna(subset=[col], inplace=True)
+            df = df.dropna(subset=[col])
             if len(df) < original_count:
                 logging.warning(
                     "Warning: Dropped %d stops due to invalid values in '%s'.",
@@ -227,7 +227,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
             )
             original_count = len(df)
             df[col] = pd.to_numeric(df[col], errors="coerce")
-            df.dropna(subset=[col], inplace=True)
+            df = df.dropna(subset=[col])
             if len(df) < original_count:
                 logging.warning(
                     "Warning: Dropped %d shape points due to invalid values in '%s'.",
@@ -241,7 +241,7 @@ def read_shapes(gtfs_dir: Path) -> gpd.GeoDataFrame:
 
     # Ensure sequence is integer and sort points correctly
     df["shape_pt_sequence"] = df["shape_pt_sequence"].astype(int)
-    df.sort_values(by=["shape_id", "shape_pt_sequence"], inplace=True)
+    df = df.sort_values(by=["shape_id", "shape_pt_sequence"])
 
     # Create LineString geometries
     records: list[dict] = []

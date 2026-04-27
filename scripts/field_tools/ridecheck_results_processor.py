@@ -346,13 +346,21 @@ def summarise_punctuality(
         grp_df = df.assign(__overall__="all")
         group_cols = ["__overall__"]
 
+    grp_df = grp_df.copy()
+    grp_df["_one"] = 1
+    raw = grp_df.pivot_table(
+        index=group_cols,
+        columns="punctuality",
+        values="_one",
+        aggfunc="count",
+        fill_value=0,
+    )
+    raw.columns.name = None
+    total = raw.sum(axis=1)
     pct_table = (
-        grp_df.groupby(group_cols)["punctuality"]
-        .value_counts(normalize=True)
+        raw.div(total, axis=0)
         .mul(100)
-        .rename("pct")
         .round(1)
-        .unstack(fill_value=0)
         .reindex(columns=["early", "on_time", "late"], fill_value=0)
         .reset_index()
         .rename(

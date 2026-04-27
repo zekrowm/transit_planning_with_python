@@ -307,7 +307,7 @@ def build_shapes_gdf(shapes_df: pd.DataFrame, crs: str) -> gpd.GeoDataFrame:
         records.append({"shape_id": str(shape_id), "geometry": LineString(points)})
 
     shapes_gdf = gpd.GeoDataFrame(records, crs=crs)
-    shapes_gdf.set_index("shape_id", inplace=True)
+    shapes_gdf = shapes_gdf.set_index("shape_id")
     return shapes_gdf
 
 
@@ -352,7 +352,7 @@ def build_stops_gdf(
 
     geometry = gpd.points_from_xy(stops_df["stop_lon"], stops_df["stop_lat"])
     stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry, crs=crs)
-    stops_gdf.set_index(stop_key_field, inplace=True)
+    stops_gdf = stops_gdf.set_index(stop_key_field)
     return stops_gdf
 
 

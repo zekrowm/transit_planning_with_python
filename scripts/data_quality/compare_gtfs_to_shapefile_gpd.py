@@ -489,12 +489,12 @@ def compute_per_route_metrics() -> pd.DataFrame:
                 )
 
             long_nm = (
-                routes_df.loc[routes_df["route_id"] == chosen_rid, "route_long_name"].values[0]
+                routes_df.loc[routes_df["route_id"] == chosen_rid, "route_long_name"].to_numpy()[0]
                 if chosen_rid
                 else ""
             )
             short_nm = (
-                routes_df.loc[routes_df["route_id"] == chosen_rid, "route_short_name"].values[0]
+                routes_df.loc[routes_df["route_id"] == chosen_rid, "route_short_name"].to_numpy()[0]
                 if chosen_rid
                 else ""
             )
