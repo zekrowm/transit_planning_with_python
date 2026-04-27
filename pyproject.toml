@@ -37,11 +37,12 @@ exclude = ["**/*arcpy*"]
 
 [tool.ty.environment]
 python-version = "3.12"
+extra-paths = ["scripts/ridership_tools", "scripts/operations_tools"]
 
 [tool.ty.rules]
 unsupported-operator = "warn"
 invalid-return-type = "warn"
-unresolved-import = "warn"
+unresolved-import = "error"
 invalid-assignment = "warn"
 invalid-argument-type = "warn"
 not-subscriptable = "warn"
@@ -50,7 +51,7 @@ no-matching-overload = "warn"
 invalid-parameter-default = "warn"
 possibly-missing-attribute = "warn"
 redundant-cast = "warn"
-unresolved-reference = "warn"
+unresolved-reference = "error"
 unresolved-attribute = "warn"
 unresolved-global = "warn"
 
