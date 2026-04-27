@@ -52,8 +52,8 @@ import pandas as pd
 # =============================================================================
 
 # ---- Input roots ----
-INPUT_CSV_DIR: str | Path = r"Folder\Path\To\Your\input_csvs"  # <<< EDIT ME
-INPUT_SHP_DIR: str | Path = r"Folder\Path\To\Your\input_shps"  # <<< EDIT ME
+INPUT_CSV_DIR: str | Path = "Folder/Path/To/Your/input_csvs"  # <<< EDIT ME
+INPUT_SHP_DIR: str | Path = "Folder/Path/To/Your/input_shps"  # <<< EDIT ME
 
 # ---- TIGER shapefile discovery ----
 # Glob pattern to select block shapefiles (basenames). Example: "tl_2023_*_tabblock20.shp"
@@ -70,11 +70,11 @@ FIPS_TO_FILTER: list[str] = [
 
 # ---- Outputs ----
 INTERMEDIATE_MERGED_SHP: str = (
-    r"File\Path\To\Your\output_intermediate\merged_blocks.shp"  # or ...gdb\merged_blocks
+    "File/Path/To/Your/output_intermediate/merged_blocks.shp"  # or ...gdb/merged_blocks
 )
-INTERMEDIATE_COMBINED_CSV: str = r"File\Path\To\Your\output_intermediate\combined_blocks.csv"
+INTERMEDIATE_COMBINED_CSV: str = "File/Path/To/Your/output_intermediate/combined_blocks.csv"
 FINAL_JOINED_FEATURES: str = (
-    r"File\Path\To\Your\output_final\blocks_with_attrs.shp"  # or ...gdb\blocks_with_attrs
+    "File/Path/To/Your/output_final/blocks_with_attrs.shp"  # or ...gdb/blocks_with_attrs
 )
 
 # ---- CSV topic signatures ----

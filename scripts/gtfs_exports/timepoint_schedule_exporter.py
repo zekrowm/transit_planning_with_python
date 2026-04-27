@@ -28,9 +28,9 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER_PATH = r"C:\Path\To\Your\GTFS_Folder"  # Folder contains GTFS .txt files
+GTFS_FOLDER_PATH = "Path/To/Your/GTFS_Folder"  # Folder contains GTFS .txt files
 
-BASE_OUTPUT_PATH = r"C:\Path\To\Your\Output_Folder"
+BASE_OUTPUT_PATH = "Path/To/Your/Output_Folder"
 if not os.path.exists(BASE_OUTPUT_PATH):
     os.makedirs(BASE_OUTPUT_PATH)
 

@@ -47,8 +47,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-CSV_PATH: Path | str = r"Path\To\Your\OTP by Timepoint Aggregated.csv"
-OUTPUT_DIR: Path | str = r"Path\To\Your\Output_Folder"
+CSV_PATH: Path | str = "Path/To/Your/OTP by Timepoint Aggregated.csv"
+OUTPUT_DIR: Path | str = "Path/To/Your/Output_Folder"
 
 OUT_SUFFIX: str = "_processed"
 

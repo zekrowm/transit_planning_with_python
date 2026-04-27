@@ -50,7 +50,7 @@ STOPS_INPUT_MODE: str = "gtfs"
 STOPS_FEATURE_CLASS: str = r""
 
 # For "gtfs" mode
-GTFS_FOLDER: str = r"Path\To\Your\GTFS_Folder"
+GTFS_FOLDER: str = "Path/To/Your/GTFS_Folder"
 
 # Optional: filter GTFS to the following route_short_name values.
 # Example: ["101", "202"]. Leave as [] or None to include all routes (network run).
@@ -59,8 +59,8 @@ GTFS_ROUTE_SHORT_NAMES: Optional[Sequence[str]] = ["101", "202"]
 # Input demographics (from the census-join pipeline).
 # This may be a FileGDB feature class or a shapefile; both work.
 DEMOGRAPHICS_FC: str = (
-    # r"File\Path\To\Your\output_final\scratch_join.gdb\joined_blocks"
-    r"File\Path\To\Your\output_final\blocks_with_attrs.shp"
+    # "File/Path/To/Your/output_final/scratch_join.gdb/joined_blocks"
+    "File/Path/To/Your/output_final/blocks_with_attrs.shp"
 )
 
 # Optional disk outputs for intermediates (used only for the "network" run).
@@ -72,7 +72,7 @@ CLIPPED_DEMOGRAPHICS_OUT: str = r""
 # Final export target:
 #   If this ends with ".gdb", results are written as a feature class into that GDB.
 #   Otherwise it's treated as a directory and a shapefile is written there.
-FINAL_EXPORT_TARGET: str = r"File\Path\To\Your\output_final\output.gdb"
+FINAL_EXPORT_TARGET: str = "File/Path/To/Your/output_final/output.gdb"
 
 # Processing parameters
 BUFFER_DISTANCE_MILES: float = 0.25
@@ -852,7 +852,7 @@ def _intermediate_buffer_folder() -> str:
     Returns:
         Absolute path to the inspection folder, created if missing.
     """
-    folder = r"G:\projects\dot\zkrohmal\census_merge_test_2025_10_31\output_buffer_intermediate"
+    folder = "projects/dot/zkrohmal/census_merge_test_2025_10_31/output_buffer_intermediate"
     ensure_dir(folder)
     return folder
 

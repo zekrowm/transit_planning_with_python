@@ -33,10 +33,10 @@ import pandas as pd
 # =============================================================================
 
 # Top-level directories
-GTFS_DIR = Path(r"Path\To\Your\GTFS_Data")  # folder containing GTFS .txt files
+GTFS_DIR = Path("Path/To/Your/GTFS_Data")  # folder containing GTFS .txt files
 # SHP_INPUT_DIR = Path(r"data/shapefiles")  # folder with .shp layers to test
-SHP_INPUT_DIR = Path(r"Path\To\Your\Shapefile_Data_Directory")  # folder with .shp layers to test
-OUTPUT_DIR = Path(r"Path\To\Your\Output_Folder")  # where CSVs and GDB output are written
+SHP_INPUT_DIR = Path("Path/To/Your/Shapefile_Data_Directory")  # folder with .shp layers to test
+OUTPUT_DIR = Path("Path/To/Your/Output_Folder")  # where CSVs and GDB output are written
 
 # File geodatabase for outputs
 GDB_NAME = "transit_coverage.gdb"
@@ -74,7 +74,7 @@ BUFFER_DIST_FT = 1320.0  # ¼ mile in feet
 # Optional parcels polygon layer: if set, facility coverage will be based on
 # buffered parcels intersecting the facility features, rather than buffering
 # the facility features themselves.
-PARCELS_SHP = Path(r"Path\To\Your\parcels.shp")
+PARCELS_SHP = Path("Path/To/Your/parcels.shp")
 # PARCELS_SHP: Optional[Path] = None
 
 # Transfer analysis options

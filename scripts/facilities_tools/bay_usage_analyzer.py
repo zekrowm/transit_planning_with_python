@@ -27,10 +27,10 @@ from pandas import DataFrame
 # ==================================================================================================
 
 # Folder containing your block-level XLSX files from Step 1
-BLOCK_OUTPUT_FOLDER: str = r"\\Path\To\Your\Input_Folder"
+BLOCK_OUTPUT_FOLDER: str = "Path/To/Your/Input_Folder"
 
 # Where to save the cluster-conflict outputs
-CLUSTER_CONFLICT_OUTPUT_FOLDER: str = r"\\Path\To\Your\Output_Folder"
+CLUSTER_CONFLICT_OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
 
 # Dictionary of clusters, including single_bay, double_bay, triple_bay, and overflow.
 # Each key is the cluster name, the value is a dict with lists:

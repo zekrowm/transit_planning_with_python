@@ -23,8 +23,8 @@ from typing import Iterable, Mapping
 # Configuration
 # =============================================================================
 # Set these manually.
-REPO_ROOT = Path(r"C:\path\to\your\repo")
-OUTPUT_DIR = Path(r"C:\path\to\output\folder")
+REPO_ROOT = Path("path/to/your/repo")
+OUTPUT_DIR = Path("path/to/output/folder")
 
 # Optional settings.
 OUTPUT_FILENAME = "requirements.txt"

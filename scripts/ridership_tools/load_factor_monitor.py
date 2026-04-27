@@ -31,7 +31,7 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE: Final[str] = r"\\File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
+INPUT_FILE: Final[str] = "File/Path/To/Your/STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
 OUTPUT_FILE: Final[str] = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
 BUS_CAPACITY: Final[int] = 39
 

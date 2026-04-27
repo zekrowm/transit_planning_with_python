@@ -48,8 +48,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-INPUT_CSV: Path = Path(r"Path\To\Stop Visit Events.csv")
-OUTPUT_CSV: Path = Path(r"Path\To\stop_visits.csv")
+INPUT_CSV: Path = Path("Path/To/Stop Visit Events.csv")
+OUTPUT_CSV: Path = Path("Path/To/stop_visits.csv")
 
 # Trip ID strategy:
 # - "token": trip_id_performed = second token in CLEVER "Trip" (default)

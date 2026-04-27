@@ -33,8 +33,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-GTFS_DIR = Path(r"C:\path\to\gtfs")  # folder containing GTFS .txt files
-OUT_DIR = Path(r"C:\path\to\output")  # output folder for CSVs
+GTFS_DIR = Path("path/to/gtfs")  # folder containing GTFS .txt files
+OUT_DIR = Path("path/to/output")  # output folder for CSVs
 
 THRESHOLD_FEET = 50.0
 

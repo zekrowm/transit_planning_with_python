@@ -50,11 +50,11 @@ from openpyxl.utils import get_column_letter
 
 # Output directory for generated Excel checklists and nearby-stop QA reports.
 # Use a local or network path that field staff can access.
-BASE_OUTPUT_PATH = r"R:\transit\field_checks\YYYY_MM_checklists"
+BASE_OUTPUT_PATH = "transit/field_checks/YYYY_MM_checklists"
 
 # Input directory containing a complete GTFS feed (trips.txt, stop_times.txt,
 # routes.txt, stops.txt, calendar.txt).
-BASE_INPUT_PATH = r"R:\transit\gtfs\connector_YYYY_MM_DD"
+BASE_INPUT_PATH = "transit/gtfs/connector_YYYY_MM_DD"
 
 # How CLUSTERS are specified:
 # - "stop_id"  -> CLUSTERS lists are stop_id values from stops.txt

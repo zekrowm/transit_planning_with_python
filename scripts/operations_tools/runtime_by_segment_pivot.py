@@ -24,12 +24,12 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-WKDY_FILE_PATH = r"\\Your\Path\CLEVER_Runtime_by_Segment_by_Trip_Weekday.csv"
+WKDY_FILE_PATH = "Your/Path/CLEVER_Runtime_by_Segment_by_Trip_Weekday.csv"
 SAT_FILE_PATH = r""
 SUN_FILE_PATH = r""
 OTHER_FILE_PATH = r""
 
-PARENT_OUTPUT_DIR = r"C:\Path\To\Outputs"  # or "" to save in current folder
+PARENT_OUTPUT_DIR = "Path/To/Outputs"  # or "" to save in current folder
 
 ROUTES_TO_EXCLUDE = []
 ROUTES_TO_INCLUDE = []
