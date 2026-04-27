@@ -10,19 +10,15 @@ The title must follow the format:
 Where:
     <type> is one of: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test
     <scope> is optional, lowercase alphanumeric with hyphens
-    <Description> starts with a capital letter
+    <description> starts with a lowercase letter
 """
 
 import re
 import sys
 
-# Regex pattern for Conventional Commits with capitalized description
-# Group 1: Type
-# Group 2: Optional Scope (including parens)
-# Match: ": " followed by Capital letter and then anything
 PATTERN = (
     r"^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)"
-    r"(\([a-z0-9-]+\))?: [A-Z].+$"
+    r"(\([a-z0-9-]+\))?: [a-z].+$"
 )
 
 
@@ -38,7 +34,7 @@ def main() -> None:
         print("Format: <type>(<scope>): <Description>")
         print("  - Types: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test")
         print("  - Scope: Optional, lowercase alphanumeric with hyphens (e.g., (scope))")
-        print("  - Description: Must start with a capital letter")
+        print("  - Description: Must start with a lowercase letter")
         sys.exit(1)
 
     print("Success: PR title is valid.")
