@@ -564,7 +564,9 @@ def plot_metric_over_time(df_time: pd.DataFrame, metric: str) -> None:
     for route in sorted(df_m["route"].unique()):
         df_r = df_m[df_m["route"] == route]
         y_vals = [
-            df_r.loc[df_r["period"] == p, metric].squeeze() if p in df_r["period"].to_numpy() else None
+            df_r.loc[df_r["period"] == p, metric].squeeze()
+            if p in df_r["period"].to_numpy()
+            else None
             for p in ORDERED_PERIODS
         ]
         if all(v is None or pd.isna(v) for v in y_vals):
