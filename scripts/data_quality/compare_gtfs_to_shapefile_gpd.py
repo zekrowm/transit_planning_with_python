@@ -83,6 +83,8 @@ MIN_POINTS_PER_SHAPE: int = 2
 # --- Diagnostics ---
 VERBOSE: bool = True
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 
 def log(msg: str) -> None:
     """Print a message immediately when VERBOSE is True."""
@@ -675,7 +677,11 @@ def write_summary_csv(df: pd.DataFrame, path: Path) -> None:
 
 def main() -> None:
     """Entry point: run metrics, write CSV, and report where artifacts were saved."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     try:
         df = compute_per_route_metrics()
     except (FileNotFoundError, ValueError) as exc:

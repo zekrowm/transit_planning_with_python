@@ -121,6 +121,8 @@ SPECIAL_ROUTES: List[str] = [
 # Nearby-stop QA buffer
 NEARBY_STOP_BUFFER_FT: int = 500
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # Internal constants
 _FEET_TO_METERS = 0.3048
 _EARTH_RADIUS_M = 6_371_000.0
@@ -884,7 +886,11 @@ def generate_gtfs_checklists() -> None:
 
 def main() -> None:
     """Script entry point."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     generate_gtfs_checklists()
 
 

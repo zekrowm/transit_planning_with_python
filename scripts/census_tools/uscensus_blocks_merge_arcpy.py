@@ -70,16 +70,7 @@ COUNTY_CANDIDATES: tuple[str, ...] = ("COUNTYFP20", "COUNTYFP")
 # Whether to use in_memory or scratch GDB for temporary steps
 USE_IN_MEMORY: bool = True
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] %(asctime)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-LOGGER = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 
 # ArcPy can also echo messages to the GP window
@@ -124,7 +115,7 @@ def discover_tiger_datasets(root_dir: str | Path, pattern: str) -> list[str]:
         raise FileNotFoundError(f"No shapefiles matching '{pattern}' were found under {root_path}")
 
     matched.sort()
-    LOGGER.info("Discovered %d shapefile(s) to merge", len(matched))
+    logging.info("Discovered %d shapefile(s) to merge", len(matched))
     _gp(f"Discovered {len(matched)} shapefile(s) to merge.")
     return matched
 
@@ -157,7 +148,7 @@ def merge_shapefiles(
     arcpy.env.overwriteOutput = True
     out_fc = os.path.join(workspace, out_name)
 
-    LOGGER.info("Merging %d input shapefile(s) → %s", len(shp_paths), out_fc)
+    logging.info("Merging %d input shapefile(s) → %s", len(shp_paths), out_fc)
     _gp(f"Merging {len(shp_paths)} input shapefile(s) → {out_fc}")
     arcpy.management.Merge(shp_paths, out_fc)
     return out_fc
@@ -192,7 +183,7 @@ def ensure_fips_field(
     """
     fields = {f.name: f for f in arcpy.ListFields(feature_class)}
     if fips_field in fields:
-        LOGGER.info("Field %s already present — skipping creation", fips_field)
+        logging.info("Field %s already present — skipping creation", fips_field)
         _gp(f"Field {fips_field} already present — skipping creation.")
         return
 
@@ -205,7 +196,7 @@ def ensure_fips_field(
         )
 
     # Add the field
-    LOGGER.info("Adding FIPS field %s", fips_field)
+    logging.info("Adding FIPS field %s", fips_field)
     _gp(f"Adding FIPS field {fips_field}")
     arcpy.management.AddField(
         in_table=feature_class,
@@ -223,7 +214,7 @@ def ensure_fips_field(
             row[2] = f"{state_val}{county_val}"
             cursor.updateRow(row)
 
-    LOGGER.info("Populated new column %s", fips_field)
+    logging.info("Populated new column %s", fips_field)
     _gp(f"Populated new column {fips_field}")
 
 
@@ -250,7 +241,7 @@ def filter_by_fips(
         Path to filtered feature class (may be same as input if no filter).
     """
     if not fips_values:
-        LOGGER.info("FIPS filter empty — exporting full dataset")
+        logging.info("FIPS filter empty — exporting full dataset")
         _gp("FIPS filter empty — exporting full dataset")
         return feature_class
 
@@ -267,18 +258,18 @@ def filter_by_fips(
     sql_values = ",".join(f"'{val}'" for val in fips_values)
     where_clause = f"{arcpy.AddFieldDelimiters(feature_class, fips_field)} IN ({sql_values})"
 
-    LOGGER.info("Selecting by FIPS → %s", where_clause)
+    logging.info("Selecting by FIPS → %s", where_clause)
     _gp("Selecting by FIPS...")
 
     arcpy.management.MakeFeatureLayer(feature_class, "fips_lyr", where_clause)
     count = int(arcpy.management.GetCount("fips_lyr").getOutput(0))
     if count == 0:
-        LOGGER.warning("No features matched the FIPS list — output will be empty")
+        logging.warning("No features matched the FIPS list — output will be empty")
         _gp("Warning: No features matched the FIPS list — output will be empty.", "warning")
 
     arcpy.management.CopyFeatures("fips_lyr", out_fc)
 
-    LOGGER.info("Selected %d feature(s)", count)
+    logging.info("Selected %d feature(s)", count)
     _gp(f"Selected {count} feature(s)")
     return out_fc
 
@@ -294,11 +285,11 @@ def write_output(in_fc: str, out_path: str) -> None:
     if out_dir and not os.path.exists(out_dir):
         os.makedirs(out_dir, exist_ok=True)
 
-    LOGGER.info("Writing output → %s", out_path)
+    logging.info("Writing output → %s", out_path)
     _gp(f"Writing output → {out_path}")
     arcpy.management.CopyFeatures(in_fc, out_path)
     _gp("Output written successfully.")
-    LOGGER.info("Output written successfully")
+    logging.info("Output written successfully")
 
 
 # =============================================================================
@@ -308,6 +299,11 @@ def write_output(in_fc: str, out_path: str) -> None:
 
 def main() -> None:
     """Top-level workflow controller."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     try:
         shp_paths = discover_tiger_datasets(INPUT_DIR, INPUT_GLOB)
 
@@ -328,12 +324,12 @@ def main() -> None:
 
         write_output(final_fc, OUTPUT_PATH)
 
-        LOGGER.info("Finished successfully")
+        logging.info("Finished successfully")
         _gp("Finished successfully.")
 
     except Exception as exc:  # noqa: BLE001
         # ArcPy environment should see this
-        LOGGER.exception("Processing failed: %s", exc)
+        logging.exception("Processing failed: %s", exc)
         _gp(f"Processing failed: {exc}", "error")
         # For script tools, it's fine to raise
         sys.exit(1)

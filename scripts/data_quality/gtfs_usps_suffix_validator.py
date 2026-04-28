@@ -29,20 +29,7 @@ OUTPUT_CSV = Path("Path/To/Your/stop_name_suffix_errors.csv")
 INTERACTIVE = True  # Ask about unknown words?
 WRITE_EXEMPT = True  # Append approved words back to EXEMPT_FILE?
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-    handlers=[
-        logging.FileHandler("stop_name_validation.log", encoding="utf-8"),
-        logging.StreamHandler(sys.stdout),
-    ],
-    force=True,
-)
-LOGGER = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # -----------------------------------------------------------------------------
 # CONSTANTS
@@ -275,17 +262,17 @@ def load_word_list(path: Path | None) -> Set[str]:
     warning and return an empty set instead of crashing.
     """
     if path is None:
-        LOGGER.warning("No approved-words file provided; proceeding with USPS list only.")
+        logging.warning("No approved-words file provided; proceeding with USPS list only.")
         return set()
 
     if not path.exists():
-        LOGGER.warning(
+        logging.warning(
             "Approved-words file does not exist: %s — proceeding with USPS list only.", path
         )
         return set()
 
     if not path.is_file():
-        LOGGER.warning(
+        logging.warning(
             "Approved-words path is not a regular file: %s — proceeding with USPS list only.", path
         )
         return set()
@@ -293,7 +280,7 @@ def load_word_list(path: Path | None) -> Set[str]:
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
-        LOGGER.warning(
+        logging.warning(
             "Could not read approved-words file %s (%s) — proceeding with USPS list only.",
             path,
             exc,
@@ -301,7 +288,7 @@ def load_word_list(path: Path | None) -> Set[str]:
         return set()
 
     words = {ln.strip().upper() for ln in text.splitlines() if ln.strip()}
-    LOGGER.info("Loaded %d approved word(s) from %s", len(words), path)
+    logging.info("Loaded %d approved word(s) from %s", len(words), path)
     return words
 
 
@@ -328,7 +315,7 @@ def interactive_classify(tokens: Iterable[str]) -> Set[str]:
                 break
             if ans in {"q", "quit"}:
                 remaining = total - idx
-                LOGGER.warning(
+                logging.warning(
                     "User exited interactive review early: %d of %d token(s) were not considered "
                     "and will be treated as invalid. %d token(s) approved before exit.",
                     remaining,
@@ -336,7 +323,7 @@ def interactive_classify(tokens: Iterable[str]) -> Set[str]:
                     len(approved),
                 )
                 return approved
-            LOGGER.info("Please answer y, n, or q.")
+            logging.info("Please answer y, n, or q.")
 
     return approved
 
@@ -354,7 +341,7 @@ def append_words(path: Path, words: Iterable[str]) -> None:
 
     # Guard against path being a directory (e.g. Path('.') from an empty config value).
     if path.exists() and not path.is_file():
-        LOGGER.warning(
+        logging.warning(
             "Cannot append approved words: %s is not a regular file. "
             "%d approval(s) from this session were NOT persisted: %s",
             path,
@@ -366,7 +353,7 @@ def append_words(path: Path, words: Iterable[str]) -> None:
     existing: set[str] = load_word_list(path) if path.is_file() else set()
     new: list[str] = sorted(words - existing)
     if not new:
-        LOGGER.debug("No new exemptions to write → %s", path)
+        logging.debug("No new exemptions to write → %s", path)
         return
 
     try:
@@ -376,7 +363,7 @@ def append_words(path: Path, words: Iterable[str]) -> None:
             for w in new:
                 fh.write(f"{w}\n")
     except (OSError, PermissionError) as exc:
-        LOGGER.warning(
+        logging.warning(
             "Failed to write approved words to %s (%s). "
             "%d approval(s) from this session were NOT persisted: %s",
             path,
@@ -386,7 +373,7 @@ def append_words(path: Path, words: Iterable[str]) -> None:
         )
         return
 
-    LOGGER.info("%s %s with %d new word(s): %s", action, path, len(new), ", ".join(new))
+    logging.info("%s %s with %d new word(s): %s", action, path, len(new), ", ".join(new))
 
 
 def find_offending_words(name: str, valid: Set[str]) -> List[str]:
@@ -446,7 +433,7 @@ def run_validation(
         output_csv.parent.mkdir(parents=True, exist_ok=True)
         errs.to_csv(output_csv, index=False)
         logging.info("Saved %d offending rows → %s", len(errs), output_csv)
-        LOGGER.info("Wrote %d offending rows → %s", len(errs), output_csv)
+        logging.info("Wrote %d offending rows → %s", len(errs), output_csv)
 
     return errs
 
@@ -458,7 +445,16 @@ def run_validation(
 
 def main() -> None:
     """Run the stop‑name validation workflow."""
-    # Note: logging.basicConfig is already called at module level in this file
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[
+            logging.FileHandler("stop_name_validation.log", encoding="utf-8"),
+            logging.StreamHandler(sys.stdout),
+        ],
+        force=True,
+    )
     errors_df = run_validation(
         STOPS_FILE,
         exempt_path=EXEMPT_FILE,

@@ -67,11 +67,7 @@ EXPORT_TIMEPOINTS_ONLY: bool = True
 # distances roughly matches the trip's full shape_dist_traveled (within a small margin).
 VALIDATE_TIMEPOINT_DISTANCE: bool = True
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # FUNCTIONS
@@ -917,6 +913,11 @@ def load_gtfs_data(
 
 def main() -> None:
     """Main script function for generating GTFS pattern exports."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     if not os.path.exists(OUTPUT_DIR):
         try:
             os.makedirs(OUTPUT_DIR)

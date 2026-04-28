@@ -47,6 +47,8 @@ CORE_EVENT_COLS: list[str] = [
     "stop_name",  #  ← new
 ]
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -487,7 +489,11 @@ def export_results(
 
 def main() -> None:
     """Command-line entry point."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     logging.info("▸ Listing observed-data files …")
     observed_files = list_observed_files(OBSERVED_DATA_PATH)
     logging.info("  %d files found.", len(observed_files))

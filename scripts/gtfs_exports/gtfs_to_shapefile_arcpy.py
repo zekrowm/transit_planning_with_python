@@ -67,26 +67,7 @@ ROUTE_SHORT_LEN: int = 64
 SHAPE_ID_LEN: int = 64
 PATTERN_MODE_LEN: int = 16
 
-# ============================================================================
-# LOGGING
-# ============================================================================
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
-)
-
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
-LOGGER.propagate = False
-
-if not LOGGER.handlers:
-    _handler = logging.StreamHandler(sys.stdout)
-    _handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(name)s - %(message)s"),
-    )
-    LOGGER.addHandler(_handler)
-
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # ============================================================================
 # HELPERS – I/O AND VALIDATION
@@ -118,17 +99,17 @@ def _read_gtfs_tables(gtfs_path: str | Path) -> Dict[str, pd.DataFrame]:
         for key, name in filenames.items():
             p = root / name
             if p.exists():
-                LOGGER.info("Reading %s", p)
+                logging.info("Reading %s", p)
                 out[key] = pd.read_csv(p)
             else:
-                LOGGER.warning("GTFS: %s not found at %s", name, p)
+                logging.warning("GTFS: %s not found at %s", name, p)
         return out
 
     if gtfs.is_dir():
-        LOGGER.info("Detected GTFS directory at %s", gtfs)
+        logging.info("Detected GTFS directory at %s", gtfs)
         tables = _read_from_dir(gtfs)
     elif gtfs.is_file() and gtfs.suffix.lower() == ".zip":
-        LOGGER.info("Detected GTFS zip at %s – extracting …", gtfs)
+        logging.info("Detected GTFS zip at %s – extracting …", gtfs)
         tmp = tempfile.TemporaryDirectory()
         with zipfile.ZipFile(gtfs, "r") as zf:
             zf.extractall(tmp.name)
@@ -236,7 +217,7 @@ def _safe_add_field(
     """
     existing = {f.name.lower() for f in arcpy.ListFields(table) or []}
     if name.lower() in existing:
-        LOGGER.info("Field %s already exists on %s – skipping AddField.", name, table)
+        logging.info("Field %s already exists on %s – skipping AddField.", name, table)
         return True
 
     try:
@@ -254,7 +235,7 @@ def _safe_add_field(
         )
         return True
     except arcpy.ExecuteError:
-        LOGGER.warning(
+        logging.warning(
             "AddField failed for %s on %s (type=%s). Messages:\n%s",
             name,
             table,
@@ -287,14 +268,14 @@ def _build_stop_dataframe(stops_df: pd.DataFrame) -> pd.DataFrame:
         df = df.dropna(subset=[col])
         dropped = before - len(df)
         if dropped > 0:
-            LOGGER.warning(
+            logging.warning(
                 "Dropped %d stops due to invalid values in %s.",
                 dropped,
                 col,
             )
 
     if df.empty:
-        LOGGER.warning("No valid stops remain after cleaning.")
+        logging.warning("No valid stops remain after cleaning.")
 
     return df[["stop_id", "stop_name", "stop_lat", "stop_lon"]]
 
@@ -321,14 +302,14 @@ def _build_shape_geometries(shapes_df: pd.DataFrame) -> Dict[str, arcpy.Polyline
         df = df.dropna(subset=[col])
         dropped = before - len(df)
         if dropped > 0:
-            LOGGER.warning(
+            logging.warning(
                 "Dropped %d shape points due to invalid values in %s.",
                 dropped,
                 col,
             )
 
     if df.empty:
-        LOGGER.warning("No valid shape points remain after cleaning.")
+        logging.warning("No valid shape points remain after cleaning.")
         return {}
 
     df["shape_pt_sequence"] = df["shape_pt_sequence"].astype(int)
@@ -345,12 +326,12 @@ def _build_shape_geometries(shapes_df: pd.DataFrame) -> Dict[str, arcpy.Polyline
             array.add(arcpy.Point(lon, lat))
 
         if array.count < 2:
-            LOGGER.debug("Shape %s has fewer than 2 points; skipping.", shape_id)
+            logging.debug("Shape %s has fewer than 2 points; skipping.", shape_id)
             continue
 
         out[shape_id] = arcpy.Polyline(array, sr)
 
-    LOGGER.info("Built %d shape geometries.", len(out))
+    logging.info("Built %d shape geometries.", len(out))
     return out
 
 
@@ -375,7 +356,7 @@ def _build_route_patterns(
     - If route_filter_out is not None, those route_ids are removed.
     """
     if trips_df.empty:
-        LOGGER.warning("trips.txt is empty – no route patterns can be built.")
+        logging.warning("trips.txt is empty – no route patterns can be built.")
         return []
 
     trips = trips_df.copy()
@@ -395,7 +376,7 @@ def _build_route_patterns(
     trips["direction_id"] = trips["direction_id"].astype(int)
     dropped = before - len(trips)
     if dropped > 0:
-        LOGGER.warning(
+        logging.warning(
             "Dropped %d trips due to missing shape_id or direction_id.",
             dropped,
         )
@@ -405,7 +386,7 @@ def _build_route_patterns(
         before = len(trips)
         trips = trips[trips["route_id"].isin(route_filter_in)]
         removed = before - len(trips)
-        LOGGER.info(
+        logging.info(
             "Route filter IN applied – kept %d trips (dropped %d).",
             len(trips),
             removed,
@@ -415,14 +396,14 @@ def _build_route_patterns(
         before = len(trips)
         trips = trips[~trips["route_id"].isin(route_filter_out)]
         removed = before - len(trips)
-        LOGGER.info(
+        logging.info(
             "Route filter OUT applied – kept %d trips (dropped %d).",
             len(trips),
             removed,
         )
 
     if trips.empty:
-        LOGGER.warning(
+        logging.warning(
             "No valid trips remain after cleaning and filtering – cannot build patterns.",
         )
         return []
@@ -447,7 +428,7 @@ def _build_route_patterns(
         )
 
         if counts.empty:
-            LOGGER.warning("No (route, direction, shape) combinations found.")
+            logging.warning("No (route, direction, shape) combinations found.")
             return []
 
         chosen = (
@@ -483,7 +464,7 @@ def _build_route_patterns(
         )
 
         if merged.empty:
-            LOGGER.warning("No joined trip/stop records; cannot compute 'most_stops'.")
+            logging.warning("No joined trip/stop records; cannot compute 'most_stops'.")
             return []
 
         stop_counts = (
@@ -503,7 +484,7 @@ def _build_route_patterns(
 
     elif pattern_mode == "longest":
         if not shape_geoms:
-            LOGGER.warning("No shape geometries; cannot compute 'longest' patterns.")
+            logging.warning("No shape geometries; cannot compute 'longest' patterns.")
             return []
 
         combos = trips[["route_id", "direction_id", "shape_id"]].drop_duplicates().copy()
@@ -518,7 +499,7 @@ def _build_route_patterns(
         combos = combos.dropna(subset=["length_km"])
 
         if combos.empty:
-            LOGGER.warning("No valid shape lengths for 'longest' patterns.")
+            logging.warning("No valid shape lengths for 'longest' patterns.")
             return []
 
         chosen = (
@@ -534,7 +515,7 @@ def _build_route_patterns(
         raise ValueError(f"Unsupported pattern_mode: {pattern_mode}")
 
     if chosen.empty:
-        LOGGER.warning("Pattern selection produced no rows.")
+        logging.warning("Pattern selection produced no rows.")
         return []
 
     records: List[Dict[str, object]] = []
@@ -545,7 +526,7 @@ def _build_route_patterns(
         geom = shape_geoms.get(shape_id)
 
         if geom is None:
-            LOGGER.debug(
+            logging.debug(
                 "Missing geometry for shape_id=%s (route_id=%s, dir=%s); skipping.",
                 shape_id,
                 route_id,
@@ -563,7 +544,7 @@ def _build_route_patterns(
             },
         )
 
-    LOGGER.info(
+    logging.info(
         "Built %d route pattern records (pattern_mode=%s).",
         len(records),
         pattern_mode,
@@ -605,12 +586,12 @@ def _merge_route_directions(
                 try:
                     merged[route_id]["geometry"] = existing_geom.union(geom)
                 except arcpy.ExecuteError:
-                    LOGGER.warning(
+                    logging.warning(
                         "Union failed for route %s; keeping existing geometry only.",
                         route_id,
                     )
 
-    LOGGER.info(
+    logging.info(
         "Merged directions: %d input records → %d route-level records.",
         len(routes),
         len(merged),
@@ -626,7 +607,7 @@ def _merge_route_directions(
 def _export_stops_shapefile(stops_df: pd.DataFrame, out_folder: Path) -> None:
     """Export GTFS stops to gtfs_stops.shp (WGS84 points)."""
     if stops_df.empty:
-        LOGGER.warning("No stops to export – skipping gtfs_stops.shp.")
+        logging.warning("No stops to export – skipping gtfs_stops.shp.")
         return
 
     arcpy.env.overwriteOutput = True
@@ -637,7 +618,7 @@ def _export_stops_shapefile(stops_df: pd.DataFrame, out_folder: Path) -> None:
 
     existing_fc = os.path.join(out_folder_str, out_name + ".shp")
     if arcpy.Exists(existing_fc):
-        LOGGER.info("Deleting existing %s", existing_fc)
+        logging.info("Deleting existing %s", existing_fc)
         arcpy.management.Delete(existing_fc)
 
     try:
@@ -652,7 +633,7 @@ def _export_stops_shapefile(stops_df: pd.DataFrame, out_folder: Path) -> None:
         )
         fc_path = result[0]
     except arcpy.ExecuteError:
-        LOGGER.error("ArcPy error in CreateFeatureclass (stops): %s", arcpy.GetMessages(2))
+        logging.error("ArcPy error in CreateFeatureclass (stops): %s", arcpy.GetMessages(2))
         raise
 
     _safe_add_field(fc_path, "stop_id", "TEXT", field_length=STOP_ID_LEN)
@@ -675,7 +656,7 @@ def _export_stops_shapefile(stops_df: pd.DataFrame, out_folder: Path) -> None:
             cursor.insertRow([stop_id, stop_name, lat, lon, geom])
             rows_written += 1
 
-    LOGGER.info("Wrote %s (%d features).", fc_path, rows_written)
+    logging.info("Wrote %s (%d features).", fc_path, rows_written)
 
 
 def _export_lines_shapefile(
@@ -686,14 +667,14 @@ def _export_lines_shapefile(
 ) -> None:
     """Export selected route patterns to gtfs_lines.shp (WGS84 polylines)."""
     if not routes:
-        LOGGER.warning("No route patterns to export – skipping gtfs_lines.shp.")
+        logging.warning("No route patterns to export – skipping gtfs_lines.shp.")
         return
 
     if merge_directions:
-        LOGGER.info("Merging all directions to one feature per route_id.")
+        logging.info("Merging all directions to one feature per route_id.")
         routes = _merge_route_directions(routes)
         if not routes:
-            LOGGER.warning(
+            logging.warning(
                 "No routes remain after merging directions – skipping gtfs_lines.shp.",
             )
             return
@@ -706,7 +687,7 @@ def _export_lines_shapefile(
 
     existing_fc = os.path.join(out_folder_str, out_name + ".shp")
     if arcpy.Exists(existing_fc):
-        LOGGER.info("Deleting existing %s", existing_fc)
+        logging.info("Deleting existing %s", existing_fc)
         arcpy.management.Delete(existing_fc)
 
     try:
@@ -721,7 +702,7 @@ def _export_lines_shapefile(
         )
         fc_path = result[0]
     except arcpy.ExecuteError:
-        LOGGER.error("ArcPy error in CreateFeatureclass (lines): %s", arcpy.GetMessages(2))
+        logging.error("ArcPy error in CreateFeatureclass (lines): %s", arcpy.GetMessages(2))
         raise
 
     # Try to add fields; track which ones actually exist.
@@ -737,7 +718,7 @@ def _export_lines_shapefile(
     if _safe_add_field(fc_path, "shape_id", "TEXT", field_length=SHAPE_ID_LEN):
         added_fields.append("shape_id")
     else:
-        LOGGER.error(
+        logging.error(
             "Field shape_id could not be added to %s. Continuing without shape_id attribute.",
             fc_path,
         )
@@ -787,7 +768,7 @@ def _export_lines_shapefile(
             cursor.insertRow(values)
             rows_written += 1
 
-    LOGGER.info("Wrote %s (%d features).", fc_path, rows_written)
+    logging.info("Wrote %s (%d features).", fc_path, rows_written)
 
 
 # ============================================================================
@@ -797,27 +778,32 @@ def _export_lines_shapefile(
 
 def main() -> None:  # noqa: D401
     """Run the GTFS-to-shapefile pipeline with pattern selection."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     arcpy.env.overwriteOutput = True
 
     out_dir = _ensure_output_folder(OUTPUT_FOLDER)
-    LOGGER.info("Output folder: %s", out_dir)
+    logging.info("Output folder: %s", out_dir)
 
-    LOGGER.info("STEP 0  Reading GTFS tables …")
+    logging.info("STEP 0  Reading GTFS tables …")
     dfs = _read_gtfs_tables(GTFS_PATH)
 
     try:
         _validate_tables(dfs, EXPORT_KIND, PATTERN_MODE)
     except ValueError as err:
-        LOGGER.error("ERROR – invalid GTFS feed:\n%s", err)
+        logging.error("ERROR – invalid GTFS feed:\n%s", err)
         sys.exit(1)
 
     if EXPORT_KIND in ("stops", "both"):
-        LOGGER.info("STEP 1  Processing stops …")
+        logging.info("STEP 1  Processing stops …")
         stops_df = _build_stop_dataframe(dfs["stops"])
         _export_stops_shapefile(stops_df, out_dir)
 
     if EXPORT_KIND in ("lines", "both"):
-        LOGGER.info("STEP 2  Processing shapes and patterns (mode=%s) …", PATTERN_MODE)
+        logging.info("STEP 2  Processing shapes and patterns (mode=%s) …", PATTERN_MODE)
 
         shapes_df = dfs.get("shapes")
         trips_df = dfs.get("trips")
@@ -825,7 +811,7 @@ def main() -> None:  # noqa: D401
         routes_df = dfs.get("routes")
 
         if shapes_df is None or trips_df is None:
-            LOGGER.error(
+            logging.error(
                 "shapes.txt and trips.txt are required for lines export; skipping gtfs_lines.shp.",
             )
         else:
@@ -855,15 +841,15 @@ def main() -> None:  # noqa: D401
                 MERGE_DIRECTIONS,
             )
 
-    LOGGER.info("All done.")
+    logging.info("All done.")
 
 
 if __name__ == "__main__":
     try:
         main()
     except arcpy.ExecuteError:
-        LOGGER.error("ArcPy ExecuteError:\n%s", arcpy.GetMessages())
+        logging.error("ArcPy ExecuteError:\n%s", arcpy.GetMessages())
         raise
     except Exception:
-        LOGGER.exception("UNEXPECTED ERROR")
+        logging.exception("UNEXPECTED ERROR")
         sys.exit(1)

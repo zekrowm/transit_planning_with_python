@@ -67,6 +67,8 @@ DESCRIPTIONS_ROADWAY = {
     "FULLNAME": "Full street name",
 }
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -491,8 +493,8 @@ def main() -> None:
     # 1. Configure logging *inside* main so importing this module is silent
     # ------------------------------------------------------------------
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     logging.info("Starting processing …")

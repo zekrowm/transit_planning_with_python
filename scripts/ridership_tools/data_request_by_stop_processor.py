@@ -77,16 +77,7 @@ COLUMNS_TO_RETAIN: Sequence[str] = (
     "ALIGHT_ALL",
 )
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s: %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # FUNCTIONS
@@ -224,10 +215,10 @@ def read_excel_file(input_file: Path) -> pd.DataFrame:
     try:
         return pd.read_excel(input_file)
     except FileNotFoundError:
-        logger.error("The file '%s' does not exist.", input_file)
+        logging.error("The file '%s' does not exist.", input_file)
         sys.exit(1)
     except ValueError as exc:  # pandas re-raises most Excel errors as ValueError
-        logger.error("Error reading the Excel file: %s", exc)
+        logging.error("Error reading the Excel file: %s", exc)
         sys.exit(1)
 
 
@@ -243,7 +234,7 @@ def verify_required_columns(data_frame: pd.DataFrame, required_columns: Sequence
     """
     missing_columns: List[str] = [col for col in required_columns if col not in data_frame.columns]
     if missing_columns:
-        logger.error("Missing columns: %s", missing_columns)
+        logging.error("Missing columns: %s", missing_columns)
         sys.exit(1)
 
 
@@ -316,9 +307,9 @@ def write_to_excel(
                 df_agg.to_excel(writer, sheet_name=period, index=False)
 
         adjust_excel_formatting(output_file)
-        logger.info("The processed file has been saved as '%s'.", output_file)
+        logging.info("The processed file has been saved as '%s'.", output_file)
     except (OSError, PermissionError) as exc:
-        logger.error("Error writing the processed Excel file: %s", exc)
+        logging.error("Error writing the processed Excel file: %s", exc)
         sys.exit(1)
 
 
@@ -351,7 +342,7 @@ def adjust_excel_formatting(output_file: Path) -> None:
 
         workbook.save(output_file)
     except (OSError, PermissionError) as exc:
-        logger.error("Error adjusting Excel formatting: %s", exc)
+        logging.error("Error adjusting Excel formatting: %s", exc)
         sys.exit(1)
 
 
@@ -441,6 +432,11 @@ def process_aggregations(
 
 def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
     """Run the full read → filter → aggregate → write pipeline."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     input_file: Path = INPUT_FILE_PATH
 
     # Build output file path

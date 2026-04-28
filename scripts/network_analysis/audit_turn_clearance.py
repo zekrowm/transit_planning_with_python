@@ -92,6 +92,8 @@ MIN_LATERAL_OFFSET_FT: float = 10.0  # must exceed this to be a real turn
 ARROW_SPACING_FT: float = 100.0  # distance between arrow heads along the line
 ARROW_SIZE: float = 10.0  # matplotlib arrow head size (points)
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -549,6 +551,11 @@ def _export_flagged_pngs(
 
 def main() -> None:  # noqa: D401
     """Run the GTFS left‑turn clearance QA pipeline."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     # -------------------------------------------------------------
     # STEP 0 — Read & validate GTFS
     # -------------------------------------------------------------
@@ -632,7 +639,6 @@ def main() -> None:  # noqa: D401
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     try:
         main()
     except Exception as exc:  # noqa: BLE001

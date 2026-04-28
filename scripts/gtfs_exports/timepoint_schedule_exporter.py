@@ -71,6 +71,8 @@ OPTIONAL_GTFS_FILES: tuple[str, ...] = (
     "fare_rules.txt",
 )
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -930,8 +932,8 @@ def load_gtfs_data(
 def main() -> None:
     """Coordinate the end-to-end GTFS → Excel workflow."""
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 

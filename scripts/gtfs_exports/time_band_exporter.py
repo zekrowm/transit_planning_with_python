@@ -39,11 +39,7 @@ FILTER_OUT_ROUTE_SHORT_NAMES: List[str] = []
 FILTER_IN_SERVICE_IDS: List[str] = []
 FILTER_OUT_SERVICE_IDS: List[str] = []
 
-# --------------------------------------------------------------------------------------------------
-# LOGGING
-# --------------------------------------------------------------------------------------------------
-
-LOG_LEVEL = logging.INFO
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 EXPORT_TIMEPOINTS_ONLY = True  # keep only stops where timepoint == 1
 MISSING_TIME = "–"
 
@@ -349,8 +345,8 @@ def main() -> None:
     """Entry-point when the module is executed as a script."""
     logging.basicConfig(
         level=LOG_LEVEL,
-        format="%(asctime)s %(levelname)s %(message)s",
-        datefmt="%H:%M:%S",
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     logging.info("GTFS folder   : %s", GTFS_FOLDER)
     logging.info("Output folder : %s", OUTPUT_FOLDER)

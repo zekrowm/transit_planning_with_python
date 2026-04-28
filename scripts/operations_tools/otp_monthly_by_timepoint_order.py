@@ -89,15 +89,7 @@ PLOT_DPI: int = 160
 OTP_EARLY_MIN: int = -1
 OTP_LATE_MIN: int = 6
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s: %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # ARGUMENTS
@@ -876,6 +868,11 @@ def build_variation_index(df_monthly: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     """Entry-point guarded by ``if __name__ == "__main__"``."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     parser = build_argparser()
     args, _unknown = parser.parse_known_args()
 

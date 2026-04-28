@@ -46,6 +46,8 @@ PERCENT_TIME_COLUMNS = {
     "Average Actual Running Time": "PctOfRuntime(%)",
 }
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -497,6 +499,11 @@ def main() -> None:
 
     File paths left blank in *CONFIGURATION* are skipped with a console notice.
     """
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     if WKDY_FILE_PATH:
         process_file(WKDY_FILE_PATH, "wkdy")
     else:
@@ -519,5 +526,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()

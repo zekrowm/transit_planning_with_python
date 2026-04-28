@@ -100,6 +100,8 @@ SEGMENT_MEASURE_PADDING_M = 50.0
 # Buffer distance (meters) used for overview plots when no flagged stops exist.
 ROUTE_OVERVIEW_BUFFER_M = 30.0
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # Plotting constants
 # =============================================================================
@@ -1778,7 +1780,11 @@ def run_plotting(ctx: GTFSContext, mismatches_df: pd.DataFrame) -> None:
 
 def main() -> None:
     """Entry point for running the segment stop comparison QA check."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     try:

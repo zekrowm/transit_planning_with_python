@@ -47,7 +47,7 @@ DWELL_THRESHOLD: int = 3  # minutes
 LAYOVER_THRESHOLD: int = 20  # minutes
 MAX_TRIPS_PER_BLOCK: int = 150
 
-LOG_LEVEL: str = "INFO"  # DEBUG / INFO / WARNING / ERROR
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # ==============================================================================
 # FUNCTIONS
@@ -760,8 +760,8 @@ def run() -> None:
     """End‑to‑end pipeline: load GTFS, build per‑block schedules, write XLSX."""
     logging.basicConfig(
         level=LOG_LEVEL,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     gtfs_path = Path(GTFS_FOLDER_PATH)

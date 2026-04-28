@@ -19,7 +19,6 @@ Assumptions
 from __future__ import annotations
 
 import logging
-import sys
 from pathlib import Path
 from typing import Iterable, List, Mapping
 
@@ -55,16 +54,7 @@ USE_SHAPE_BUFFER = True  # True → buffer route geometry; False → buffer st
 BUFFER_DIST_FT = 1320.0  # ¼ mile in feet
 PLOT_FIG_DPI = 250  # resolution for PNG exports
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s | %(name)s | %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-log = logging.getLogger("gtfs_buffer_analysis")
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # FUNCTIONS
@@ -86,7 +76,7 @@ def _load_gtfs_tables(gtfs_dir: Path) -> Mapping[str, pd.DataFrame]:
         if not path.exists():
             raise FileNotFoundError(path)
         tables[fn] = pd.read_csv(path)
-        log.debug("Loaded %s (%d rows)", fn, len(tables[fn]))
+        logging.debug("Loaded %s (%d rows)", fn, len(tables[fn]))
     return tables
 
 
@@ -164,7 +154,7 @@ def _prepare_route_buffers(
             geoms = stops[stops.stop_id.isin(trip_stops)].geometry
 
         if geoms.empty:
-            log.warning("No geometry for route %s – skipped", route_id)
+            logging.warning("No geometry for route %s – skipped", route_id)
             continue
 
         buf = unary_union(list(geoms)).buffer(buff_dist_m)
@@ -200,25 +190,25 @@ def _load_layers(
         matches = sorted(p for p in shp_dir.rglob("*.shp") if p.name.lower() == filename.lower())
 
         if not matches:
-            log.warning("Layer %s NOT FOUND anywhere under %s", filename, shp_dir)
+            logging.warning("Layer %s NOT FOUND anywhere under %s", filename, shp_dir)
             continue
         if len(matches) > 1:
-            log.warning("Multiple copies of %s found; using %s", filename, matches[0])
+            logging.warning("Multiple copies of %s found; using %s", filename, matches[0])
 
         path = matches[0]
 
         try:
             gdf = gpd.read_file(path)
         except Exception as exc:  # pragma: no cover
-            log.warning("Failed to read %s – %s", path, exc)
+            logging.warning("Failed to read %s – %s", path, exc)
             continue
 
         if id_col not in gdf.columns:
-            log.warning("Column %s missing in %s – skipped", id_col, path)
+            logging.warning("Column %s missing in %s – skipped", id_col, path)
             continue
 
         layers[filename] = gdf[[id_col, "geometry"]].to_crs("EPSG:3857")
-        log.info("Loaded %s (%d features)", path.relative_to(shp_dir), len(gdf))
+        logging.info("Loaded %s (%d features)", path.relative_to(shp_dir), len(gdf))
 
     return layers
 
@@ -276,7 +266,7 @@ def _count_features(
         plt.close(fig)
 
         summary_records.append(per_route_counts)
-        log.info("Processed route %s – PNG & CSV written", route_id)
+        logging.info("Processed route %s – PNG & CSV written", route_id)
 
     summary_df = pd.DataFrame(summary_records).set_index("route_id").fillna(0).astype(int)
     return summary_df
@@ -289,33 +279,38 @@ def _count_features(
 
 def main() -> None:
     """Run the GTFS feature‑coverage analysis."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    log.info("Loading GTFS from %s", GTFS_DIR)
+    logging.info("Loading GTFS from %s", GTFS_DIR)
     tables = _load_gtfs_tables(GTFS_DIR)
 
-    log.info("Building route buffers (use_shape_buffer=%s)", USE_SHAPE_BUFFER)
+    logging.info("Building route buffers (use_shape_buffer=%s)", USE_SHAPE_BUFFER)
     route_buffers = _prepare_route_buffers(tables, USE_SHAPE_BUFFER, BUFFER_DIST_FT)
 
     if route_buffers.empty:
-        log.error("No buffers produced – nothing to do")
+        logging.error("No buffers produced – nothing to do")
         return
 
-    log.info("Loading designated shapefiles")
+    logging.info("Loading designated shapefiles")
     layers = _load_layers(LAYER_SPECS, SHP_INPUT_DIR)
 
     if not layers:
-        log.error("No valid layers loaded – nothing to analyze")
+        logging.error("No valid layers loaded – nothing to analyze")
         return
 
-    log.info("Counting features per route")
+    logging.info("Counting features per route")
     summary_df = _count_features(route_buffers, layers, LAYER_SPECS, OUTPUT_DIR)
 
     # Save summary CSV
     summary_path = OUTPUT_DIR / "all_routes_feature_summary.csv"
     summary_df.to_csv(summary_path)
-    log.info("Summary written to %s", summary_path)
-    log.info("Done.")
+    logging.info("Summary written to %s", summary_path)
+    logging.info("Done.")
 
 
 if __name__ == "__main__":

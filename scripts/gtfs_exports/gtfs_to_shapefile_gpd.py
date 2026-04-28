@@ -40,6 +40,8 @@ DEFAULT_OUTPUT_DIR: Optional[Path] = Path(r"/path/to/your/default_output_folder"
 # DEFAULT_GTFS_DIR = None
 # DEFAULT_OUTPUT_DIR = None
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # ===========================================================================
 # FUNCTIONS
 # ===========================================================================
@@ -398,6 +400,11 @@ def main() -> None:
     It demonstrates calling `gtfs_to_shapefiles` using both configured
     default paths and explicitly provided paths.
     """
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     # Scenario 1: Use default paths configured at the top of the file
     # Make sure DEFAULT_GTFS_DIR and DEFAULT_OUTPUT_DIR are set correctly above!
     logging.info("\nRunning example using default paths from configuration...")
@@ -460,7 +467,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # This block executes only when the script is run directly.
-    # It calls the main() function which contains the example usage scenarios.
-    logging.basicConfig(level=logging.INFO)
     main()

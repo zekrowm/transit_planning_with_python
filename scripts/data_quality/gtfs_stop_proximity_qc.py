@@ -52,9 +52,7 @@ PASS_SAFE_STOPS = True  # if True, skip any close pair where either stop is "saf
 # If True, exclude pairs that share a route but are served exclusively by opposite directions.
 EXCLUDE_OPPOSITE_DIRECTION_SAME_ROUTE_PAIRS = True
 
-LOG_LEVEL = "INFO"  # DEBUG | INFO | WARNING
-
-LOGGER = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # GEOMETRY HELPERS
@@ -201,7 +199,7 @@ def load_stops(stops_txt: Path) -> pd.DataFrame:
     df = df.dropna(subset=["stop_lat", "stop_lon", "stop_id"]).reset_index(drop=True)
     dropped = before - len(df)
     if dropped:
-        LOGGER.warning("Dropped %s stops with missing/invalid lat/lon/stop_id.", dropped)
+        logging.warning("Dropped %s stops with missing/invalid lat/lon/stop_id.", dropped)
 
     df["stop_name"] = df["stop_name"].fillna("")
     return df
@@ -224,7 +222,7 @@ def build_stop_route_direction_index(gtfs_dir: Path) -> dict[str, dict[str, set[
     trips_path = gtfs_dir / "trips.txt"
 
     if not stop_times_path.exists() or not trips_path.exists():
-        LOGGER.warning("Missing stop_times.txt or trips.txt; direction-based filtering disabled.")
+        logging.warning("Missing stop_times.txt or trips.txt; direction-based filtering disabled.")
         return {}
 
     stop_times = pd.read_csv(
@@ -236,7 +234,7 @@ def build_stop_route_direction_index(gtfs_dir: Path) -> dict[str, dict[str, set[
     trips = pd.read_csv(trips_path, dtype={"trip_id": "string", "route_id": "string"})
 
     if "direction_id" not in trips.columns:
-        LOGGER.warning("trips.txt has no direction_id; direction-based filtering disabled.")
+        logging.warning("trips.txt has no direction_id; direction-based filtering disabled.")
         return {}
 
     trips = trips[["trip_id", "route_id", "direction_id"]].copy()
@@ -406,7 +404,11 @@ def summarize_by_stop(pairs: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     """Run the stop proximity QC."""
-    logging.basicConfig(level=getattr(logging, LOG_LEVEL), format="%(levelname)s: %(message)s")
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     validate_gtfs_files_exist(str(GTFS_DIR))
 
@@ -440,10 +442,10 @@ def main() -> None:
     pairs.to_csv(pairs_path, index=False)
     summary.to_csv(summary_path, index=False)
 
-    LOGGER.info("Stops loaded: %s", len(stops))
-    LOGGER.info("Close pairs found (after filtering): %s", 0 if pairs.empty else len(pairs))
-    LOGGER.info("Wrote: %s", pairs_path)
-    LOGGER.info("Wrote: %s", summary_path)
+    logging.info("Stops loaded: %s", len(stops))
+    logging.info("Close pairs found (after filtering): %s", 0 if pairs.empty else len(pairs))
+    logging.info("Wrote: %s", pairs_path)
+    logging.info("Wrote: %s", summary_path)
 
 
 if __name__ == "__main__":

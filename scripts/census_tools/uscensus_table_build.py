@@ -67,16 +67,7 @@ TOPIC_SIGNATURES: dict[str, Sequence[str] | str] = {
     "AGE_FILES": ("B01001",),
 }
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] %(asctime)s :: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-LOGGER = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # FUNCTIONS
@@ -605,7 +596,12 @@ __all__ = ["build_joined_table"]
 
 def main() -> None:
     """Orchestrate discovery, join, and optional CSV export."""
-    LOGGER.info("Discovering Census datasets under %s …", ROOT_DATA_DIR)
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logging.info("Discovering Census datasets under %s …", ROOT_DATA_DIR)
     discovered = discover_census_files(ROOT_DATA_DIR)
 
     df_joined = build_joined_table(
@@ -619,13 +615,13 @@ def main() -> None:
         age_files=discovered["AGE_FILES"],
         county_fips_filter=COUNTY_FIPS_FILTER,
     )
-    LOGGER.info("Created DataFrame with shape %s", df_joined.shape)
+    logging.info("Created DataFrame with shape %s", df_joined.shape)
 
     if CSV_OUTPUT_PATH:
         out_path = Path(CSV_OUTPUT_PATH).expanduser().resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
         df_joined.to_csv(out_path, index=False)
-        LOGGER.info("CSV written to %s", out_path)
+        logging.info("CSV written to %s", out_path)
 
 
 if __name__ == "__main__":

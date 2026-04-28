@@ -44,7 +44,7 @@ SERVICE_ID_FILTER: set[str] | None = {"2", "3", "4"}  # Replace with your values
 
 OUTPUT_FILENAME = "stop_route_calendar_impacts.csv"
 
-LOG_LEVEL = logging.INFO
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 
 # =============================================================================
@@ -466,7 +466,11 @@ def write_single_output(df: pd.DataFrame, output_dir: Path, filename: str) -> No
 
 def main() -> None:
     """Main execution function."""
-    logging.basicConfig(level=LOG_LEVEL, format="%(levelname)s | %(message)s")
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     logging.info("Loading GTFS tables from: %s", GTFS_DIR)
     t = load_gtfs_tables(GTFS_DIR)

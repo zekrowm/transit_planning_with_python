@@ -56,6 +56,8 @@ TARGET_EPSG = 2248  # Adjust if your region uses a different EPSG code
 # Specify the district column name in your shapefile
 DISTRICT_FIELD = "DISTRICT"
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -324,10 +326,10 @@ def main() -> None:
         6. Build route-vs-district matrix.
         7. Write result to Excel.
     """
-    # ------------------------------------------------------------------ 1 — LOGGING
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s — %(levelname)s — %(message)s",
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     # ------------------------------------------------------------------ 2 — GTFS
