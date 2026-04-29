@@ -99,6 +99,8 @@ ALLOWED_DIRECTIONS: List[str] = [
     "LOOP",
 ]
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # ---------------------------------------------------------------------
 # TYPE ALIASES
 # ---------------------------------------------------------------------
@@ -1036,6 +1038,11 @@ def main() -> None:  # pragma: no cover
     * If **False**, all rows for the route are written directly to
       ``<OUTPUT_ROOT>/<route>/``.
     """
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     # ------------------------------------------------------------------ #
     # 0.  Locate all CSVs and assign them to routes                      #
     # ------------------------------------------------------------------ #
@@ -1160,5 +1167,4 @@ def main() -> None:  # pragma: no cover
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()

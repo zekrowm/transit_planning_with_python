@@ -50,6 +50,8 @@ EXPORT_JPEG = True
 # NEW CODE: Boolean to analyze only the most common (modal) shape
 ANALYZE_ONLY_DOMINANT_SHAPE = True
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -463,6 +465,11 @@ def main() -> None:
     7. Exports JPEG maps of dominant shapes, if enabled.
     8. Flags suspicious data where shape_direction and direction_id seem inconsistent.
     """
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     # Step 1: Read GTFS
@@ -515,5 +522,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()

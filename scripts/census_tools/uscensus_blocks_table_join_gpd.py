@@ -34,16 +34,7 @@ FORCE_FLOAT: Final[bool] = True  # cast nullable Int64 → float64
 
 DERIVATION_SRC: Final[str] = "GEO_ID_blk"  # column that still has the 24-char GEOID
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] %(asctime)s :: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-LOGGER: Final[logging.Logger] = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # FUNCTIONS
@@ -66,7 +57,7 @@ def load_blocks(shp_path: str, key: str = LEFT_KEY) -> GeoDataFrame:
     KeyError
         If *key* is missing from the file.
     """
-    LOGGER.info("Reading geometry: %s", shp_path)
+    logging.info("Reading geometry: %s", shp_path)
     gdf: GeoDataFrame = gpd.read_file(shp_path)
     if key not in gdf.columns:
         raise KeyError(f"'{key}' not found in {shp_path}")
@@ -128,7 +119,7 @@ def join_blocks_to_attributes(
     ValueError
         If duplicates in either key violate a 1 : 1 expectation.
     """
-    LOGGER.info("Merging geometry (%d) with table (%d)…", len(blocks), len(attrs))
+    logging.info("Merging geometry (%d) with table (%d)…", len(blocks), len(attrs))
     merged: GeoDataFrame = blocks.merge(
         attrs,
         left_on=left_key,
@@ -136,7 +127,7 @@ def join_blocks_to_attributes(
         how=how,
         validate="1:1",
     )
-    LOGGER.info("Merged result → %d rows, %d columns", *merged.shape)
+    logging.info("Merged result → %d rows, %d columns", *merged.shape)
 
     if FORCE_FLOAT:
         _cast_int64_to_float(merged)
@@ -160,9 +151,9 @@ def save_output(gdf: GeoDataFrame, out_path: str) -> None:
     else:
         driver = None  # let Fiona infer (GeoPackage, Parquet, etc.)
 
-    LOGGER.info("Writing output → %s", path.resolve())
+    logging.info("Writing output → %s", path.resolve())
     gdf.to_file(out_path, driver=driver, index=False)
-    LOGGER.info("Finished")
+    logging.info("Finished")
 
 
 def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> None:
@@ -189,7 +180,7 @@ def _truncate_field_names(gdf: GeoDataFrame, max_len: int = MAX_FIELD_LEN) -> No
             seen.add(col)
 
     if renames:
-        LOGGER.warning(
+        logging.warning(
             "Truncated %d column name(s) to %d chars: %s",
             len(renames),
             max_len,
@@ -212,7 +203,7 @@ def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
         str(col) for col, dtype in gdf.dtypes.items() if pd.api.types.is_integer_dtype(dtype)
     ]
     if int_cols:
-        LOGGER.debug("Casting %d Int64 column(s) → float64: %s", len(int_cols), int_cols)
+        logging.debug("Casting %d Int64 column(s) → float64: %s", len(int_cols), int_cols)
         gdf[int_cols] = gdf[int_cols].astype("float64")
 
 
@@ -223,6 +214,11 @@ def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
 
 def main() -> None:
     """Script entry point."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     blocks_gdf = load_blocks(SHAPEFILE_PATH)
     attrs_df = load_attributes(TABLE_CSV_PATH)
 

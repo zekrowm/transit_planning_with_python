@@ -71,15 +71,7 @@ POLYGON_FIELDS_TO_KEEP = ["NAME", "GEOID", "GEOIDFQ"]  # Must include the join f
 IS_GTFS_INPUT = BUS_STOPS_INPUT.lower().endswith(".txt")
 arcpy.env.overwriteOutput = True
 
-# =============================================================================
-# LOGGING
-# =============================================================================
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # FUNCTIONS
@@ -108,7 +100,7 @@ def create_bus_stops_feature_class() -> Tuple[str, List[str]]:
             y_field="stop_lat",
             coordinate_system=arcpy.SpatialReference(4326),  # WGS84
         )
-        logger.info("GTFS stops feature class created at: %s", GTFS_STOPS_FC)
+        logging.info("GTFS stops feature class created at: %s", GTFS_STOPS_FC)
         bus_stops_fc = GTFS_STOPS_FC
 
         # Fields to export to CSV: the GTFS key field, secondary field, plus polygon fields.
@@ -120,7 +112,7 @@ def create_bus_stops_feature_class() -> Tuple[str, List[str]]:
 
     else:
         # Using an existing shapefile of bus stops directly
-        logger.info("Using existing bus stops shapefile: %s", BUS_STOPS_INPUT)
+        logging.info("Using existing bus stops shapefile: %s", BUS_STOPS_INPUT)
         bus_stops_fc = BUS_STOPS_INPUT
 
         # Fields to export to CSV: the shapefile key field, secondary field, plus polygon fields.
@@ -144,7 +136,7 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc: str, fields_to_export: List
             join_type="KEEP_ALL",
             match_option="INTERSECT",
         )
-        logger.info(
+        logging.info(
             "Spatial join completed. Joined feature class created at: %s",
             JOINED_FC,
         )
@@ -159,10 +151,10 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc: str, fields_to_export: List
             for row in cursor:
                 writer.writerow(row)
 
-        logger.info("CSV export completed. CSV file created at: %s", OUTPUT_CSV)
+        logging.info("CSV export completed. CSV file created at: %s", OUTPUT_CSV)
         current_fc = JOINED_FC
     else:
-        logger.info("POLYGON_LAYER is empty. Skipping spatial join.")
+        logging.info("POLYGON_LAYER is empty. Skipping spatial join.")
         # Export the bus stops feature class to CSV so that merge can still work.
         with (
             arcpy.da.SearchCursor(bus_stops_fc, fields_to_export) as cursor,
@@ -172,7 +164,7 @@ def spatial_join_bus_stops_to_polygons(bus_stops_fc: str, fields_to_export: List
             writer.writerow(fields_to_export)
             for row in cursor:
                 writer.writerow(row)
-        logger.info("CSV export completed. CSV file created at: %s", OUTPUT_CSV)
+        logging.info("CSV export completed. CSV file created at: %s", OUTPUT_CSV)
         current_fc = bus_stops_fc
 
     return current_fc
@@ -189,14 +181,14 @@ def read_and_filter_ridership_data() -> pd.DataFrame:
     if ROUTE_FILTER_LIST:
         initial_count = len(df_excel)
         df_excel = df_excel[df_excel["ROUTE_NAME"].isin(ROUTE_FILTER_LIST)]
-        logger.info("Filtered Excel data to routes in %s.", ROUTE_FILTER_LIST)
-        logger.info(
+        logging.info("Filtered Excel data to routes in %s.", ROUTE_FILTER_LIST)
+        logging.info(
             "Records reduced from %d to %d.",
             initial_count,
             len(df_excel),
         )
     else:
-        logger.info("No route filter applied.")
+        logging.info("No route filter applied.")
 
     # Calculate TOTAL
     df_excel["TOTAL"] = df_excel["XBOARDINGS"] + df_excel["XALIGHTINGS"]
@@ -229,7 +221,7 @@ def merge_ridership_and_csv(
         df_joined = df_excel.merge(df_csv, left_on="STOP_ID", right_on=SHAPE_KEY_FIELD, how="inner")
         key_field = SHAPE_KEY_FIELD
 
-    logger.info(
+    logging.info(
         "Data merged successfully. Number of matched bus stops: %d",
         len(df_joined),
     )
@@ -243,13 +235,13 @@ def filter_matched_bus_stops(current_fc: str, df_joined: pd.DataFrame, key_field
     """
     matched_keys = df_joined[key_field].dropna().unique().tolist()
     if not matched_keys:
-        logger.error("No matched bus stops found in Excel data. Exiting script.")
+        logging.error("No matched bus stops found in Excel data. Exiting script.")
         exit()
 
     arcpy.MakeFeatureLayer_management(current_fc, "joined_lyr")
     fields = arcpy.ListFields(current_fc, key_field)
     if not fields:
-        logger.error("Field '%s' not found in '%s'. Exiting.", key_field, current_fc)
+        logging.error("Field '%s' not found in '%s'. Exiting.", key_field, current_fc)
         exit()
 
     field_type = fields[0].type
@@ -264,7 +256,7 @@ def filter_matched_bus_stops(current_fc: str, df_joined: pd.DataFrame, key_field
     elif field_type in ["Integer", "SmallInteger", "Double", "Single", "OID"]:
         formatted_keys = [str(k) for k in matched_keys]
     else:
-        logger.error(
+        logging.error(
             "Unsupported field type '%s' for field '%s'. Exiting.",
             field_type,
             key_field,
@@ -280,7 +272,7 @@ def filter_matched_bus_stops(current_fc: str, df_joined: pd.DataFrame, key_field
         where_clauses.append(clause)
 
     full_where_clause = " OR ".join(where_clauses)
-    logger.debug(
+    logging.debug(
         "Constructed WHERE clause (first 200 chars): %s",
         full_where_clause[:200],
     )
@@ -288,19 +280,19 @@ def filter_matched_bus_stops(current_fc: str, df_joined: pd.DataFrame, key_field
     try:
         arcpy.SelectLayerByAttribute_management("joined_lyr", "NEW_SELECTION", full_where_clause)
     except arcpy.ExecuteError:
-        logger.error("Failed SelectLayerByAttribute. Check WHERE clause syntax.")
-        logger.error("WHERE clause attempted: %s", full_where_clause)
+        logging.error("Failed SelectLayerByAttribute. Check WHERE clause syntax.")
+        logging.error("WHERE clause attempted: %s", full_where_clause)
         raise
 
     selected_count = int(arcpy.GetCount_management("joined_lyr").getOutput(0))
     if selected_count == 0:
-        logger.error("No features matched the WHERE clause. Exiting script.")
+        logging.error("No features matched the WHERE clause. Exiting script.")
         exit()
     else:
-        logger.info("Number of features selected: %d", selected_count)
+        logging.info("Number of features selected: %d", selected_count)
 
     arcpy.CopyFeatures_management("joined_lyr", MATCHED_JOINED_FC)
-    logger.info("Filtered joined feature class created at: %s", MATCHED_JOINED_FC)
+    logging.info("Filtered joined feature class created at: %s", MATCHED_JOINED_FC)
 
     return MATCHED_JOINED_FC
 
@@ -318,7 +310,7 @@ def update_bus_stops_ridership(current_fc: str, df_joined: pd.DataFrame, key_fie
         if f_name not in existing_fields:
             arcpy.management.AddField(current_fc, f_name, f_type)
 
-    logger.info("Ridership fields added (if not existing).")
+    logging.info("Ridership fields added (if not existing).")
 
     # Build dictionary from the joined DataFrame
     stop_ridership_dict = {}
@@ -343,7 +335,7 @@ def update_bus_stops_ridership(current_fc: str, df_joined: pd.DataFrame, key_fie
                 r[1], r[2], r[3] = 0, 0, 0
             cursor.updateRow(r)
 
-    logger.info("Bus stops shapefile updated with ridership data at: %s", current_fc)
+    logging.info("Bus stops shapefile updated with ridership data at: %s", current_fc)
 
 
 def aggregate_ridership(df_joined: pd.DataFrame) -> None:
@@ -352,19 +344,19 @@ def aggregate_ridership(df_joined: pd.DataFrame) -> None:
     Also exports the aggregated data to CSV for verification.
     """
     if not POLYGON_LAYER.strip():
-        logger.info("POLYGON_LAYER is empty, so aggregation steps have been skipped.")
+        logging.info("POLYGON_LAYER is empty, so aggregation steps have been skipped.")
         return
 
     # Group by the designated polygon join field, e.g. "GEOID"
     df_agg = df_joined.groupby(POLYGON_JOIN_FIELD, as_index=False).agg(
         {"XBOARDINGS": "sum", "XALIGHTINGS": "sum", "TOTAL": "sum"}
     )
-    logger.info("Ridership data aggregated by %s.", POLYGON_JOIN_FIELD)
+    logging.info("Ridership data aggregated by %s.", POLYGON_JOIN_FIELD)
 
     # ─── Export aggregated ridership spreadsheet ───
     agg_polygon_csv = os.path.join(OUTPUT_FOLDER, "agg_ridership_by_polygon.csv")
     df_agg.to_csv(agg_polygon_csv, index=False)
-    logger.info("Aggregated ridership by polygon exported to: %s", agg_polygon_csv)
+    logging.info("Aggregated ridership by polygon exported to: %s", agg_polygon_csv)
 
     # Copy the source polygons so we can add fields without touching the original
     arcpy.management.CopyFeatures(POLYGON_LAYER, POLYGON_WITH_RIDERSHIP_SHP)
@@ -380,7 +372,7 @@ def aggregate_ridership(df_joined: pd.DataFrame) -> None:
         if f_name not in existing_fields_blocks:
             arcpy.management.AddField(POLYGON_WITH_RIDERSHIP_SHP, f_name, f_type)
 
-    logger.info(
+    logging.info(
         "Aggregation fields added to polygon shapefile (if not existing).",
     )
 
@@ -408,7 +400,7 @@ def aggregate_ridership(df_joined: pd.DataFrame) -> None:
                 rec[1], rec[2], rec[3] = 0, 0, 0
             cursor.updateRow(rec)
 
-    logger.info(
+    logging.info(
         "Polygon shapefile updated with aggregated ridership data at: %s",
         POLYGON_WITH_RIDERSHIP_SHP,
     )
@@ -438,7 +430,7 @@ def process_stops_for_single_run() -> None:
     # Export the intermediate aggregated ridership spreadsheet
     agg_per_stop_csv = os.path.join(OUTPUT_FOLDER, "agg_ridership_per_stop.csv")
     df_excel.to_csv(agg_per_stop_csv, index=False)
-    logger.info("Aggregated ridership per stop exported to: %s", agg_per_stop_csv)
+    logging.info("Aggregated ridership per stop exported to: %s", agg_per_stop_csv)
 
     # Step 4: Merge ridership data with CSV from spatial join
     df_joined, key_field = merge_ridership_and_csv(df_excel, fields_to_export)
@@ -452,7 +444,7 @@ def process_stops_for_single_run() -> None:
     # Steps 6 & 7: Aggregate ridership (optional, by polygon)
     aggregate_ridership(df_joined)
 
-    logger.info("Single-run process complete.")
+    logging.info("Single-run process complete.")
 
 
 # =============================================================================
@@ -466,15 +458,20 @@ def main() -> None:
     Either processes all routes at once (creating a single shapefile) or splits
     by route (creating multiple shapefiles), depending on SPLIT_BY_ROUTE.
     """
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     # >>>>> NEW BRANCHING LOGIC <<<<<
     if not SPLIT_BY_ROUTE:
         # ---- Original single-run approach ----
-        logger.info("SPLIT_BY_ROUTE = False. Running single shapefile process.")
+        logging.info("SPLIT_BY_ROUTE = False. Running single shapefile process.")
         process_stops_for_single_run()
 
     else:
         # ---- Per-route approach (from the second script) ----
-        logger.info("SPLIT_BY_ROUTE = True. Creating one shapefile per route.")
+        logging.info("SPLIT_BY_ROUTE = True. Creating one shapefile per route.")
 
         # Step 1: Create or identify the bus stops feature class
         bus_stops_fc, fields_to_export = create_bus_stops_feature_class()
@@ -487,20 +484,20 @@ def main() -> None:
 
         # Identify unique routes
         unique_routes = df_excel["ROUTE_NAME"].unique()
-        logger.info("Found the following unique routes: %s", unique_routes)
+        logging.info("Found the following unique routes: %s", unique_routes)
 
         # For each route, merge, filter, and export a shapefile
         for route in unique_routes:
-            logger.info("=== Processing route: %s ===", route)
+            logging.info("=== Processing route: %s ===", route)
             df_route = df_excel[df_excel["ROUTE_NAME"] == route].copy()
             if df_route.empty:
-                logger.warning("No ridership data for route %s. Skipping.", route)
+                logging.warning("No ridership data for route %s. Skipping.", route)
                 continue
 
             # Merge data
             df_joined, key_field = merge_ridership_and_csv(df_route, fields_to_export)
             if df_joined.empty:
-                logger.warning(
+                logging.warning(
                     "No matched bus stops found for route %s. Skipping.",
                     route,
                 )
@@ -511,7 +508,7 @@ def main() -> None:
 
             matched_keys = df_joined[key_field].dropna().unique().tolist()
             if not matched_keys:
-                logger.warning("No matched bus stops found. Skipping route %s.", route)
+                logging.warning("No matched bus stops found. Skipping route %s.", route)
                 continue
 
             arcpy.MakeFeatureLayer_management(current_fc, "joined_lyr_route")
@@ -534,14 +531,14 @@ def main() -> None:
 
             selected_count = int(arcpy.GetCount_management("joined_lyr_route").getOutput(0))
             if selected_count == 0:
-                logger.warning(
+                logging.warning(
                     "No bus stops found in FC for route %s. Skipping.",
                     route,
                 )
                 continue
 
             arcpy.CopyFeatures_management("joined_lyr_route", route_output_fc)
-            logger.info("Route-specific shapefile created at: %s", route_output_fc)
+            logging.info("Route-specific shapefile created at: %s", route_output_fc)
 
             # Now update ridership fields
             update_bus_stops_ridership(route_output_fc, df_joined, key_field)
@@ -552,7 +549,7 @@ def main() -> None:
         # For simplicity, we show it once for the entire dataset:
         aggregate_ridership(df_excel)
 
-        logger.info("Per-route process complete.")
+        logging.info("Per-route process complete.")
 
 
 if __name__ == "__main__":

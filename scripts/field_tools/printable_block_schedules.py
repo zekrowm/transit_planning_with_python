@@ -55,6 +55,8 @@ MISSING_VALUE = "_____"
 # Maximum column width for neat Excel formatting:
 MAX_COLUMN_WIDTH = 35
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -461,12 +463,10 @@ def main() -> None:
     The function traps anticipated exceptions and logs them with useful
     context before exiting with a non-zero status.
     """
-    # --------------------------------------------------------------
-    # Configure logging *inside* main (repo style)
-    # --------------------------------------------------------------
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(levelname)s: %(message)s",
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     logging.info("========================================================")

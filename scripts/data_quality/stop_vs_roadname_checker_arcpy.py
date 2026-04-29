@@ -60,15 +60,8 @@ DESCRIPTIONS_ROADWAY = {
     "FULLNAME": "Full street name",
 }
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 arcpy.env.overwriteOutput = True
 
 # =============================================================================
@@ -437,6 +430,11 @@ def detect_typos(
 
 def main() -> None:
     """Main script execution function."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     # workspace
     WORK_GDB = create_work_gdb(OUTPUT_DIR)
 

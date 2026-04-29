@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 import uuid
 from collections.abc import Mapping, Sequence
 from typing import Any, Optional
@@ -47,35 +46,23 @@ WORK_GDB_NAME = "work.gdb"
 OUTPUT_EXCEL = "Path/To/Your/Excel_File.xlsx"
 LOG_DIR = "Path/To/Your/Logs"
 
-# =============================================================================
-# LOGGING
-# =============================================================================
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 
 def configure_logging(log_dir: str) -> None:
-    """Sets up root logging to output to both stdout and a file in the specified directory.
-
-    Args:
-        log_dir: The directory where the log file should be created.
-    """
+    """Configure root logging to write to console + a file in log_dir."""
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, "gtfs_route_district_matrix.log")
-
-    root = logging.getLogger()
-    root.setLevel(logging.INFO)
-    for h in list(root.handlers):
-        root.removeHandler(h)
-
-    fmt = logging.Formatter("%(asctime)s — %(levelname)s — %(message)s")
-
-    sh = logging.StreamHandler(sys.stdout)
-    sh.setFormatter(fmt)
-    root.addHandler(sh)
-
-    fh = logging.FileHandler(log_path, encoding="utf-8")
-    fh.setFormatter(fmt)
-    root.addHandler(fh)
-
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[
+            logging.FileHandler(log_path, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
+        force=True,
+    )
     logging.info("Logging to: %s", log_path)
 
 

@@ -52,12 +52,10 @@ FILTER_OUT_ROUTES: list[str] = []  # e.g. ["105", "106"]
 # Specify how many decimals to round the LOAD_FACTOR to
 DECIMAL_PLACES: Final[int] = 4
 
-# ---------------------------------------------------------------------------
-# LOGGING
-# ---------------------------------------------------------------------------
-
 WRITE_VIOLATION_LOG: Final[bool] = True
 VIOLATION_LOG_FILE: Final[str] = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
+
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # FUNCTIONS
@@ -417,6 +415,11 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
 
 def main() -> None:
     """Run the full ETL pipeline and create all exports."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     # Load data
     data_frame = load_data(INPUT_FILE)
 
@@ -459,5 +462,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()

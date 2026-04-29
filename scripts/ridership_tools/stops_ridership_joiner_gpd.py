@@ -63,29 +63,7 @@ OUT_BOARD = "XBOARD"
 OUT_ALIGHT = "XALIGHT"
 OUT_TOTAL = "XTOTAL"
 
-
-# =============================================================================
-# LOGGING
-# =============================================================================
-
-
-def configure_logging() -> logging.Logger:
-    """Configure module logging."""
-    logger = logging.getLogger("ridership_join")
-    logger.setLevel(logging.INFO)
-
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-
-    # Avoid duplicate handlers in notebooks
-    if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
-        logger.addHandler(handler)
-
-    return logger
-
-
-LOGGER = configure_logging()
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 
 # =============================================================================
@@ -149,7 +127,7 @@ def write_vector(gdf: gpd.GeoDataFrame, path: Path, layer: Optional[str] = None)
 # =============================================================================
 
 
-def load_bus_stops(logger: logging.Logger) -> tuple[gpd.GeoDataFrame, str]:
+def load_bus_stops() -> tuple[gpd.GeoDataFrame, str]:
     """Load bus stop points as a GeoDataFrame and return (gdf, key_field)."""
     if is_gtfs_txt(BUS_STOPS_INPUT):
         df = pd.read_csv(BUS_STOPS_INPUT)
@@ -164,7 +142,7 @@ def load_bus_stops(logger: logging.Logger) -> tuple[gpd.GeoDataFrame, str]:
             geometry=gpd.points_from_xy(df[GTFS_LON_FIELD], df[GTFS_LAT_FIELD]),
             crs="EPSG:4326",
         )
-        logger.info("Loaded GTFS stops.txt with %d records.", len(gdf))
+        logging.info("Loaded GTFS stops.txt with %d records.", len(gdf))
         return gdf, GTFS_KEY_FIELD
 
     gdf = gpd.read_file(BUS_STOPS_INPUT)
@@ -173,16 +151,16 @@ def load_bus_stops(logger: logging.Logger) -> tuple[gpd.GeoDataFrame, str]:
         [SHAPE_KEY_FIELD, SHAPE_SECONDARY_ID_FIELD],
         context=f"stop layer {BUS_STOPS_INPUT}",
     )
-    logger.info("Loaded stop layer with %d features: %s", len(gdf), BUS_STOPS_INPUT)
+    logging.info("Loaded stop layer with %d features: %s", len(gdf), BUS_STOPS_INPUT)
     return gdf, SHAPE_KEY_FIELD
 
 
 def spatial_join_to_polygons(
-    stops: gpd.GeoDataFrame, logger: logging.Logger
+    stops: gpd.GeoDataFrame,
 ) -> tuple[gpd.GeoDataFrame, Optional[gpd.GeoDataFrame]]:
     """Optionally spatial-join stops to polygons; returns (stops_joined, polygons_or_none)."""
     if not POLYGON_LAYER:
-        logger.info("POLYGON_LAYER is None; skipping spatial join.")
+        logging.info("POLYGON_LAYER is None; skipping spatial join.")
         return stops, None
 
     polygons = gpd.read_file(POLYGON_LAYER)
@@ -200,11 +178,11 @@ def spatial_join_to_polygons(
         columns=[c for c in joined.columns if c.startswith("index_")], errors="ignore"
     )
 
-    logger.info("Spatial join complete. Stops rows: %d.", len(joined))
+    logging.info("Spatial join complete. Stops rows: %d.", len(joined))
     return joined, polygons
 
 
-def read_and_filter_excel(logger: logging.Logger) -> pd.DataFrame:
+def read_and_filter_excel() -> pd.DataFrame:
     """Read ridership data from Excel and optionally filter by routes; adds TOTAL."""
     df = pd.read_excel(EXCEL_FILE)
 
@@ -217,9 +195,9 @@ def read_and_filter_excel(logger: logging.Logger) -> pd.DataFrame:
     if ROUTE_FILTER_LIST:
         before = len(df)
         df = df[df[EXCEL_ROUTE_FIELD].isin(ROUTE_FILTER_LIST)].copy()
-        logger.info("Route filter applied. Records: %d -> %d", before, len(df))
+        logging.info("Route filter applied. Records: %d -> %d", before, len(df))
     else:
-        logger.info("No route filter applied.")
+        logging.info("No route filter applied.")
 
     df["TOTAL"] = df[EXCEL_BOARD_FIELD] + df[EXCEL_ALIGHT_FIELD]
     df[EXCEL_STOP_ID_FIELD] = _safe_to_str(df[EXCEL_STOP_ID_FIELD])
@@ -242,7 +220,6 @@ def merge_ridership(
     stops: gpd.GeoDataFrame,
     df_excel: pd.DataFrame,
     stops_key_field: str,
-    logger: logging.Logger,
 ) -> gpd.GeoDataFrame:
     """Inner-join ridership to stops on STOP_ID vs the chosen stop key field."""
     if stops_key_field not in stops.columns:
@@ -259,7 +236,7 @@ def merge_ridership(
         validate="one_to_one" if df_excel[EXCEL_STOP_ID_FIELD].is_unique else "many_to_one",
     )
 
-    logger.info("Matched stops after join: %d", len(out))
+    logging.info("Matched stops after join: %d", len(out))
     return gpd.GeoDataFrame(out, geometry="geometry", crs=stops.crs)
 
 
@@ -275,7 +252,6 @@ def add_output_ridership_fields(stops_joined: gpd.GeoDataFrame) -> gpd.GeoDataFr
 def aggregate_by_polygon(
     matched_stops: gpd.GeoDataFrame,
     polygons: gpd.GeoDataFrame,
-    logger: logging.Logger,
 ) -> gpd.GeoDataFrame:
     """Aggregate stop ridership by POLYGON_JOIN_FIELD and join to polygons."""
     if POLYGON_JOIN_FIELD not in matched_stops.columns:
@@ -299,7 +275,7 @@ def aggregate_by_polygon(
     for c in ["XBOARD_SUM", "XALITE_SUM", "TOTAL_SUM"]:
         polygons_out[c] = polygons_out[c].fillna(0.0)
 
-    logger.info("Polygon aggregation complete. Polygons: %d", len(polygons_out))
+    logging.info("Polygon aggregation complete. Polygons: %d", len(polygons_out))
     return gpd.GeoDataFrame(polygons_out, geometry="geometry", crs=polygons.crs)
 
 
@@ -308,51 +284,51 @@ def aggregate_by_polygon(
 # =============================================================================
 
 
-def run_single(logger: logging.Logger) -> None:
+def run_single() -> None:
     """Run the non-split pipeline (one output for all matched stops)."""
-    stops, stops_key_field = load_bus_stops(logger)
-    stops_joined, polygons = spatial_join_to_polygons(stops, logger)
+    stops, stops_key_field = load_bus_stops()
+    stops_joined, polygons = spatial_join_to_polygons(stops)
 
-    df_excel = read_and_filter_excel(logger)
+    df_excel = read_and_filter_excel()
     df_excel_stop = aggregate_excel_per_stop(df_excel)
 
     agg_per_stop_csv = OUTPUT_FOLDER / "agg_ridership_per_stop.csv"
     df_excel_stop.to_csv(agg_per_stop_csv, index=False)
-    logger.info("Wrote %s", agg_per_stop_csv)
+    logging.info("Wrote %s", agg_per_stop_csv)
 
-    matched = merge_ridership(stops_joined, df_excel_stop, stops_key_field, logger)
+    matched = merge_ridership(stops_joined, df_excel_stop, stops_key_field)
     matched = add_output_ridership_fields(matched)
 
     stops_out = output_path("bus_stops_matched")
     layer = "bus_stops_matched" if stops_out.suffix.lower() == ".gpkg" else None
     write_vector(matched, stops_out, layer=layer)
-    logger.info("Wrote %s", stops_out)
+    logging.info("Wrote %s", stops_out)
 
     matched_csv = OUTPUT_FOLDER / "bus_stops_with_polygon.csv"
     matched.drop(columns="geometry").to_csv(matched_csv, index=False)
-    logger.info("Wrote %s", matched_csv)
+    logging.info("Wrote %s", matched_csv)
 
     if polygons is not None:
-        poly_out = aggregate_by_polygon(matched, polygons, logger)
+        poly_out = aggregate_by_polygon(matched, polygons)
 
         poly_out_path = output_path("polygon_with_ridership")
         layer = "polygon_with_ridership" if poly_out_path.suffix.lower() == ".gpkg" else None
         write_vector(poly_out, poly_out_path, layer=layer)
-        logger.info("Wrote %s", poly_out_path)
+        logging.info("Wrote %s", poly_out_path)
 
         poly_csv = OUTPUT_FOLDER / "agg_ridership_by_polygon.csv"
         poly_out.drop(columns="geometry").to_csv(poly_csv, index=False)
-        logger.info("Wrote %s", poly_csv)
+        logging.info("Wrote %s", poly_csv)
 
 
-def run_split_by_route(logger: logging.Logger) -> None:
+def run_split_by_route() -> None:
     """Run the split-by-route pipeline (one output per route)."""
-    stops, stops_key_field = load_bus_stops(logger)
-    stops_joined, polygons = spatial_join_to_polygons(stops, logger)
+    stops, stops_key_field = load_bus_stops()
+    stops_joined, polygons = spatial_join_to_polygons(stops)
 
-    df_excel = read_and_filter_excel(logger)
+    df_excel = read_and_filter_excel()
     unique_routes = sorted(pd.unique(df_excel[EXCEL_ROUTE_FIELD].dropna()))
-    logger.info("Found %d routes.", len(unique_routes))
+    logging.info("Found %d routes.", len(unique_routes))
 
     for route in unique_routes:
         df_route = df_excel[df_excel[EXCEL_ROUTE_FIELD] == route].copy()
@@ -361,9 +337,9 @@ def run_split_by_route(logger: logging.Logger) -> None:
 
         df_route_stop = aggregate_excel_per_stop(df_route)
 
-        matched = merge_ridership(stops_joined, df_route_stop, stops_key_field, logger)
+        matched = merge_ridership(stops_joined, df_route_stop, stops_key_field)
         if matched.empty:
-            logger.warning("No matched stops for route %s; skipping.", route)
+            logging.warning("No matched stops for route %s; skipping.", route)
             continue
 
         matched = add_output_ridership_fields(matched)
@@ -371,27 +347,27 @@ def run_split_by_route(logger: logging.Logger) -> None:
         stops_out = output_path("bus_stops_matched", route=str(route))
         layer = f"bus_stops_matched_{route}" if stops_out.suffix.lower() == ".gpkg" else None
         write_vector(matched, stops_out, layer=layer)
-        logger.info("Wrote %s", stops_out)
+        logging.info("Wrote %s", stops_out)
 
         matched_csv = OUTPUT_FOLDER / f"bus_stops_with_polygon_{route}.csv"
         matched.drop(columns="geometry").to_csv(matched_csv, index=False)
-        logger.info("Wrote %s", matched_csv)
+        logging.info("Wrote %s", matched_csv)
 
     # Optional: aggregate polygons across ALL filtered Excel records (not per-route)
     if polygons is not None:
         df_all_stop = aggregate_excel_per_stop(df_excel)
-        matched_all = merge_ridership(stops_joined, df_all_stop, stops_key_field, logger)
+        matched_all = merge_ridership(stops_joined, df_all_stop, stops_key_field)
         matched_all = add_output_ridership_fields(matched_all)
 
-        poly_out = aggregate_by_polygon(matched_all, polygons, logger)
+        poly_out = aggregate_by_polygon(matched_all, polygons)
         poly_out_path = output_path("polygon_with_ridership")
         layer = "polygon_with_ridership" if poly_out_path.suffix.lower() == ".gpkg" else None
         write_vector(poly_out, poly_out_path, layer=layer)
-        logger.info("Wrote %s", poly_out_path)
+        logging.info("Wrote %s", poly_out_path)
 
         poly_csv = OUTPUT_FOLDER / "agg_ridership_by_polygon.csv"
         poly_out.drop(columns="geometry").to_csv(poly_csv, index=False)
-        logger.info("Wrote %s", poly_csv)
+        logging.info("Wrote %s", poly_csv)
 
 
 # =============================================================================
@@ -401,6 +377,11 @@ def run_split_by_route(logger: logging.Logger) -> None:
 
 def main() -> None:
     """Main entry point."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     if not BUS_STOPS_INPUT.exists():
         raise FileNotFoundError(f"BUS_STOPS_INPUT not found: {BUS_STOPS_INPUT}")
     if not EXCEL_FILE.exists():
@@ -408,16 +389,16 @@ def main() -> None:
     if POLYGON_LAYER is not None and not POLYGON_LAYER.exists():
         raise FileNotFoundError(f"POLYGON_LAYER not found: {POLYGON_LAYER}")
 
-    LOGGER.info("Output folder: %s", OUTPUT_FOLDER)
-    LOGGER.info("Split by route: %s", SPLIT_BY_ROUTE)
-    LOGGER.info("Output format: %s", OUT_FORMAT)
+    logging.info("Output folder: %s", OUTPUT_FOLDER)
+    logging.info("Split by route: %s", SPLIT_BY_ROUTE)
+    logging.info("Output format: %s", OUT_FORMAT)
 
     if SPLIT_BY_ROUTE:
-        run_split_by_route(LOGGER)
+        run_split_by_route()
     else:
-        run_single(LOGGER)
+        run_single()
 
-    LOGGER.info("Done.")
+    logging.info("Done.")
 
 
 if __name__ == "__main__":

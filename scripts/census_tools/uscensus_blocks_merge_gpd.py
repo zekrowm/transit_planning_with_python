@@ -69,16 +69,7 @@ FIPS_TO_FILTER: List[str] = [
 # Output file (Shapefile *.shp, GeoPackage *.gpkg, etc.)
 OUTPUT_PATH: str = "output/va_md_dc_blocks_fips_merge.shp"
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] %(asctime)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-LOGGER = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # FUNCTIONS
@@ -141,7 +132,7 @@ def discover_tiger_datasets(
     if not chosen:
         raise FileNotFoundError(f"No datasets matching '{pattern}' were found under {root}")
 
-    LOGGER.info(
+    logging.info(
         "Discovered %d dataset(s) (%d plain, %d zipped)",
         len(chosen),
         sum(p.suffix == ".shp" for p in chosen.values()),
@@ -165,7 +156,7 @@ def read_shapefile(path: str) -> gpd.GeoDataFrame:
     Returns:
         GeoDataFrame with all original attributes preserved.
     """
-    LOGGER.info("Reading %s", path)
+    logging.info("Reading %s", path)
     gdf = gpd.read_file(path)
 
     # Normalise critical ID columns to string (they are *sometimes* integers)
@@ -193,7 +184,7 @@ def merge_shapefiles(shp_paths: Sequence[str]) -> gpd.GeoDataFrame:
     merged = gpd.GeoDataFrame(
         pd.concat(gdfs, ignore_index=True), crs=gdfs[0].crs, geometry="geometry"
     )
-    LOGGER.info("Merged %d input files → %d features", len(shp_paths), len(merged))
+    logging.info("Merged %d input files → %d features", len(shp_paths), len(merged))
     return merged
 
 
@@ -216,7 +207,7 @@ def ensure_fips_column(
         The modified GeoDataFrame (same object, returned for convenience).
     """
     if fips_col in gdf.columns:
-        LOGGER.info("Field %s already present — skipping creation", fips_col)
+        logging.info("Field %s already present — skipping creation", fips_col)
         return gdf
 
     state_field = next((c for c in state_candidates if c in gdf.columns), None)
@@ -230,7 +221,7 @@ def ensure_fips_column(
     gdf[fips_col] = gdf[state_field].astype(str).str.zfill(2) + gdf[county_field].astype(
         str
     ).str.zfill(3)
-    LOGGER.info("Populated new column %s", fips_col)
+    logging.info("Populated new column %s", fips_col)
     return gdf
 
 
@@ -242,15 +233,15 @@ def filter_by_fips(
 ) -> gpd.GeoDataFrame:
     """Return a view containing only requested FIPS codes (or everything)."""
     if not fips_values:
-        LOGGER.info("FIPS filter empty — exporting full dataset")
+        logging.info("FIPS filter empty — exporting full dataset")
         return gdf
 
     mask = gdf[fips_col].isin(fips_values)
     selected = gdf.loc[mask].copy()
     if selected.empty:
-        LOGGER.warning("No features matched the FIPS list — output will be empty")
+        logging.warning("No features matched the FIPS list — output will be empty")
     else:
-        LOGGER.info("Selected %d of %d features", len(selected), len(gdf))
+        logging.info("Selected %d of %d features", len(selected), len(gdf))
     return selected
 
 
@@ -263,9 +254,9 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
     if out_dir and not os.path.exists(out_dir):
         os.makedirs(out_dir, exist_ok=True)
 
-    LOGGER.info("Writing %d features → %s", len(gdf), out_path)
+    logging.info("Writing %d features → %s", len(gdf), out_path)
     gdf.to_file(out_path)
-    LOGGER.info("Output written successfully")
+    logging.info("Output written successfully")
 
 
 # =============================================================================
@@ -275,6 +266,11 @@ def write_output(gdf: gpd.GeoDataFrame, out_path: str) -> None:
 
 def main() -> None:
     """Top‑level workflow controller."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     try:
         shp_paths = discover_tiger_datasets(INPUT_DIR, INPUT_GLOB, prefer="shp")
         merged = merge_shapefiles(shp_paths)
@@ -288,10 +284,10 @@ def main() -> None:
         # 4. Export
         write_output(final_gdf, OUTPUT_PATH)
 
-        LOGGER.info("Finished successfully")
+        logging.info("Finished successfully")
 
     except Exception:  # noqa: BLE001
-        LOGGER.exception("Processing failed")
+        logging.exception("Processing failed")
         sys.exit(1)
 
 

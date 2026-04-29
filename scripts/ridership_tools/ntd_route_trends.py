@@ -55,7 +55,7 @@ SERVICE_PERIODS: Final[list[str]] = ["Weekday", "Saturday", "Sunday"]
 PROMPT_FOR_FIXES: Final[bool] = False
 
 # Logging level (INFO recommended; DEBUG if troubleshooting).
-LOG_LEVEL: Final[int] = logging.INFO
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # Required columns for this simplified workflow.
 REQUIRED_COLS: Final[list[str]] = ["ROUTE_NAME", "SERVICE_PERIOD", "MTH_BOARD", "DAYS"]
@@ -631,7 +631,11 @@ def export_route(
 def main() -> None:
     """Run the end-to-end subset workflow."""
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(level=LOG_LEVEL, format="%(asctime)s | %(levelname)s | %(message)s")
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     start_dt = parse_month(START_MONTH)
     end_dt = parse_month(END_MONTH)

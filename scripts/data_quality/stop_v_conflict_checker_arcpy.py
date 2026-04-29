@@ -16,6 +16,7 @@ All configuration is set in the 'Configuration' section below.
 from __future__ import annotations
 
 import csv
+import logging
 import math
 import os
 from pathlib import Path
@@ -65,6 +66,8 @@ EXPORT_CSV: bool = True
 EXPORT_XLSX: bool = False
 EXPORT_FC: bool = True
 EXPORT_SHP: bool = False
+
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # Scratch
 TMP_WS = arcpy.env.scratchGDB
@@ -327,6 +330,11 @@ def _export_conflicts(
 
 def main() -> None:
     """Run minimal stop conflict checker (overlap-only; pandas dedupe retained)."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     arcpy.env.overwriteOutput = OVERWRITE_OUTPUT
     _validate_config()
 

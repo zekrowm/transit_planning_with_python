@@ -129,6 +129,8 @@ OPT_COLS: list[str] = [
     SCHEDULED_PASSING_TIME_COL,
 ]
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # HELPERS
 # =============================================================================
@@ -511,7 +513,11 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     """Run the conversion pipeline."""
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     df = pd.read_csv(INPUT_CSV, low_memory=False)
     logging.info("Read %d rows, %d columns", len(df), df.shape[1])

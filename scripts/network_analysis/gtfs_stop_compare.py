@@ -46,6 +46,8 @@ OVERLAP_WARN_THRESHOLD = 0.10  # warn if overlap fraction < 10%
 ENABLE_NEAREST_MATCHES_WHEN_LOW_OVERLAP = True
 NEAREST_MATCHES_MAX_FEET = 500.0  # only report nearest matches within this distance
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 
 # =============================================================================
 # Data model
@@ -74,27 +76,19 @@ class Summary:
 # =============================================================================
 
 
-def setup_logging(output_dir: Path) -> logging.Logger:
-    """Create a logger that writes to console + a file in the output directory."""
+def setup_logging(output_dir: Path) -> None:
+    """Configure root logger to write to console + a file in the output directory."""
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    logger = logging.getLogger("gtfs_stop_compare")
-    logger.setLevel(logging.INFO)
-    logger.handlers.clear()
-
-    fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(fmt)
-    logger.addHandler(ch)
-
-    fh = logging.FileHandler(output_dir / "gtfs_stop_compare.log", encoding="utf-8")
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(fmt)
-    logger.addHandler(fh)
-
-    return logger
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[
+            logging.FileHandler(output_dir / "gtfs_stop_compare.log", encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
+        force=True,
+    )
 
 
 # =============================================================================
@@ -197,7 +191,7 @@ def coerce_float(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce").astype(float)
 
 
-def validate_stop_ids_unique(df: pd.DataFrame, label: str, logger: logging.Logger) -> pd.DataFrame:
+def validate_stop_ids_unique(df: pd.DataFrame, label: str) -> pd.DataFrame:
     """Ensure stop_id is unique; if not, warn and keep the first occurrence per stop_id."""
     if "stop_id" not in df.columns:
         raise ValueError(f"{label}: stops.txt is missing required column 'stop_id'.")
@@ -206,7 +200,7 @@ def validate_stop_ids_unique(df: pd.DataFrame, label: str, logger: logging.Logge
     dup_count = int(dup_mask.sum())
     if dup_count > 0:
         dup_ids = df.loc[dup_mask, "stop_id"].head(20).tolist()
-        logger.warning(
+        logging.warning(
             "%s: found %s duplicate stop_id values; keeping first occurrence. Sample: %s",
             label,
             dup_count,
@@ -217,7 +211,7 @@ def validate_stop_ids_unique(df: pd.DataFrame, label: str, logger: logging.Logge
     return df
 
 
-def load_stops(gtfs_path: Path, label: str, logger: logging.Logger) -> pd.DataFrame:
+def load_stops(gtfs_path: Path, label: str) -> pd.DataFrame:
     """Load and standardize GTFS stops using the canonical helper."""
     # load_gtfs_data expects a str path
     data = load_gtfs_data(str(gtfs_path), files=["stops.txt"])
@@ -237,11 +231,11 @@ def load_stops(gtfs_path: Path, label: str, logger: logging.Logger) -> pd.DataFr
     df["stop_lat"] = coerce_float(df["stop_lat"])
     df["stop_lon"] = coerce_float(df["stop_lon"])
 
-    df = validate_stop_ids_unique(df, label=label, logger=logger)
+    df = validate_stop_ids_unique(df, label=label)
 
     missing_xy = int(df["stop_lat"].isna().sum() + df["stop_lon"].isna().sum())
     if missing_xy > 0:
-        logger.warning("%s: %s rows have missing/invalid stop_lat/stop_lon.", label, missing_xy)
+        logging.warning("%s: %s rows have missing/invalid stop_lat/stop_lon.", label, missing_xy)
 
     return df
 
@@ -314,7 +308,6 @@ def compare_stops(
     before: pd.DataFrame,
     after: pd.DataFrame,
     relocate_threshold_ft: float,
-    logger: logging.Logger,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, Summary, pd.DataFrame | None]:
     """Compare stops from two GTFS feeds.
 
@@ -328,14 +321,14 @@ def compare_stops(
     overlap_fraction_of_before = (len(overlap_ids) / len(before_ids)) if before_ids else 0.0
     overlap_fraction_of_after = (len(overlap_ids) / len(after_ids)) if after_ids else 0.0
 
-    logger.info("Before stops: %s", len(before_ids))
-    logger.info("After stops:  %s", len(after_ids))
-    logger.info("Overlap IDs:  %s", len(overlap_ids))
-    logger.info("Overlap as %% of before: %.1f%%", 100.0 * overlap_fraction_of_before)
-    logger.info("Overlap as %% of after:  %.1f%%", 100.0 * overlap_fraction_of_after)
+    logging.info("Before stops: %s", len(before_ids))
+    logging.info("After stops:  %s", len(after_ids))
+    logging.info("Overlap IDs:  %s", len(overlap_ids))
+    logging.info("Overlap as %% of before: %.1f%%", 100.0 * overlap_fraction_of_before)
+    logging.info("Overlap as %% of after:  %.1f%%", 100.0 * overlap_fraction_of_after)
 
     if min(overlap_fraction_of_before, overlap_fraction_of_after) < OVERLAP_WARN_THRESHOLD:
-        logger.warning(
+        logging.warning(
             "Stop_id overlap is under %.0f%%. This often means either a major system overhaul "
             "or a stop_id renumbering/rekeying.",
             100.0 * OVERLAP_WARN_THRESHOLD,
@@ -485,7 +478,6 @@ def compare_stops(
         nearest_matches = try_build_nearest_matches(
             before=before,
             after=after,
-            logger=logger,
             max_feet=NEAREST_MATCHES_MAX_FEET,
         )
 
@@ -495,7 +487,6 @@ def compare_stops(
 def try_build_nearest_matches(
     before: pd.DataFrame,
     after: pd.DataFrame,
-    logger: logging.Logger,
     max_feet: float,
 ) -> pd.DataFrame | None:
     """Optional helper when stop_id overlap is very low.
@@ -505,7 +496,7 @@ def try_build_nearest_matches(
     b = before[["stop_id", "stop_lat", "stop_lon"]].dropna().copy()
     a = after[["stop_id", "stop_lat", "stop_lon"]].dropna().copy()
     if b.empty or a.empty:
-        logger.info("Insufficient valid coordinates for nearest-match output.")
+        logging.info("Insufficient valid coordinates for nearest-match output.")
         return None
 
     lat0 = float(pd.concat([b["stop_lat"], a["stop_lat"]], ignore_index=True).mean())
@@ -542,7 +533,7 @@ def try_build_nearest_matches(
         .reset_index(drop=True)
     )
 
-    logger.info("Nearest-match output created (%s rows within %.0f ft).", len(out), max_feet)
+    logging.info("Nearest-match output created (%s rows within %.0f ft).", len(out), max_feet)
     return out
 
 
@@ -560,7 +551,6 @@ def write_outputs(
     new_df: pd.DataFrame,
     summary: Summary,
     nearest_matches: pd.DataFrame | None,
-    logger: logging.Logger,
 ) -> None:
     """Write CSVs + Excel workbook + summary json."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -594,18 +584,18 @@ def write_outputs(
         if nearest_matches is not None and not nearest_matches.empty:
             nearest_matches.to_excel(writer, sheet_name="nearest_id_matches", index=False)
 
-    logger.info("Wrote: %s", before_csv)
-    logger.info("Wrote: %s", after_csv)
-    logger.info("Wrote: %s", modified_csv)
-    logger.info("Wrote: %s", deleted_csv)
-    logger.info("Wrote: %s", new_csv)
-    logger.info("Wrote: %s", summary_json)
-    logger.info("Wrote: %s", xlsx_path)
+    logging.info("Wrote: %s", before_csv)
+    logging.info("Wrote: %s", after_csv)
+    logging.info("Wrote: %s", modified_csv)
+    logging.info("Wrote: %s", deleted_csv)
+    logging.info("Wrote: %s", new_csv)
+    logging.info("Wrote: %s", summary_json)
+    logging.info("Wrote: %s", xlsx_path)
 
     if nearest_matches is not None:
         nm_csv = output_dir / "nearest_id_matches.csv"
         nearest_matches.to_csv(nm_csv, index=False, encoding="utf-8")
-        logger.info("Wrote: %s", nm_csv)
+        logging.info("Wrote: %s", nm_csv)
 
 
 # =============================================================================
@@ -620,21 +610,20 @@ def run_compare(
     threshold_feet: float = RELOCATE_THRESHOLD_FEET,
 ) -> Summary:
     """Run the comparison (notebook-friendly) and write outputs."""
-    logger = setup_logging(out_dir)
+    setup_logging(out_dir)
 
-    logger.info("Before GTFS: %s", before_dir)
-    logger.info("After GTFS:  %s", after_dir)
-    logger.info("Output dir:  %s", out_dir)
-    logger.info("Relocation threshold: %.1f ft", threshold_feet)
+    logging.info("Before GTFS: %s", before_dir)
+    logging.info("After GTFS:  %s", after_dir)
+    logging.info("Output dir:  %s", out_dir)
+    logging.info("Relocation threshold: %.1f ft", threshold_feet)
 
-    before_df = load_stops(before_dir, label="before", logger=logger)
-    after_df = load_stops(after_dir, label="after", logger=logger)
+    before_df = load_stops(before_dir, label="before")
+    after_df = load_stops(after_dir, label="after")
 
     modified_df, deleted_df, new_df, _unchanged_df, summary, nearest_matches = compare_stops(
         before=before_df,
         after=after_df,
         relocate_threshold_ft=float(threshold_feet),
-        logger=logger,
     )
 
     write_outputs(
@@ -646,10 +635,9 @@ def run_compare(
         new_df=new_df,
         summary=summary,
         nearest_matches=nearest_matches,
-        logger=logger,
     )
 
-    logger.info(
+    logging.info(
         "Done. Modified=%s (relocated=%s, attr_changed=%s). Deleted=%s. New=%s. Unchanged=%s.",
         summary.modified_count,
         summary.relocated_count,

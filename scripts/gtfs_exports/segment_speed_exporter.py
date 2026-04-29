@@ -45,16 +45,7 @@ EXPORT_TIMEPOINTS_ONLY: bool = True
 INPUT_DISTANCE_UNIT: str = "meters"  # "meters" or "feet"
 MISSING_VAL: str = "–"
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-LOG_LEVEL: int = logging.INFO
-logging.basicConfig(
-    level=LOG_LEVEL,
-    format="%(asctime)s  %(levelname)s  %(message)s",
-    datefmt="%H:%M:%S",
-)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # -----------------------------------------------------------------------------
 # CONSTANTS
@@ -497,6 +488,11 @@ def export_excel(
 
 def main() -> None:
     """CLI entry-point – orchestrates GTFS load, processing, and Excel export."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     logging.info("GTFS folder:   %s", GTFS_FOLDER)
     logging.info("Output folder: %s", OUTPUT_FOLDER)
 

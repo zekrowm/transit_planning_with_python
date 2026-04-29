@@ -64,6 +64,8 @@ AMENITIES_SHEET: int | str = 0
 AMENITY_JOIN_FIELD: str = "stop_code"
 TXT_LOG_PATH: Path = OUTPUT_FOLDER / "stops_needing_improvement.txt"
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # -----------------------------------------------------------------------------
 # AMENITY FIELD MAPPINGS
 # -----------------------------------------------------------------------------
@@ -218,6 +220,11 @@ def _write_txt_log(processed_df: pd.DataFrame, flag_cols: List[str], out_path: P
 
 def main() -> None:
     """Run the ETL pipeline and produce both Excel and text outputs."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     # 1–2. LOAD SOURCE FILES
     df_raw = _load_ridership_data(RIDERSHIP_XLSX, RIDERSHIP_SHEET)
     df_amen = _load_amenity_data(AMENITIES_XLSX, AMENITIES_SHEET)
@@ -251,5 +258,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()

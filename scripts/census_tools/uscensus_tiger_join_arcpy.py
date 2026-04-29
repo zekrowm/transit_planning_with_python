@@ -100,15 +100,7 @@ USE_IN_MEMORY: bool = True
 FORCE_FLOAT: bool = False
 arcpy.env.overwriteOutput = True
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] %(asctime)s :: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-LOGGER = logging.getLogger(__name__)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 
 def _gp(msg: str, level: str = "info") -> None:
@@ -444,7 +436,7 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:
         )
         dfs.append(_derive_income(income))
     else:
-        LOGGER.info("Optional: INCOME_FILES not found; skipping income derivations.")
+        logging.info("Optional: INCOME_FILES not found; skipping income derivations.")
 
     if inp.ethnicity_files:
         ethnicity = _load_and_concat(
@@ -464,7 +456,7 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:
         )
         dfs.append(_derive_ethnicity(ethnicity))
     else:
-        LOGGER.info("Optional: ETHNICITY_FILES not found; skipping ethnicity derivations.")
+        logging.info("Optional: ETHNICITY_FILES not found; skipping ethnicity derivations.")
 
     if inp.language_files:
         language = _load_and_concat(
@@ -487,7 +479,7 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:
         )
         dfs.append(_derive_language(language))
     else:
-        LOGGER.info("Optional: LANGUAGE_FILES not found; skipping language derivations.")
+        logging.info("Optional: LANGUAGE_FILES not found; skipping language derivations.")
 
     if inp.vehicle_files:
         vehicle = _load_and_concat(
@@ -511,7 +503,7 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:
         )
         dfs.append(_derive_vehicle(vehicle))
     else:
-        LOGGER.info("Optional: VEHICLE_FILES not found; skipping vehicle derivations.")
+        logging.info("Optional: VEHICLE_FILES not found; skipping vehicle derivations.")
 
     if inp.age_files:
         age = _load_and_concat(
@@ -543,7 +535,7 @@ def _build_tract_df(inp: _TractInputs) -> pd.DataFrame:
         )
         dfs.append(_derive_age(age))
     else:
-        LOGGER.info("Optional: AGE_FILES not found; skipping age derivations.")
+        logging.info("Optional: AGE_FILES not found; skipping age derivations.")
 
     if not dfs:
         return pd.DataFrame()
@@ -813,7 +805,7 @@ def discover_tiger_datasets(root_dir: str | Path, pattern: str) -> list[str]:
         raise FileNotFoundError(f"No shapefiles matching '{pattern}' were found under {root_path}")
 
     matched.sort()
-    LOGGER.info("Discovered %d shapefile(s) to merge", len(matched))
+    logging.info("Discovered %d shapefile(s) to merge", len(matched))
     _gp(f"Discovered {len(matched)} shapefile(s) to merge.")
     return matched
 
@@ -834,7 +826,7 @@ def merge_shapefiles(
     arcpy.env.overwriteOutput = True
     out_fc = os.path.join(workspace, out_name)
 
-    LOGGER.info("Merging %d input shapefile(s) → %s", len(shp_paths), out_fc)
+    logging.info("Merging %d input shapefile(s) → %s", len(shp_paths), out_fc)
     _gp(f"Merging {len(shp_paths)} input shapefile(s) → {out_fc}")
     arcpy.management.Merge(shp_paths, out_fc)
     return out_fc
@@ -859,7 +851,7 @@ def ensure_fips_field(
     """Ensure a 5-digit FIPS field exists by concatenating state + county."""
     fields = {f.name: f for f in arcpy.ListFields(feature_class)}
     if fips_field in fields:
-        LOGGER.info("Field %s already present — skipping creation", fips_field)
+        logging.info("Field %s already present — skipping creation", fips_field)
         _gp(f"Field {fips_field} already present — skipping creation.")
         return
 
@@ -871,7 +863,7 @@ def ensure_fips_field(
             f"{state_candidates} and one of {county_candidates}."
         )
 
-    LOGGER.info("Adding FIPS field %s", fips_field)
+    logging.info("Adding FIPS field %s", fips_field)
     _gp(f"Adding FIPS field {fips_field}")
     arcpy.management.AddField(
         in_table=feature_class, field_name=fips_field, field_type="TEXT", field_length=5
@@ -885,7 +877,7 @@ def ensure_fips_field(
             row[2] = f"{state_val}{county_val}"
             cursor.updateRow(row)
 
-    LOGGER.info("Populated new column %s", fips_field)
+    logging.info("Populated new column %s", fips_field)
     _gp(f"Populated new column {fips_field}")
 
 
@@ -899,7 +891,7 @@ def filter_by_fips(
 ) -> str:
     """Optionally filter a feature class by FIPS list. Returns input if list is empty."""
     if not fips_values:
-        LOGGER.info("FIPS filter empty — exporting full dataset")
+        logging.info("FIPS filter empty — exporting full dataset")
         _gp("FIPS filter empty — exporting full dataset")
         return feature_class
 
@@ -909,18 +901,18 @@ def filter_by_fips(
     sql_values = ",".join(f"'{val}'" for val in fips_values)
     where_clause = f"{arcpy.AddFieldDelimiters(feature_class, fips_field)} IN ({sql_values})"
 
-    LOGGER.info("Selecting by FIPS → %s", where_clause)
+    logging.info("Selecting by FIPS → %s", where_clause)
     _gp("Selecting by FIPS...")
 
     arcpy.management.MakeFeatureLayer(feature_class, "fips_lyr", where_clause)
     count = int(arcpy.management.GetCount("fips_lyr").getOutput(0))
     if count == 0:
-        LOGGER.warning("No features matched the FIPS list — output will be empty")
+        logging.warning("No features matched the FIPS list — output will be empty")
         _gp("Warning: No features matched the FIPS list — output will be empty.", "warning")
 
     arcpy.management.CopyFeatures("fips_lyr", out_fc)
 
-    LOGGER.info("Selected %d feature(s)", count)
+    logging.info("Selected %d feature(s)", count)
     _gp(f"Selected {count} feature(s)")
     return out_fc
 
@@ -931,11 +923,11 @@ def write_output(in_fc: str, out_path: str) -> None:
     if out_dir and not os.path.exists(out_dir):
         os.makedirs(out_dir, exist_ok=True)
 
-    LOGGER.info("Writing output → %s", out_path)
+    logging.info("Writing output → %s", out_path)
     _gp(f"Writing output → {out_path}")
     arcpy.management.CopyFeatures(in_fc, out_path)
     _gp("Output written successfully.")
-    LOGGER.info("Output written successfully")
+    logging.info("Output written successfully")
 
 
 # -----------------------------------------------------------------------------
@@ -977,7 +969,7 @@ def _add_text_key_field(
         raise KeyError(f"'{source_field}' not found in {dataset}")
 
     if not _field_exists(dataset, target_field):
-        LOGGER.info("Adding text key field '%s' to %s", target_field, dataset)
+        logging.info("Adding text key field '%s' to %s", target_field, dataset)
         arcpy.management.AddField(
             in_table=dataset,
             field_name=target_field,
@@ -987,7 +979,7 @@ def _add_text_key_field(
 
     # Example when length=15 → str(!GEO_ID!)[-15:]
     expr = f"str(!{source_field}!)[-{length}:]"
-    LOGGER.info(
+    logging.info(
         "Calculating %s from %s (rightmost %d chars)",
         target_field,
         source_field,
@@ -1023,7 +1015,7 @@ def _load_csv_to_memory(csv_path: str) -> str:
         The fully qualified in_memory table path.
     """
     out_name = "attrs_csv"
-    LOGGER.info("Loading CSV → in_memory table: %s → %s", csv_path, out_name)
+    logging.info("Loading CSV → in_memory table: %s → %s", csv_path, out_name)
     arcpy.conversion.TableToTable(
         in_rows=csv_path,
         out_path="in_memory",
@@ -1052,7 +1044,7 @@ def _maybe_force_float(fc: str) -> None:
     desc = arcpy.Describe(fc)
     is_gdb = desc.dataType in ("FeatureClass", "Table") and desc.path.lower().endswith(".gdb")
     if not is_gdb:
-        LOGGER.warning("FORCE_FLOAT True, but '%s' is not in a file gdb. Skipping coercion.", fc)
+        logging.warning("FORCE_FLOAT True, but '%s' is not in a file gdb. Skipping coercion.", fc)
         return
 
     for field in arcpy.ListFields(fc):
@@ -1065,7 +1057,7 @@ def _ensure_temp_gdb(base_path: str) -> str:
     base_dir = os.path.dirname(base_path)
     gdb_path = os.path.join(base_dir, "scratch_join.gdb")
     if not arcpy.Exists(gdb_path):
-        LOGGER.info("Creating scratch GDB at %s", gdb_path)
+        logging.info("Creating scratch GDB at %s", gdb_path)
         arcpy.management.CreateFileGDB(base_dir, "scratch_join.gdb")
     return gdb_path
 
@@ -1099,11 +1091,11 @@ def join_blocks_to_attributes(
         KeyError: If required key fields are missing.
         arcpy.ExecuteError: If any ArcPy geoprocessing tool fails.
     """
-    LOGGER.info("Start join: %s ← %s", blocks_fc, attrs_csv)
+    logging.info("Start join: %s ← %s", blocks_fc, attrs_csv)
 
     # Copy blocks to in_memory using a safe path constructor (avoid backslash escapes).
     blocks_mem = os.path.join("in_memory", "blocks_fc")
-    LOGGER.info("Copying features to memory: %s → %s", blocks_fc, blocks_mem)
+    logging.info("Copying features to memory: %s → %s", blocks_fc, blocks_mem)
     arcpy.management.CopyFeatures(blocks_fc, blocks_mem)
 
     # Normalize join keys
@@ -1114,7 +1106,7 @@ def join_blocks_to_attributes(
 
     # Perform the join in memory
     joined_view = "joined_view"
-    LOGGER.info(
+    logging.info(
         "Joining in memory: %s.%s → %s.%s",
         blocks_mem,
         left_join_field,
@@ -1139,22 +1131,22 @@ def join_blocks_to_attributes(
     if out_path.lower().endswith(".shp"):
         scratch_gdb = _ensure_temp_gdb(out_path)
         tmp_fc = os.path.join(scratch_gdb, "joined_blocks")
-        LOGGER.info("Copying joined layer → %s (temp GDB)", tmp_fc)
+        logging.info("Copying joined layer → %s (temp GDB)", tmp_fc)
         arcpy.management.CopyFeatures(joined_view, tmp_fc)
 
-        LOGGER.info("Exporting temp GDB feature class → shapefile %s", out_path)
+        logging.info("Exporting temp GDB feature class → shapefile %s", out_path)
         arcpy.conversion.FeatureClassToFeatureClass(
             in_features=tmp_fc,
             out_path=str(out_dir),
             out_name=Path(out_path).name,
         )
-        LOGGER.warning("Shapefile output truncates field names to 10 chars.")
+        logging.warning("Shapefile output truncates field names to 10 chars.")
     else:
-        LOGGER.info("Copying joined layer → %s", out_path)
+        logging.info("Copying joined layer → %s", out_path)
         arcpy.management.CopyFeatures(joined_view, out_path)
 
     _maybe_force_float(out_path)
-    LOGGER.info("Finished join → %s", out_path)
+    logging.info("Finished join → %s", out_path)
 
 
 # =============================================================================
@@ -1164,17 +1156,22 @@ def join_blocks_to_attributes(
 
 def run_pipeline() -> None:
     """Run CSV merge → TIGER merge/filter → join → outputs."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     try:
         # 1) CSV stage: build combined attributes
-        LOGGER.info("Discovering & merging CSVs under %s ...", INPUT_CSV_DIR)
+        logging.info("Discovering & merging CSVs under %s ...", INPUT_CSV_DIR)
         df_joined = build_joined_table_from_folder(INPUT_CSV_DIR, county_fips_filter=FIPS_TO_FILTER)
         out_csv = Path(INTERMEDIATE_COMBINED_CSV).expanduser().resolve()
         out_csv.parent.mkdir(parents=True, exist_ok=True)
         df_joined.to_csv(out_csv, index=False)
-        LOGGER.info("Combined CSV written → %s (rows=%d, cols=%d)", out_csv, *df_joined.shape)
+        logging.info("Combined CSV written → %s (rows=%d, cols=%d)", out_csv, *df_joined.shape)
 
         # 2) TIGER stage: discover, merge, ensure FIPS, filter, and write intermediate merged shp/fc
-        LOGGER.info("Discovering TIGER shapefiles under %s ...", INPUT_SHP_DIR)
+        logging.info("Discovering TIGER shapefiles under %s ...", INPUT_SHP_DIR)
         shp_paths = discover_tiger_datasets(INPUT_SHP_DIR, TIGER_INPUT_GLOB)
         merged_fc_tmp = merge_shapefiles(shp_paths)
         ensure_fips_field(merged_fc_tmp, fips_field=FIPS_FIELD_NAME)
@@ -1193,11 +1190,11 @@ def run_pipeline() -> None:
             derivation_src=DERIVATION_SRC,
         )
 
-        LOGGER.info("Pipeline completed successfully.")
+        logging.info("Pipeline completed successfully.")
         _gp("Pipeline completed successfully.")
 
     except Exception as exc:  # noqa: BLE001
-        LOGGER.exception("Pipeline failed: %s", exc)
+        logging.exception("Pipeline failed: %s", exc)
         _gp(f"Pipeline failed: {exc}", "error")
         sys.exit(1)
 

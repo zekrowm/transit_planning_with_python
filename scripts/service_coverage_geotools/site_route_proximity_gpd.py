@@ -62,6 +62,8 @@ STOP_CODE_FILTER: list[str] = []
 
 OUTPUT_FILE_NAME = "proximity_results.csv"
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -195,6 +197,11 @@ def main() -> None:
     Performs either a location-based proximity search or a stop-code lookup
     and exports the results to a CSV.
     """
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     try:
         _check_gtfs(GTFS_FOLDER)
         gtfs = _load_gtfs(GTFS_FOLDER)
@@ -270,5 +277,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()

@@ -74,7 +74,7 @@ DELETED_STOP_IDS: List[str] = ["1001", "1002"]
 EXPORT_MAPS: bool = True  # write small PNG map per deleted stop
 
 # Logging
-LOG_LEVEL = logging.INFO
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # -----------------------------------------------------------------------------
 # TYPES
@@ -782,7 +782,11 @@ def export_stop_maps(
 
 def main() -> None:
     """Analyze sidewalk-access impacts using a virtual-connector network."""
-    logging.basicConfig(level=LOG_LEVEL, format="%(levelname)s | %(message)s")
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     logging.info("Reading centerlines …")
     centerlines = load_centerlines(SIDEWALK_SHP, TARGET_CRS)

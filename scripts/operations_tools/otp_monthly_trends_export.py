@@ -57,6 +57,8 @@ DEFAULT_OTP_STANDARD: float = 0.85
 # Output filenames
 OUTPUT_TABLE_FILENAME: str = "otp_processed.csv"
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # ==============================
 # DATA STRUCTURES
 # ==============================
@@ -543,6 +545,11 @@ def main(argv: List[str] | None = None) -> None:
     Args:
         argv: Optional explicit argv list (e.g., [] for notebooks). If None, uses sys.argv.
     """
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     parser = build_arg_parser()
     # Accept unknown args to be notebook/IPython friendly (swallows "-f <kernel.json>").
     args, unknown = parser.parse_known_args(argv)
@@ -577,5 +584,4 @@ def main(argv: List[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()

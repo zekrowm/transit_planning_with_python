@@ -167,6 +167,8 @@ PLOT_STYLE: Final[dict[str, Any]] = {
     "grid": True,
 }
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -743,5 +745,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()

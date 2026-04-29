@@ -102,6 +102,8 @@ REQUIRED_GTFS_FILES = [
     "calendar.txt",
 ]
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -766,8 +768,8 @@ def main() -> None:
     # Logging (leave it here if you didn't configure logging earlier)
     # ------------------------------------------------------------------
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(levelname)s | %(asctime)s | %(message)s",
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 

@@ -61,27 +61,7 @@ NEAR_BUFFER_FT: float = 99.0
 LONG_SPACING_LOG_FILE: str = "long_spacing_segments.txt"  # currently unused (CSV + summary)
 LONG_SPACING_CSV_FILE: str = "long_spacing_segments.csv"
 
-# =============================================================================
-# LOGGING
-# =============================================================================
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s - %(message)s",
-)
-
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.INFO)
-
-if not LOGGER.handlers:
-    _handler = logging.StreamHandler(sys.stdout)
-    _handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(name)s - %(message)s"),
-    )
-    LOGGER.addHandler(_handler)
-
-# Avoid duplicate logs if root has handlers.
-LOGGER.propagate = False
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # HELPERS – I/O AND BASIC GTFS HANDLING
@@ -118,11 +98,11 @@ def _read_gtfs_tables(gtfs_path: str | Path) -> Dict[str, pd.DataFrame]:
     }
 
     if gtfs.is_dir():
-        LOGGER.info("Detected GTFS directory at %s", gtfs)
+        logging.info("Detected GTFS directory at %s", gtfs)
         return {k: pd.read_csv(gtfs / v) for k, v in filenames.items()}
 
     if gtfs.is_file() and gtfs.suffix.lower() == ".zip":
-        LOGGER.info("Detected GTFS zip at %s – extracting to temporary directory …", gtfs)
+        logging.info("Detected GTFS zip at %s – extracting to temporary directory …", gtfs)
         tmp = tempfile.TemporaryDirectory()
         with zipfile.ZipFile(gtfs, "r") as zf:
             zf.extractall(tmp.name)
@@ -244,14 +224,14 @@ def _build_stop_geometries(
             lon = float(row["stop_lon"])
             lat = float(row["stop_lat"])
         except (TypeError, ValueError):
-            LOGGER.warning("Skipping stop %s due to invalid coords.", stop_id)
+            logging.warning("Skipping stop %s due to invalid coords.", stop_id)
             continue
 
         pt = arcpy.Point(lon, lat)
         pt_geom = arcpy.PointGeometry(pt, wgs84).projectAs(projected_sr)
         out[stop_id] = pt_geom
 
-    LOGGER.info("Built %d stop point geometries.", len(out))
+    logging.info("Built %d stop point geometries.", len(out))
     return out
 
 
@@ -296,20 +276,20 @@ def _build_shape_geometries(
                 lon = float(row["shape_pt_lon"])
                 lat = float(row["shape_pt_lat"])
             except (TypeError, ValueError):
-                LOGGER.warning("Skipping bad shape point in shape_id=%s", shape_id)
+                logging.warning("Skipping bad shape point in shape_id=%s", shape_id)
                 continue
             pt = arcpy.Point(lon, lat)
             array.add(pt)
 
         if array.count < 2:
-            LOGGER.debug("Shape %s has fewer than 2 points; skipping.", shape_id)
+            logging.debug("Shape %s has fewer than 2 points; skipping.", shape_id)
             continue
 
         line_wgs = arcpy.Polyline(array, wgs84)
         line_proj = line_wgs.projectAs(projected_sr)
         out[str(shape_id)] = line_proj
 
-    LOGGER.info("Built %d shape polylines.", len(out))
+    logging.info("Built %d shape polylines.", len(out))
     return out
 
 
@@ -342,7 +322,7 @@ def _build_routes_from_shapes(
 
     # NEW: collapse to unique combinations so we do not duplicate per trip.
     trips = trips.drop_duplicates(subset=["route_id", "direction_id", "shape_id"]).copy()
-    LOGGER.info(
+    logging.info(
         "Routes – using %d unique (route_id, direction_id, shape_id) combinations.",
         len(trips),
     )
@@ -362,14 +342,14 @@ def _build_routes_from_shapes(
             shape_id = str(row["shape_id"])
             line = shape_geoms.get(shape_id)
             if line is None:
-                LOGGER.debug("Missing geometry for shape_id=%s; skipping trip.", shape_id)
+                logging.debug("Missing geometry for shape_id=%s; skipping trip.", shape_id)
                 continue
 
             rid = str(row["route_id"])
             try:
                 drn = int(row["direction_id"])
             except (TypeError, ValueError):
-                LOGGER.warning("Bad direction_id for route_id=%s; skipping.", rid)
+                logging.warning("Bad direction_id for route_id=%s; skipping.", rid)
                 continue
 
             rshort = route_short_lookup.get(rid)
@@ -381,7 +361,7 @@ def _build_routes_from_shapes(
                     "geometry": line,
                 }
             )
-        LOGGER.info("Routes – built %d route-shape records.", len(records))
+        logging.info("Routes – built %d route-shape records.", len(records))
         return records
 
     # Union shapes per (route_id, direction_id)
@@ -397,7 +377,7 @@ def _build_routes_from_shapes(
                 lines.append(line)
 
         if not lines:
-            LOGGER.debug(
+            logging.debug(
                 "No geometries found for route_id=%s, direction_id=%s; skipping.", rid, drn_val
             )
             continue
@@ -409,7 +389,7 @@ def _build_routes_from_shapes(
         try:
             drn = int(drn_val)
         except (TypeError, ValueError):
-            LOGGER.warning("Bad direction_id=%s for route_id=%s; skipping union.", drn_val, rid)
+            logging.warning("Bad direction_id=%s for route_id=%s; skipping union.", drn_val, rid)
             continue
 
         rshort = route_short_lookup.get(str(rid))
@@ -422,7 +402,7 @@ def _build_routes_from_shapes(
             }
         )
 
-    LOGGER.info("Routes – built %d unioned route polylines.", len(records))
+    logging.info("Routes – built %d unioned route polylines.", len(records))
     return records
 
 
@@ -494,7 +474,7 @@ def _build_stop_aggregates(
     all_stops_df = _agg_for(all_trips, all_routes)
     selected_stops_df = _agg_for(trips_selected, routes_selected)
 
-    LOGGER.info(
+    logging.info(
         "Stops – all served stops: %d; filtered served stops: %d",
         len(all_stops_df),
         len(selected_stops_df),
@@ -643,7 +623,7 @@ def _export_stops_shapefile(
             sid = str(row.stop_id)
             geom = stop_geoms.get(sid)
             if geom is None:
-                LOGGER.debug("No geometry for stop_id=%s; skipping.", sid)
+                logging.debug("No geometry for stop_id=%s; skipping.", sid)
                 continue
 
             routes_str = ",".join(str(r) for r in row.route_id)
@@ -662,7 +642,7 @@ def _export_stops_shapefile(
             )
             rows_written += 1
 
-    LOGGER.info("Wrote %s (%d features).", fc_path, rows_written)
+    logging.info("Wrote %s (%d features).", fc_path, rows_written)
 
 
 def _export_routes_shapefile(
@@ -707,7 +687,7 @@ def _export_routes_shapefile(
         for rec in routes:
             geom: arcpy.Polyline | None = rec.get("geometry")
             if _is_empty_polyline(geom):
-                LOGGER.debug(
+                logging.debug(
                     "Skipping empty or null route geometry for route_id=%s, dir=%s",
                     rec.get("route_id"),
                     rec.get("direction_id"),
@@ -724,7 +704,7 @@ def _export_routes_shapefile(
             )
             rows_written += 1
 
-    LOGGER.info("Wrote %s (%d features).", fc_path, rows_written)
+    logging.info("Wrote %s (%d features).", fc_path, rows_written)
 
 
 def _export_segments_shapefile(
@@ -783,7 +763,7 @@ def _export_segments_shapefile(
 
             stops = _ordered_route_stops(rec, stops_df, route_index, stop_geoms, line)
             if len(stops) < 2:
-                LOGGER.debug(
+                logging.debug(
                     "Route %s dir=%s has fewer than 2 ordered stops; skipping segments.",
                     rid,
                     drn,
@@ -804,7 +784,7 @@ def _export_segments_shapefile(
                 cursor.insertRow([rid, drn, rshort, float(length_ft), seg_geom])
                 rows_written += 1
 
-    LOGGER.info("Wrote %s (%d features).", fc_path, rows_written)
+    logging.info("Wrote %s (%d features).", fc_path, rows_written)
 
 
 # =============================================================================
@@ -854,7 +834,7 @@ def _flag_short_spacing(
                     )
                     count += 1
 
-    LOGGER.info(
+    logging.info(
         "Wrote short-spacing log → %s (%d flagged segments).",
         log_path.name,
         count,
@@ -961,7 +941,7 @@ def _flag_long_spacing_csv(
                     )
 
     if not records:
-        LOGGER.info("No long-spacing issues found.")
+        logging.info("No long-spacing issues found.")
         return
 
     fieldnames = [
@@ -983,7 +963,7 @@ def _flag_long_spacing_csv(
         for rec in records:
             writer.writerow(rec)
 
-    LOGGER.info("Wrote long-spacing CSV → %s (%d rows).", csv_path.name, len(records))
+    logging.info("Wrote long-spacing CSV → %s (%d rows).", csv_path.name, len(records))
 
     if summary:
         flagged_pairs = {(rec["route_id"], rec["direction_id"]) for rec in records}
@@ -992,7 +972,7 @@ def _flag_long_spacing_csv(
             fh.write("route_id\tdirection_id\n")
             for rid, drn in sorted(flagged_pairs):
                 fh.write(f"{rid}\t{drn}\n")
-        LOGGER.info(
+        logging.info(
             "Wrote summary → %s (%d route/direction pairs).",
             summ_path.name,
             len(flagged_pairs),
@@ -1006,26 +986,31 @@ def _flag_long_spacing_csv(
 
 def main() -> None:  # noqa: D401
     """Run the entire GTFS-to-GIS pipeline with both spacing QA checks."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     arcpy.env.overwriteOutput = True
 
     out_dir = _ensure_output_folder(OUTPUT_FOLDER)
-    LOGGER.info("STEP 0  Reading GTFS tables …")
+    logging.info("STEP 0  Reading GTFS tables …")
     dfs = _read_gtfs_tables(GTFS_PATH)
 
     try:
         _validate_columns(dfs)
     except ValueError as err:
-        LOGGER.error("ERROR – invalid GTFS feed:\n%s", err)
+        logging.error("ERROR – invalid GTFS feed:\n%s", err)
         sys.exit(1)
 
-    LOGGER.info("STEP 0·1  Filtering routes and trips …")
+    logging.info("STEP 0·1  Filtering routes and trips …")
     routes_df, trips_df = _filter_routes(
         dfs["routes"],
         dfs["trips"],
         INCLUDE_ROUTE_IDS,
         FILTER_OUT_LIST,
     )
-    LOGGER.info(
+    logging.info(
         "Routes kept: %d; Trips kept: %d (after include/exclude).",
         len(routes_df),
         len(trips_df),
@@ -1033,35 +1018,35 @@ def main() -> None:  # noqa: D401
 
     sr = _get_projected_sr(PROJECTED_WKID)
     feet_factor = _feet_factor(sr)
-    LOGGER.info("Using SR: %s (1 unit ≈ %.3f ft)", sr.name, feet_factor)
+    logging.info("Using SR: %s (1 unit ≈ %.3f ft)", sr.name, feet_factor)
 
-    LOGGER.info("STEP 1  Building stop aggregates …")
+    logging.info("STEP 1  Building stop aggregates …")
     all_stops_df, sel_stops_df = _build_stop_aggregates(dfs, trips_df, routes_df)
 
     # Build route/stop index (all stops and selected stops) once.
     sel_route_index = _build_route_stop_index(sel_stops_df)
     all_route_index = _build_route_stop_index(all_stops_df)
 
-    LOGGER.info("STEP 2  Building geometries for shapes and stops …")
+    logging.info("STEP 2  Building geometries for shapes and stops …")
     shape_geoms = _build_shape_geometries(dfs["shapes"], sr)
     stop_geoms = _build_stop_geometries(dfs["stops"], sr)
-    LOGGER.info(
+    logging.info(
         "Built %d shape polylines and %d stop points.",
         len(shape_geoms),
         len(stop_geoms),
     )
 
-    LOGGER.info("STEP 3  Building route polylines …")
+    logging.info("STEP 3  Building route polylines …")
     routes = _build_routes_from_shapes(trips_df, routes_df, shape_geoms, ROUTE_UNION)
 
-    LOGGER.info("STEP 4  Exporting stops and routes shapefiles …")
+    logging.info("STEP 4  Exporting stops and routes shapefiles …")
     _export_stops_shapefile(sel_stops_df, stop_geoms, sr, out_dir)
     _export_routes_shapefile(routes, sr, out_dir)
 
-    LOGGER.info("STEP 5  Building stop-to-stop segment shapefile …")
+    logging.info("STEP 5  Building stop-to-stop segment shapefile …")
     _export_segments_shapefile(routes, sel_stops_df, sel_route_index, stop_geoms, sr, out_dir)
 
-    LOGGER.info("STEP 6  Short-spacing QA …")
+    logging.info("STEP 6  Short-spacing QA …")
     _flag_short_spacing(
         routes,
         sel_stops_df,
@@ -1072,7 +1057,7 @@ def main() -> None:  # noqa: D401
         out_dir / SPACING_LOG_FILE,
     )
 
-    LOGGER.info("STEP 7  Long-spacing QA …")
+    logging.info("STEP 7  Long-spacing QA …")
     _flag_long_spacing_csv(
         routes,
         all_stops_df,
@@ -1084,12 +1069,12 @@ def main() -> None:  # noqa: D401
         out_dir / LONG_SPACING_CSV_FILE,
     )
 
-    LOGGER.info("All done! Outputs in: %s", out_dir)
+    logging.info("All done! Outputs in: %s", out_dir)
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception:  # noqa: BLE001
-        LOGGER.exception("UNEXPECTED ERROR")
+        logging.exception("UNEXPECTED ERROR")
         sys.exit(1)

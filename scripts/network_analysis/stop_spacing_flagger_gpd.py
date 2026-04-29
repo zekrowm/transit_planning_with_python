@@ -53,6 +53,8 @@ NEAR_BUFFER_FT: float = 99.0  # … and a “missed” stop must lie ≤ this
 LONG_SPACING_LOG_FILE: str = "long_spacing_segments.txt"
 LONG_SPACING_CSV_FILE: str = "long_spacing_segments.csv"
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 # =============================================================================
 # FUNCTIONS
 # =============================================================================
@@ -538,6 +540,11 @@ def _build_stop_layers(
 
 def main() -> None:  # noqa: D401
     """Run the entire GTFS-to-GIS pipeline with both spacing QA checks."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     # -----------------------------------------------------------------
     # STEP 0  Read GTFS tables and validate
     # -----------------------------------------------------------------
@@ -609,7 +616,6 @@ def main() -> None:  # noqa: D401
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     try:
         main()
     except Exception as exc:  # noqa: BLE001

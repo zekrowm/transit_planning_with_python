@@ -97,13 +97,7 @@ BY_ROUTE_WRITE_CSV: bool = True
 # Optional: export per-route clipped polygons to FINAL_EXPORT_TARGET (gdb or folder).
 BY_ROUTE_EXPORT_FEATURES: bool = False
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 # =============================================================================
 # PREFERRED DEMOGRAPHIC FIELD NAMES (from the census-join pipeline)
@@ -1261,6 +1255,11 @@ def _run_by_route(gtfs_folder: str, route_short_names: Sequence[str]) -> pd.Data
 # =============================================================================
 def main() -> None:
     """Run the end-to-end pipeline according to OUTPUT_MODE."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     arcpy.env.overwriteOutput = OVERWRITE_OUTPUTS
 
     # Basic input checks (mode-specific)

@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import logging
 import math
-import sys
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Tuple
 
@@ -82,16 +81,7 @@ EXPORT_ROUTE_TRANSFERS: bool = True  # Set False to skip transfer CSVs
 TRANSFER_DISTANCE_FT: float = 150.0  # Max stop-to-stop distance for a transfer (feet)
 TRANSFER_TIME_MIN: float = 40.0  # Max time difference between trips at transfer (minutes)
 
-# -----------------------------------------------------------------------------
-# LOGGING
-# -----------------------------------------------------------------------------
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s | %(name)s | %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-log = logging.getLogger("gtfs_buffer_analysis_arcpy")
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 
 # =============================================================================
@@ -102,19 +92,19 @@ log = logging.getLogger("gtfs_buffer_analysis_arcpy")
 def _add_message(msg: str, level: str = "INFO") -> None:
     """Write message to both Python logging and ArcPy, if available."""
     if level.upper() == "ERROR":
-        log.error(msg)
+        logging.error(msg)
         try:
             arcpy.AddError(msg)
         except Exception:
             pass
     elif level.upper() == "WARNING":
-        log.warning(msg)
+        logging.warning(msg)
         try:
             arcpy.AddWarning(msg)
         except Exception:
             pass
     else:
-        log.info(msg)
+        logging.info(msg)
         try:
             arcpy.AddMessage(msg)
         except Exception:
@@ -1247,6 +1237,11 @@ def _compute_route_transfer_tables(
 
 def main() -> None:
     """Run the GTFS feature-coverage analysis using ArcPy geometries."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     gdb_path = OUTPUT_DIR / GDB_NAME
 

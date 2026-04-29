@@ -101,6 +101,8 @@ LARGE_PARCEL_POINT_METHOD: str = "INSIDE"  # "INSIDE" | "CENTROID"
 LOG_SHARED_STOPS: bool = True
 QA_REPORT_CSV: str = os.path.join(OUTPUT_FOLDER, "qa_shared_stops.csv")
 
+LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
 
 # =============================================================================
 # FUNCTIONS
@@ -967,6 +969,11 @@ def _points_driven_sites(
 
 def main() -> None:
     """Run the GTFS proximity analysis."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     arcpy.env.overwriteOutput = True
     try:
         _ensure_dir(OUTPUT_FOLDER)
