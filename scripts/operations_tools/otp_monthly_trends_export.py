@@ -288,7 +288,9 @@ def process(
     key_cols = ["route", "direction", "month_label"]
     is_blank = (
         df[key_cols]
-        .apply(lambda s: s.astype(str).str.strip().replace({"": np.nan, "nan": np.nan, "<NA>": np.nan}))
+        .apply(
+            lambda s: s.astype(str).str.strip().replace({"": np.nan, "nan": np.nan, "<NA>": np.nan})
+        )
         .isna()
         .all(axis=1)
     )
@@ -465,9 +467,11 @@ def _summarize_subset(df_subset: pd.DataFrame) -> Dict[str, float]:
             "current": float("nan"),
             "mean": float("nan"),
         }
-    per_period = per_period.assign(
-        _idx=per_period["period"].map(_period_to_month_index)
-    ).sort_values("_idx").reset_index(drop=True)
+    per_period = (
+        per_period.assign(_idx=per_period["period"].map(_period_to_month_index))
+        .sort_values("_idx")
+        .reset_index(drop=True)
+    )
 
     n = len(per_period)
     raw_mean = float(per_period["pct_on_time"].mean())
@@ -550,9 +554,7 @@ def compute_trend_summary(df: pd.DataFrame, otp_standard: float) -> pd.DataFrame
                 "below_standard": (
                     bool(wd_current < std_pct) if not np.isnan(wd_current) else False
                 ),
-                "declining": (
-                    bool(wd_trend < 0) if not np.isnan(wd_trend) else False
-                ),
+                "declining": (bool(wd_trend < 0) if not np.isnan(wd_trend) else False),
                 "concern_score": concern_score,
             }
         )
@@ -733,10 +735,7 @@ def export_trend_logs(
 
     concerning_text = format_trend_log(
         concerning,
-        title=(
-            f"OTP TREND SUMMARY — Most Concerning "
-            f"{concerning_pct * 100:.0f}% ({k} of {n})"
-        ),
+        title=(f"OTP TREND SUMMARY — Most Concerning {concerning_pct * 100:.0f}% ({k} of {n})"),
         current_yy_mm=current_yy_mm,
         otp_standard=otp_standard,
         period_min=period_min,
@@ -1078,4 +1077,3 @@ def main(argv: List[str] | None = None) -> None:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     main()
-    
