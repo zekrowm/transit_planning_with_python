@@ -14,9 +14,9 @@ The primary function is to:
 
 from __future__ import annotations
 
+import logging
 import math
 import re
-import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,11 +80,13 @@ MIN_POINTS_PER_SHAPE: int = 2
 # --- Diagnostics ---
 VERBOSE: bool = True
 
+_log = logging.getLogger(__name__)
+
 
 def log(msg: str) -> None:
-    """Log message immediately if VERBOSE is True."""
+    """Emit msg at INFO level when VERBOSE is True."""
     if VERBOSE:
-        print(msg, flush=True)
+        _log.info(msg)
 
 
 # =============================================================================
@@ -935,32 +937,39 @@ def write_summary_csv(df: pd.DataFrame, path: Path) -> None:
 
 def main() -> None:
     """Run metrics and write outputs."""
+    logging.basicConfig(
+        level=logging.DEBUG if VERBOSE else logging.WARNING,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     try:
         df = compute_per_route_metrics()
     except (FileNotFoundError, ValueError) as exc:
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        _log.error("%s", exc)
         return
     except Exception as exc:
-        print(f"[ERROR] Unexpected failure: {exc}", file=sys.stderr)
+        _log.error("Unexpected failure: %s", exc)
         return
 
     try:
         write_summary_csv(df, OUTPUT_CSV)
     except OSError as exc:
-        print(f"[ERROR] Failed to write CSV: {exc}", file=sys.stderr)
+        _log.error("Failed to write CSV: %s", exc)
         return
 
-    print(f"[OK] Wrote per-route comparison summary to: {OUTPUT_CSV.resolve()}")
+    _log.info("Wrote per-route comparison summary to: %s", OUTPUT_CSV.resolve())
     if PLOT_DEBUG:
-        print(f"[OK] Plots (if any) saved under: {PLOT_DIR.resolve()}")
-    print(
-        f"[INFO] Representative shape: {USE_REPRESENTATIVE_SHAPE} | "
-        f"Stops from rep shape only: {STOPS_FROM_REP_SHAPE_ONLY} | "
-        f"Buffer stat: {BUFFER_STAT}"
+        _log.info("Plots (if any) saved under: %s", PLOT_DIR.resolve())
+    _log.info(
+        "Representative shape: %s | Stops from rep shape only: %s | Buffer stat: %s",
+        USE_REPRESENTATIVE_SHAPE,
+        STOPS_FROM_REP_SHAPE_ONLY,
+        BUFFER_STAT,
     )
-    print(
-        f"[INFO] Targets: min_buffer_feet ≤ {TARGET_MAX_BUFFER_FEET}, "
-        f"name_deviation_pct = {TARGET_MAX_NAME_DEVIATION_PCT}"
+    _log.info(
+        "Targets: min_buffer_feet ≤ %s, name_deviation_pct = %s",
+        TARGET_MAX_BUFFER_FEET,
+        TARGET_MAX_NAME_DEVIATION_PCT,
     )
 
 
