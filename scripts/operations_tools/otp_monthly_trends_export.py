@@ -827,9 +827,11 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
             plt.figure()
 
             # Blue OTP average line
-            (line_on,) = plt.plot(
-                x, avg_on.values, marker="o", label="Weekday On-time % (avg Mon–Fri)"
-            )
+            _lines = plt.plot(x, avg_on.values, marker="o", label="Weekday On-time % (avg Mon–Fri)")
+            if not _lines:
+                plt.close()
+                continue
+            line_on = _lines[0]
 
             # Light-blue band (OTP min–max range across Mon–Fri)
             base_color = line_on.get_color()
