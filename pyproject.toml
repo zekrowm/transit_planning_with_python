@@ -12,6 +12,7 @@
 minversion   = "8.0"
 testpaths    = ["tests"]
 python_files = ["test_*.py"]
+pythonpath   = ["."]
 addopts      = [
     "--strict-markers",
     "--strict-config",
