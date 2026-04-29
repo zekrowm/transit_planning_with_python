@@ -11,6 +11,13 @@ It produces:
      - Weekdays (Mon–Fri): shows average Weekday OTP with a min–max band (per month)
      - Saturday
      - Sunday
+  3) Two plain-text trend logs:
+     - otp_trend_summary_all.txt: every route/direction with a single headline
+       trend number (weekday OTP slope, in percentage points per month) plus
+       Saturday and Sunday slopes for reference.
+     - otp_trend_summary_concerning.txt: the most concerning subset (default
+       bottom 10% by composite concern score combining current gap-to-standard
+       and projected decline). Tunable via --concerning-pct.
 
 Design choices:
   - "Route" is cleaned to the part before "-" and then all non-alphanumerics are stripped.
@@ -54,10 +61,34 @@ DEFAULT_CURRENT_YY_MM: str = "25-10"  # Update with your own
 # Agency OTP standard (fraction). 0.85 = 85%.
 DEFAULT_OTP_STANDARD: float = 0.85
 
+# Routes to exclude entirely from processing (e.g., test/fake routes that
+# appear in the source extract but should not be reported).
+# Entries are matched against `route_clean` (uppercase alphanumerics with
+# everything before the first '-' kept and the rest dropped). The same
+# cleaning is applied to entries here, so any of "999", "999 - Test",
+# or "Route 999" will blacklist the same route.
+# Override at the CLI with --blacklist-routes "999,888".
+DEFAULT_BLACKLISTED_ROUTES: Tuple[str, ...] = ()
+
 # Output filenames
 OUTPUT_TABLE_FILENAME: str = "otp_processed.csv"
+OUTPUT_TREND_ALL_FILENAME: str = "otp_trend_summary_all.txt"
+OUTPUT_TREND_CONCERNING_FILENAME: str = "otp_trend_summary_concerning.txt"
 
-LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+# Default fraction of routes flagged as "most concerning" (e.g., 0.10 = bottom 10%).
+DEFAULT_CONCERNING_PCT: float = 0.10
+
+# Smoothing window (months) applied as a trailing rolling mean before fitting
+# the trend. Filters out single-month blips so we measure sustained change.
+TREND_SMOOTHING_WINDOW: int = 3
+
+# Minimum number of raw monthly periods required to compute a trend at all.
+# Below this, slope on a smoothed 12-month-or-less series isn't meaningful.
+MIN_PERIODS_FOR_TREND: int = 6
+
+# Horizon (in years) used when projecting current annualized trend into the
+# concern score. concern_score = max(0, standard - current) + max(0, -trend_pp_per_year) * HORIZON
+CONCERN_HORIZON_YEARS: float = 1.0
 
 # ==============================
 # DATA STRUCTURES
@@ -73,6 +104,8 @@ class Config:
     out_plots_dir: Path
     current_yy_mm: str
     otp_standard: float
+    concerning_pct: float
+    blacklisted_routes: frozenset
 
 
 # ==============================
@@ -234,12 +267,68 @@ def standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df[cols]
 
 
-def process(df: pd.DataFrame, current_yy_mm: str) -> pd.DataFrame:
-    """Compute totals and percentages and produce a tidy DataFrame."""
+def process(
+    df: pd.DataFrame,
+    current_yy_mm: str,
+    blacklisted_routes: frozenset = frozenset(),
+) -> pd.DataFrame:
+    """Compute totals and percentages and produce a tidy DataFrame.
+
+    Args:
+        df: Standardized input DataFrame.
+        current_yy_mm: Reference period in 'YY-MM' form.
+        blacklisted_routes: Optional set of route keys (will be passed through
+            clean_route) to drop entirely. Useful for excluding test/fake routes.
+    """
     ref_year, ref_month = parse_current_yy_mm(current_yy_mm)
     df = df.copy()
+
+    # Drop fully-empty trailer rows (e.g., blank lines at end of CSV exports).
+    # A row is "empty" if route, direction, and month_label are all NA/blank.
+    key_cols = ["route", "direction", "month_label"]
+    is_blank = (
+        df[key_cols]
+        .apply(
+            lambda s: s.astype(str).str.strip().replace({"": np.nan, "nan": np.nan, "<NA>": np.nan})
+        )
+        .isna()
+        .all(axis=1)
+    )
+    n_blank = int(is_blank.sum())
+    if n_blank:
+        logging.info("Dropping %d empty rows (likely trailer padding).", n_blank)
+        df = df.loc[~is_blank].reset_index(drop=True)
+
     df["route_raw"] = df["route"].astype(str).str.strip()
     df["route_clean"] = df["route_raw"].map(clean_route)
+
+    # Apply route blacklist. Entries are run through clean_route too so users
+    # can supply them in whatever form is convenient.
+    if blacklisted_routes:
+        normalized_blacklist = frozenset(
+            cleaned for cleaned in (clean_route(r) for r in blacklisted_routes) if cleaned
+        )
+        if normalized_blacklist:
+            mask = df["route_clean"].isin(normalized_blacklist)
+            n_drop = int(mask.sum())
+            if n_drop:
+                dropped_routes = sorted(df.loc[mask, "route_clean"].unique())
+                logging.info(
+                    "Dropping %d rows from %d blacklisted route(s): %s",
+                    n_drop,
+                    len(dropped_routes),
+                    ", ".join(dropped_routes),
+                )
+                df = df.loc[~mask].reset_index(drop=True)
+            # Warn about blacklist entries that didn't match anything in the data
+            present = set(df["route_clean"].unique()) | set(dropped_routes if n_drop else [])
+            unused = sorted(normalized_blacklist - present)
+            if unused:
+                logging.warning(
+                    "Blacklist entries with no matching rows in input: %s",
+                    ", ".join(unused),
+                )
+
     df["direction"] = df["direction"].astype(str).str.strip()
     df["month_label"] = df["month_label"].astype(str).str.strip()
     df["dow"] = df["dow"].map(_normalize_dow)
@@ -297,6 +386,366 @@ def export_table(df: pd.DataFrame, out_dir: Path, filename: str) -> Path:
     out_path = out_dir / filename
     df.to_csv(out_path, index=False)
     return out_path
+
+
+# ==============================
+# TREND SUMMARY (single-number per route/direction)
+# ==============================
+
+
+def _period_to_month_index(period: str) -> int:
+    """Convert 'YY-MM' to a monotonically increasing month index (months since 2000-01)."""
+    yy, mm = period.split("-")
+    return (2000 + int(yy)) * 12 + int(mm)
+
+
+def _trip_weighted_otp_by_period(df_subset: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate a (route, direction, day-set) subset into one row per period.
+
+    Returns a DataFrame with columns ['period', 'pct_on_time'] where pct_on_time
+    is computed as sum(on_time) / sum(total_trips) * 100 across the included rows
+    for that period (i.e., trip-weighted, so heavier service days dominate).
+    """
+    if df_subset.empty:
+        return pd.DataFrame(columns=["period", "pct_on_time"])
+    g = df_subset.groupby("period", as_index=False)[["on_time", "total_trips"]].sum(min_count=1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        g["pct_on_time"] = np.where(
+            g["total_trips"] > 0, (g["on_time"] / g["total_trips"]) * 100.0, np.nan
+        )
+    return g[["period", "pct_on_time"]].dropna(subset=["pct_on_time"])
+
+
+def _slope_pp_per_month(per_period: pd.DataFrame) -> float:
+    """Return OLS slope of pct_on_time vs month index, in percentage points per month.
+
+    Returns NaN if fewer than 2 distinct periods are available.
+    """
+    if len(per_period) < 2:
+        return float("nan")
+    x = np.array([_period_to_month_index(p) for p in per_period["period"]], dtype=float)
+    y = per_period["pct_on_time"].to_numpy(dtype=float)
+    if np.unique(x).size < 2:
+        return float("nan")
+    # np.polyfit returns [slope, intercept]
+    slope, _ = np.polyfit(x, y, 1)
+    return float(slope)
+
+
+def _smoothed_series(per_period: pd.DataFrame, window: int) -> pd.DataFrame:
+    """Apply a trailing rolling mean to pct_on_time.
+
+    Per-period rows must already be sorted ascending by period. Drops leading
+    rows that don't have a full window (so we never mix partial-window means
+    with full-window means in the trend fit).
+    """
+    if per_period.empty or len(per_period) < window:
+        return per_period.iloc[0:0]
+    smoothed = per_period.copy()
+    smoothed["pct_on_time"] = (
+        smoothed["pct_on_time"].rolling(window=window, min_periods=window).mean()
+    )
+    return smoothed.dropna(subset=["pct_on_time"]).reset_index(drop=True)
+
+
+def _summarize_subset(df_subset: pd.DataFrame) -> Dict[str, float]:
+    """Compute trend, current, mean, and n_periods for a subset of rows.
+
+    The trend metric is the slope of a trailing-rolling-mean smoothed series,
+    annualized to percentage points per year. Smoothing filters single-month
+    blips so the metric reflects sustained change rather than noise. Requires
+    at least MIN_PERIODS_FOR_TREND raw periods; otherwise trend is NaN.
+
+    The "current" value is the most recent smoothed (trailing rolling mean)
+    OTP, not the most recent single month, for the same noise-rejection reason.
+    """
+    per_period = _trip_weighted_otp_by_period(df_subset)
+    if per_period.empty:
+        return {
+            "n_periods": 0,
+            "trend_pp_per_year": float("nan"),
+            "current": float("nan"),
+            "mean": float("nan"),
+        }
+    per_period = (
+        per_period.assign(_idx=per_period["period"].map(_period_to_month_index))
+        .sort_values("_idx")
+        .reset_index(drop=True)
+    )
+
+    n = len(per_period)
+    raw_mean = float(per_period["pct_on_time"].mean())
+
+    # Trend on the smoothed series (only if enough raw months exist).
+    if n >= MIN_PERIODS_FOR_TREND:
+        smoothed = _smoothed_series(per_period, TREND_SMOOTHING_WINDOW)
+        if len(smoothed) >= 2:
+            slope_pp_per_month = _slope_pp_per_month(smoothed)
+            trend_pp_per_year = slope_pp_per_month * 12.0
+            current = float(smoothed["pct_on_time"].iloc[-1])
+        else:
+            trend_pp_per_year = float("nan")
+            current = float(per_period["pct_on_time"].iloc[-1])
+    else:
+        trend_pp_per_year = float("nan")
+        # Fall back to the raw most-recent value when we can't smooth.
+        current = float(per_period["pct_on_time"].iloc[-1])
+
+    return {
+        "n_periods": int(n),
+        "trend_pp_per_year": trend_pp_per_year,
+        "current": current,
+        "mean": raw_mean,
+    }
+
+
+def compute_trend_summary(df: pd.DataFrame, otp_standard: float) -> pd.DataFrame:
+    """Build a per-(route, direction) trend summary.
+
+    Headline metric is the WEEKDAY OTP trend in percentage points per year, fit
+    on a trailing-3-month-rolling-mean smoothed series so single-month blips
+    don't drive it. Saturday and Sunday trends are reported in the same units
+    for reference.
+
+    Concern score (higher = more concerning) combines:
+      * how far the smoothed weekday OTP currently sits below the standard, plus
+      * the projected further drop over CONCERN_HORIZON_YEARS at the current trend.
+
+    Note: with only 12 months of input, trend cannot be cleanly separated from
+    seasonality. The smoothing reduces single-month noise but does not remove
+    seasonal effects. True year-over-year analysis requires >= 15 months of
+    input data and a different period-mapping scheme.
+
+    Args:
+        df: Processed DataFrame from `process()`.
+        otp_standard: OTP threshold as a fraction (e.g., 0.85).
+
+    Returns:
+        DataFrame with one row per (route_clean, direction).
+    """
+    std_pct = otp_standard * 100.0
+    weekday_set = set(VALID_DOWS[:5])  # Mon..Fri
+
+    rows: List[Dict[str, object]] = []
+    for (route_clean, direction), g in df.groupby(["route_clean", "direction"], dropna=False):
+        wd = _summarize_subset(g[g["dow"].isin(weekday_set)])
+        sat = _summarize_subset(g[g["dow"] == "Saturday"])
+        sun = _summarize_subset(g[g["dow"] == "Sunday"])
+
+        # Concern score uses smoothed weekday values; NaN-safe.
+        wd_trend = wd["trend_pp_per_year"]
+        wd_current = wd["current"]
+        gap_below = max(0.0, std_pct - wd_current) if not np.isnan(wd_current) else 0.0
+        decline_per_year = max(0.0, -wd_trend) if not np.isnan(wd_trend) else 0.0
+        concern_score = gap_below + decline_per_year * CONCERN_HORIZON_YEARS
+
+        rows.append(
+            {
+                "route_clean": route_clean,
+                "direction": direction,
+                "n_periods_wd": wd["n_periods"],
+                "trend_wd": wd["trend_pp_per_year"],
+                "current_wd": wd["current"],
+                "mean_wd": wd["mean"],
+                "trend_sat": sat["trend_pp_per_year"],
+                "current_sat": sat["current"],
+                "trend_sun": sun["trend_pp_per_year"],
+                "current_sun": sun["current"],
+                "below_standard": (
+                    bool(wd_current < std_pct) if not np.isnan(wd_current) else False
+                ),
+                "declining": (bool(wd_trend < 0) if not np.isnan(wd_trend) else False),
+                "concern_score": concern_score,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def _fmt_signed(val: float, width: int = 6, decimals: int = 2) -> str:
+    """Format a signed float; show 'n/a' for NaN."""
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return "n/a".rjust(width)
+    return f"{val:+{width}.{decimals}f}"
+
+
+def _fmt_unsigned(val: float, width: int = 5, decimals: int = 1) -> str:
+    """Format an unsigned float; show 'n/a' for NaN."""
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return "n/a".rjust(width)
+    return f"{val:{width}.{decimals}f}"
+
+
+def _flags_for_row(row: pd.Series, std_pct: float) -> str:
+    """Compose a short flag string for the headline table."""
+    flags: List[str] = []
+    if row["declining"]:
+        flags.append("↓ declining")
+    if row["below_standard"]:
+        flags.append("below std")
+    return ", ".join(flags)
+
+
+def format_trend_log(
+    summary: pd.DataFrame,
+    *,
+    title: str,
+    current_yy_mm: str,
+    otp_standard: float,
+    period_min: str,
+    period_max: str,
+    sort_by: str = "route",
+) -> str:
+    """Render the trend summary as a fixed-width plain-text log."""
+    std_pct = otp_standard * 100.0
+
+    if sort_by == "concern":
+        summary = summary.sort_values(
+            ["concern_score", "route_clean", "direction"], ascending=[False, True, True]
+        )
+    else:
+        summary = summary.sort_values(["route_clean", "direction"])
+
+    sep = "=" * 130
+    sub = "-" * 130
+
+    lines: List[str] = []
+    lines.append(sep)
+    lines.append(title)
+    lines.append(sep)
+    lines.append(f"Reference period   : {current_yy_mm}")
+    lines.append(f"OTP standard       : {std_pct:.1f}%")
+    lines.append(f"Periods analyzed   : {period_min} through {period_max}")
+    lines.append(f"Routes/directions  : {len(summary)}")
+    lines.append("")
+    lines.append("Headline metric: WEEKDAY OTP trend, in percentage points per YEAR.")
+    lines.append(
+        f"  Computed on a trailing {TREND_SMOOTHING_WINDOW}-month rolling mean of "
+        "trip-weighted OTP, then OLS slope * 12."
+    )
+    lines.append(
+        "  Smoothing filters single-month blips so the metric reflects sustained change "
+        "rather than noise."
+    )
+    lines.append(
+        f"  Requires >= {MIN_PERIODS_FOR_TREND} periods of data; otherwise reported as n/a."
+    )
+    lines.append(
+        "  CURR = most recent trailing-window OTP (%); MEAN = simple mean across all months (%)."
+    )
+    lines.append(
+        f"  Concern score = max(0, {std_pct:.0f} - CURR_WD) + max(0, -TREND_WD) * "
+        f"{CONCERN_HORIZON_YEARS:g}  (higher = more concerning)."
+    )
+    lines.append("")
+    lines.append("Caveat: with ~12 months of input, trend cannot be fully separated from")
+    lines.append("seasonality. Smoothing reduces single-month noise but a residual seasonal")
+    lines.append("signal may remain. Year-over-year analysis (preferred) needs >= 15 months.")
+    lines.append("")
+
+    # Header
+    header = (
+        f"{'ROUTE':<8}{'DIRECTION':<22}"
+        f"{'N':>4}  "
+        f"{'TREND_WD':>9} {'CURR_WD':>8} {'MEAN_WD':>8}  "
+        f"{'TREND_SAT':>10} {'CURR_SAT':>9}  "
+        f"{'TREND_SUN':>10} {'CURR_SUN':>9}  "
+        f"{'CONCERN':>8}  "
+        f"FLAGS"
+    )
+    sub_header = (
+        f"{'':<8}{'':<22}"
+        f"{'':>4}  "
+        f"{'(pp/yr)':>9} {'(%)':>8} {'(%)':>8}  "
+        f"{'(pp/yr)':>10} {'(%)':>9}  "
+        f"{'(pp/yr)':>10} {'(%)':>9}  "
+        f"{'':>8}  "
+    )
+    lines.append(header)
+    lines.append(sub_header)
+    lines.append(sub)
+
+    for _, row in summary.iterrows():
+        route = str(row["route_clean"])[:8]
+        direction = str(row["direction"])[:22]
+        line = (
+            f"{route:<8}{direction:<22}"
+            f"{int(row['n_periods_wd']):>4}  "
+            f"{_fmt_signed(row['trend_wd'], 9, 2)} "
+            f"{_fmt_unsigned(row['current_wd'], 8, 1)} "
+            f"{_fmt_unsigned(row['mean_wd'], 8, 1)}  "
+            f"{_fmt_signed(row['trend_sat'], 10, 2)} "
+            f"{_fmt_unsigned(row['current_sat'], 9, 1)}  "
+            f"{_fmt_signed(row['trend_sun'], 10, 2)} "
+            f"{_fmt_unsigned(row['current_sun'], 9, 1)}  "
+            f"{_fmt_unsigned(row['concern_score'], 8, 2)}  "
+            f"{_flags_for_row(row, std_pct)}"
+        )
+        lines.append(line)
+
+    lines.append("")
+    lines.append(sep)
+    return "\n".join(lines) + "\n"
+
+
+def export_trend_logs(
+    proc: pd.DataFrame,
+    out_dir: Path,
+    *,
+    current_yy_mm: str,
+    otp_standard: float,
+    concerning_pct: float,
+) -> Tuple[Path, Path]:
+    """Compute the trend summary and write the all-routes and concerning logs.
+
+    Returns:
+        (path_all, path_concerning)
+    """
+    ensure_dir(out_dir)
+
+    summary = compute_trend_summary(proc, otp_standard=otp_standard)
+
+    # Period span (for the header)
+    periods_sorted = _sorted_periods(proc["period"])
+    period_min = periods_sorted[0] if periods_sorted else "n/a"
+    period_max = periods_sorted[-1] if periods_sorted else "n/a"
+
+    # All-routes log
+    all_text = format_trend_log(
+        summary,
+        title="OTP TREND SUMMARY — All Routes & Directions",
+        current_yy_mm=current_yy_mm,
+        otp_standard=otp_standard,
+        period_min=period_min,
+        period_max=period_max,
+        sort_by="route",
+    )
+    path_all = out_dir / OUTPUT_TREND_ALL_FILENAME
+    path_all.write_text(all_text, encoding="utf-8")
+
+    # Concerning subset: top N by concern score, with at least 1 row.
+    n = len(summary)
+    if n == 0:
+        k = 0
+    else:
+        k = max(1, int(np.ceil(n * concerning_pct)))
+    concerning = summary.sort_values(
+        ["concern_score", "route_clean", "direction"], ascending=[False, True, True]
+    ).head(k)
+
+    concerning_text = format_trend_log(
+        concerning,
+        title=(f"OTP TREND SUMMARY — Most Concerning {concerning_pct * 100:.0f}% ({k} of {n})"),
+        current_yy_mm=current_yy_mm,
+        otp_standard=otp_standard,
+        period_min=period_min,
+        period_max=period_max,
+        sort_by="concern",
+    )
+    path_concerning = out_dir / OUTPUT_TREND_CONCERNING_FILENAME
+    path_concerning.write_text(concerning_text, encoding="utf-8")
+
+    return path_all, path_concerning
 
 
 def _period_key(p: str) -> Tuple[int, int]:
@@ -531,6 +980,26 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=DEFAULT_OTP_STANDARD,
         help="Agency OTP standard as a fraction (e.g., 0.85 for 85%).",
     )
+    p.add_argument(
+        "--concerning-pct",
+        type=float,
+        default=DEFAULT_CONCERNING_PCT,
+        help=(
+            "Fraction of route/direction groups to flag as 'most concerning' "
+            "in the concerning .txt log (e.g., 0.10 for the top 10%%). "
+            "Always rounds up to at least 1 row."
+        ),
+    )
+    p.add_argument(
+        "--blacklist-routes",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated list of routes to exclude (e.g., '999,888,TEST'). "
+            "Matched against the cleaned route key, so any form is accepted. "
+            "If omitted, uses DEFAULT_BLACKLISTED_ROUTES from the config section."
+        ),
+    )
     return p
 
 
@@ -545,22 +1014,27 @@ def main(argv: List[str] | None = None) -> None:
     Args:
         argv: Optional explicit argv list (e.g., [] for notebooks). If None, uses sys.argv.
     """
-    logging.basicConfig(
-        level=LOG_LEVEL,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
     parser = build_arg_parser()
     # Accept unknown args to be notebook/IPython friendly (swallows "-f <kernel.json>").
     args, unknown = parser.parse_known_args(argv)
     if unknown:
         logging.warning("Ignoring unknown CLI args (likely from IPython): %s", unknown)
+    # Parse the blacklist: CLI overrides the constant if provided.
+    if args.blacklist_routes is not None:
+        blacklist = frozenset(
+            entry.strip() for entry in args.blacklist_routes.split(",") if entry.strip()
+        )
+    else:
+        blacklist = frozenset(DEFAULT_BLACKLISTED_ROUTES)
+
     cfg = Config(
         input_csv=Path(args.input).expanduser(),
         out_table_dir=Path(args.out_table).expanduser(),
         out_plots_dir=Path(args.out_plots).expanduser(),
         current_yy_mm=args.current,
         otp_standard=args.otp_standard,
+        concerning_pct=args.concerning_pct,
+        blacklisted_routes=blacklist,
     )
     logging.info("Reading: %s", cfg.input_csv)
     raw = read_csv_safely(cfg.input_csv)
@@ -568,10 +1042,27 @@ def main(argv: List[str] | None = None) -> None:
     logging.info("Normalizing columns...")
     norm = standardize_columns(raw)
     logging.info("Processing with CURRENT_YY_MM='%s'...", cfg.current_yy_mm)
-    proc = process(norm, cfg.current_yy_mm)
+    proc = process(norm, cfg.current_yy_mm, blacklisted_routes=cfg.blacklisted_routes)
+    if proc.empty:
+        logging.error(
+            "No rows remain after processing. "
+            "Check the input file and the route blacklist (currently: %s).",
+            sorted(cfg.blacklisted_routes) if cfg.blacklisted_routes else "(empty)",
+        )
+        return
     logging.info("Exporting table to: %s", cfg.out_table_dir)
     out_table_path = export_table(proc, cfg.out_table_dir, OUTPUT_TABLE_FILENAME)
     logging.info("Wrote table: %s", out_table_path)
+    logging.info("Exporting trend summary logs to: %s", cfg.out_table_dir)
+    path_all, path_concerning = export_trend_logs(
+        proc,
+        cfg.out_table_dir,
+        current_yy_mm=cfg.current_yy_mm,
+        otp_standard=cfg.otp_standard,
+        concerning_pct=cfg.concerning_pct,
+    )
+    logging.info("Wrote trend log (all):        %s", path_all)
+    logging.info("Wrote trend log (concerning): %s", path_concerning)
     logging.info("Generating plots in: %s", cfg.out_plots_dir)
     plot_series_for_groups(proc, cfg.out_plots_dir, cfg.otp_standard)
     logging.info("Plot export complete.")
@@ -584,4 +1075,5 @@ def main(argv: List[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()
