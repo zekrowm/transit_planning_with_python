@@ -30,12 +30,10 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # pip 25.1+ is required for `--group` (PEP 735).
           python -m pip install --upgrade pip
-          pip install --pre "ruff>=0.4.0" ty
-          if [[ -f requirements.txt ]]; then
-            pip install -r requirements.txt
-          fi
-          pip install pandas-stubs
+          pip install --pre -r requirements.txt
+          pip install --pre --group dev --group typing
 
       - name: Check formatting with Ruff
         run: ruff format --check .
@@ -45,3 +43,6 @@ jobs:
 
       - name: Type check with Ty
         run: ty check scripts --exclude "**/*arcpy*"
+
+      - name: Run tests
+        run: pytest

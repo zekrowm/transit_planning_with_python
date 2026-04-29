@@ -1,0 +1,44 @@
+# =============================================================================
+# OFFICIAL STACK — ArcGIS Pro 3.1 (Windows)
+# =============================================================================
+# This file documents the package versions that ship with ArcGIS Pro 3.1
+# (Python 3.9). It is a REFERENCE, not a CI install target.
+#
+# Why not a CI install target?
+#   • arcpy itself ships with ArcGIS Pro and is not on PyPI.
+#   • These pins target Python 3.9. Several have no wheels for newer Python
+#     versions (e.g., numpy 1.20.x has no Python 3.12 wheels) and will fail
+#     to install in our Linux CI environment.
+#
+# If you are running on ArcGIS Pro:
+#   • These libraries are already installed — you should not need pip.
+#   • Your organization may restrict adding new libraries via pip; check
+#     before attempting `pip install` inside the ArcPro Python environment.
+#
+# If you are running outside ArcGIS Pro:
+#   • Use requirements.txt instead (the default geopandas stack).
+# -----------------------------------------------------------------------------
+
+# Python 3.9 (bundled with ArcGIS Pro 3.1)
+
+# Core data science
+numpy==1.20.1
+pandas==1.4.4
+scipy==1.6.2
+
+# Esri Python API (pip-installable, ships with ArcPro)
+arcgis==2.1.0.2
+
+# Network analysis
+networkx==2.8.4
+
+# Visualization
+matplotlib==3.6.0
+seaborn==0.12.1
+
+# Excel I/O
+openpyxl==3.0.10
+xlrd==2.0.1
+
+# Testing
+pytest==7.2.0
