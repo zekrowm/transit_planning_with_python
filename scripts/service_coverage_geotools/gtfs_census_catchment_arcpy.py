@@ -1245,7 +1245,9 @@ def _run_by_route(gtfs_folder: str, route_short_names: Sequence[str]) -> pd.Data
     # Console view
     if not df.empty:
         cols = ["route_short_name"] + resolved_clipped_fields(DEMOGRAPHICS_FC)
-        logging.info("Per-route totals (area-weighted, rounded):\n%s", df[cols].to_string(index=False))
+        logging.info(
+            "Per-route totals (area-weighted, rounded):\n%s", df[cols].to_string(index=False)
+        )
 
     return df
 
