@@ -1,7 +1,7 @@
 import re
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -374,31 +374,40 @@ def test_export_trend_logs_all_has_more_routes(processed_df: pd.DataFrame, tmp_p
 # plot_series_for_groups
 # ---------------------------------------------------------------------------
 
-# These tests mock plt.savefig so they verify plotting logic (which files
-# would be saved and under what names) without relying on the Agg backend
-# to actually render pixels — which is fragile across matplotlib versions.
+# Patch `plt` inside the production module's own namespace so the mock is
+# guaranteed to intercept all plt calls regardless of how matplotlib was
+# imported or which backend is active in the test environment.
+# plt.plot must return a non-empty list so the `if _lines:` guard passes.
+
+_MODULE_PLT = "scripts.operations_tools.otp_monthly_trends_export.plt"
+
+
+def _make_plt_mock() -> MagicMock:
+    mock_plt = MagicMock()
+    fake_line = MagicMock()
+    fake_line.get_color.return_value = "steelblue"
+    mock_plt.plot.return_value = [fake_line]
+    return mock_plt
 
 
 @pytest.mark.skipif(not HAS_MATPLOTLIB, reason="matplotlib not installed")
 def test_plot_series_for_groups_creates_pngs(processed_df: pd.DataFrame, tmp_path: Path) -> None:
-    import matplotlib.pyplot as plt
-
-    with patch.object(plt, "savefig") as mock_save:
+    mock_plt = _make_plt_mock()
+    with patch(_MODULE_PLT, mock_plt):
         plot_series_for_groups(processed_df, tmp_path, otp_standard=0.85)
 
-    assert mock_save.call_count > 0
+    assert mock_plt.savefig.call_count > 0
 
 
 @pytest.mark.skipif(not HAS_MATPLOTLIB, reason="matplotlib not installed")
 def test_plot_series_for_groups_weekday_saturday_sunday(
     processed_df: pd.DataFrame, tmp_path: Path
 ) -> None:
-    import matplotlib.pyplot as plt
-
-    with patch.object(plt, "savefig") as mock_save:
+    mock_plt = _make_plt_mock()
+    with patch(_MODULE_PLT, mock_plt):
         plot_series_for_groups(processed_df, tmp_path, otp_standard=0.85)
 
-    saved_paths = [str(call.args[0]) for call in mock_save.call_args_list]
+    saved_paths = [str(call.args[0]) for call in mock_plt.savefig.call_args_list]
     assert any("Weekdays" in p for p in saved_paths)
     assert any("Saturday" in p for p in saved_paths)
     assert any("Sunday" in p for p in saved_paths)
@@ -410,14 +419,12 @@ def test_plot_series_for_groups_weekday_saturday_sunday(
 
 
 def test_main_end_to_end(tmp_path: Path) -> None:
-    import matplotlib.pyplot as plt
-
     from scripts.operations_tools.otp_monthly_trends_export import main
 
     out_table = tmp_path / "tables"
     out_plots = tmp_path / "plots"
 
-    with patch.object(plt, "savefig"):
+    with patch(_MODULE_PLT, _make_plt_mock()):
         main(
             [
                 "--input",
