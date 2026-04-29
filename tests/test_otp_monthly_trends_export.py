@@ -183,9 +183,19 @@ def test_standardize_columns_raises_on_missing():
 
 def test_process_output_columns(processed_df):
     expected = {
-        "route_raw", "route_clean", "direction", "month_label", "period",
-        "dow", "on_time", "early", "late", "total_trips",
-        "pct_on_time", "pct_early", "pct_late",
+        "route_raw",
+        "route_clean",
+        "direction",
+        "month_label",
+        "period",
+        "dow",
+        "on_time",
+        "early",
+        "late",
+        "total_trips",
+        "pct_on_time",
+        "pct_early",
+        "pct_late",
     }
     assert expected.issubset(set(processed_df.columns))
 
@@ -199,6 +209,7 @@ def test_process_route_clean_values(processed_df):
 
 def test_process_period_format(processed_df):
     import re
+
     for p in processed_df["period"].unique():
         assert re.fullmatch(r"\d{2}-\d{2}", p), f"Bad period format: {p}"
 
@@ -223,7 +234,17 @@ def test_process_drops_blank_rows(raw_df):
     # Append some blank rows to the fixture
     norm = standardize_columns(raw_df)
     blank = pd.DataFrame(
-        [{"route": "", "direction": "", "month_label": "", "dow": "", "on_time": "", "early": "", "late": ""}]
+        [
+            {
+                "route": "",
+                "direction": "",
+                "month_label": "",
+                "dow": "",
+                "on_time": "",
+                "early": "",
+                "late": "",
+            }
+        ]
     )
     norm_with_blanks = pd.concat([norm, blank], ignore_index=True)
     result = process(norm_with_blanks, CURRENT_YY_MM)
@@ -256,11 +277,19 @@ def test_compute_trend_summary_one_row_per_group(processed_df):
 def test_compute_trend_summary_columns(processed_df):
     summary = compute_trend_summary(processed_df, otp_standard=0.85)
     expected_cols = {
-        "route_clean", "direction", "n_periods_wd",
-        "trend_wd", "current_wd", "mean_wd",
-        "trend_sat", "current_sat",
-        "trend_sun", "current_sun",
-        "below_standard", "declining", "concern_score",
+        "route_clean",
+        "direction",
+        "n_periods_wd",
+        "trend_wd",
+        "current_wd",
+        "mean_wd",
+        "trend_sat",
+        "current_sat",
+        "trend_sun",
+        "current_sun",
+        "below_standard",
+        "declining",
+        "concern_score",
     }
     assert expected_cols.issubset(set(summary.columns))
 
@@ -379,12 +408,18 @@ def test_main_end_to_end(tmp_path):
     out_plots = tmp_path / "plots"
     main(
         [
-            "--input", str(FIXTURE_CSV),
-            "--out-table", str(out_table),
-            "--out-plots", str(out_plots),
-            "--current", CURRENT_YY_MM,
-            "--otp-standard", "0.85",
-            "--concerning-pct", "0.10",
+            "--input",
+            str(FIXTURE_CSV),
+            "--out-table",
+            str(out_table),
+            "--out-plots",
+            str(out_plots),
+            "--current",
+            CURRENT_YY_MM,
+            "--otp-standard",
+            "0.85",
+            "--concerning-pct",
+            "0.10",
         ]
     )
 
