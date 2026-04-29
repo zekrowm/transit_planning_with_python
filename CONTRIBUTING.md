@@ -1,12 +1,12 @@
 # Contributing to This Repository
 
 This project is built for transit planners, transit analysts, and civic technologists who want readable,
-self-contained Python scripts for transportation planning. We value clarity, consistency, and usability
+self-contained Python scripts for transportation planning. We value clarity, consistency, and user-friendliness
 in our scripts to make them usable by a wider audience. Please follow these principles when contributing:
 
 ## 👥 How to Contribute
 
-Participation is welcome from anyone, whether you’re new to coding, an experienced GitHub user, or a seasoned developer:
+Participation is welcome from anyone, whether you’re new to Python, an experienced GitHub user, or a seasoned developer:
 - **Beginners:**  
   - Feel free to copy, modify, and use scripts without any expectation of interaction.
 - **Intermediate Users:**  
@@ -21,8 +21,7 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 - Scripts **must be modular**, with a clearly defined `main()` function.
 - Include a clear **configuration section at the top** of each script.
   - Prefer inline variable configuration over `argparse`.
-- Use intuitive success messages at the end of script execution.
-  - e.g., `print("Script completed successfully.")` or equivalent `logging` call.
+- Use intuitive success messages (`logging`) at the end of script execution.
 - Do **not import** functions from the shared `utils/` directory at runtime.
   - Instead, **copy the relevant helper functions** into your script.
   - This keeps each script self-contained and easier for beginners to understand, run, and modify.
@@ -30,12 +29,12 @@ Participation is welcome from anyone, whether you’re new to coding, an experie
 
 ## ⚙️ Runtime Behavior
 
-- Prefer the `logging` module over `print()` for diagnostics or warnings.
+- Prefer the `logging` module over `print()` for all success messages, diagnostics, or warnings.
 - Implement **graceful, actionable error handling** — no cryptic tracebacks.
 - Use placeholder filenames that are clean, minimal, and safe to run (e.g., r"Path\\To\\Output_Folder", "input_data.csv").
 - Default to:
   - **Washington, DC CRS** unless otherwise noted (chosen because DC is the U.S. capital).
-  - **Imperial units** (feet/miles), with metric options clearly noted when used.
+  - **Imperial units** (feet/miles), with metric option available and clearly noted.
 
 ## 🧪 Testing & Review
 
@@ -51,7 +50,7 @@ Example: `feat(gtfs): add stop spacing validator`
   - Style and formatting using `ruff`.
   - Static typing using [`ty`](https://github.com/astral-sh/ty).
   - Unit tests (where present) using `pytest`.
-- You do **not** need to run linters or type checkers manually, but you **must fix** any issues flagged by the CI pipeline before requesting a review.
+- You do not need to run linters or type checkers manually, but you **must fix** any issues flagged by the CI pipeline before requesting a review.
 
 **Manual testing policy (scripts):**  
 New or modified scripts under `scripts/` **must be manually tested** before opening a PR. See the checklist below.
@@ -70,7 +69,7 @@ New or modified scripts under `scripts/` **must be manually tested** before open
 If you add or significantly modify a function in the `utils/` directory:
 
 - Write a **unit test** that exercises its normal behavior and at least one error condition.
-- Save new tests under `tests/unit/` following the naming pattern `test_<module>.py`.
+- Save new tests under `tests/` following the naming pattern `test_<module>.py`.
 - Use small, synthetic input data—do **not** rely on external files or network access.
 - Tests should run quickly (<1 s each) and be deterministic.
 - These tests protect against silent failures caused by future changes to dependencies (e.g., pandas, geopandas).
@@ -78,19 +77,21 @@ If you add or significantly modify a function in the `utils/` directory:
 
 ## 🧼 Code Style
 
-This project uses `ruff` to enforce formatting, linting, and docstring style, and `ty` for non-blocking type checks.
+This project uses `ruff` to enforce formatting, linting, and docstring style, and `ty` for static type checking.
 
-Most formatting issues (indentation, line length, spacing) are auto-corrected by Ruff on PRs.
+Many common issues are auto-corrected by Ruff on PRs.
 
 - The following are enforced in CI:
-  - PEP 8 layout and formatting
+  - PEP 8 layout, formatting, and common bug detection (via `pycodestyle`, `pyflakes`, and `flake8-bugbear`)
   - The enforced line length is **100 characters**
-  - Google-style docstrings
+  - Google-style docstrings (Note: `tests/` are exempt from docstring requirements)
   - Consistent import ordering (`isort`-compatible)
-  - Type annotations (with some leniency for `Any`)
-  - Avoiding `print()` (via Ruff rule `T201`) — use `logging` instead        
-
-**Note:** Ruff auto-fixes are pushed back to your PR branch automatically by the GitHub Actions workflow.
+  - Type annotations and type-checking imports, with some leniency for `Any` (`ANN401` is ignored)
+  - Pandas best practices (`pandas-vet`)
+        
+**Note:** Ruff auto-fixes for unused imports (`F401`), docstring styling (`D`), and import sorting (`I`) are pushed
+back to your PR branch automatically by the GitHub Actions workflow. While `ty` is configured to simply warn for
+many type mismatches, it *will* block/error on unresolved imports, unresolved references, and redundant casts.
 
 ## 📁 File Organization
 
