@@ -826,49 +826,50 @@ def plot_series_for_groups(df: pd.DataFrame, out_dir: Path, otp_standard: float)
 
             plt.figure()
 
-            # Blue OTP average line
-            (line_on,) = plt.plot(
-                x, avg_on.values, marker="o", label="Weekday On-time % (avg Mon–Fri)"
-            )
+            # Blue OTP average line — guard against empty return on all-NaN data
+            # (matplotlib 3.9+ returns [] instead of [Line2D] for fully-NaN series).
+            _lines = plt.plot(x, avg_on.values, marker="o", label="Weekday On-time % (avg Mon–Fri)")
+            if _lines:
+                line_on = _lines[0]
 
-            # Light-blue band (OTP min–max range across Mon–Fri)
-            base_color = line_on.get_color()
-            plt.fill_between(
-                x,
-                min_map.to_numpy().astype(float),
-                max_map.to_numpy().astype(float),
-                alpha=0.2,
-                label="Weekday OTP range (min–max Mon–Fri)",
-                facecolor=base_color,
-                edgecolor="none",
-            )
+                # Light-blue band (OTP min–max range across Mon–Fri)
+                base_color = line_on.get_color()
+                plt.fill_between(
+                    x,
+                    min_map.to_numpy().astype(float),
+                    max_map.to_numpy().astype(float),
+                    alpha=0.2,
+                    label="Weekday OTP range (min–max Mon–Fri)",
+                    facecolor=base_color,
+                    edgecolor="none",
+                )
 
-            # Early and Late average lines (defaults to Matplotlib colors)
-            plt.plot(x, avg_erl.values, marker="o", label="Weekday Early % (avg Mon–Fri)")
-            plt.plot(x, avg_lat.values, marker="o", label="Weekday Late % (avg Mon–Fri)")
+                # Early and Late average lines (defaults to Matplotlib colors)
+                plt.plot(x, avg_erl.values, marker="o", label="Weekday Early % (avg Mon–Fri)")
+                plt.plot(x, avg_lat.values, marker="o", label="Weekday Late % (avg Mon–Fri)")
 
-            # Reference line
-            plt.axhline(
-                y=std_y,
-                linestyle="--",
-                color="red",
-                linewidth=1,
-                label=f"OTP Standard ({otp_standard * 100:.0f}%)",
-            )
+                # Reference line
+                plt.axhline(
+                    y=std_y,
+                    linestyle="--",
+                    color="red",
+                    linewidth=1,
+                    label=f"OTP Standard ({otp_standard * 100:.0f}%)",
+                )
 
-            plt.xticks(ticks=x, labels=periods, rotation=45, ha="right")
-            plt.ylim(0, 100)
-            plt.xlabel("Period (YY-MM)")
-            plt.ylabel("Percent of trips")
-            title = f"{route_clean} — {direction} — Weekdays (Mon–Fri)"
-            plt.title(title)
-            plt.legend()
-            plt.tight_layout()
-            fname = f"{route_clean}_{direction.replace('/', '-')}_Weekdays_otp_trend.png".replace(
-                " ", ""
-            )
-            out_path = out_dir / fname
-            plt.savefig(out_path, dpi=150)
+                plt.xticks(ticks=x, labels=periods, rotation=45, ha="right")
+                plt.ylim(0, 100)
+                plt.xlabel("Period (YY-MM)")
+                plt.ylabel("Percent of trips")
+                title = f"{route_clean} — {direction} — Weekdays (Mon–Fri)"
+                plt.title(title)
+                plt.legend()
+                plt.tight_layout()
+                dir_slug = direction.replace("/", "-").replace(" ", "")
+                fname = f"{route_clean}_{dir_slug}_Weekdays_otp_trend.png"
+                out_path = out_dir / fname
+                plt.savefig(out_path, dpi=150)
+
             plt.close()
 
         # ---------- Saturday ----------
