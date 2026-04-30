@@ -12,7 +12,9 @@ pytest==8.3.5                # Unit testing framework
 pytest-cov                   # Test coverage reporting
 
 # Linting & formatting
-ruff                         # Linting & formatting
+# Keep this version in sync with `rev` in .pre-commit-config.yaml.
+ruff==0.15.12                # Linting & formatting
+pre-commit                   # Local git hooks (ruff)
 
 # Type checking
 ty                           # Non-blocking type checks

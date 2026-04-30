@@ -31,11 +31,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --pre "ruff>=0.4.0" ty
           if [[ -f requirements.txt ]]; then
             pip install -r requirements.txt
           fi
-          pip install pandas-stubs
+          pip install -r requirements-dev.txt
 
       - name: Check formatting with Ruff
         run: ruff format --check .

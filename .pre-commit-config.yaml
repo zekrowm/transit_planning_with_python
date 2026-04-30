@@ -1,0 +1,12 @@
+# Run locally with: pre-commit install (one-time), then on every commit.
+# Manually: pre-commit run --all-files
+#
+# Keep `rev` here in sync with the `ruff==` pin in requirements-dev.txt
+# so local hooks and CI use the same ruff version.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.12
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
