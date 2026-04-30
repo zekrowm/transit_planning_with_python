@@ -36,9 +36,9 @@ from scipy.spatial import cKDTree
 # Config
 # =============================================================================
 
-BEFORE_GTFS_DIR = Path("Path/To/GTFS/Dir")
-AFTER_GTFS_DIR = Path("Path/to/GTFS/Dir")
-OUTPUT_DIR = Path("Path/To/Output/Dir")
+BEFORE_GTFS_DIR = Path(r"Path\To\GTFS\Dir")
+AFTER_GTFS_DIR = Path(r"Path\to\GTFS\Dir")
+OUTPUT_DIR = Path(r"Path\To\Output\Dir")
 
 RELOCATE_THRESHOLD_FEET = 25.0
 OVERLAP_WARN_THRESHOLD = 0.10  # warn if overlap fraction < 10%

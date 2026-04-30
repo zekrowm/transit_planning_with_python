@@ -24,17 +24,17 @@ import pandas as pd
 # =============================================================================
 
 # INPUTS --------------------------------------------------------------------
-BUS_STOPS_INPUT = Path("Your/File/Path/To/stops.txt")  # GTFS stops.txt OR vector file
-EXCEL_FILE = Path("Your/File/Path/To/STOP_USAGE_(BY_STOP_ID).XLSX")
+BUS_STOPS_INPUT = Path(r"Your\File\Path\To\stops.txt")  # GTFS stops.txt OR vector file
+EXCEL_FILE = Path(r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).XLSX")
 
 ROUTE_FILTER_LIST: list[str] = []
 SPLIT_BY_ROUTE = False
 
-OUTPUT_FOLDER = Path("Your/Folder/Path/To/Output")
+OUTPUT_FOLDER = Path(r"Your\Folder\Path\To\Output")
 OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 
 # Optional polygons (set to None to disable)
-POLYGON_LAYER: Optional[Path] = Path("Your/File/Path/To/census_blocks.shp")
+POLYGON_LAYER: Optional[Path] = Path(r"Your\File\Path\To\census_blocks.shp")
 
 # OUTPUT FORMAT: "gpkg" strongly recommended; "shp" supported
 OUT_FORMAT = "gpkg"  # "gpkg" | "shp"

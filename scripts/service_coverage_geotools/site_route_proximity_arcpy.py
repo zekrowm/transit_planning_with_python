@@ -45,19 +45,19 @@ import pandas as pd
 
 # ---- GTFS paths
 # Folder containing GTFS text files (stops.txt, stop_times.txt, trips.txt, routes.txt)
-GTFS_FOLDER = "data/gtfs/your_gtfs_folder"
+GTFS_FOLDER = r"data\gtfs\your_gtfs_folder"
 
 # ---- Mode and inputs
 MODE = "points_plus_parcels"  # "single_fc" | "points_plus_parcels"
 
 # When MODE == "single_fc":
 # A single feature class of points or polygons representing sites
-LOCATIONS_FC = "data/sites/locations.shp"
+LOCATIONS_FC = r"data\sites\locations.shp"
 
 # When MODE == "points_plus_parcels":
 # Entrance/access points (points) and a parcels layer (polygons)
-ENTRANCE_POINTS_FC = "data/sites/entrance_points.shp"
-PARCELS_FC = "data/sites/parcels.shp"
+ENTRANCE_POINTS_FC = r"data\sites\entrance_points.shp"
+PARCELS_FC = r"data\sites\parcels.shp"
 
 # ---- Site identifiers / attributes
 # Preferred display names; fallbacks handled in code.
@@ -82,7 +82,7 @@ ROUTE_FILTER_IN: list[str] = []  # keep only these (empty => no whitelist)
 ROUTE_FILTER_OUT: list[str] = []  # drop these
 
 # ---- Output
-OUTPUT_FOLDER = "data/outputs/gtfs_proximity"
+OUTPUT_FOLDER = r"data\outputs\gtfs_proximity"
 OUTPUT_FILE_NAME = "gtfs_proximity_results.csv"
 
 # ---- Optional plotting

@@ -42,12 +42,12 @@ from shapely.strtree import STRtree
 # CONFIGURATION
 # =============================================================================
 
-SIDEWALK_SHP = Path("Path/To/Your/Sidewalks_Centerline.shp")  # Must be a functional network
-GTFS_DIR = Path("Path/To/Your/GTFS_Folder")  # folder path must contain stops.txt
-OUTPUT_DIR = Path("Path/To/Your/Output_Folder")
+SIDEWALK_SHP = Path(r"Path\To\Your\Sidewalks_Centerline.shp")  # Must be a functional network
+GTFS_DIR = Path(r"Path\To\Your\GTFS_Folder")  # folder path must contain stops.txt
+OUTPUT_DIR = Path(r"Path\To\Your\Output_Folder")
 
 # Plotting-only backdrop (not used for analysis)
-PLOT_SIDEWALKS_SHP: Optional[Path] = Path("Path/To/Your/Sidewalks_Centerline.shp")
+PLOT_SIDEWALKS_SHP: Optional[Path] = Path(r"Path\To\Your\Sidewalks_Centerline.shp")
 SIDEWALK_BACKDROP_PAD_FT: float = 300.0  # how far to expand the map view when clipping
 
 IDENTIFIER_PRIORITY: Tuple[str, str] = ("stop_code", "stop_id")

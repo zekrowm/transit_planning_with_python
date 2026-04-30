@@ -20,11 +20,11 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-STOPS_FILE = Path("Path/To/Your/GTFS_Folder/stops.txt")
+STOPS_FILE = Path(r"Path\To\Your\GTFS_Folder\stops.txt")
 EXEMPT_FILE = Path(
-    "Path/To/Your/approved_words.txt"
+    r"Path\To\Your\approved_words.txt"
 )  # Set for both existing file or desired file location and name
-OUTPUT_CSV = Path("Path/To/Your/stop_name_suffix_errors.csv")
+OUTPUT_CSV = Path(r"Path\To\Your\stop_name_suffix_errors.csv")
 
 INTERACTIVE = True  # Ask about unknown words?
 WRITE_EXEMPT = True  # Append approved words back to EXEMPT_FILE?

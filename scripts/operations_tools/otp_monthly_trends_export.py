@@ -48,11 +48,11 @@ import pandas as pd
 # CONFIGURATION
 # ==============================
 
-DEFAULT_INPUT_CSV: str = "file/path/to/your/CLEVER_Runtime_and_OTP_by_Month.csv"
+DEFAULT_INPUT_CSV: str = r"file\path\to\your\CLEVER_Runtime_and_OTP_by_Month.csv"
 
 # Network paths provided by requester (escape backslashes if editing here).
-DEFAULT_OUT_TABLE_DIR: str = "folder/path/to/your/output"
-DEFAULT_OUT_PLOTS_DIR: str = "folder/path/to/your/plots"
+DEFAULT_OUT_TABLE_DIR: str = r"folder\path\to\your\output"
+DEFAULT_OUT_PLOTS_DIR: str = r"folder\path\to\your\plots"
 
 # Current period indicator in 'YY-MM' format (YY two-digit year, MM two-digit month).
 # '25-10' means October 2025.

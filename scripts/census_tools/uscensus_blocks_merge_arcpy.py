@@ -32,7 +32,7 @@ import arcpy
 # =============================================================================
 
 # Root folder that contains one or more TIGER/Line shapefiles.
-INPUT_DIR: str = "path/to/your/tiger_shapefiles"
+INPUT_DIR: str = r"path\to\your\tiger_shapefiles"
 
 # Unix-style glob that must match the **.shp** filenames you want.
 # e.g. "tl_2023_11_tabblock20.shp" or simply "*.shp"
@@ -58,7 +58,7 @@ FIPS_TO_FILTER: List[str] = [
 # Examples:
 #   r"C:\output\admin.gdb\va_md_dc_blocks_fips_merge"
 #   r"C:\output\va_md_dc_blocks_fips_merge.shp"
-OUTPUT_PATH: str = "output/va_md_dc_blocks_fips_merge.shp"
+OUTPUT_PATH: str = r"output\va_md_dc_blocks_fips_merge.shp"
 
 # Name of the FIPS field we will guarantee exists
 FIPS_FIELD_NAME: str = "FIPS"

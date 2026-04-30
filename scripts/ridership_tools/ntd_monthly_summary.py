@@ -28,8 +28,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-DATA_ROOT: Final[Path] = Path("Path/To/Your/NTD_Folder")  # input files
-OUTPUT_DIR: Final[Path] = Path("Path/To/Your/Output/Folder")  # results
+DATA_ROOT: Final[Path] = Path(r"Path\To\Your\NTD_Folder")  # input files
+OUTPUT_DIR: Final[Path] = Path(r"Path\To\Your\Output\Folder")  # results
 
 REQUIRED_NUMERIC_COLS: Final[list[str]] = [
     "MTH_BOARD",
