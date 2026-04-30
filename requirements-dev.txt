@@ -1,0 +1,25 @@
+
+# =============================================================================
+# Dev / Test tooling — not needed to run the project
+# =============================================================================
+# Install after requirements.txt:
+#   pip install -r requirements.txt -r requirements-dev.txt
+# -----------------------------------------------------------------------------
+
+# Testing
+faker==25.8.0                # Fake data generation for tests
+pytest==8.3.5                # Unit testing framework
+pytest-cov                   # Test coverage reporting
+
+# Linting & formatting
+ruff                         # Linting & formatting
+
+# Type checking
+ty                           # Non-blocking type checks
+
+# ------------- Typing stubs (temporary) -------------------------------------
+pandas-stubs==2.2.*
+types-openpyxl>=3.1,<5
+types-networkx>=3.4,<4
+#types-faker>=25,<26
+#types-rapidfuzz>=3.11,<4
