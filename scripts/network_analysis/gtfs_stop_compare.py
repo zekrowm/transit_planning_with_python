@@ -666,8 +666,48 @@ def parse_args(argv: Sequence[str] | None = None) -> tuple[argparse.Namespace, l
     return args, unknown
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     """CLI entry point (notebook-safe)."""
+    placeholders = {
+        "BEFORE_GTFS_DIR": BEFORE_GTFS_DIR,
+        "AFTER_GTFS_DIR": AFTER_GTFS_DIR,
+        "OUTPUT_DIR": OUTPUT_DIR,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
     args, _unknown = parse_args(argv)
     run_compare(
         before_dir=args.before,
@@ -675,6 +715,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         out_dir=args.out,
         threshold_feet=args.threshold_feet,
     )
+    logging.info("gtfs_stop_compare.py completed successfully.")
 
 
 if __name__ == "__main__":

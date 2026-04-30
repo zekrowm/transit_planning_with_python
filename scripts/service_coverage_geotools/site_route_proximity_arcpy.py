@@ -962,6 +962,32 @@ def _points_driven_sites(
     return results
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -974,6 +1000,19 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    placeholders = {
+        "GTFS_FOLDER": GTFS_FOLDER,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
     arcpy.env.overwriteOutput = True
     try:
         _ensure_dir(OUTPUT_FOLDER)
@@ -1095,6 +1134,7 @@ def main() -> None:
         out_csv = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME)
         pd.DataFrame(rows).to_csv(out_csv, index=False, encoding="utf-8-sig")
         logging.info("Results written -> %s", out_csv)
+        logging.info("site_route_proximity_arcpy.py completed successfully.")
 
     except Exception as exc:  # pylint: disable=broad-except
         # In notebooks, re-raise to avoid IPython's nested 'inspect' failure with sys.exit

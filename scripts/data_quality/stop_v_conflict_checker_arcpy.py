@@ -335,6 +335,26 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    missing = [
+        name
+        for name, p in {
+            "GTFS_DIR": GTFS_DIR,
+            "ROADWAYS_PATH": ROADWAYS_PATH,
+            "DRIVEWAYS_PATH": DRIVEWAYS_PATH,
+            "BUILDINGS_PATH": BUILDINGS_PATH,
+        }.items()
+        if p and not Path(p).exists()
+    ]
+    if missing:
+        logging.warning(
+            "Configured input paths do not exist: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(missing),
+        )
+        return
+
     arcpy.env.overwriteOutput = OVERWRITE_OUTPUT
     _validate_config()
 
@@ -430,6 +450,7 @@ def main() -> None:
         csv_path if csv_path else "(CSV disabled)",
         "and " + xlsx_path if xlsx_path else "",
     )
+    logging.info("stop_v_conflict_checker_arcpy.py completed successfully.")
 
 
 if __name__ == "__main__":

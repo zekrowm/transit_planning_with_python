@@ -438,6 +438,32 @@ def run_validation(
     return errs
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -455,6 +481,20 @@ def main() -> None:
         ],
         force=True,
     )
+
+    placeholders = {
+        "STOPS_FILE": STOPS_FILE,
+        "OUTPUT_CSV": OUTPUT_CSV,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
     errors_df = run_validation(
         STOPS_FILE,
         exempt_path=EXEMPT_FILE,
@@ -465,6 +505,7 @@ def main() -> None:
 
     # Quick peek at the first few violations
     logging.info(errors_df.head())
+    logging.info("gtfs_usps_suffix_validator.py completed successfully.")
 
 
 if __name__ == "__main__":

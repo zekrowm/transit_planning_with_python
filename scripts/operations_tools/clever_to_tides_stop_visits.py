@@ -506,6 +506,32 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -519,6 +545,20 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    placeholders = {
+        "INPUT_CSV": INPUT_CSV,
+        "OUTPUT_CSV": OUTPUT_CSV,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
+
     df = pd.read_csv(INPUT_CSV, low_memory=False)
     logging.info("Read %d rows, %d columns", len(df), df.shape[1])
 
@@ -527,6 +567,7 @@ def main() -> None:
     OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(OUTPUT_CSV, index=False)
     logging.info("Wrote %d rows -> %s", len(out), OUTPUT_CSV)
+    logging.info("clever_to_tides_stop_visits.py completed successfully.")
 
 
 if __name__ == "__main__":

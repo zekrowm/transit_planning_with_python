@@ -861,6 +861,32 @@ def build_variation_index(df_monthly: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -873,8 +899,24 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
     parser = build_argparser()
     args, _unknown = parser.parse_known_args()
+
+    placeholders = {
+        "input": args.input,
+        "outdir": args.outdir,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "(or pass them on the command line) before running. "
+            "Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
 
     input_path = Path(args.input)
     if not input_path.exists():
@@ -992,6 +1034,7 @@ def main() -> None:
         logging.info(
             "Wrote %s* files for %s %s %s (n=%d).", stem, route, direction, variation, n_total
         )
+    logging.info("otp_monthly_by_timepoint_order.py completed successfully.")
 
 
 if __name__ == "__main__":

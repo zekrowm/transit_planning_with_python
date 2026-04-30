@@ -775,6 +775,32 @@ def export_stop_maps(
         plt.close(fig)
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -787,6 +813,22 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    placeholders = {
+        "SIDEWALK_SHP": SIDEWALK_SHP,
+        "GTFS_DIR": GTFS_DIR,
+        "OUTPUT_DIR": OUTPUT_DIR,
+        "PLOT_SIDEWALKS_SHP": PLOT_SIDEWALKS_SHP,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
 
     logging.info("Reading centerlines …")
     centerlines = load_centerlines(SIDEWALK_SHP, TARGET_CRS)
@@ -952,6 +994,7 @@ def main() -> None:
         logging.info("No lost coverage within %.2f mi buffers; nothing to export.", BUFFER_MILES)
 
     logging.info("Done ✔")
+    logging.info("stop_removal_impact_gpd.py completed successfully.")
 
 
 if __name__ == "__main__":

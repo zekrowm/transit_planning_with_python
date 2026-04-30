@@ -370,6 +370,32 @@ def run_split_by_route() -> None:
         logging.info("Wrote %s", poly_csv)
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -382,6 +408,22 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    placeholders = {
+        "BUS_STOPS_INPUT": BUS_STOPS_INPUT,
+        "EXCEL_FILE": EXCEL_FILE,
+        "OUTPUT_FOLDER": OUTPUT_FOLDER,
+        "POLYGON_LAYER": POLYGON_LAYER,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
     if not BUS_STOPS_INPUT.exists():
         raise FileNotFoundError(f"BUS_STOPS_INPUT not found: {BUS_STOPS_INPUT}")
     if not EXCEL_FILE.exists():
@@ -399,6 +441,7 @@ def main() -> None:
         run_single()
 
     logging.info("Done.")
+    logging.info("stops_ridership_joiner_gpd.py completed successfully.")
 
 
 if __name__ == "__main__":

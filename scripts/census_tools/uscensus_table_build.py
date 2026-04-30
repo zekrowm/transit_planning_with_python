@@ -589,6 +589,32 @@ def build_joined_table(
 
 __all__ = ["build_joined_table"]
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -601,6 +627,20 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    placeholders = {
+        "ROOT_DATA_DIR": ROOT_DATA_DIR,
+        "CSV_OUTPUT_PATH": CSV_OUTPUT_PATH,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
     logging.info("Discovering Census datasets under %s …", ROOT_DATA_DIR)
     discovered = discover_census_files(ROOT_DATA_DIR)
 
@@ -622,6 +662,7 @@ def main() -> None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         df_joined.to_csv(out_path, index=False)
         logging.info("CSV written to %s", out_path)
+    logging.info("uscensus_table_build.py completed successfully.")
 
 
 if __name__ == "__main__":
