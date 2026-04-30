@@ -93,6 +93,17 @@ Many common issues are auto-corrected by Ruff on PRs.
 back to your PR branch automatically by the GitHub Actions workflow. While `ty` is configured to simply warn for
 many type mismatches, it *will* block/error on unresolved imports, unresolved references, and redundant casts.
 
+**Running ruff locally (optional but recommended):** install dev dependencies and enable the pre-commit hook to
+catch ruff issues before pushing, instead of waiting for a CI round-trip:
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+After this, `ruff check` and `ruff format` run automatically on every `git commit`. The hook reads its config
+from `pyproject.toml` and uses the same ruff version that CI does (pinned in `requirements-dev.txt`).
+
 ## 📁 File Organization
 
 - Add new scripts to the appropriate subfolder within `scripts/`, based on function (e.g., `ridership_tools/`, `gtfs_exports/`).
