@@ -28,8 +28,11 @@ from openpyxl.worksheet.worksheet import Worksheet
 # CONFIGURATION
 # =============================================================================
 
-OBSERVED_DATA_PATH = r"Path\To\Your\Field_Data_Folder"
-ANALYSIS_RESULTS_PATH = r"Path\To\Your\Output_Folder"
+_DEFAULT_OBSERVED_DATA_PATH = r"Path\To\Your\Field_Data_Folder"
+_DEFAULT_ANALYSIS_RESULTS_PATH = r"Path\To\Your\Output_Folder"
+
+OBSERVED_DATA_PATH = _DEFAULT_OBSERVED_DATA_PATH    # <<< EDIT HERE
+ANALYSIS_RESULTS_PATH = _DEFAULT_ANALYSIS_RESULTS_PATH  # <<< EDIT HERE
 
 EARLY_TOLERANCE_MIN = -1  # minutes early that STILL counts on-time
 LATE_TOLERANCE_MIN = 6  # minutes late  that STILL counts on-time
@@ -494,6 +497,24 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    using_defaults = False
+    if OBSERVED_DATA_PATH == _DEFAULT_OBSERVED_DATA_PATH:
+        logging.warning(
+            "OBSERVED_DATA_PATH is still the default placeholder – update it before running: %s",
+            _DEFAULT_OBSERVED_DATA_PATH,
+        )
+        using_defaults = True
+    if ANALYSIS_RESULTS_PATH == _DEFAULT_ANALYSIS_RESULTS_PATH:
+        logging.warning(
+            "ANALYSIS_RESULTS_PATH is still the default placeholder – update it before running: %s",
+            _DEFAULT_ANALYSIS_RESULTS_PATH,
+        )
+        using_defaults = True
+    if using_defaults:
+        logging.info("No processing performed. Update the placeholder paths above and re-run.")
+        return
+
     logging.info("▸ Listing observed-data files …")
     observed_files = list_observed_files(OBSERVED_DATA_PATH)
     logging.info("  %d files found.", len(observed_files))

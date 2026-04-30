@@ -33,8 +33,11 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER_PATH = r"Path\To\Your\Input\Folder"  # <<< EDIT HERE
-BASE_OUTPUT_PATH = r"Path\To\Your\Output\Folder"  # <<< EDIT HERE
+_DEFAULT_GTFS_FOLDER_PATH = r"Path\To\Your\Input\Folder"
+_DEFAULT_BASE_OUTPUT_PATH = r"Path\To\Your\Output\Folder"
+
+GTFS_FOLDER_PATH = _DEFAULT_GTFS_FOLDER_PATH  # <<< EDIT HERE
+BASE_OUTPUT_PATH = _DEFAULT_BASE_OUTPUT_PATH   # <<< EDIT HERE
 
 REQUIRED_GTFS_FILES = [
     "trips.txt",
@@ -468,6 +471,23 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    using_defaults = False
+    if GTFS_FOLDER_PATH == _DEFAULT_GTFS_FOLDER_PATH:
+        logging.warning(
+            "GTFS_FOLDER_PATH is still the default placeholder – update it before running: %s",
+            _DEFAULT_GTFS_FOLDER_PATH,
+        )
+        using_defaults = True
+    if BASE_OUTPUT_PATH == _DEFAULT_BASE_OUTPUT_PATH:
+        logging.warning(
+            "BASE_OUTPUT_PATH is still the default placeholder – update it before running: %s",
+            _DEFAULT_BASE_OUTPUT_PATH,
+        )
+        using_defaults = True
+    if using_defaults:
+        logging.info("No processing performed. Update the placeholder paths above and re-run.")
+        return
 
     logging.info("========================================================")
     logging.info("GTFS Block Schedule Printable Generator")

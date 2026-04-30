@@ -50,11 +50,13 @@ from openpyxl.utils import get_column_letter
 
 # Output directory for generated Excel checklists and nearby-stop QA reports.
 # Use a local or network path that field staff can access.
-BASE_OUTPUT_PATH = r"transit\field_checks\YYYY_MM_checklists"
+_DEFAULT_BASE_OUTPUT_PATH = r"transit\field_checks\YYYY_MM_checklists"
+_DEFAULT_BASE_INPUT_PATH = r"transit\gtfs\connector_YYYY_MM_DD"
 
+BASE_OUTPUT_PATH = _DEFAULT_BASE_OUTPUT_PATH  # <<< EDIT HERE
 # Input directory containing a complete GTFS feed (trips.txt, stop_times.txt,
 # routes.txt, stops.txt, calendar.txt).
-BASE_INPUT_PATH = r"transit\gtfs\connector_YYYY_MM_DD"
+BASE_INPUT_PATH = _DEFAULT_BASE_INPUT_PATH    # <<< EDIT HERE
 
 # How CLUSTERS are specified:
 # - "stop_id"  -> CLUSTERS lists are stop_id values from stops.txt
@@ -891,7 +893,31 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    generate_gtfs_checklists()
+
+    using_defaults = False
+    if BASE_INPUT_PATH == _DEFAULT_BASE_INPUT_PATH:
+        logging.warning(
+            "BASE_INPUT_PATH is still the default placeholder – update it before running: %s",
+            _DEFAULT_BASE_INPUT_PATH,
+        )
+        using_defaults = True
+    if BASE_OUTPUT_PATH == _DEFAULT_BASE_OUTPUT_PATH:
+        logging.warning(
+            "BASE_OUTPUT_PATH is still the default placeholder – update it before running: %s",
+            _DEFAULT_BASE_OUTPUT_PATH,
+        )
+        using_defaults = True
+    if using_defaults:
+        logging.info("No processing performed. Update the placeholder paths above and re-run.")
+        return
+
+    try:
+        generate_gtfs_checklists()
+        logging.info("Script completed successfully.")
+    except (FileNotFoundError, OSError, ValueError) as err:
+        logging.error("%s", err)
+    except Exception as err:
+        logging.exception("Unexpected error: %s", err)
 
 
 if __name__ == "__main__":
