@@ -7,6 +7,10 @@ on:
       - '**/*.py'
       - '.github/workflows/helper-audit.yml'
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -27,23 +31,29 @@ jobs:
 
       - name: 🔍  Run helper‑function consistency audit
         id: audit
-        run: |
-          set -e
-          EXIT_CODE=0
-          python dev_tools/audit_helper_functions.py || EXIT_CODE=$?
-          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            echo "::warning file=dev_tools/audit_helper_functions.py,line=1::Helper‑function divergences detected (see logs)."
-          fi
-          exit 0                      # always succeed – for now
-        # remove the line above (or `continue-on-error`) to make failures fatal
+        run: python dev_tools/audit_helper_functions.py
 
-      - name: 📝  Add summary for PR
-        if: steps.audit.outputs.exit_code != '0'
+      - name: 💬  Post PR comment on divergence
+        if: failure() && steps.audit.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          {
-            echo "### ⚠️ Helper‑function divergences detected"
-            echo ""
-            echo "The audit script spotted at least one non‑canonical copy of a helper function."
-            echo "Merge is **not** blocked, but please review the *Run helper‑function consistency audit* step for details."
-          } >> "$GITHUB_STEP_SUMMARY"
+          AUDIT_RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          cat > /tmp/helper_audit_comment.md << EOF
+### ⚠️ Helper-function divergences detected — PR blocked
+
+At least one script contains a local copy of a helper function that has drifted from the canonical version in \`utils/\`.
+
+**Fix:** re-copy the affected function(s) from \`utils/\` into the script(s) flagged above, then push again.
+
+See the **Run helper-function consistency audit** step in the [workflow run](${AUDIT_RUN_URL}) for the exact diff.
+
+> Per [CONTRIBUTING.md](CONTRIBUTING.md): copy helpers from \`utils/\`, don't import them at runtime — and keep copies in sync.
+EOF
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --edit-last \
+            --body-file /tmp/helper_audit_comment.md 2>/dev/null \
+          || gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body-file /tmp/helper_audit_comment.md
