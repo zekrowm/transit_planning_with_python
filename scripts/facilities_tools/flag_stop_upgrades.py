@@ -38,7 +38,6 @@ RIDERSHIP_XLSX: Path = Path(r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).xlsx")
 RIDERSHIP_SHEET: int | str = 0
 # Output folder (Excel + TXT will be written here)
 OUTPUT_FOLDER: Path = Path(r"Your\Folder\Path\To\Output")
-OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 
 # Fields in ridership workbook
 RIDERSHIP_FIELD: str = "XBOARDINGS"
@@ -218,6 +217,22 @@ def _write_txt_log(processed_df: pd.DataFrame, flag_cols: List[str], out_path: P
 # =============================================================================
 
 
+_PLACEHOLDER_MARKERS: Tuple[str, ...] = (
+    "your\\file\\path",
+    "your\\folder\\path",
+    "path\\to\\your",
+    "your/file/path",
+    "your/folder/path",
+    "path/to/your",
+)
+
+
+def _is_placeholder_path(p: Path) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    s = str(p).lower()
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 def main() -> None:
     """Run the ETL pipeline and produce both Excel and text outputs."""
     logging.basicConfig(
@@ -225,6 +240,24 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    placeholders = {
+        "RIDERSHIP_XLSX": RIDERSHIP_XLSX,
+        "AMENITIES_XLSX": AMENITIES_XLSX,
+        "OUTPUT_FOLDER": OUTPUT_FOLDER,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
+
+    OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
+
     # 1–2. LOAD SOURCE FILES
     df_raw = _load_ridership_data(RIDERSHIP_XLSX, RIDERSHIP_SHEET)
     df_amen = _load_amenity_data(AMENITIES_XLSX, AMENITIES_SHEET)
@@ -255,6 +288,8 @@ def main() -> None:
     if need_agg:
         dup_ct = df_raw.shape[0] - df_processed.shape[0]
         logging.info("  (Aggregated %d duplicate STOP_ID rows.)", dup_ct)
+
+    logging.info("flag_stop_upgrades.py completed successfully.")
 
 
 if __name__ == "__main__":

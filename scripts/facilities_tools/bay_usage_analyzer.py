@@ -367,6 +367,22 @@ def gather_block_spreadsheets(block_folder: str) -> DataFrame:
     return df_combined
 
 
+_PLACEHOLDER_MARKERS: Tuple[str, ...] = (
+    "path\\to\\your",
+    "your\\file\\path",
+    "your\\folder\\path",
+    "path/to/your",
+    "your/file/path",
+    "your/folder/path",
+)
+
+
+def _is_placeholder_path(p: str) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    s = str(p).lower()
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 def run_step2_conflict_detection() -> None:
     """Execute the full Step 2 conflict-detection workflow.
 
@@ -385,6 +401,21 @@ def run_step2_conflict_detection() -> None:
         If required columns are missing from the input spreadsheets.
     """
     logging.info("=== Step 2: Conflict detection and per-cluster output (multi-bay) ===")
+
+    placeholders = {
+        "BLOCK_OUTPUT_FOLDER": BLOCK_OUTPUT_FOLDER,
+        "CLUSTER_CONFLICT_OUTPUT_FOLDER": CLUSTER_CONFLICT_OUTPUT_FOLDER,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
+
     os.makedirs(CLUSTER_CONFLICT_OUTPUT_FOLDER, exist_ok=True)
 
     # 1) Gather Step 1 data
@@ -491,6 +522,7 @@ def run_step2_conflict_detection() -> None:
     logging.info("\nDistinct cluster-conflict points: %d", len(cluster_conflicts))
     logging.info("Distinct stop-conflict points: %d", len(stop_conflicts))
     logging.info("Step 2 complete.")
+    logging.info("bay_usage_analyzer.py completed successfully.")
 
 
 # ==================================================================================================
