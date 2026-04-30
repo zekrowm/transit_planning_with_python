@@ -38,19 +38,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cat > /tmp/helper_audit_comment.md << 'EOF'
-          ### ⚠️ Helper-function divergences detected — PR blocked
-
-          At least one script contains a local copy of a helper function that has drifted from the canonical version in `utils/`.
-
-          **Fix:** re-copy the affected function(s) from `utils/` into the script(s) flagged above, then push again.
-
-          See the **Run helper-function consistency audit** step in the [workflow run]($AUDIT_RUN_URL) for the exact diff.
-
-          > Per [CONTRIBUTING.md](CONTRIBUTING.md): copy helpers from `utils/`, don't import them at runtime — and keep copies in sync.
-          EOF
           AUDIT_RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          sed -i "s|\$AUDIT_RUN_URL|${AUDIT_RUN_URL}|g" /tmp/helper_audit_comment.md
+          cat > /tmp/helper_audit_comment.md << EOF
+### ⚠️ Helper-function divergences detected — PR blocked
+
+At least one script contains a local copy of a helper function that has drifted from the canonical version in \`utils/\`.
+
+**Fix:** re-copy the affected function(s) from \`utils/\` into the script(s) flagged above, then push again.
+
+See the **Run helper-function consistency audit** step in the [workflow run](${AUDIT_RUN_URL}) for the exact diff.
+
+> Per [CONTRIBUTING.md](CONTRIBUTING.md): copy helpers from \`utils/\`, don't import them at runtime — and keep copies in sync.
+EOF
           gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --edit-last \
+            --body-file /tmp/helper_audit_comment.md 2>/dev/null \
+          || gh pr comment "${{ github.event.pull_request.number }}" \
             --repo "${{ github.repository }}" \
             --body-file /tmp/helper_audit_comment.md
