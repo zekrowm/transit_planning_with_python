@@ -22,11 +22,16 @@ Bad examples (will fail CI):
   feat: Add stop spacing validator                      (capitalized)
   feat(GTFS): add stop spacing validator                (uppercase scope)
 
-Before opening a PR, double-check the title matches this format.
+Before opening a PR, validate the title by running:
+  python dev_tools/lint_pr.py "<proposed title>"
+
+If the script exits with an error, fix the title before proceeding.
+Apply the same check to commit message headers before committing.
 
 ## Commit messages
 Follow the same Conventional Commits format for commits. Not
 enforced in CI, but kept consistent for project history.
+Validate with: python dev_tools/lint_pr.py "<commit header>"
 
 ## Other conventions
 See CONTRIBUTING.md for code style, testing policy, and the

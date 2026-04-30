@@ -101,6 +101,17 @@ many type mismatches, it *will* block/error on unresolved imports, unresolved re
   - Then copy that helper into any script that uses it.
 - Do **not** import functions from one script into another or from `utils/` at runtime.
 
+### Requirements files
+
+The repository uses two requirements files:
+
+| File | Purpose |
+|---|---|
+| `requirements.txt` | Open-source / non-ArcGIS stack (geopandas, rapidfuzz, etc.) plus all CI and dev tooling (ruff, ty, pytest). Used by CI. **This is the pip install target.** |
+| `requirements_arcpro.txt` | Reference only — documents packages already present in the ArcGIS Pro Python environment. Nothing here needs to be pip-installed. |
+
+If you add a new pip-installable dependency, add it to `requirements.txt`. If you're noting that something is available in the ArcGIS Pro environment, add it to `requirements_arcpro.txt` as a comment or entry with a note.
+
 ## 🌳 GitHub Contribution Workflow
 
 Follow these instructions when contributing code via GitHub:
