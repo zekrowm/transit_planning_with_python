@@ -1,9 +1,10 @@
 
 # =============================================================================
-# Open-Source / Non-ArcGIS Stack — and CI/dev tooling
+# Open-Source / Non-ArcGIS Stack — runtime dependencies
 # =============================================================================
 # Use this file when running outside ArcGIS Pro (home computer, CI, etc.).
 # For the ArcGIS Pro environment, see requirements_arcpro.txt instead.
+# For dev/test tooling (pytest, ruff, ty, stubs), see requirements-dev.txt.
 # Note: packages shared with the ArcPro stack are listed in both files.
 # -----------------------------------------------------------------------------
 
@@ -33,19 +34,3 @@ rapidfuzz==3.13.0            # Fast fuzzy string matching
 
 # Optimization
 pulp==2.9.0                  # Linear programming solver interface
-
-# Development Tools
-faker==25.8.0                # For generating fake data
-pytest==8.3.5                # Unit testing framework
-
-# CI/dev tooling
-pytest-cov                   # Test coverage reporting
-ruff                         # Linting & formatting
-ty                           # Non-blocking type checks
-
-# ------------- Typing stubs (temporary) -------------------------------------
-pandas-stubs==2.2.*
-types-openpyxl>=3.1,<5
-types-networkx>=3.4,<4
-#types-faker>=25,<26
-#types-rapidfuzz>=3.11,<4
