@@ -106,8 +106,7 @@ def test_integration_exports(input_df, tmp_path, monkeypatch) -> None:
     fake_output_xlsx = tmp_path / "processed_stats.xlsx"
     monkeypatch.setattr(load_factor_monitor, "OUTPUT_FILE", str(fake_output_xlsx))
 
-    # Mock export functions to avoid 'openpyxl' import errors in CI
-    # We only verify that the logic flow reaches these functions
+    # Mock export functions for test isolation; we verify logic flow, not file I/O
     monkeypatch.setattr(load_factor_monitor, "export_to_excel", lambda df, path: None)
     monkeypatch.setattr(load_factor_monitor, "create_route_workbooks", lambda df: None)
 

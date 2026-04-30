@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -8,22 +8,6 @@ import pytest
 # Add the script directory to sys.path to allow importing the module
 script_dir = Path("scripts/ridership_tools").resolve()
 sys.path.append(str(script_dir))
-
-# Mock openpyxl if it's not installed, as it is used at module level
-# We do this before importing the target module
-try:
-    import openpyxl  # noqa: F401
-except ImportError:
-    # Create a dummy module
-    mock_openpyxl = MagicMock()
-    # We need to mock specific submodules/attributes accessed at top-level
-    mock_openpyxl.styles = MagicMock()
-    mock_openpyxl.utils = MagicMock()
-
-    # Inject into sys.modules
-    sys.modules["openpyxl"] = mock_openpyxl
-    sys.modules["openpyxl.styles"] = mock_openpyxl.styles
-    sys.modules["openpyxl.utils"] = mock_openpyxl.utils
 
 import data_request_by_stop_processor as target  # noqa: E402
 
