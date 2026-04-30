@@ -5,8 +5,10 @@
 # These packages complement arcpy (which ships with ArcGIS Pro and cannot be
 # installed via pip). Install these in your ArcGIS Pro Python environment.
 #
-# For the open-source / non-ArcGIS stack (geopandas, rapidfuzz, etc.) and
-# dev/CI tooling, see requirements.txt.
+# These packages are pinned to versions known to work alongside the ArcGIS Pro
+# Python environment. The same packages also appear in requirements.txt (used
+# by CI and non-ArcGIS setups), which additionally includes geopandas,
+# rapidfuzz, and other open-source-only dependencies.
 # -----------------------------------------------------------------------------
 
 # Core Data Science Libraries

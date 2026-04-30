@@ -4,9 +4,26 @@
 # =============================================================================
 # Use this file when running outside ArcGIS Pro (home computer, CI, etc.).
 # For the ArcGIS Pro environment, see requirements_arcpro.txt instead.
+# Note: packages shared with the ArcPro stack are listed in both files.
 # -----------------------------------------------------------------------------
 
-# Geospatial Libraries (GeoPandas stack)
+# Core Data Science Libraries (also listed in requirements_arcpro.txt)
+pandas==2.2.3                # Data manipulation and analysis
+numpy==1.26.4                # Numerical computing
+scipy==1.12.0                # Scientific computing and optimization
+
+# Network Analysis (also listed in requirements_arcpro.txt)
+networkx==2.8.4              # Graph and network analysis
+
+# Visualization (also listed in requirements_arcpro.txt)
+matplotlib==3.6.0            # Plotting and visualization
+seaborn==0.12.1              # Statistical plotting
+
+# Excel File Support (also listed in requirements_arcpro.txt)
+openpyxl==3.1.5              # Read/write Excel .xlsx files
+xlrd==2.0.1                  # Read legacy Excel .xls files (no .xlsx support)
+
+# Geospatial Libraries (GeoPandas stack — open-source only)
 geopandas==1.1.1             # Geospatial data handling (open-source)
 shapely==2.1.1               # Geometry operations
 pyproj==3.7.1                # Coordinate reference systems and transformations
