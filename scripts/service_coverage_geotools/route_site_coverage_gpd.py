@@ -284,6 +284,21 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    missing = [
+        name
+        for name, p in {"GTFS_DIR": GTFS_DIR, "SHP_INPUT_DIR": SHP_INPUT_DIR}.items()
+        if not p.exists()
+    ]
+    if missing:
+        logging.warning(
+            "Configured input paths do not exist: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(missing),
+        )
+        return
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     logging.info("Loading GTFS from %s", GTFS_DIR)
@@ -311,6 +326,7 @@ def main() -> None:
     summary_df.to_csv(summary_path)
     logging.info("Summary written to %s", summary_path)
     logging.info("Done.")
+    logging.info("route_site_coverage_gpd.py completed successfully.")
 
 
 if __name__ == "__main__":

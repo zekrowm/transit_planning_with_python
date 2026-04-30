@@ -388,6 +388,32 @@ def gtfs_to_shapefiles(
     logging.info("-" * 50)
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # ===========================================================================
 # MAIN
 # ===========================================================================
@@ -405,6 +431,20 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    placeholders = {
+        "DEFAULT_GTFS_DIR": DEFAULT_GTFS_DIR,
+        "DEFAULT_OUTPUT_DIR": DEFAULT_OUTPUT_DIR,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
     # Scenario 1: Use default paths configured at the top of the file
     # Make sure DEFAULT_GTFS_DIR and DEFAULT_OUTPUT_DIR are set correctly above!
     logging.info("\nRunning example using default paths from configuration...")
@@ -432,6 +472,7 @@ def main() -> None:
             gtfs_to_shapefiles(kind="both")
         else:
             logging.info("Skipping default path example: Default paths not configured.")
+        logging.info("gtfs_to_shapefile_gpd.py completed successfully.")
 
     except Exception as e:
         logging.error("ERROR during default path example: %s", e)

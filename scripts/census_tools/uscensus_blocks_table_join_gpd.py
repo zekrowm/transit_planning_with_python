@@ -207,6 +207,32 @@ def _cast_int64_to_float(gdf: GeoDataFrame) -> None:
         gdf[int_cols] = gdf[int_cols].astype("float64")
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -219,11 +245,27 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    placeholders = {
+        "SHAPEFILE_PATH": SHAPEFILE_PATH,
+        "TABLE_CSV_PATH": TABLE_CSV_PATH,
+        "OUTPUT_PATH": OUTPUT_PATH,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
     blocks_gdf = load_blocks(SHAPEFILE_PATH)
     attrs_df = load_attributes(TABLE_CSV_PATH)
 
     joined = join_blocks_to_attributes(blocks_gdf, attrs_df)
     save_output(joined, OUTPUT_PATH)
+    logging.info("uscensus_blocks_table_join_gpd.py completed successfully.")
 
 
 if __name__ == "__main__":

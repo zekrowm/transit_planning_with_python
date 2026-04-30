@@ -385,6 +385,32 @@ def build_route_district_matrix(
     return pd.DataFrame(rows)
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -392,6 +418,22 @@ def build_route_district_matrix(
 
 def main() -> None:
     """Main execution function to run the GTFS-district spatial analysis workflow."""
+
+    placeholders = {
+        "DISTRICTS_FC": DISTRICTS_FC,
+        "GTFS_DIR": GTFS_DIR,
+        "OUTPUT_EXCEL": OUTPUT_EXCEL,
+        "LOG_DIR": LOG_DIR,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
     configure_logging(LOG_DIR)
     arcpy.env.overwriteOutput = True
 
@@ -423,6 +465,7 @@ def main() -> None:
     os.makedirs(os.path.dirname(OUTPUT_EXCEL), exist_ok=True)
     df.to_excel(OUTPUT_EXCEL, index=False)
     logging.info("Done. Excel written to: %s", OUTPUT_EXCEL)
+    logging.info("gtfs_service_by_district_arcpy.py completed successfully.")
 
 
 if __name__ == "__main__":

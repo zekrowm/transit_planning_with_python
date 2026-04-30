@@ -751,6 +751,32 @@ def _aggregate_by_route_dir(
     return grouped
 
 
+# --- Default-filepath safety helpers ----------------------------------------
+_PLACEHOLDER_MARKERS: tuple[str, ...] = (
+    "path\\to\\",
+    "path/to/",
+    "your\\",
+    "/your/",
+    "\\your\\",
+    "your/",
+    "edit me",
+    "edit here",
+    "yyyy_mm",
+    "your_gtfs_folder_path",
+    "your_output_folder_path",
+)
+
+
+def _is_placeholder_path(p: object) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    if p is None:
+        return False
+    s = str(p).lower()
+    if not s:
+        return False
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
+
 # ==============================================================================
 # MAIN
 # ==============================================================================
@@ -763,6 +789,20 @@ def run() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    placeholders = {
+        "GTFS_FOLDER_PATH": GTFS_FOLDER_PATH,
+        "OUTPUT_FOLDER": OUTPUT_FOLDER,
+    }
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder filepaths detected for: %s. "
+            "Update the CONFIGURATION section of this script with real paths "
+            "before running. Exiting without processing.",
+            ", ".join(unset),
+        )
+        return
 
     gtfs_path = Path(GTFS_FOLDER_PATH)
     out_path = Path(OUTPUT_FOLDER)
@@ -822,6 +862,7 @@ def run() -> None:
             fname = f"route_{rte}_dir_{direc}.xlsx"
             df.to_excel(out_path / fname, index=False)
             logging.info("Wrote %s", fname)
+    logging.info("bus_block_exporter.py completed successfully.")
 
 
 if __name__ == "__main__":
