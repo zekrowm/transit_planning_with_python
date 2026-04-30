@@ -918,6 +918,15 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if INPUT_DIR == Path(r"Path\To\Your\GTFS_Folder") or OUTPUT_DIR == Path(
+        r"Path\To\Output_Folder"
+    ):
+        logging.warning(
+            "INPUT_DIR and/or OUTPUT_DIR are still set to their default placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     if not os.path.exists(OUTPUT_DIR):
         try:
             os.makedirs(OUTPUT_DIR)
@@ -1044,6 +1053,7 @@ def main() -> None:
     )
 
     logging.info("Processing complete.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

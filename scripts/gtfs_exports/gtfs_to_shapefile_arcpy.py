@@ -783,6 +783,13 @@ def main() -> None:  # noqa: D401
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_PATH == r"Path\To\YourGTFS_Folder" or OUTPUT_FOLDER == r"Path\To\Your\Output_Folder":
+        logging.warning(
+            "GTFS_PATH and/or OUTPUT_FOLDER are still set to their default placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     arcpy.env.overwriteOutput = True
 
     out_dir = _ensure_output_folder(OUTPUT_FOLDER)
@@ -842,6 +849,7 @@ def main() -> None:  # noqa: D401
             )
 
     logging.info("All done.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

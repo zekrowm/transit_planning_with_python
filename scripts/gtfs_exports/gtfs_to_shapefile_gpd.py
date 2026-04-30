@@ -394,76 +394,22 @@ def gtfs_to_shapefiles(
 
 
 def main() -> None:
-    """Runs example scenarios for the GTFS to Shapefile conversion.
-
-    This function is executed only when the script is run directly.
-    It demonstrates calling `gtfs_to_shapefiles` using both configured
-    default paths and explicitly provided paths.
-    """
+    """Run GTFS to Shapefile conversion using the configured default paths."""
     logging.basicConfig(
         level=LOG_LEVEL,
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    # Scenario 1: Use default paths configured at the top of the file
-    # Make sure DEFAULT_GTFS_DIR and DEFAULT_OUTPUT_DIR are set correctly above!
-    logging.info("\nRunning example using default paths from configuration...")
-    try:
-        # Check if defaults are actually set before running
-        if DEFAULT_GTFS_DIR and DEFAULT_OUTPUT_DIR:
-            # Create dummy directories/files for the example if they don't exist
-            # In real use, you'd point the defaults to existing data.
-            if not DEFAULT_GTFS_DIR.exists():
-                DEFAULT_GTFS_DIR.mkdir(parents=True)
-                logging.info("Created dummy GTFS dir: %s", DEFAULT_GTFS_DIR)
-                # Add dummy files if dir was just created
-                with open(DEFAULT_GTFS_DIR / "stops.txt", "w") as f:
-                    f.write("stop_id,stop_name,stop_lat,stop_lon\nS1,Stop 1,38.8,-77.0")
-                with open(DEFAULT_GTFS_DIR / "shapes.txt", "w") as f:
-                    f.write(
-                        "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSHP1,38.8,-77.0,1\nSHP1,38.9,-77.1,2"
-                    )
-
-            if not DEFAULT_OUTPUT_DIR.exists():
-                DEFAULT_OUTPUT_DIR.mkdir(parents=True)
-                logging.info("Created dummy Output dir: %s", DEFAULT_OUTPUT_DIR)
-
-            # Call the core function without path arguments
-            gtfs_to_shapefiles(kind="both")
-        else:
-            logging.info("Skipping default path example: Default paths not configured.")
-
-    except Exception as e:
-        logging.error("ERROR during default path example: %s", e)
-
-    # Scenario 2: Override default paths by providing arguments
-    logging.info("\nRunning example overriding default paths...")
-    try:
-        # Define specific paths for this run
-        specific_gtfs_path = Path("./example_gtfs_data")
-        specific_output_path = Path("./example_output_data")
-
-        # Create dummy data for this specific run
-        specific_gtfs_path.mkdir(parents=True, exist_ok=True)
-        specific_output_path.mkdir(parents=True, exist_ok=True)
-        with open(specific_gtfs_path / "stops.txt", "w") as f:
-            f.write("stop_id,stop_name,stop_lat,stop_lon\nS10,Stop 10,38.85,-77.05")
-        # No shapes.txt for this example to test that case
-
-        # Call the core function with specific path arguments
-        gtfs_to_shapefiles(
-            gtfs_dir=specific_gtfs_path,
-            output_dir=specific_output_path,
-            kind="stops",  # Only export stops for this example
+    if DEFAULT_GTFS_DIR == Path(r"/path/to/your/default_gtfs_folder") or DEFAULT_OUTPUT_DIR == Path(
+        r"/path/to/your/default_output_folder"
+    ):
+        logging.warning(
+            "DEFAULT_GTFS_DIR and/or DEFAULT_OUTPUT_DIR are still set to their default "
+            "placeholder values. Please update them in the CONFIGURATION section before running."
         )
-    except Exception as e:
-        logging.error("ERROR during specific path example: %s", e)
-
-    # Optional cleanup of example directories (uncomment if desired)
-    # import shutil
-    # if Path("./example_gtfs_data").exists(): shutil.rmtree("./example_gtfs_data")
-    # if Path("./example_output_data").exists(): shutil.rmtree("./example_output_data")
-    # print("\nCleaned up example directories.")
+        return
+    gtfs_to_shapefiles()
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

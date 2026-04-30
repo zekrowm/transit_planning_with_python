@@ -348,6 +348,15 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_FOLDER == Path(r"Path\To\Your\GTFS_Folder") or OUTPUT_FOLDER == Path(
+        r"Path\To\Your\Output_Folder"
+    ):
+        logging.warning(
+            "GTFS_FOLDER and/or OUTPUT_FOLDER are still set to their default placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     logging.info("GTFS folder   : %s", GTFS_FOLDER)
     logging.info("Output folder : %s", OUTPUT_FOLDER)
 
@@ -362,6 +371,7 @@ def main() -> None:
     export_excel(bands, stop_dict, seg_dict, header_names, gtfs["routes"])
 
     logging.info("Finished – %d band rows.", len(bands))
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

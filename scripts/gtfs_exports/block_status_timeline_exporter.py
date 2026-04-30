@@ -871,7 +871,17 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if (
+        GTFS_FOLDER_PATH == r"your_GTFS_folder_path\here"
+        or BLOCK_OUTPUT_FOLDER == r"your_output_folder_path\here"
+    ):
+        logging.warning(
+            "GTFS_FOLDER_PATH and/or BLOCK_OUTPUT_FOLDER are still set to their default "
+            "placeholder values. Please update them in the CONFIGURATION section before running."
+        )
+        return
     run_step1_gtfs_to_blocks()
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":
