@@ -31,9 +31,9 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER: Path = Path("Path/To/Your/GTFS_Folder")  # ←–– change me
+GTFS_FOLDER: Path = Path(r"Path\To\Your\GTFS_Folder")  # ←–– change me
 
-OUTPUT_FOLDER: Path = Path("Path/To/Your/Output_Folder")  # ←–– change me
+OUTPUT_FOLDER: Path = Path(r"Path\To\Your\Output_Folder")  # ←–– change me
 
 # Optional filters – leave empty to process everything
 FILTER_IN_ROUTE_SHORT_NAMES: List[str] = ["101", "660"]

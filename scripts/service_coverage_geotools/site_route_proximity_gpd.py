@@ -33,12 +33,12 @@ from shapely.geometry import Point
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER = "Path/To/Your/GTFS/Folder"
-OUTPUT_FOLDER = "Path/To/Your/Output/Folder"
+GTFS_FOLDER = r"Path\To\Your\GTFS\Folder"
+OUTPUT_FOLDER = r"Path\To\Your\Output\Folder"
 
 INPUT_MODE = "location"  # "location" | "stop_code"
 LOCATION_SOURCE = "shapefile"  # "manual"   | "shapefile"
-POINT_SHAPEFILE = "Path/To/Your/Points.shp"
+POINT_SHAPEFILE = r"Path\To\Your\Points.shp"
 POINT_NAME_FIELD = "OBJECTID"  # column copied to 'Location'
 
 # extra point-layer attributes you want in the CSV

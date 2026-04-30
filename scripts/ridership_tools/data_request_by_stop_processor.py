@@ -26,11 +26,11 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE_PATH: Path = Path("Path/To/Your/RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX")
+INPUT_FILE_PATH: Path = Path(r"Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX")
 OUTPUT_FILE_SUFFIX: str = "_processed"
 OUTPUT_FILE_EXTENSION: str = ".xlsx"
 # If OUTPUT_DIR is None ⇒ use same directory as INPUT_FILE_PATH
-OUTPUT_DIR: Path | None = Path("Path/To/Output/Folder")  # e.g. r"C:\Data\Outputs"
+OUTPUT_DIR: Path | None = Path(r"Path\To\Output\Folder")  # e.g. r"C:\Data\Outputs"
 
 # ROUTES = keep-only list   |  ROUTES_EXCLUDE = toss-out list
 ROUTES: List[str] = []  # keep these (empty → keep all)

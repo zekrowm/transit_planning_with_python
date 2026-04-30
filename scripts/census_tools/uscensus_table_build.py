@@ -32,10 +32,10 @@ import pandas as pd
 
 #: Folder that holds every Census download (plain CSV, *.csv.gz*, or ZIPs).
 #: Sub-directories are searched automatically.
-ROOT_DATA_DIR: str | Path = "Path/To/Your/Census_Table_Data_Files"  # <<< EDIT ME
+ROOT_DATA_DIR: str | Path = r"Path\To\Your\Census_Table_Data_Files"  # <<< EDIT ME
 
 #: Optional output CSV (set to None to skip writing)
-CSV_OUTPUT_PATH: str | None = "Path/To/Your/Output_Folder/joined_blocks.csv"
+CSV_OUTPUT_PATH: str | None = r"Path\To\Your\Output_Folder\joined_blocks.csv"
 
 #: Optional county FIPS filter (5-digit codes, e.g. ["11001", "51059"])
 COUNTY_FIPS_FILTER: list[str] = [

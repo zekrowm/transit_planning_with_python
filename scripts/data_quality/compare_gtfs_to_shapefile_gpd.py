@@ -37,13 +37,13 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # =============================================================================
 
 # --- Inputs ---
-AGENCY_ROUTE_SHAPEFILE: Path = Path("File/Path/To/Your/Bus_System.shp")
-GTFS_DIR: Path = Path("Folder/Path/To/Your/GTFS")
+AGENCY_ROUTE_SHAPEFILE: Path = Path(r"File\Path\To\Your\Bus_System.shp")
+GTFS_DIR: Path = Path(r"Folder\Path\To\Your\GTFS")
 
 # --- Output (CSV + plots) ---
-OUTPUT_CSV: Path = Path("File/Path/To/Your/route_comparison_summary.csv")
+OUTPUT_CSV: Path = Path(r"File\Path\To\Your\route_comparison_summary.csv")
 PLOT_DEBUG: bool = True
-PLOT_DIR: Path = Path("Folder/Path/To/Your/Output/Plots")
+PLOT_DIR: Path = Path(r"Folder\Path\To\Your\Output\Plots")
 PLOT_DPI: int = 150
 PLOT_FIGSIZE: tuple[int, int] = (8, 8)
 PLOT_MAX_ROUTES: Optional[int] = None  # None = all

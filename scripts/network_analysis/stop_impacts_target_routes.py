@@ -28,8 +28,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-GTFS_DIR = Path("Path/To/GIS/Folder")
-OUTPUT_DIR = Path("Path/To/Output_Folder")
+GTFS_DIR = Path(r"Path\To\GIS\Folder")
+OUTPUT_DIR = Path(r"Path\To\Output_Folder")
 
 # Match against route_short_name OR route_id.
 TARGET_ROUTE_TOKENS = {"101"}

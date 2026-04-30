@@ -33,8 +33,8 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER_PATH = "Path/To/Your/Input/Folder"  # <<< EDIT HERE
-BASE_OUTPUT_PATH = "Path/To/Your/Output/Folder"  # <<< EDIT HERE
+GTFS_FOLDER_PATH = r"Path\To\Your\Input\Folder"  # <<< EDIT HERE
+BASE_OUTPUT_PATH = r"Path\To\Your\Output\Folder"  # <<< EDIT HERE
 
 REQUIRED_GTFS_FILES = [
     "trips.txt",

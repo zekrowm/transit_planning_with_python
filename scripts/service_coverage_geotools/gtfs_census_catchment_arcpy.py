@@ -50,7 +50,7 @@ STOPS_INPUT_MODE: str = "gtfs"
 STOPS_FEATURE_CLASS: str = r""
 
 # For "gtfs" mode
-GTFS_FOLDER: str = "Path/To/Your/GTFS_Folder"
+GTFS_FOLDER: str = r"Path\To\Your\GTFS_Folder"
 
 # Optional: filter GTFS to the following route_short_name values.
 # Example: ["101", "202"]. Leave as [] or None to include all routes (network run).
@@ -72,7 +72,7 @@ CLIPPED_DEMOGRAPHICS_OUT: str = r""
 # Final export target:
 #   If this ends with ".gdb", results are written as a feature class into that GDB.
 #   Otherwise it's treated as a directory and a shapefile is written there.
-FINAL_EXPORT_TARGET: str = "File/Path/To/Your/output_final/output.gdb"
+FINAL_EXPORT_TARGET: str = r"File\Path\To\Your\output_final\output.gdb"
 
 # Processing parameters
 BUFFER_DISTANCE_MILES: float = 0.25
@@ -846,7 +846,7 @@ def _intermediate_buffer_folder() -> str:
     Returns:
         Absolute path to the inspection folder, created if missing.
     """
-    folder = "projects/dot/zkrohmal/census_merge_test_2025_10_31/output_buffer_intermediate"
+    folder = r"projects\dot\zkrohmal\census_merge_test_2025_10_31\output_buffer_intermediate"
     ensure_dir(folder)
     return folder
 

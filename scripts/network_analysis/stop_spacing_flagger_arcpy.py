@@ -35,10 +35,10 @@ import pandas as pd
 # =============================================================================
 
 # GTFS source – folder containing *.txt or a .zip GTFS package.
-GTFS_PATH: str = "Path/To/Your/GTFS_Folder"
+GTFS_PATH: str = r"Path\To\Your\GTFS_Folder"
 
 # Output folder for shapefiles and QA logs (NOT a geodatabase).
-OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
+OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
 
 # Route filtering
 FILTER_OUT_LIST: list[str] = []

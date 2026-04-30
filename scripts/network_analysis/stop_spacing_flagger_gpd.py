@@ -34,8 +34,8 @@ from shapely.ops import split as split_line
 # CONFIGURATION
 # =============================================================================
 
-GTFS_PATH: str = "Path/To/Your/GTFS_Data_Folder"  # folder or .zip
-OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
+GTFS_PATH: str = r"Path\To\Your\GTFS_Data_Folder"  # folder or .zip
+OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
 
 FILTER_OUT_LIST: list[str] = ["9999A", "9999B", "9999C"]
 INCLUDE_ROUTE_IDS: list[str] = ["101", "202"]

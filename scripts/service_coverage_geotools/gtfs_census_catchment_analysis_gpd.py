@@ -37,9 +37,9 @@ from shapely.geometry import Point
 ANALYSIS_MODE = "network"  # Options: "network", "route", "stop"
 
 # Paths
-GTFS_DATA_PATH = "Path/To/GTFS_data_folder"
-DEMOGRAPHICS_SHP_PATH = "Path/To/census_blocks.shp"
-OUTPUT_DIRECTORY = "Path/To/Output"
+GTFS_DATA_PATH = r"Path\To\GTFS_data_folder"
+DEMOGRAPHICS_SHP_PATH = r"Path\To\census_blocks.shp"
+OUTPUT_DIRECTORY = r"Path\To\Output"
 
 # Calendar / service-pattern filter
 SERVICE_IDS_TO_INCLUDE: Final[list[str]] = ["3"]  # ← NEW

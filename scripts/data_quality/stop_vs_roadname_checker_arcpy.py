@@ -29,9 +29,9 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER = "path/to/your/GTFS"
-ROADWAYS_PATH = "path/to/your/roadways.shp"
-OUTPUT_DIR = "path/to/output"  # any writable folder
+GTFS_FOLDER = r"path\to\your\GTFS"
+ROADWAYS_PATH = r"path\to\your\roadways.shp"
+OUTPUT_DIR = r"path\to\output"  # any writable folder
 OUTPUT_CSV = "potential_typos.csv"
 
 # Spatial references

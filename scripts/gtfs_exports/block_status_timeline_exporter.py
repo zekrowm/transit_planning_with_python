@@ -18,8 +18,8 @@ import pandas as pd
 # CONFIGURATION
 # ==================================================================================================
 
-GTFS_FOLDER_PATH = "your_GTFS_folder_path/here"
-BLOCK_OUTPUT_FOLDER = "your_output_folder_path/here"
+GTFS_FOLDER_PATH = r"your_GTFS_folder_path\here"
+BLOCK_OUTPUT_FOLDER = r"your_output_folder_path\here"
 
 DEFAULT_HOURS = 26
 TIME_INTERVAL_MINUTES = 1
