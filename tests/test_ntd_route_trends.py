@@ -1,30 +1,9 @@
-import sys
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
-# -- MOCK MATPLOTLIB BEFORE IMPORTING SCRIPT --
-# This prevents ModuleNotFoundError if matplotlib is not installed in the environment.
-try:
-    import matplotlib
-
-    # Use Agg backend if real matplotlib is present
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt  # noqa: F401
-
-    HAS_MATPLOTLIB = True
-except ImportError:
-    # If not present, install a mock into sys.modules
-    mock_mpl = MagicMock()
-    mock_plt = MagicMock()
-    # Mock specific submodules used by ntd_route_trends.py
-    sys.modules["matplotlib"] = mock_mpl
-    sys.modules["matplotlib.pyplot"] = mock_plt
-    sys.modules["matplotlib.dates"] = MagicMock()
-    HAS_MATPLOTLIB = False
 
 # Import the script to be tested
 from scripts.ridership_tools import ntd_route_trends
@@ -141,11 +120,9 @@ def test_ntd_route_trends_integration(input_df, tmp_path) -> None:
         file_path = route_101_dir / filename
         assert file_path.exists(), f"Expected output file {filename} missing for route 101"
 
-    # Check for plots only if we had real matplotlib
-    if HAS_MATPLOTLIB:
-        for filename in ["plots/monthly_totals.png", "plots/daily_averages.png"]:
-            file_path = route_101_dir / filename
-            assert file_path.exists(), f"Expected plot file {filename} missing for route 101"
+    for filename in ["plots/monthly_totals.png", "plots/daily_averages.png"]:
+        file_path = route_101_dir / filename
+        assert file_path.exists(), f"Expected plot file {filename} missing for route 101"
 
     # 4. Verify content of monthly_long.csv for Route 101
     df_long = pd.read_csv(route_101_dir / "monthly_long.csv")

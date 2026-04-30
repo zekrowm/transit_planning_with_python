@@ -1,23 +1,9 @@
 import re
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-
-try:
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt  # noqa: F401
-
-    HAS_MATPLOTLIB = True
-except ImportError:
-    mock_mpl = __import__("unittest.mock", fromlist=["MagicMock"]).MagicMock
-    sys.modules["matplotlib"] = mock_mpl()
-    sys.modules["matplotlib.pyplot"] = mock_mpl()
-    HAS_MATPLOTLIB = False
 
 from scripts.operations_tools.otp_monthly_trends_export import (
     _normalize_dow,
@@ -390,7 +376,6 @@ def _make_plt_mock() -> MagicMock:
     return mock_plt
 
 
-@pytest.mark.skipif(not HAS_MATPLOTLIB, reason="matplotlib not installed")
 def test_plot_series_for_groups_creates_pngs(processed_df: pd.DataFrame, tmp_path: Path) -> None:
     mock_plt = _make_plt_mock()
     with patch(_MODULE_PLT, mock_plt):
@@ -399,7 +384,6 @@ def test_plot_series_for_groups_creates_pngs(processed_df: pd.DataFrame, tmp_pat
     assert mock_plt.savefig.call_count > 0
 
 
-@pytest.mark.skipif(not HAS_MATPLOTLIB, reason="matplotlib not installed")
 def test_plot_series_for_groups_weekday_saturday_sunday(
     processed_df: pd.DataFrame, tmp_path: Path
 ) -> None:
