@@ -1,14 +1,12 @@
 
 # =============================================================================
-# ArcGIS Pro / arcpy Environment — pip-installable packages
+# ArcGIS Pro / arcpy Environment — reference only, NOT a pip install target
 # =============================================================================
-# These packages complement arcpy (which ships with ArcGIS Pro and cannot be
-# installed via pip). Install these in your ArcGIS Pro Python environment.
+# Documents the packages already present in the ArcGIS Pro Python environment.
+# None of these need to be pip-installed; they ship with ArcGIS Pro.
 #
-# These packages are pinned to versions known to work alongside the ArcGIS Pro
-# Python environment. The same packages also appear in requirements.txt (used
-# by CI and non-ArcGIS setups), which additionally includes geopandas,
-# rapidfuzz, and other open-source-only dependencies.
+# For the open-source / non-ArcGIS stack and all CI/dev tooling, see
+# requirements.txt.
 # -----------------------------------------------------------------------------
 
 # Core Data Science Libraries

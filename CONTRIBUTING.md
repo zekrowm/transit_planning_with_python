@@ -107,10 +107,10 @@ The repository uses two requirements files:
 
 | File | Purpose |
 |---|---|
-| `requirements.txt` | Open-source / non-ArcGIS stack (geopandas, rapidfuzz, etc.) plus all CI and dev tooling (ruff, ty, pytest). Used by CI. |
-| `requirements_arcpro.txt` | Pip-installable packages for the ArcGIS Pro environment (pandas, numpy, scipy, etc.). Does **not** include arcpy itself, which ships with ArcGIS Pro. |
+| `requirements.txt` | Open-source / non-ArcGIS stack (geopandas, rapidfuzz, etc.) plus all CI and dev tooling (ruff, ty, pytest). Used by CI. **This is the pip install target.** |
+| `requirements_arcpro.txt` | Reference only — documents packages already present in the ArcGIS Pro Python environment. Nothing here needs to be pip-installed. |
 
-If you add a new dependency, add it to whichever file matches its target environment. Dev/CI-only packages always go in `requirements.txt`.
+If you add a new pip-installable dependency, add it to `requirements.txt`. If you're noting that something is available in the ArcGIS Pro environment, add it to `requirements_arcpro.txt` as a comment or entry with a note.
 
 ## 🌳 GitHub Contribution Workflow
 

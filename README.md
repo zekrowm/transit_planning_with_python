@@ -46,8 +46,8 @@ The repository is organized for ease of use, with:
 
 - Python 3.9+
 - Common libraries like pandas, geopandas, rapidfuzz, networkx, and others.
-  - **ArcGIS Pro users:** install pip-installable dependencies from `requirements_arcpro.txt`.
-  - **Non-ArcGIS / home users:** install the open-source stack from `requirements.txt`.
+  - **ArcGIS Pro users:** required libraries already ship with ArcGIS Pro — see `requirements_arcpro.txt` for a reference list.
+  - **Non-ArcGIS / home users:** install the open-source stack with `pip install -r requirements.txt`.
 
 ## 🧑‍💻 How to Use
 
