@@ -29,3 +29,7 @@ seaborn==0.12.1              # Statistical plotting
 # Excel File Support
 openpyxl==3.1.5              # Read/write Excel .xlsx files
 xlrd==2.0.1                  # Read legacy Excel .xls files (no .xlsx support)
+
+# String Matching
+# difflib                    # stdlib — use in place of rapidfuzz when pip-installing
+#                            # third-party packages is restricted in ArcGIS Pro
