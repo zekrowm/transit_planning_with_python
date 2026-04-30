@@ -657,7 +657,6 @@ def main() -> None:
     * All other deliverables (route-level, service-type, monthly workbooks, etc.)
       → **XLSX only** – analyst-friendly, no redundant CSV versions.
     """
-
     placeholders = {
         "DATA_ROOT": DATA_ROOT,
         "OUTPUT_DIR": OUTPUT_DIR,

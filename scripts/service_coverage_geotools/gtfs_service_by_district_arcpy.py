@@ -418,7 +418,6 @@ def _is_placeholder_path(p: object) -> bool:
 
 def main() -> None:
     """Main execution function to run the GTFS-district spatial analysis workflow."""
-
     placeholders = {
         "DISTRICTS_FC": DISTRICTS_FC,
         "GTFS_DIR": GTFS_DIR,

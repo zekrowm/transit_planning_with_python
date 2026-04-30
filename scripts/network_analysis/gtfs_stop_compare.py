@@ -694,7 +694,6 @@ def _is_placeholder_path(p: object) -> bool:
 
 def main(argv: Sequence[str] | None = None) -> None:
     """CLI entry point (notebook-safe)."""
-
     placeholders = {
         "BEFORE_GTFS_DIR": BEFORE_GTFS_DIR,
         "AFTER_GTFS_DIR": AFTER_GTFS_DIR,

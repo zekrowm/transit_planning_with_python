@@ -663,17 +663,11 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    placeholders = {
-        "DATA_ROOT": DATA_ROOT,
-        "OUTPUT_ROOT": OUTPUT_ROOT,
-    }
-    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
-    if unset:
+    if _is_placeholder_path(OUTPUT_ROOT):
         logging.warning(
-            "Default placeholder filepaths detected for: %s. "
-            "Update the CONFIGURATION section of this script with real paths "
+            "Default placeholder filepath detected for OUTPUT_ROOT. "
+            "Update the CONFIGURATION section of this script with a real path "
             "before running. Exiting without processing.",
-            ", ".join(unset),
         )
         return
 

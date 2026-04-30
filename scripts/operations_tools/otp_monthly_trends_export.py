@@ -1041,26 +1041,27 @@ def main(argv: List[str] | None = None) -> None:
     Args:
         argv: Optional explicit argv list (e.g., [] for notebooks). If None, uses sys.argv.
     """
+    parser = build_arg_parser()
+    # Accept unknown args to be notebook/IPython friendly (swallows "-f <kernel.json>").
+    args, unknown = parser.parse_known_args(argv)
+    if unknown:
+        logging.warning("Ignoring unknown CLI args (likely from IPython): %s", unknown)
 
     placeholders = {
-        "DEFAULT_INPUT_CSV": DEFAULT_INPUT_CSV,
-        "DEFAULT_OUT_TABLE_DIR": DEFAULT_OUT_TABLE_DIR,
-        "DEFAULT_OUT_PLOTS_DIR": DEFAULT_OUT_PLOTS_DIR,
+        "input": args.input,
+        "out-table": args.out_table,
+        "out-plots": args.out_plots,
     }
     unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
     if unset:
         logging.warning(
             "Default placeholder filepaths detected for: %s. "
             "Update the CONFIGURATION section of this script with real paths "
-            "before running. Exiting without processing.",
+            "(or pass them on the command line) before running. "
+            "Exiting without processing.",
             ", ".join(unset),
         )
         return
-    parser = build_arg_parser()
-    # Accept unknown args to be notebook/IPython friendly (swallows "-f <kernel.json>").
-    args, unknown = parser.parse_known_args(argv)
-    if unknown:
-        logging.warning("Ignoring unknown CLI args (likely from IPython): %s", unknown)
     # Parse the blacklist: CLI overrides the constant if provided.
     if args.blacklist_routes is not None:
         blacklist = frozenset(

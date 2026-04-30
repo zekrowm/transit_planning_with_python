@@ -900,21 +900,23 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    parser = build_argparser()
+    args, _unknown = parser.parse_known_args()
+
     placeholders = {
-        "CSV_PATH": CSV_PATH,
-        "OUTPUT_DIR": OUTPUT_DIR,
+        "input": args.input,
+        "outdir": args.outdir,
     }
     unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
     if unset:
         logging.warning(
             "Default placeholder filepaths detected for: %s. "
             "Update the CONFIGURATION section of this script with real paths "
-            "before running. Exiting without processing.",
+            "(or pass them on the command line) before running. "
+            "Exiting without processing.",
             ", ".join(unset),
         )
         return
-    parser = build_argparser()
-    args, _unknown = parser.parse_known_args()
 
     input_path = Path(args.input)
     if not input_path.exists():
