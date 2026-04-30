@@ -31,8 +31,6 @@ from openpyxl.utils import get_column_letter
 GTFS_FOLDER_PATH = r"Path\To\Your\GTFS_Folder"  # Folder contains GTFS .txt files
 
 BASE_OUTPUT_PATH = r"Path\To\Your\Output_Folder"
-if not os.path.exists(BASE_OUTPUT_PATH):
-    os.makedirs(BASE_OUTPUT_PATH)
 
 # Filter service id's can be found in calendar.txt file
 FILTER_SERVICE_IDS: list[str] = ["1", "2", "3"]
@@ -936,6 +934,15 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_FOLDER_PATH == r"Path\To\Your\GTFS_Folder" or BASE_OUTPUT_PATH == r"Path\To\Your\Output_Folder":
+        logging.warning(
+            "GTFS_FOLDER_PATH and/or BASE_OUTPUT_PATH are still set to their default placeholder "
+            "values. Please update them in the CONFIGURATION section before running."
+        )
+        return
+
+    if not os.path.exists(BASE_OUTPUT_PATH):
+        os.makedirs(BASE_OUTPUT_PATH)
 
     # Build file list: required + optional that actually exist
     files_to_load = list(REQUIRED_GTFS_FILES)

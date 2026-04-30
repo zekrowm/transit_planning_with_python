@@ -763,6 +763,12 @@ def run() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_FOLDER_PATH == r"Path\To\Your\GTFS_Folder" or OUTPUT_FOLDER == r"Path\To\Your\Output_Folder":
+        logging.warning(
+            "GTFS_FOLDER_PATH and/or OUTPUT_FOLDER are still set to their default placeholder "
+            "values. Please update them in the CONFIGURATION section before running."
+        )
+        return
 
     gtfs_path = Path(GTFS_FOLDER_PATH)
     out_path = Path(OUTPUT_FOLDER)
@@ -822,6 +828,8 @@ def run() -> None:
             fname = f"route_{rte}_dir_{direc}.xlsx"
             df.to_excel(out_path / fname, index=False)
             logging.info("Wrote %s", fname)
+
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":
