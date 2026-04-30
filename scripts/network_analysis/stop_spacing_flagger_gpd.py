@@ -34,8 +34,8 @@ from shapely.ops import split as split_line
 # CONFIGURATION
 # =============================================================================
 
-GTFS_PATH: str = r"Path\To\Your\GTFS_Data_Folder"  # folder or .zip
-OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
+GTFS_PATH: str = "Path/To/Your/GTFS_Data_Folder"  # folder or .zip
+OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
 
 FILTER_OUT_LIST: list[str] = ["9999A", "9999B", "9999C"]
 INCLUDE_ROUTE_IDS: list[str] = ["101", "202"]
@@ -68,7 +68,7 @@ def _ensure_output_folder(folder: str | Path) -> Path:
 
 
 def _served_mask(df: pd.DataFrame, rid: str, drn: int) -> pd.Series:
-    ""r"Return boolean mask for rows whose list fields include rid\drn."""
+    """Return boolean mask for rows whose list fields include rid/drn."""
     return df["route_id"].apply(lambda xs, rid=rid: rid in xs) & df["direction_id"].apply(
         lambda xs, drn=drn: drn in xs
     )
@@ -267,7 +267,7 @@ def _filter_routes(
     include_ids: Sequence[str],
     exclude_ids: Sequence[str],
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    ""r"Apply include\exclude lists and return filtered ``routes`` and ``trips``."""
+    """Apply include/exclude lists and return filtered ``routes`` and ``trips``."""
     routes_ok = routes.loc[~routes["route_id"].isin(exclude_ids)].copy()
     if include_ids:
         routes_ok = routes_ok.loc[routes_ok["route_id"].isin(include_ids)].copy()
@@ -282,7 +282,7 @@ def _build_stops_gdf(
     routes: pd.DataFrame,
     crs: str,
 ) -> gpd.GeoDataFrame:
-    ""r"Return GeoDataFrame of **served** stops with list fields for routes\directions."""
+    """Return GeoDataFrame of **served** stops with list fields for routes/directions."""
     served = stop_times.loc[stop_times["trip_id"].isin(trips["trip_id"])]
     stops = stops.loc[stops["stop_id"].isin(served["stop_id"])].copy()
 
@@ -416,7 +416,7 @@ def _split_into_segments(
 
 
 def _export(gdf: gpd.GeoDataFrame, out_dir: Path, name: str) -> None:
-    ""r"Write *gdf* to ESRI Shapefile ``<out_dir>\<name>.shp``."""
+    """Write *gdf* to ESRI Shapefile ``<out_dir>/<name>.shp``."""
     path = out_dir / f"{name}.shp"
     gdf.to_file(path)
     logging.info("Wrote %s", path.name)
@@ -486,7 +486,7 @@ def _build_stop_layers(
     routes_selected: pd.DataFrame,
     crs: str,
 ) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    ""r"Return stop layers for *all* routes and for the filtered subset.
+    """Return stop layers for *all* routes and for the filtered subset.
 
     Parameters
     ----------
@@ -494,9 +494,9 @@ def _build_stop_layers(
         Dictionary of raw GTFS tables as DataFrames (output of
         ``_read_gtfs_tables``).
     trips_selected
-        Trips that survived the include\exclude filter.
+        Trips that survived the include/exclude filter.
     routes_selected
-        Routes that survived the include\exclude filter.
+        Routes that survived the include/exclude filter.
     crs
         Target projected CRS (feet-based).
 
@@ -507,7 +507,7 @@ def _build_stop_layers(
 
         * **all_stops_gdf** – every served stop in the feed (no filters),
         * **selected_stops_gdf** – only the stops used by the filtered
-          ``routes_selected``\``trips_selected`` set.
+          ``routes_selected``/``trips_selected`` set.
 
     Notes:
     -----

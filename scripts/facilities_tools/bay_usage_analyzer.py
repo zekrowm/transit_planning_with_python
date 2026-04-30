@@ -27,10 +27,10 @@ from pandas import DataFrame
 # ==================================================================================================
 
 # Folder containing your block-level XLSX files from Step 1
-BLOCK_OUTPUT_FOLDER: str = r"Path\To\Your\Input_Folder"
+BLOCK_OUTPUT_FOLDER: str = "Path/To/Your/Input_Folder"
 
 # Where to save the cluster-conflict outputs
-CLUSTER_CONFLICT_OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
+CLUSTER_CONFLICT_OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
 
 # Dictionary of clusters, including single_bay, double_bay, triple_bay, and overflow.
 # Each key is the cluster name, the value is a dict with lists:
@@ -57,7 +57,7 @@ CLUSTER_DEFINITIONS: Dict[str, Dict[str, List[str]]] = {
 PRESENCE_STATUSES: Set[str] = {
     "ARRIVE",
     "DEPART",
-    r"ARRIVE\DEPART",
+    "ARRIVE/DEPART",
     "DWELL",
     "LOADING",
     "LAYOVER",
@@ -68,7 +68,7 @@ PRESENCE_STATUSES: Set[str] = {
 PASSENGER_SERVICE_STATUSES: Set[str] = {
     "ARRIVE",
     "DEPART",
-    r"ARRIVE\DEPART",
+    "ARRIVE/DEPART",
     "LOADING",
 }
 
@@ -368,7 +368,7 @@ def gather_block_spreadsheets(block_folder: str) -> DataFrame:
 
 
 def run_step2_conflict_detection() -> None:
-    ""r"Execute the full Step 2 conflict-detection workflow.
+    """Execute the full Step 2 conflict-detection workflow.
 
     Steps
     -----
@@ -376,7 +376,7 @@ def run_step2_conflict_detection() -> None:
     2. Normalise stop IDs, assign clusters, find conflicts.
     3. For each cluster, build an Excel workbook containing:
        * “AllStops” sheet (all events, bolding conflict rows).
-       * One sheet per stop\overflow bay (same bolding).
+       * One sheet per stop/overflow bay (same bolding).
     4. Print summary statistics.
 
     Raises:

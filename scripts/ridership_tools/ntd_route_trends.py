@@ -1,9 +1,9 @@
-""r"Subset and summarize NTD monthly ridership for selected routes (config-driven).
+"""Subset and summarize NTD monthly ridership for selected routes (config-driven).
 
 Reads NTD monthly Excel workbooks listed in PERIODS, filters to configured routes,
 and exports per-route monthly summaries and trend plots:
-    - Weekday\Saturday\Sunday monthly totals
-    - Weekday\Saturday\Sunday per-day averages by month
+    - Weekday/Saturday/Sunday monthly totals
+    - Weekday/Saturday/Sunday per-day averages by month
 
 It logs warnings when:
     - A month in the requested range is missing from PERIODS
@@ -11,14 +11,14 @@ It logs warnings when:
     - A route-month-service period is missing
     - Ridership is 0 while DAYS > 0 (possible localized data outage)
 
-Optionally prompts users for manual fixes (enter corrected MTH_BOARD and\or DAYS).
+Optionally prompts users for manual fixes (enter corrected MTH_BOARD and/or DAYS).
 
-Outputs per route (folder: OUTPUT_ROOT\route_<ROUTE>\):
+Outputs per route (folder: OUTPUT_ROOT/route_<ROUTE>/):
     - monthly_long.csv (month x service_period rows)
     - monthly_wide.csv (one row per month; totals + averages columns)
     - outage_flags.csv
-    - plots\monthly_totals.png
-    - plots\daily_averages.png
+    - plots/monthly_totals.png
+    - plots/daily_averages.png
 """
 
 from __future__ import annotations
@@ -38,8 +38,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-DATA_ROOT: Final[Path] = Path(r"Path\To\Your\Input_Folder")
-OUTPUT_ROOT: Final[Path] = Path(r"Path\To\Your\Output_Folder")
+DATA_ROOT: Final[Path] = Path("Path/To/Your/Input_Folder")
+OUTPUT_ROOT: Final[Path] = Path("Path/To/Your/Output_Folder")
 
 # Requested overall date range (inclusive month starts).
 START_MONTH: Final[str] = "Jan-2024"
@@ -318,7 +318,7 @@ def flag_outages(
     expected_months: list[datetime],
     observed_keys: set[tuple[str, datetime, str]],
 ) -> pd.DataFrame:
-    ""r"Flag missing\zero\suspicious values, and log warnings."""
+    """Flag missing/zero/suspicious values, and log warnings."""
     flags: list[dict[str, Any]] = []
 
     expected_month_set = set(expected_months)
@@ -414,7 +414,7 @@ def flag_outages(
 
 
 def apply_manual_fixes(monthly_long: pd.DataFrame, flags: pd.DataFrame) -> pd.DataFrame:
-    ""r"Prompt user to manually override missing\zero values (if enabled)."""
+    """Prompt user to manually override missing/zero values (if enabled)."""
     if not PROMPT_FOR_FIXES or flags.empty:
         return monthly_long
 

@@ -1,8 +1,8 @@
-""r"GeoPandas-only join of Census block geometry to an attribute table.
+"""GeoPandas-only join of Census block geometry to an attribute table.
 
 This module assumes you already have:
 
-    1. a merged \ FIPS-filtered TIGER `TABBLOCK20` geometry; and
+    1. a merged / FIPS-filtered TIGER `TABBLOCK20` geometry; and
     2. a fully joined block + tract attribute CSV.
 
 No further data wrangling is performed here—just a clean spatial join.
@@ -23,9 +23,9 @@ from pandas import DataFrame
 # CONFIGURATION
 # =============================================================================
 
-SHAPEFILE_PATH: Final[str] = r"PATH\TO\SHP\va_md_dc_blocks_fips_merge.shp"
-TABLE_CSV_PATH: Final[str] = r"PATH\TO\CSV\joined_blocks.csv"
-OUTPUT_PATH: Final[str] = r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.shp"
+SHAPEFILE_PATH: Final[str] = "PATH/TO/SHP/va_md_dc_blocks_fips_merge.shp"
+TABLE_CSV_PATH: Final[str] = "PATH/TO/CSV/joined_blocks.csv"
+OUTPUT_PATH: Final[str] = "PATH/TO/OUTPUT/va_md_dc_blocks_plus_data.shp"
 MAX_FIELD_LEN: Final[int] = 10  # Shapefile DBF column-name limit
 
 LEFT_KEY: Final[str] = "GEOID20"  # geometry field carrying the 15-digit ID

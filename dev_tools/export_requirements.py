@@ -23,8 +23,8 @@ from typing import Iterable, Mapping
 # Configuration
 # =============================================================================
 # Set these manually.
-REPO_ROOT = Path(r"path\to\your\repo")
-OUTPUT_DIR = Path(r"path\to\output\folder")
+REPO_ROOT = Path("path/to/your/repo")
+OUTPUT_DIR = Path("path/to/output/folder")
 
 # Optional settings.
 OUTPUT_FILENAME = "requirements.txt"
@@ -187,7 +187,7 @@ def get_distribution_versions(distributions: set[str]) -> dict[str, str]:
 
 
 def discover_local_top_level_packages(repo_root: Path, cfg: Config) -> set[str]:
-    ""r"Detect importable top-level packages that live in-repo (root or src\)."""
+    """Detect importable top-level packages that live in-repo (root or src/)."""
     local: set[str] = set()
 
     candidates = [repo_root]

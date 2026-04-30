@@ -1,7 +1,7 @@
-""r"Merge and (optionally) FIPS-filter TIGER\Line shapefiles with ArcPy.
+"""Merge and (optionally) FIPS-filter TIGER/Line shapefiles with ArcPy.
 
 Workflow:
-    1. Recursively find TIGER\Line shapefiles under INPUT_DIR that match INPUT_GLOB.
+    1. Recursively find TIGER/Line shapefiles under INPUT_DIR that match INPUT_GLOB.
     2. Merge them into a single temporary feature class.
     3. Ensure a 5-character county FIPS field exists (default: 'FIPS').
        This is built from either:
@@ -9,7 +9,7 @@ Workflow:
     4. If FIPS_TO_FILTER is non-empty, select and export only those counties.
     5. Write the result to OUTPUT_PATH (FGDB feature class or shapefile).
 
-Notes\limitations compared to the GeoPandas version:
+Notes/limitations compared to the GeoPandas version:
     - Zipped shapefiles (tl_XXXX_YY_tabblock20.zip) are NOT opened directly.
       You must unzip them or point INPUT_DIR at a folder of *.shp files.
     - All inputs should be in the same coordinate system.
@@ -32,7 +32,7 @@ import arcpy
 # =============================================================================
 
 # Root folder that contains one or more TIGER/Line shapefiles.
-INPUT_DIR: str = r"path\to\your\tiger_shapefiles"
+INPUT_DIR: str = "path/to/your/tiger_shapefiles"
 
 # Unix-style glob that must match the **.shp** filenames you want.
 # e.g. "tl_2023_11_tabblock20.shp" or simply "*.shp"
@@ -58,7 +58,7 @@ FIPS_TO_FILTER: List[str] = [
 # Examples:
 #   r"C:\output\admin.gdb\va_md_dc_blocks_fips_merge"
 #   r"C:\output\va_md_dc_blocks_fips_merge.shp"
-OUTPUT_PATH: str = r"output\va_md_dc_blocks_fips_merge.shp"
+OUTPUT_PATH: str = "output/va_md_dc_blocks_fips_merge.shp"
 
 # Name of the FIPS field we will guarantee exists
 FIPS_FIELD_NAME: str = "FIPS"
@@ -126,11 +126,11 @@ def merge_shapefiles(
     workspace: str | None = None,
     out_name: str = "tiger_merge_tmp",
 ) -> str:
-    ""r"Merge multiple shapefiles into a temporary feature class.
+    """Merge multiple shapefiles into a temporary feature class.
 
     Args:
         shp_paths: Input shapefile paths.
-        workspace: Where to create the temp FC; if None, uses in_memory\scratch.
+        workspace: Where to create the temp FC; if None, uses in_memory/scratch.
         out_name:  Name of the output FC (no path).
 
     Returns:
@@ -170,11 +170,11 @@ def ensure_fips_field(
     state_candidates: Sequence[str] = STATE_CANDIDATES,
     county_candidates: Sequence[str] = COUNTY_CANDIDATES,
 ) -> None:
-    ""r"Ensure a 5-digit FIPS field exists by concatenating state + county.
+    """Ensure a 5-digit FIPS field exists by concatenating state + county.
 
     Args:
         feature_class: Feature class to modify.
-        fips_field:    Name of the FIPS field to create\populate.
+        fips_field:    Name of the FIPS field to create/populate.
         state_candidates: Possible TIGER fields for state code.
         county_candidates: Possible TIGER fields for county code.
 

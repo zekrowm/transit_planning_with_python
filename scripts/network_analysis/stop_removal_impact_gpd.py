@@ -42,12 +42,12 @@ from shapely.strtree import STRtree
 # CONFIGURATION
 # =============================================================================
 
-SIDEWALK_SHP = Path(r"Path\To\Your\Sidewalks_Centerline.shp")  # Must be a functional network
-GTFS_DIR = Path(r"Path\To\Your\GTFS_Folder")  # folder path must contain stops.txt
-OUTPUT_DIR = Path(r"Path\To\Your\Output_Folder")
+SIDEWALK_SHP = Path("Path/To/Your/Sidewalks_Centerline.shp")  # Must be a functional network
+GTFS_DIR = Path("Path/To/Your/GTFS_Folder")  # folder path must contain stops.txt
+OUTPUT_DIR = Path("Path/To/Your/Output_Folder")
 
 # Plotting-only backdrop (not used for analysis)
-PLOT_SIDEWALKS_SHP: Optional[Path] = Path(r"Path\To\Your\Sidewalks_Centerline.shp")
+PLOT_SIDEWALKS_SHP: Optional[Path] = Path("Path/To/Your/Sidewalks_Centerline.shp")
 SIDEWALK_BACKDROP_PAD_FT: float = 300.0  # how far to expand the map view when clipping
 
 IDENTIFIER_PRIORITY: Tuple[str, str] = ("stop_code", "stop_id")
@@ -139,7 +139,7 @@ def _plot_backdrop_within_bounds(
             pass
         sub.plot(ax=ax, linewidth=0.6, alpha=0.6, zorder=0)
     except Exception as exc:  # noqa: BLE001
-        logging.debug(r"Backdrop clip\plot failed: %s", exc)
+        logging.debug("Backdrop clip/plot failed: %s", exc)
 
 
 def resolve_deleted_stop_ids(
@@ -255,7 +255,7 @@ def load_centerlines(path: Path, target_crs: int | str) -> gpd.GeoDataFrame:
     """Load centerlines and reproject to target CRS."""
     gdf = gpd.read_file(path)
     if gdf.crs is None:
-        raise ValueError(r"Sidewalk\centerline file has no CRS.")
+        raise ValueError("Sidewalk/centerline file has no CRS.")
     return gdf.to_crs(target_crs)
 
 
@@ -667,7 +667,7 @@ def export_stop_maps(
     def _feet_from_miles_str(val: object) -> str:
         """Robustly format miles (float or '> x') as a feet string."""
         if val is None or (isinstance(val, float) and math.isnan(val)):
-            return r"N\A"
+            return "N/A"
         if isinstance(val, str) and val.strip().startswith(">"):
             try:
                 mi = float(val.strip().lstrip(">").strip())
@@ -734,7 +734,7 @@ def export_stop_maps(
                 # Slightly heavier than backdrop so it's visible beneath the path
                 seg_sub.plot(ax=ax, linewidth=0.8, alpha=0.8, zorder=1)
         except Exception as exc:  # noqa: BLE001
-            logging.debug(r"Segment clip\plot failed: %s", exc)
+            logging.debug("Segment clip/plot failed: %s", exc)
 
         # Path and points
         g_path.plot(ax=ax, linewidth=2.0, zorder=2)
@@ -940,7 +940,7 @@ def main() -> None:
             )
 
     ok = sum(1 for v in results.values() if v["path_geom"] is not None)
-    logging.info(r"Paths built for %d\%d deleted stops", ok, len(unique_deleted))
+    logging.info("Paths built for %d/%d deleted stops", ok, len(unique_deleted))
 
     logging.info("Exporting CSV and shapefiles …")
     export_results(results, TARGET_CRS, OUTPUT_DIR)

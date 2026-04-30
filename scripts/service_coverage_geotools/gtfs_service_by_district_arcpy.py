@@ -31,8 +31,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-DISTRICTS_FC = r"Path\To\Your\Districts.shp"
-GTFS_DIR = r"Path\To\Your\GTFS_data"
+DISTRICTS_FC = "Path/To/Your/Districts.shp"
+GTFS_DIR = "Path/To/Your/GTFS_data"
 GTFS_FILES = ["routes.txt", "stops.txt", "trips.txt", "stop_times.txt"]
 
 TARGET_EPSG = 2248
@@ -40,11 +40,11 @@ SEARCH_DISTANCE_FEET = 1320.0
 DISTRICT_FIELD = "DISTRICT"
 
 # FAST: local SSD for intermediates
-WORK_DIR = r"temp\gtfs_district_matrix_work"
+WORK_DIR = "temp/gtfs_district_matrix_work"
 WORK_GDB_NAME = "work.gdb"
 
-OUTPUT_EXCEL = r"Path\To\Your\Excel_File.xlsx"
-LOG_DIR = r"Path\To\Your\Logs"
+OUTPUT_EXCEL = "Path/To/Your/Excel_File.xlsx"
+LOG_DIR = "Path/To/Your/Logs"
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
@@ -226,7 +226,7 @@ def csv_to_points(
     csv_path: str,
     out_gdb: str,
 ) -> str:
-    ""r"Converts a CSV table of latitude\longitude coordinates to a point feature class.
+    """Converts a CSV table of latitude/longitude coordinates to a point feature class.
 
     The output feature class is created in the WGS84 (EPSG:4326) coordinate system.
 

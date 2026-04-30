@@ -35,10 +35,10 @@ import pandas as pd
 # ============================================================================
 
 # GTFS source – folder with *.txt OR a .zip file.
-GTFS_PATH: str = r"Path\To\YourGTFS_Folder"
+GTFS_PATH: str = "Path/To/YourGTFS_Folder"
 
 # Output folder for shapefiles (NOT a geodatabase).
-OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
+OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
 
 ExportKind = Literal["stops", "lines", "both"]
 EXPORT_KIND: ExportKind = "both"
@@ -464,7 +464,7 @@ def _build_route_patterns(
         )
 
         if merged.empty:
-            logging.warning(r"No joined trip\stop records; cannot compute 'most_stops'.")
+            logging.warning("No joined trip/stop records; cannot compute 'most_stops'.")
             return []
 
         stop_counts = (

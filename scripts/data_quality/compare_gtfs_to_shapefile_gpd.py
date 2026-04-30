@@ -37,13 +37,13 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # =============================================================================
 
 # --- Inputs ---
-AGENCY_ROUTE_SHAPEFILE: Path = Path(r"File\Path\To\Your\Bus_System.shp")
-GTFS_DIR: Path = Path(r"Folder\Path\To\Your\GTFS")
+AGENCY_ROUTE_SHAPEFILE: Path = Path("File/Path/To/Your/Bus_System.shp")
+GTFS_DIR: Path = Path("Folder/Path/To/Your/GTFS")
 
 # --- Output (CSV + plots) ---
-OUTPUT_CSV: Path = Path(r"File\Path\To\Your\route_comparison_summary.csv")
+OUTPUT_CSV: Path = Path("File/Path/To/Your/route_comparison_summary.csv")
 PLOT_DEBUG: bool = True
-PLOT_DIR: Path = Path(r"Folder\Path\To\Your\Output\Plots")
+PLOT_DIR: Path = Path("Folder/Path/To/Your/Output/Plots")
 PLOT_DPI: int = 150
 PLOT_FIGSIZE: tuple[int, int] = (8, 8)
 PLOT_MAX_ROUTES: Optional[int] = None  # None = all
@@ -99,7 +99,7 @@ def log(msg: str) -> None:
 
 def _ensure_exists(path: Path) -> None:
     if not path.exists():
-        raise FileNotFoundError(fr"Missing required file\folder: {path}")
+        raise FileNotFoundError(f"Missing required file/folder: {path}")
 
 
 def _read_gtfs_table(gtfs_dir: Path, name: str) -> pd.DataFrame:
@@ -342,9 +342,9 @@ def _plot_route_debug(
     figsize: tuple[int, int],
     dpi: int,
 ) -> Path:
-    ""r"Save a diagnostic PNG for a route.
+    """Save a diagnostic PNG for a route.
 
-    Includes the agency line, GTFS line\stops, and the computed buffer.
+    Includes the agency line, GTFS line/stops, and the computed buffer.
     Returns the output path.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -396,7 +396,7 @@ def _plot_route_debug(
 
 
 def compute_per_route_metrics() -> pd.DataFrame:
-    ""r"Compute per-route spatial\name divergence metrics and (optionally) plot diagnostics.
+    """Compute per-route spatial/name divergence metrics and (optionally) plot diagnostics.
 
     Returns:
         A DataFrame with one row per agency route containing mapping status,

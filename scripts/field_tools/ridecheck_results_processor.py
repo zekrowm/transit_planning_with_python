@@ -1,8 +1,8 @@
-""r"Assess schedule adherence from field-observed bus arrivals and departures.
+"""Assess schedule adherence from field-observed bus arrivals and departures.
 
 The module extracts and cleans raw observations, converts them to a
 long “one event = one row” format, classifies punctuality using
-configurable early\late tolerances, and exports:
+configurable early/late tolerances, and exports:
 
 - A nicely formatted Excel workbook with overall, by-route, and
   by-route-direction punctuality summaries.
@@ -28,8 +28,8 @@ from openpyxl.worksheet.worksheet import Worksheet
 # CONFIGURATION
 # =============================================================================
 
-OBSERVED_DATA_PATH = r"Path\To\Your\Field_Data_Folder"
-ANALYSIS_RESULTS_PATH = r"Path\To\Your\Output_Folder"
+OBSERVED_DATA_PATH = "Path/To/Your/Field_Data_Folder"
+ANALYSIS_RESULTS_PATH = "Path/To/Your/Output_Folder"
 
 EARLY_TOLERANCE_MIN = -1  # minutes early that STILL counts on-time
 LATE_TOLERANCE_MIN = 6  # minutes late  that STILL counts on-time
@@ -55,11 +55,11 @@ LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
 
 def list_observed_files(base_path: str) -> List[Path]:
-    ""r"Return every ``.xlsx`` or ``.csv`` file in *base_path*.
+    """Return every ``.xlsx`` or ``.csv`` file in *base_path*.
 
     Args:
         base_path: Directory that *should* contain the field-observed
-            arrival\departure files.
+            arrival/departure files.
 
     Returns:
         A list of :class:`pathlib.Path` objects, each pointing to an
@@ -161,7 +161,7 @@ def classify_punctuality(diff: float | int | None) -> str | None:
 
 
 def flag_on_time(diff_series: pd.Series) -> pd.Series:
-    ""r"Return a legacy ``'Y'``\``'N'`` on-time flag.
+    """Return a legacy ``'Y'``/``'N'`` on-time flag.
 
     Args:
         diff_series: Output from :func:`compute_diff`.
@@ -228,14 +228,14 @@ def _get_invalid_reason(
     act_time: str | float | int | None,
     sched_time: str | float | int | None,
 ) -> str:
-    ""r"Explain *why* an event row is invalid.
+    """Explain *why* an event row is invalid.
 
     An empty string means the row is valid; otherwise a semicolon-separated
     list enumerates all detected problems.
 
     Args:
-        act_time: Observed arrival\departure value.
-        sched_time: Scheduled arrival\departure value.
+        act_time: Observed arrival/departure value.
+        sched_time: Scheduled arrival/departure value.
 
     Returns:
         ``""`` (valid) **or** a descriptive string (invalid).
@@ -244,13 +244,13 @@ def _get_invalid_reason(
 
     # Actual time checks -----------------------------------------------------
     if is_placeholder(act_time):
-        reasons.append(r"blank\placeholder act_time")
+        reasons.append("blank/placeholder act_time")
     elif time_str_to_minutes(act_time) is None:
         reasons.append("bad act_time format")
 
     # Scheduled time checks --------------------------------------------------
     if is_placeholder(sched_time):
-        reasons.append(r"blank\placeholder sched_time")
+        reasons.append("blank/placeholder sched_time")
     elif time_str_to_minutes(sched_time) is None:
         reasons.append("bad sched_time format")
 
@@ -267,7 +267,7 @@ EVENT_MAP: Dict[str, tuple[str, str]] = {
 
 
 def longify_events(df: pd.DataFrame) -> pd.DataFrame:
-    ""r"Explode wide arrival\departure columns into long format.
+    """Explode wide arrival/departure columns into long format.
 
     The result contains every event in the original data: **nothing is
     dropped**. Invalid events carry an ``invalid_reason`` description and
@@ -332,7 +332,7 @@ def summarise_punctuality(
     df: pd.DataFrame,
     group_cols: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    ""r"Return early\on-time\late percentages rounded to one decimal.
+    """Return early/on-time/late percentages rounded to one decimal.
 
     Args:
         df: Long-format events table, *already filtered to valid rows*.

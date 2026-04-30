@@ -1,7 +1,7 @@
-""r"GTFS proximity to sites (points, polygons, or points+parcels) with ArcPy.
+"""GTFS proximity to sites (points, polygons, or points+parcels) with ArcPy.
 
 This script finds nearby GTFS routes for user-specified locations. It supports:
-  - A single input feature class of points (e.g., access\entrance points), or
+  - A single input feature class of points (e.g., access/entrance points), or
   - A single input feature class of polygons (e.g., parcels), or
   - Two inputs: points + parcels. In this mode the workflow is point-driven:
     for each park-and-ride point, intersect with parcels to (optionally) use
@@ -12,15 +12,15 @@ For each analysis unit (site), the script:
   1) Builds a search geometry (buffer of parcel or point).
   2) Selects GTFS stops within the search area.
   3) Computes planar distance to an anchor geometry (parcel polygon or the point).
-  4) Joins to GTFS trips\routes; picks the nearest stop for each
+  4) Joins to GTFS trips/routes; picks the nearest stop for each
      (route_short_name, direction_id) pair.
-  5) Writes a CSV row with location metadata, route\direction pairs, and stop IDs.
+  5) Writes a CSV row with location metadata, route/direction pairs, and stop IDs.
 
 Outputs
 -------
 - CSV with one row per site.
 - Optional PNGs per site in PLOT_DIR.
-- QA CSV (shared\identical stop issues).
+- QA CSV (shared/identical stop issues).
 
 Requires
 --------
@@ -45,19 +45,19 @@ import pandas as pd
 
 # ---- GTFS paths
 # Folder containing GTFS text files (stops.txt, stop_times.txt, trips.txt, routes.txt)
-GTFS_FOLDER = r"data\gtfs\your_gtfs_folder"
+GTFS_FOLDER = "data/gtfs/your_gtfs_folder"
 
 # ---- Mode and inputs
 MODE = "points_plus_parcels"  # "single_fc" | "points_plus_parcels"
 
 # When MODE == "single_fc":
 # A single feature class of points or polygons representing sites
-LOCATIONS_FC = r"data\sites\locations.shp"
+LOCATIONS_FC = "data/sites/locations.shp"
 
 # When MODE == "points_plus_parcels":
 # Entrance/access points (points) and a parcels layer (polygons)
-ENTRANCE_POINTS_FC = r"data\sites\entrance_points.shp"
-PARCELS_FC = r"data\sites\parcels.shp"
+ENTRANCE_POINTS_FC = "data/sites/entrance_points.shp"
+PARCELS_FC = "data/sites/parcels.shp"
 
 # ---- Site identifiers / attributes
 # Preferred display names; fallbacks handled in code.
@@ -82,7 +82,7 @@ ROUTE_FILTER_IN: list[str] = []  # keep only these (empty => no whitelist)
 ROUTE_FILTER_OUT: list[str] = []  # drop these
 
 # ---- Output
-OUTPUT_FOLDER = r"data\outputs\gtfs_proximity"
+OUTPUT_FOLDER = "data/outputs/gtfs_proximity"
 OUTPUT_FILE_NAME = "gtfs_proximity_results.csv"
 
 # ---- Optional plotting
@@ -124,7 +124,7 @@ def _acres(area_sqft: float) -> float:
 
 
 def _parcel_diameter_ft(geom: arcpy.Geometry) -> float:
-    ""r"Approximate parcel 'diameter' as the larger of width\height in feet."""
+    """Approximate parcel 'diameter' as the larger of width/height in feet."""
     ext = geom.extent
     width = abs(ext.XMax - ext.XMin)
     height = abs(ext.YMax - ext.YMin)
@@ -281,7 +281,7 @@ def load_gtfs_data(
 
 
 def _apply_route_filters(df: pd.DataFrame) -> pd.DataFrame:
-    ""r"Apply whitelist\blacklist filters by route_short_name."""
+    """Apply whitelist/blacklist filters by route_short_name."""
     if "route_short_name" not in df.columns:
         return df
     out = df
@@ -528,7 +528,7 @@ def _scratch_gdb() -> str:
 
 
 def _in_ipython() -> bool:
-    ""r"Return True if running inside IPython\Jupyter."""
+    """Return True if running inside IPython/Jupyter."""
     try:
         from IPython import get_ipython  # type: ignore
 
@@ -1089,7 +1089,7 @@ def main() -> None:
                 pd.DataFrame(qa_rows).to_csv(QA_REPORT_CSV, index=False, encoding="utf-8-sig")
                 logging.info("QA report written -> %s", QA_REPORT_CSV)
             else:
-                logging.info(r"QA: no shared\identical stop-set issues detected.")
+                logging.info("QA: no shared/identical stop-set issues detected.")
 
         # ---------- Write primary CSV ----------
         out_csv = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME)

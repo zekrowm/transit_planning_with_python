@@ -1,14 +1,14 @@
-""r"Convert CLEVER export into TIDES-compliant trips_performed records.
+"""Convert CLEVER export into TIDES-compliant trips_performed records.
 
 This module reads a CLEVER “Event Runtime Analysis” report (CSV) and produces a
 `trips_performed.csv` file that conforms to the TIDES `trips_performed` schema.
-It normalizes common real-world export issues (inconsistent whitespace, AM\PM
+It normalizes common real-world export issues (inconsistent whitespace, AM/PM
 timestamps, mixed null tokens) and applies schema-aligned data quality rules so
 the output can be ingested by downstream validation and analytics pipelines.
 
 Key behaviors:
-- Parses scheduled and actual timestamps robustly (tolerates AM\PM and extra
-  whitespace). Missing start\end times are permitted; rows are not dropped solely
+- Parses scheduled and actual timestamps robustly (tolerates AM/PM and extra
+  whitespace). Missing start/end times are permitted; rows are not dropped solely
   for partial timing data.
 - Derives `service_date` from Scheduled Start Time when available, otherwise
   falls back to Actual Start Time. Rows that cannot be dated are excluded.
@@ -40,8 +40,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-INPUT_CSV: Path = Path(r"Path\To\Event Runtime Analysis.csv")
-OUTPUT_CSV: Path = Path(r"Path\To\trips_performed.csv")
+INPUT_CSV: Path = Path("Path/To/Event Runtime Analysis.csv")
+OUTPUT_CSV: Path = Path("Path/To/trips_performed.csv")
 
 # If set (e.g., "Revenue"), keeps only CLEVER Trip Type == this value.
 # If None/blank, keeps everything and logs nothing about filtering.
@@ -131,7 +131,7 @@ def normalize_dt_series(series: pd.Series) -> pd.Series:
         series.astype("string")
         .str.strip()
         .str.replace(r"\s+", " ", regex=True)
-        .replace({"": pd.NA, "nan": pd.NA, "NaN": pd.NA, r"N\A": pd.NA})
+        .replace({"": pd.NA, "nan": pd.NA, "NaN": pd.NA, "N/A": pd.NA})
     )
 
 
@@ -327,7 +327,7 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
     mask_no_vehicle = vehicle_id.isna()
     if mask_no_vehicle.any():
         n_drop = int(mask_no_vehicle.sum())
-        logging.warning(r"Dropping %d rows: missing Vehicle \ vehicle_id.", n_drop)
+        logging.warning("Dropping %d rows: missing Vehicle / vehicle_id.", n_drop)
         df = df.loc[~mask_no_vehicle].copy()
         vehicle_id = vehicle_id.loc[~mask_no_vehicle]
         sched_start_dt = sched_start_dt.loc[~mask_no_vehicle]

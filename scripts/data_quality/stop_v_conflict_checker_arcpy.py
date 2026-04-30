@@ -30,7 +30,7 @@ import pandas as pd
 # =============================================================================
 
 # --- Output destinations and names ---
-OUTPUT_DIR: str = r"projects\my_stop_analysis\output"
+OUTPUT_DIR: str = "projects/my_stop_analysis/output"
 OUTPUT_GDB: str = "./stop_conflicts.gdb"  # created if missing
 OUTPUT_FC_NAME: str = "stops_conflicts"
 OUTPUT_BASENAME: str = "stop_conflicts"
@@ -38,12 +38,12 @@ OVERWRITE_OUTPUT: bool = True
 
 # --- Input: specify exactly ONE of the following for stops ---
 STOPS_TXT_PATH: str = r""  # e.g., r"C:\data\gtfs\stops.txt"
-GTFS_DIR: str = r"data\gtfs_feed_2025_10_30"  # must hold stops.txt
+GTFS_DIR: str = "data/gtfs_feed_2025_10_30"  # must hold stops.txt
 
 # --- Optional context layers (any may be empty). Can be shapefile or FC (any geometry type).
-ROADWAYS_PATH: str = r"data\gis_layers\context_data.gdb\transportation\road_centerlines"
-DRIVEWAYS_PATH: str = r"data\gis_layers\parcels.gdb\driveways"
-BUILDINGS_PATH: str = r"data\gis_layers\buildings\building_footprints.shp"
+ROADWAYS_PATH: str = "data/gis_layers/context_data.gdb/transportation/road_centerlines"
+DRIVEWAYS_PATH: str = "data/gis_layers/parcels.gdb/driveways"
+BUILDINGS_PATH: str = "data/gis_layers/buildings/building_footprints.shp"
 
 # --- CRS for analysis (use a local projected CRS, units = meters) ---
 ANALYSIS_SR: arcpy.SpatialReference = arcpy.SpatialReference(
@@ -179,7 +179,7 @@ def _pandas_dedupe_stops(
 
 
 def _xy_to_points(stops_csv: str, out_sr: arcpy.SpatialReference) -> str:
-    ""r"Create a projected point FC from a CSV with stop_lon \ stop_lat."""
+    """Create a projected point FC from a CSV with stop_lon / stop_lat."""
     xy_fc = arcpy.management.XYTableToPoint(
         in_table=stops_csv,
         out_feature_class=arcpy.CreateUniqueName("stops_xy", "in_memory"),
@@ -261,7 +261,7 @@ def _add_has_conflict(fc: str, flags: Sequence[str], name: str = "has_conflict")
 
 
 def _add_lon_lat(fc_analysis: str, out_lon: str = "lon", out_lat: str = "lat") -> None:
-    ""r"Add WGS84 lon\lat to the analysis FC (for CSV convenience)."""
+    """Add WGS84 lon/lat to the analysis FC (for CSV convenience)."""
     wgs_fc = arcpy.management.Project(
         in_dataset=fc_analysis,
         out_dataset=arcpy.CreateUniqueName("wgs_", TMP_WS),

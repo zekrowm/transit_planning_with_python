@@ -20,11 +20,11 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-STOPS_FILE = Path(r"Path\To\Your\GTFS_Folder\stops.txt")
+STOPS_FILE = Path("Path/To/Your/GTFS_Folder/stops.txt")
 EXEMPT_FILE = Path(
-    r"Path\To\Your\approved_words.txt"
+    "Path/To/Your/approved_words.txt"
 )  # Set for both existing file or desired file location and name
-OUTPUT_CSV = Path(r"Path\To\Your\stop_name_suffix_errors.csv")
+OUTPUT_CSV = Path("Path/To/Your/stop_name_suffix_errors.csv")
 
 INTERACTIVE = True  # Ask about unknown words?
 WRITE_EXEMPT = True  # Append approved words back to EXEMPT_FILE?
@@ -293,12 +293,12 @@ def load_word_list(path: Path | None) -> Set[str]:
 
 
 def interactive_classify(tokens: Iterable[str]) -> Set[str]:
-    ""r"Ask the user (stdin) to approve or reject each token.
+    """Ask the user (stdin) to approve or reject each token.
 
     Prompts accept:
-        y \ yes  → token is valid (added to approved set)
-        n \ no   → token is not valid (skipped)
-        q \ quit → stop prompting; keep everything approved so far,
+        y / yes  → token is valid (added to approved set)
+        n / no   → token is not valid (skipped)
+        q / quit → stop prompting; keep everything approved so far,
                    treat all remaining tokens as 'n'.
     """
     approved: set[str] = set()

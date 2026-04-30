@@ -34,10 +34,10 @@ import pandas as pd
 # =============================================================================
 
 # Ridership source workbook
-RIDERSHIP_XLSX: Path = Path(r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).xlsx")
+RIDERSHIP_XLSX: Path = Path("Your/File/Path/To/STOP_USAGE_(BY_STOP_ID).xlsx")
 RIDERSHIP_SHEET: int | str = 0
 # Output folder (Excel + TXT will be written here)
-OUTPUT_FOLDER: Path = Path(r"Your\Folder\Path\To\Output")
+OUTPUT_FOLDER: Path = Path("Your/Folder/Path/To/Output")
 OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 
 # Fields in ridership workbook
@@ -59,7 +59,7 @@ AGGREGATE_BY_STOP: bool | str = "auto"
 # OPTIONAL SECOND WORKBOOK – AMENITY DETAILS
 # -----------------------------------------------------------------------------
 
-AMENITIES_XLSX: Path = Path(r"Your\File\Path\To\bus_stop_amenities.xlsx")
+AMENITIES_XLSX: Path = Path("Your/File/Path/To/bus_stop_amenities.xlsx")
 AMENITIES_SHEET: int | str = 0
 AMENITY_JOIN_FIELD: str = "stop_code"
 TXT_LOG_PATH: Path = OUTPUT_FOLDER / "stops_needing_improvement.txt"
@@ -85,7 +85,7 @@ _AMENITY_ALIASES: Dict[str, str] = {
 
 
 def _standardise_yn(series: pd.Series) -> pd.Series:
-    ""r"Normalise a Y\N column to uppercase 'Y' or 'N' with no whitespace."""
+    """Normalise a Y/N column to uppercase 'Y' or 'N' with no whitespace."""
     return series.fillna("N").astype(str).str.strip().str.upper()
 
 
@@ -95,7 +95,7 @@ def _load_ridership_data(path: Path, sheet: int | str) -> pd.DataFrame:
 
 
 def _prepare_amenity_columns(df: pd.DataFrame) -> pd.DataFrame:
-    ""r"Ensure every expected amenity column exists and is Y\N-standardised."""
+    """Ensure every expected amenity column exists and is Y/N-standardised."""
     for cfg in AMENITIES.values():
         col = cfg["field"]
         if col not in df.columns:

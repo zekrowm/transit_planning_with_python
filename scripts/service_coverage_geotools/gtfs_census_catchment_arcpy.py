@@ -1,4 +1,4 @@
-""r"Compute service-area demographics from transit stops.
+"""Compute service-area demographics from transit stops.
 
 Builds stop buffers (from GTFS or a point FC), dissolves to service areas,
 clips a demographics layer, and produces area-weighted counts for equity and
@@ -15,13 +15,13 @@ Pipeline:
 
 Inputs:
   - GTFS: stops.txt, routes.txt, trips.txt, stop_times.txt
-  - Demographics FC with HH_LOWINC\PCT_LOWINC\HH_TOT, MINOR_CNT\PCT_MINOR\POP_TOT,
-    EMP_LO\EMP_TOT; LEP\YOUTH\ELDER optional.
+  - Demographics FC with HH_LOWINC/PCT_LOWINC/HH_TOT, MINOR_CNT/PCT_MINOR/POP_TOT,
+    EMP_LO/EMP_TOT; LEP/YOUTH/ELDER optional.
 
 Outputs:
   - Clipped polygons with area fields and synthetic metrics:
     loinc_hh, total_hh, minor_pop, total_pop, loinc_jobs, all_jobs (+ extras).
-  - Final FC\shapefile; optional per-route CSV.
+  - Final FC/shapefile; optional per-route CSV.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ STOPS_INPUT_MODE: str = "gtfs"
 STOPS_FEATURE_CLASS: str = r""
 
 # For "gtfs" mode
-GTFS_FOLDER: str = r"Path\To\Your\GTFS_Folder"
+GTFS_FOLDER: str = "Path/To/Your/GTFS_Folder"
 
 # Optional: filter GTFS to the following route_short_name values.
 # Example: ["101", "202"]. Leave as [] or None to include all routes (network run).
@@ -59,8 +59,8 @@ GTFS_ROUTE_SHORT_NAMES: Optional[Sequence[str]] = ["101", "202"]
 # Input demographics (from the census-join pipeline).
 # This may be a FileGDB feature class or a shapefile; both work.
 DEMOGRAPHICS_FC: str = (
-    # r"File\Path\To\Your\output_final\scratch_join.gdb\joined_blocks"
-    r"File\Path\To\Your\output_final\blocks_with_attrs.shp"
+    # "File/Path/To/Your/output_final/scratch_join.gdb/joined_blocks"
+    "File/Path/To/Your/output_final/blocks_with_attrs.shp"
 )
 
 # Optional disk outputs for intermediates (used only for the "network" run).
@@ -72,7 +72,7 @@ CLIPPED_DEMOGRAPHICS_OUT: str = r""
 # Final export target:
 #   If this ends with ".gdb", results are written as a feature class into that GDB.
 #   Otherwise it's treated as a directory and a shapefile is written there.
-FINAL_EXPORT_TARGET: str = r"File\Path\To\Your\output_final\output.gdb"
+FINAL_EXPORT_TARGET: str = "File/Path/To/Your/output_final/output.gdb"
 
 # Processing parameters
 BUFFER_DISTANCE_MILES: float = 0.25
@@ -723,7 +723,7 @@ def resolved_clipped_fields(demographics_fc: str) -> List[str]:
 # GEOPROCESSING STEPS
 # =============================================================================
 def _maybe_project_for_processing(in_fc: str, name_hint: str) -> str:
-    ""r"Optionally project to PROCESS_CRS_WKID for buffering\clipping stability."""
+    """Optionally project to PROCESS_CRS_WKID for buffering/clipping stability."""
     if PROCESS_CRS_WKID is None:
         return in_fc
     spref = arcpy.SpatialReference(PROCESS_CRS_WKID)
@@ -846,15 +846,15 @@ def _intermediate_buffer_folder() -> str:
     Returns:
         Absolute path to the inspection folder, created if missing.
     """
-    folder = r"projects\dot\zkrohmal\census_merge_test_2025_10_31\output_buffer_intermediate"
+    folder = "projects/dot/zkrohmal/census_merge_test_2025_10_31/output_buffer_intermediate"
     ensure_dir(folder)
     return folder
 
 
 def _scratch_gdb() -> str:
-    ""r"Return a writable scratch file geodatabase path, creating it if needed.
+    """Return a writable scratch file geodatabase path, creating it if needed.
 
-    Prefers arcpy.env.scratchGDB. Falls back to <scratchFolder>\sr_temp.gdb,
+    Prefers arcpy.env.scratchGDB. Falls back to <scratchFolder>/sr_temp.gdb,
     or OS temp if scratchFolder is unavailable.
     """
     gdb = getattr(arcpy.env, "scratchGDB", None)
@@ -1028,9 +1028,9 @@ def calc_original_area_for_intersecting(
     insurance_distance_ft: float = 100.0,
     field_name: str = "area_ac_og",
 ) -> None:
-    ""r"Populate original area (acres) only for demo polygons near the buffer.
+    """Populate original area (acres) only for demo polygons near the buffer.
 
-    Creates\ensures the `area_ac_og` field on the source demographics feature
+    Creates/ensures the `area_ac_og` field on the source demographics feature
     class, then calculates it *only* for features that intersect the buffer
     expanded by `insurance_distance_ft`. Non-intersecting features are left
     untouched, avoiding a full-table CalculateField over ~40k rows.
@@ -1108,9 +1108,9 @@ def _process_service_area_from_stops_layer(
     dissolved_path: Optional[str] = None,
     clipped_path: Optional[str] = None,
 ) -> Tuple[Dict[str, int], Optional[str]]:
-    ""r"Run the buffer→dissolve→clip→synthetics→summaries pipeline for any stops layer.
+    """Run the buffer→dissolve→clip→synthetics→summaries pipeline for any stops layer.
 
-    When disk paths are provided for buffered\dissolved\clipped, they are used.
+    When disk paths are provided for buffered/dissolved/clipped, they are used.
     Otherwise, unique in_memory paths are allocated (per-route use case).
     """
     # Allocate paths if not given

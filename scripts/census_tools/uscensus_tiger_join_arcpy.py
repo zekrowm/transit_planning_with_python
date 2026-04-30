@@ -52,8 +52,8 @@ import pandas as pd
 # =============================================================================
 
 # ---- Input roots ----
-INPUT_CSV_DIR: str | Path = r"Folder\Path\To\Your\input_csvs"  # <<< EDIT ME
-INPUT_SHP_DIR: str | Path = r"Folder\Path\To\Your\input_shps"  # <<< EDIT ME
+INPUT_CSV_DIR: str | Path = "Folder/Path/To/Your/input_csvs"  # <<< EDIT ME
+INPUT_SHP_DIR: str | Path = "Folder/Path/To/Your/input_shps"  # <<< EDIT ME
 
 # ---- TIGER shapefile discovery ----
 # Glob pattern to select block shapefiles (basenames). Example: "tl_2023_*_tabblock20.shp"
@@ -70,11 +70,11 @@ FIPS_TO_FILTER: list[str] = [
 
 # ---- Outputs ----
 INTERMEDIATE_MERGED_SHP: str = (
-    r"File\Path\To\Your\output_intermediate\merged_blocks.shp"  # or ...gdb/merged_blocks
+    "File/Path/To/Your/output_intermediate/merged_blocks.shp"  # or ...gdb/merged_blocks
 )
-INTERMEDIATE_COMBINED_CSV: str = r"File\Path\To\Your\output_intermediate\combined_blocks.csv"
+INTERMEDIATE_COMBINED_CSV: str = "File/Path/To/Your/output_intermediate/combined_blocks.csv"
 FINAL_JOINED_FEATURES: str = (
-    r"File\Path\To\Your\output_final\blocks_with_attrs.shp"  # or ...gdb/blocks_with_attrs
+    "File/Path/To/Your/output_final/blocks_with_attrs.shp"  # or ...gdb/blocks_with_attrs
 )
 
 # ---- CSV topic signatures ----
@@ -136,7 +136,7 @@ def discover_census_files(
     root_dir: str | Path,
     signatures: Mapping[str, Sequence[str] | str] = TOPIC_SIGNATURES,
 ) -> dict[str, list[str]]:
-    ""r"Recursively locate Census “data” CSV\ZIP and bucket them by topic."""
+    """Recursively locate Census “data” CSV/ZIP and bucket them by topic."""
     buckets: dict[str, list[str]] = {k: [] for k in signatures}
     root = Path(root_dir).expanduser().resolve()
 
@@ -157,7 +157,7 @@ def discover_census_files(
 
 
 def _read_csv_any(path: str | Path, **read_kwargs: Any) -> pd.DataFrame:
-    ""r"Read a CSV\CSV.GZ directly or the first “-Data.csv” member in a ZIP."""
+    """Read a CSV/CSV.GZ directly or the first “-Data.csv” member in a ZIP."""
     p = Path(path)
     suf = p.suffix.lower()
 
@@ -180,7 +180,7 @@ def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame
 
 
 def _clean_name_cols(df: pd.DataFrame) -> None:
-    ""r"Sanitize NAME-like columns in place (remove CR\LF\TAB)."""
+    """Sanitize NAME-like columns in place (remove CR/LF/TAB)."""
     for col in df.filter(regex=r"^NAME").columns:
         df[col] = df[col].astype(str).str.replace(r"[\r\n\t]+", " ", regex=True).str.strip()
 
@@ -194,7 +194,7 @@ def _load_and_concat(
     rename: Mapping[str, str] | None = None,
     compression: Literal["infer", "gzip", "bz2", "zip", "xz", "zstd"] | None = None,
 ) -> pd.DataFrame:
-    ""r"Read multiple Census CSV \ CSV-GZ \ ZIP files and concatenate the results."""
+    """Read multiple Census CSV / CSV-GZ / ZIP files and concatenate the results."""
     from functools import partial
 
     def _col_in_set(col: Hashable, *, wanted: set[Hashable]) -> bool:
@@ -242,7 +242,7 @@ def _ensure_geo_id(df: pd.DataFrame) -> None:
 
 
 def _add_geo_derivatives(df: pd.DataFrame) -> None:
-    ""r"Create tract\block synthetic ids in-place from whichever GEO column exists."""
+    """Create tract/block synthetic ids in-place from whichever GEO column exists."""
     if "tract_id_synth" in df.columns and "block_id_synth" in df.columns:
         return
 
@@ -918,7 +918,7 @@ def filter_by_fips(
 
 
 def write_output(in_fc: str, out_path: str) -> None:
-    ""r"Copy final FC to the requested output path (FGDB\shapefile)."""
+    """Copy final FC to the requested output path (FGDB/shapefile)."""
     out_dir = os.path.dirname(out_path)
     if out_dir and not os.path.exists(out_dir):
         os.makedirs(out_dir, exist_ok=True)
@@ -951,7 +951,7 @@ def _add_text_key_field(
     target_field: str,
     length: int = 15,
 ) -> str:
-    ""r"Add a text field and calculate it to the rightmost *length* chars.
+    """Add a text field and calculate it to the rightmost *length* chars.
 
     Casts the source to string to avoid failures when the source field is numeric
     (e.g., some TIGER GEOIDs). Uses correct Python slice syntax.
@@ -959,7 +959,7 @@ def _add_text_key_field(
     Args:
         dataset: Path to the feature class or table.
         source_field: Existing field name to derive from.
-        target_field: Name of the text field to create\populate.
+        target_field: Name of the text field to create/populate.
         length: Number of rightmost characters to keep.
 
     Returns:
@@ -1037,7 +1037,7 @@ def _ensure_table_key(table: str, preferred: str, fallback: str) -> str:
 
 
 def _maybe_force_float(fc: str) -> None:
-    ""r"Optionally coerce short\long integer fields in *fc* to double (GDB only)."""
+    """Optionally coerce short/long integer fields in *fc* to double (GDB only)."""
     if not FORCE_FLOAT:
         return
 
@@ -1070,7 +1070,7 @@ def join_blocks_to_attributes(
     right_key: str = RIGHT_KEY,
     derivation_src: str = DERIVATION_SRC,
 ) -> None:
-    ""r"Join block geometry to attribute rows and write the result.
+    """Join block geometry to attribute rows and write the result.
 
     Steps:
         1) Copy block features to memory.
@@ -1083,8 +1083,8 @@ def join_blocks_to_attributes(
         blocks_fc: Input block feature class or shapefile path.
         attrs_csv: Path to the combined attributes CSV.
         out_path: Output path (shapefile or file geodatabase feature class).
-        left_key: Field on the blocks feature class to normalize\join on.
-        right_key: Preferred field on the CSV table to normalize\join on.
+        left_key: Field on the blocks feature class to normalize/join on.
+        right_key: Preferred field on the CSV table to normalize/join on.
         derivation_src: Fallback CSV field if ``right_key`` is absent.
 
     Raises:
@@ -1155,7 +1155,7 @@ def join_blocks_to_attributes(
 
 
 def run_pipeline() -> None:
-    ""r"Run CSV merge → TIGER merge\filter → join → outputs."""
+    """Run CSV merge → TIGER merge/filter → join → outputs."""
     logging.basicConfig(
         level=LOG_LEVEL,
         format="%(asctime)s | %(levelname)s | %(message)s",

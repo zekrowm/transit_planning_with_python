@@ -33,8 +33,8 @@ import pandas as pd
 # CONFIGURATION
 # ==============================================================================
 
-GTFS_FOLDER_PATH: str = r"Path\To\Your\GTFS_Folder"
-OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
+GTFS_FOLDER_PATH: str = "Path/To/Your/GTFS_Folder"
+OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
 
 ROUTE_SHORTNAME_FILTER: list[str] = []  # e.g. ["350", "353"]; [] = all
 AGGREGATE_BY_ROUTE_DIR: bool = False  # False → block XLSX; True → route/dir XLSX
@@ -220,7 +220,7 @@ def _status_for_same_trip(minute: int, stop_info: tuple[Any, ...]) -> Optional[t
         )
     if arr == dep and minute == arr:
         return (
-            r"ARRIVE\DEPART",
+            "ARRIVE/DEPART",
             s_id,
             s_name,
             minutes_to_hhmm(arr),
@@ -250,7 +250,7 @@ def _status_for_different_trip(
     current_stop_name: str,
     next_stop_id: str,
 ) -> tuple[str, str, str]:
-    ""r"Classify the layover, dwell, or dead‑heading state between two trips.
+    """Classify the layover, dwell, or dead‑heading state between two trips.
 
     Parameters
     ----------
@@ -269,7 +269,7 @@ def _status_for_different_trip(
     -------
     tuple[str, str, str]
         Status string plus the stop‑ID and stop‑name that the fill‑row
-        should carry for layover\dwell\long‑break\deadhead situations.
+        should carry for layover/dwell/long‑break/deadhead situations.
     """
     gap = next_arr - dep
     same_stop = current_stop_id == next_stop_id
@@ -473,7 +473,7 @@ def _row_for_inactive(minute: int, block_id: str, trips: list[dict[str, Any]]) -
 
 
 def fill_stop_ids_for_dwell_layover_loading(df_in: pd.DataFrame) -> pd.DataFrame:
-    ""r"Populate empty stop fields for DWELL \ LAYOVER \ LOADING statuses.
+    """Populate empty stop fields for DWELL / LAYOVER / LOADING statuses.
 
     The refactored schedule rows purposely omit stop‑level metadata for rows where the
     vehicle is stationary *between* trips.  For operational QA and easier Excel review
@@ -617,13 +617,13 @@ def process_block(
     block_id: str,
     timeline: range,
 ) -> pd.DataFrame:
-    ""r"Return a minute‑by‑minute schedule DataFrame for one vehicle block.
+    """Return a minute‑by‑minute schedule DataFrame for one vehicle block.
 
     The function
 
     1. summarises all trips in the block (``_create_trips_summary``);
     2. generates one row per minute (``_build_schedule_rows``);
-    3. **back‑fills** DWELL \ LAYOVER \ LOADING rows so they inherit the most
+    3. **back‑fills** DWELL / LAYOVER / LOADING rows so they inherit the most
        recent stop metadata (``fill_stop_ids_for_dwell_layover_loading``).
 
     Args:

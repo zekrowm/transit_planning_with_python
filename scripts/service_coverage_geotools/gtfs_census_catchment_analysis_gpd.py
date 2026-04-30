@@ -37,9 +37,9 @@ from shapely.geometry import Point
 ANALYSIS_MODE = "network"  # Options: "network", "route", "stop"
 
 # Paths
-GTFS_DATA_PATH = r"Path\To\GTFS_data_folder"
-DEMOGRAPHICS_SHP_PATH = r"Path\To\census_blocks.shp"
-OUTPUT_DIRECTORY = r"Path\To\Output"
+GTFS_DATA_PATH = "Path/To/GTFS_data_folder"
+DEMOGRAPHICS_SHP_PATH = "Path/To/census_blocks.shp"
+OUTPUT_DIRECTORY = "Path/To/Output"
 
 # Calendar / service-pattern filter
 SERVICE_IDS_TO_INCLUDE: Final[list[str]] = ["3"]  # ← NEW
@@ -130,7 +130,7 @@ def get_included_stops(
     stop_ids_to_include: list[str],
     stop_ids_to_exclude: list[str],
 ) -> pd.DataFrame:
-    ""r"Determine which stops to keep by applying inclusion\exclusion lists.
+    """Determine which stops to keep by applying inclusion/exclusion lists.
 
     Args:
         stops_df: DataFrame from stops.txt (or an already merged subset).
@@ -153,7 +153,7 @@ def get_included_stops(
         filtered = filtered[~filtered["stop_id"].isin(exclude)]
 
     logging.info(
-        r"Including %d stops after applying stop include\exclude lists.",
+        "Including %d stops after applying stop include/exclude lists.",
         len(filtered),
     )
     return filtered
@@ -164,7 +164,7 @@ def get_included_routes(
     routes_to_include: list[str],
     routes_to_exclude: list[str],
 ) -> pd.DataFrame:
-    ""r"Filter routes by route_short_name include\exclude lists."""
+    """Filter routes by route_short_name include/exclude lists."""
     filtered = routes_df.copy()
 
     if "route_short_name" not in filtered.columns:
@@ -180,7 +180,7 @@ def get_included_routes(
     if exclude:
         filtered = filtered[~filtered["route_short_name"].isin(exclude)]
 
-    logging.info(r"Including %d routes after route include\exclude lists.", len(filtered))
+    logging.info("Including %d routes after route include/exclude lists.", len(filtered))
     return filtered
 
 
@@ -292,7 +292,7 @@ def do_network_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    ""r"Run a single network-wide buffer\clip analysis.
+    """Run a single network-wide buffer/clip analysis.
 
     The function filters routes and stops, applies variable buffer radii,
     dissolves individual buffers into a single surface, clips demographic
@@ -420,7 +420,7 @@ def do_route_by_route_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    ""r"Perform buffer\clip analysis for each individual route.
+    """Perform buffer/clip analysis for each individual route.
 
     The procedure repeats the buffer workflow for every `route_short_name`
     in the filtered set, exporting per-route shapefiles and Excel totals.
@@ -532,11 +532,11 @@ def do_stop_by_stop_analysis(
     output_dir: str,
     synthetic_fields: list[str],
 ) -> None:
-    ""r"Compute buffers and demographic catchments for each stop.
+    """Compute buffers and demographic catchments for each stop.
 
     Each GTFS stop that survives the route, trip, and stop filters is
     buffered (variable radius), clipped against the demographic layer, and
-    written to individual shapefile\Excel pairs.
+    written to individual shapefile/Excel pairs.
 
     Exports, for each stop_id S:
       - A shapefile named stop_S_service_buffer_data.shp

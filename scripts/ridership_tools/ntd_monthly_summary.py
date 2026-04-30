@@ -28,8 +28,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-DATA_ROOT: Final[Path] = Path(r"Path\To\Your\NTD_Folder")  # input files
-OUTPUT_DIR: Final[Path] = Path(r"Path\To\Your\Output\Folder")  # results
+DATA_ROOT: Final[Path] = Path("Path/To/Your/NTD_Folder")  # input files
+OUTPUT_DIR: Final[Path] = Path("Path/To/Your/Output/Folder")  # results
 
 REQUIRED_NUMERIC_COLS: Final[list[str]] = [
     "MTH_BOARD",
@@ -622,12 +622,12 @@ def generate_all_plots(df_time: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    ""r"Run the end-to-end NTD performance workflow.
+    """Run the end-to-end NTD performance workflow.
 
     Export policy
     -------------
     * “Complete” tables (all periods combined, or any full fiscal-year slice)
-      → **CSV only** – lightweight and ready for BI\plotting ingestion.
+      → **CSV only** – lightweight and ready for BI/plotting ingestion.
     * All other deliverables (route-level, service-type, monthly workbooks, etc.)
       → **XLSX only** – analyst-friendly, no redundant CSV versions.
     """

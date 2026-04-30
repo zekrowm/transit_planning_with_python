@@ -33,8 +33,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-GTFS_DIR = Path(r"path\to\gtfs")  # folder containing GTFS .txt files
-OUT_DIR = Path(r"path\to\output")  # output folder for CSVs
+GTFS_DIR = Path("path/to/gtfs")  # folder containing GTFS .txt files
+OUT_DIR = Path("path/to/output")  # output folder for CSVs
 
 THRESHOLD_FEET = 50.0
 
@@ -71,7 +71,7 @@ def _approx_xy_meters(
     lat_deg: pd.Series,
     lon_deg: pd.Series,
 ) -> tuple[pd.Series, pd.Series, float, float]:
-    ""r"Project lat\lon to local x\y in meters using equirectangular approximation."""
+    """Project lat/lon to local x/y in meters using equirectangular approximation."""
     lat0_rad = math.radians(float(lat_deg.mean()))
     lon0_rad = math.radians(float(lon_deg.mean()))
 
@@ -119,7 +119,7 @@ def _neighbor_cells(cell: tuple[int, int]) -> Iterable[tuple[int, int]]:
 
 
 def compile_safe_words_regex(words: list[str], whole_word: bool) -> re.Pattern[str]:
-    ""r"Compile a case-insensitive regex that matches any provided words\phrases."""
+    """Compile a case-insensitive regex that matches any provided words/phrases."""
     cleaned = [w.strip() for w in words if w and w.strip()]
     if not cleaned:
         return re.compile(r"a\A", flags=re.IGNORECASE)  # match nothing
@@ -133,7 +133,7 @@ def compile_safe_words_regex(words: list[str], whole_word: bool) -> re.Pattern[s
 
 
 def add_safe_flag(df: pd.DataFrame, safe_words: list[str], whole_word: bool) -> pd.DataFrame:
-    ""r"Add is_safe_stop flag based on stop_name matching safe words\phrases."""
+    """Add is_safe_stop flag based on stop_name matching safe words/phrases."""
     rx = compile_safe_words_regex(safe_words, whole_word=whole_word)
     out = df.copy()
     out["is_safe_stop"] = out["stop_name"].astype(str).map(lambda s: bool(rx.search(s)))
@@ -199,7 +199,7 @@ def load_stops(stops_txt: Path) -> pd.DataFrame:
     df = df.dropna(subset=["stop_lat", "stop_lon", "stop_id"]).reset_index(drop=True)
     dropped = before - len(df)
     if dropped:
-        logging.warning(r"Dropped %s stops with missing\invalid lat\lon\stop_id.", dropped)
+        logging.warning("Dropped %s stops with missing/invalid lat/lon/stop_id.", dropped)
 
     df["stop_name"] = df["stop_name"].fillna("")
     return df
@@ -261,14 +261,14 @@ def is_opposite_direction_pair_same_route(
     stop_b: str,
     index: dict[str, dict[str, set[int]]],
 ) -> bool:
-    ""r"Return True if stops look like opposite-direction-only on at least one shared route.
+    """Return True if stops look like opposite-direction-only on at least one shared route.
 
     Heuristic:
       - Find routes served by both stops.
       - If there exists a route where A is served only by {0} and B only by {1},
         or vice-versa, treat as across-the-street directional pair.
 
-    If either stop lacks route\dir info, returns False.
+    If either stop lacks route/dir info, returns False.
     """
     a = index.get(stop_a)
     b = index.get(stop_b)

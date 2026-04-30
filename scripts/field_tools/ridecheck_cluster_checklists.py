@@ -1,4 +1,4 @@
-""r"Generate Excel field-audit checklists from a GTFS feed.
+"""Generate Excel field-audit checklists from a GTFS feed.
 
 This module produces printable checklists for on-street audits by slicing GTFS
 stop-times data by schedule type (e.g., weekday) and user-defined stop clusters
@@ -26,7 +26,7 @@ Outputs:
 
 Assumptions:
     * GTFS feed is internally consistent.
-    * Calendar columns are 0\1 flags.
+    * Calendar columns are 0/1 flags.
     * Clusters are defined in this configuration block using either ``stop_id``
       or ``stop_code``.
 """
@@ -50,11 +50,11 @@ from openpyxl.utils import get_column_letter
 
 # Output directory for generated Excel checklists and nearby-stop QA reports.
 # Use a local or network path that field staff can access.
-BASE_OUTPUT_PATH = r"transit\field_checks\YYYY_MM_checklists"
+BASE_OUTPUT_PATH = "transit/field_checks/YYYY_MM_checklists"
 
 # Input directory containing a complete GTFS feed (trips.txt, stop_times.txt,
 # routes.txt, stops.txt, calendar.txt).
-BASE_INPUT_PATH = r"transit\gtfs\connector_YYYY_MM_DD"
+BASE_INPUT_PATH = "transit/gtfs/connector_YYYY_MM_DD"
 
 # How CLUSTERS are specified:
 # - "stop_id"  -> CLUSTERS lists are stop_id values from stops.txt

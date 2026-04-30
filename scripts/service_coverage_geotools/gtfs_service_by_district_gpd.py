@@ -1,4 +1,4 @@
-""r"Generates a matrix of GTFS transit routes by district coverage.
+"""Generates a matrix of GTFS transit routes by district coverage.
 
 Buffers GTFS stops, intersects them with district polygons, and determines
 which routes serve which districts. Outputs a route-vs-district matrix
@@ -11,7 +11,7 @@ Inputs:
     - Configuration constants for buffer size, EPSG, and district ID field.
 
 Outputs:
-    - Excel file with a matrix of route_short_name vs. district (y\n).
+    - Excel file with a matrix of route_short_name vs. district (y/n).
 """
 
 from __future__ import annotations
@@ -29,10 +29,10 @@ import pandas as pd
 # =============================================================================
 
 # Shapefile of Districts (already in or to be projected to EPSG:2248, for example)
-DISTRICTS_SHP = r"Path\To\Your\Districts.shp"
+DISTRICTS_SHP = "Path/To/Your/Districts.shp"
 
 # Path to GTFS folder on G: drive
-GTFS_DIR = r"Path\To\Your\GTFS_data"
+GTFS_DIR = "Path/To/Your/GTFS_data"
 GTFS_FILES = [
     "routes.txt",
     "stops.txt",
@@ -44,10 +44,10 @@ GTFS_FILES = [
 BUFFER_DISTANCE = 1320
 
 # Final Excel output
-OUTPUT_EXCEL = r"Path\To\Your\Excel_File.xlsx"
+OUTPUT_EXCEL = "Path/To/Your/Excel_File.xlsx"
 
 # Workspace folder (if you need to write intermediate shapefiles, place them here)
-WORKSPACE_FOLDER = r"Path\To\Your\Temp_folder"
+WORKSPACE_FOLDER = "Path/To/Your/Temp_folder"
 
 # Example CRS for Maryland State Plane, in feet
 # EPSG:2248 => NAD83 / Maryland (ftUS)

@@ -1,4 +1,4 @@
-""r"Process OTP-by-timepoint exports into monthly route\direction\variation deliverables.
+"""Process OTP-by-timepoint exports into monthly route/direction/variation deliverables.
 
 This script ingests an OTP-by-timepoint CSV export and produces analysis-ready outputs that treat
 each unique (Short Route, Direction, Variation) as its own pattern. It converts the source data to
@@ -16,16 +16,16 @@ Core steps
   percentages from the aggregated counts.
 - Generate per-variation outputs:
   - Monthly pivot tables of % On Time and Total Counts (rows = Year-Month, columns = stop order).
-  - A stop-level summary for the analysis window that retains Timepoint ID\Description as
+  - A stop-level summary for the analysis window that retains Timepoint ID/Description as
     context.
-  - Optional line plots showing on-time\early\late % across stop order, including a dashed
+  - Optional line plots showing on-time/early/late % across stop order, including a dashed
     reference line for a configurable OTP standard.
 
 Important notes
 ---------------
 - Variations are handled separately because different variants can serve different stops, in
   different orders, or follow different paths.
-- If a route pattern changes mid-year, run separate month windows (start\end month config) to
+- If a route pattern changes mid-year, run separate month windows (start/end month config) to
   avoid mixing incompatible patterns.
 - If the export cannot support a reliable YYYY-MM (no usable YYYY-MM field, no parseable dates,
   and no way to infer year for Month values), the script fails loudly rather than guessing.
@@ -47,8 +47,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-CSV_PATH: Path | str = r"Path\To\Your\OTP by Timepoint Aggregated.csv"
-OUTPUT_DIR: Path | str = r"Path\To\Your\Output_Folder"
+CSV_PATH: Path | str = "Path/To/Your/OTP by Timepoint Aggregated.csv"
+OUTPUT_DIR: Path | str = "Path/To/Your/Output_Folder"
 
 OUT_SUFFIX: str = "_processed"
 
@@ -330,10 +330,10 @@ def month_name_to_number(value: str) -> int | None:
 
 
 def add_year_month_column(df: pd.DataFrame) -> pd.DataFrame:
-    ""r"Add a stable monthly grain column 'Year-Month' (string 'YYYY-MM').
+    """Add a stable monthly grain column 'Year-Month' (string 'YYYY-MM').
 
     Preference order:
-      1) Existing 'Year-Month' \ 'YearMonth' \ 'YYYY-MM' (already in YYYY-MM)
+      1) Existing 'Year-Month' / 'YearMonth' / 'YYYY-MM' (already in YYYY-MM)
       2) Parseable 'Date' → Year-Month
       3) If Date is sparse but Month exists, fill Year-Month for missing-date rows by:
          - inferring the year per Month from the rows that *do* have Date values
@@ -518,7 +518,7 @@ def infer_timepoint_orders_for_group(group_df: pd.DataFrame, ascending: bool) ->
 
 
 def build_timepoint_lookup_for_group(group_df: pd.DataFrame) -> pd.DataFrame:
-    ""r"Build a lookup table for Timepoint Order → Timepoint ID\Description for one group."""
+    """Build a lookup table for Timepoint Order → Timepoint ID/Description for one group."""
     if "Timepoint ID" not in group_df.columns:
         group_df = group_df.assign(**{"Timepoint ID": pd.NA})
     if "Timepoint Description" not in group_df.columns:
@@ -600,7 +600,7 @@ def slugify_for_filename(value: str) -> str:
 def save_variation_line_plot(
     summary_df: pd.DataFrame, outpath: Path, dpi: int, otp_standard: float
 ) -> None:
-    ""r"Save a line plot of On-time\Early\Late percentages across stop order."""
+    """Save a line plot of On-time/Early/Late percentages across stop order."""
     import matplotlib.pyplot as plt  # local import to keep base deps light
 
     x = summary_df["Timepoint Order"].astype(int)

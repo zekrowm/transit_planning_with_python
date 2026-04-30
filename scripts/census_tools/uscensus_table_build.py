@@ -32,10 +32,10 @@ import pandas as pd
 
 #: Folder that holds every Census download (plain CSV, *.csv.gz*, or ZIPs).
 #: Sub-directories are searched automatically.
-ROOT_DATA_DIR: str | Path = r"Path\To\Your\Census_Table_Data_Files"  # <<< EDIT ME
+ROOT_DATA_DIR: str | Path = "Path/To/Your/Census_Table_Data_Files"  # <<< EDIT ME
 
 #: Optional output CSV (set to None to skip writing)
-CSV_OUTPUT_PATH: str | None = r"Path\To\Your\Output_Folder\joined_blocks.csv"
+CSV_OUTPUT_PATH: str | None = "Path/To/Your/Output_Folder/joined_blocks.csv"
 
 #: Optional county FIPS filter (5-digit codes, e.g. ["11001", "51059"])
 COUNTY_FIPS_FILTER: list[str] = [
@@ -117,7 +117,7 @@ def discover_census_files(
 
 
 def _read_csv_any(path: str | Path, **read_kwargs: Any) -> pd.DataFrame:
-    ""r"Read a CSV\CSV.GZ directly *or* the first “-Data.csv” member in a ZIP."""
+    """Read a CSV/CSV.GZ directly *or* the first “-Data.csv” member in a ZIP."""
     p = Path(path)
     suf = p.suffix.lower()
 
@@ -148,7 +148,7 @@ def _fill_numeric_only(df: pd.DataFrame, value: int | float = 0) -> pd.DataFrame
 
 
 def _clean_name_cols(df: pd.DataFrame) -> None:
-    ""r"Sanitise NAME‑like columns in place (remove CR\LF\TAB)."""
+    """Sanitise NAME‑like columns in place (remove CR/LF/TAB)."""
     for col in df.filter(regex=r"^NAME").columns:
         df[col] = (
             df[col]  # Series
@@ -167,7 +167,7 @@ def _load_and_concat(
     rename: Mapping[str, str] | None = None,
     compression: Literal["infer", "gzip", "bz2", "zip", "xz", "zstd"] | None = None,
 ) -> pd.DataFrame:
-    ""r"Read multiple Census CSV \ CSV‑GZ \ ZIP files and concatenate the results.
+    """Read multiple Census CSV / CSV‑GZ / ZIP files and concatenate the results.
 
     Embedded control characters in *NAME* columns are stripped immediately to
     guarantee that every logical record remains on a single physical line when
@@ -531,7 +531,7 @@ def _apply_fips_filter(
     fips: Iterable[str] | None = None,
     dst_col: str = "FIPS",
 ) -> pd.DataFrame:
-    ""r"Return a copy filtered to *fips* (or unchanged if *fips* is empty\None)."""
+    """Return a copy filtered to *fips* (or unchanged if *fips* is empty/None)."""
     if not fips:
         return df
     _ensure_fips_column(df, dst=dst_col)
