@@ -76,6 +76,7 @@ transit_planning_with_python/
 │       └── site_route_proximity_gpd.py
 ├── tests/
 │   ├── fixtures/
+│   │   ├── CLEVER_Runtime_and_OTP_by_Month_sample.csv
 │   │   ├── ntd_monthly_multi_month.csv
 │   │   ├── ridership_by_route_and_stop.csv
 │   │   ├── statistics_by_route_and_trip.csv
@@ -86,13 +87,16 @@ transit_planning_with_python/
 │   ├── test_load_gtfs_data.py
 │   ├── test_ntd_route_trends.py
 │   ├── test_otp_monthly_by_timepoint_order.py
+│   ├── test_otp_monthly_trends_export.py
 │   └── test_trip_event_runtime_diagnostics.py
 ├── utils/
 │   └── gtfs_helpers.py
+├── .gitignore
 ├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md
 ├── directory_structure.txt
 ├── pyproject.toml
-├── requirements.txt
-└── requirements_arcpro.txt
+├── requirements-arcpro.txt
+├── requirements-dev.txt
+└── requirements.txt
