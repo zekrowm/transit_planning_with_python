@@ -45,7 +45,9 @@ The repository is organized for ease of use, with:
 ## 🛠️ Requirements
 
 - Python 3.9+
-- Common libraries like pandas, geopandas, rapidfuzz, networkx, and others listed in requirements.txt.
+- Common libraries like pandas, geopandas, rapidfuzz, networkx, and others.
+  - **ArcGIS Pro users:** install pip-installable dependencies from `requirements_arcpro.txt`.
+  - **Non-ArcGIS / home users:** install the open-source stack from `requirements.txt`.
 
 ## 🧑‍💻 How to Use
 
@@ -101,7 +103,7 @@ Jupyter Notebook is a powerful tool for running Python scripts in an interactive
 2. **Install JupyterLab and Required Libraries**
    - Open the Command Prompt (search for "cmd" in your Start menu) and run the following command:
      ```bash
-     pip install jupyterlab pandas geopandas shapely matplotlib networkx openpyxl rapidfuzz pulp
+     pip install jupyterlab -r requirements.txt
      ```
    - Wait for the installation to complete. If you see warnings about scripts not being on the PATH, don't worry - you can still use these tools.
 

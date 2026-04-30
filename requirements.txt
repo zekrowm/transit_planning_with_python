@@ -1,51 +1,9 @@
 
 # =============================================================================
-# OFFICIAL STACK — ArcGIS Pro / arcpy Environment
+# Open-Source / Non-ArcGIS Stack — and CI/dev tooling
 # =============================================================================
-# This repository is officially supported on the ArcGIS Pro (Windows) stack.
-# `arcpy` 3.1 is installed as part of ArcGIS Pro and cannot be installed via pip.
-# -----------------------------------------------------------------------------
-
-# ------------- Libraries available in ArcPro and from pip install -----------
-# Core Data Science Libraries
-pandas==2.2.3                # Data manipulation and analysis
-#pandas==1.4.4               # ArcPro version
-numpy==1.26.4                # Numerical computing
-#numpy==1.20.1               # ArcPro version
-scipy==1.12.0                # Scientific computing and optimization
-#scipy==1.6.2                # ArcPro version
-
-# Network Analysis
-networkx==2.8.4              # Graph and network analysis
-
-# Visualization
-matplotlib==3.6.0            # Plotting and visualization
-seaborn==0.12.1              # Statistical plotting
-
-# Excel File Support
-openpyxl==3.1.5              # Read/write Excel .xlsx files
-xlrd==2.0.1                  # Read legacy Excel .xls files (no .xlsx support)
-
-# Development Tools
-pytest==8.3.5                # Unit testing framework
-
-# CI/dev tooling (kept in the single requirements.txt for simplicity)
-pytest-cov                   # Test coverage reporting
-ruff                         # Linting & formatting
-ty                           # Non-blocking type checks
-
-# ------------- Typing stubs (temporary) -------------------------------------
-pandas-stubs==2.2.*
-types-openpyxl>=3.1,<5
-types-networkx>=3.4,<4
-#types-faker>=25,<26
-#types-rapidfuzz>=3.11,<4
-
-# =============================================================================
-# OPTIONAL “PORTS” STACK — For non-ArcGIS environments
-# =============================================================================
-# The following packages allow limited replication of `arcpy` workflows when
-# running outside ArcGIS Pro.
+# Use this file when running outside ArcGIS Pro (home computer, CI, etc.).
+# For the ArcGIS Pro environment, see requirements_arcpro.txt instead.
 # -----------------------------------------------------------------------------
 
 # Geospatial Libraries (GeoPandas stack)
@@ -61,3 +19,16 @@ pulp==2.9.0                  # Linear programming solver interface
 
 # Development Tools
 faker==25.8.0                # For generating fake data
+pytest==8.3.5                # Unit testing framework
+
+# CI/dev tooling
+pytest-cov                   # Test coverage reporting
+ruff                         # Linting & formatting
+ty                           # Non-blocking type checks
+
+# ------------- Typing stubs (temporary) -------------------------------------
+pandas-stubs==2.2.*
+types-openpyxl>=3.1,<5
+types-networkx>=3.4,<4
+#types-faker>=25,<26
+#types-rapidfuzz>=3.11,<4
