@@ -1,13 +1,13 @@
-"""GTFS Route Data Validation and Comparison.
+""r"GTFS Route Data Validation and Comparison.
 
-This script compares an agency's authoritative route centerline features (Shapefile/FC)
+This script compares an agency's authoritative route centerline features (Shapefile\FC)
 against the GTFS shapes and stops files for the same route system.
 
 The primary function is to:
 1.  **Match Routes:** Link agency route keys (via configured normalization) to GTFS routes.
 2.  **Calculate Divergence:** Compute spatial mismatch (minimum buffer required to contain
     GTFS features, reported as the 'max' or 'p95' distance in feet) and name similarity
-    (Levenshtein/Token Sort Ratio).
+    (Levenshtein\Token Sort Ratio).
 3.  **Generate Diagnostics:** Produce a summary CSV report and optional debug plots
     showing the spatial overlap for each route.
 """
@@ -34,13 +34,13 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # =============================================================================
 
 # --- Inputs ---
-AGENCY_ROUTE_FC: Path = Path("File/Path/To/Your/Bus_System.shp")  # .shp or feature class
-GTFS_DIR: Path = Path("Folder/Path/To/Your/GTFS")
+AGENCY_ROUTE_FC: Path = Path(r"File\Path\To\Your\Bus_System.shp")  # .shp or feature class
+GTFS_DIR: Path = Path(r"Folder\Path\To\Your\GTFS")
 
 # --- Output (CSV + plots) ---
-OUTPUT_CSV: Path = Path("File/Path/To/Your/route_comparison_summary.csv")
+OUTPUT_CSV: Path = Path(r"File\Path\To\Your\route_comparison_summary.csv")
 PLOT_DEBUG: bool = True
-PLOT_DIR: Path = Path("Folder/Path/To/Your/Output/Plots")
+PLOT_DIR: Path = Path(r"Folder\Path\To\Your\Output\Plots")
 PLOT_DPI: int = 150
 PLOT_FIGSIZE: tuple[int, int] = (8, 8)
 PLOT_MAX_ROUTES: Optional[int] = None  # None = all
@@ -162,7 +162,7 @@ def _name_divergence(a: str, b: str) -> tuple[int, float, float]:
 
 def _ensure_exists(path: Path) -> None:
     if not path.exists():
-        raise FileNotFoundError(f"Missing required file/folder: {path}")
+        raise FileNotFoundError(fr"Missing required file\folder: {path}")
 
 
 def _read_gtfs_table(gtfs_dir: Path, name: str) -> pd.DataFrame:
@@ -670,7 +670,7 @@ def _plot_route_debug(
 
 
 def compute_per_route_metrics() -> pd.DataFrame:
-    """Compute per-route spatial/name divergence metrics and (optionally) plot diagnostics."""
+    ""r"Compute per-route spatial\name divergence metrics and (optionally) plot diagnostics."""
     _ensure_exists(GTFS_DIR)
 
     routes_df = _read_gtfs_table(GTFS_DIR, "routes")

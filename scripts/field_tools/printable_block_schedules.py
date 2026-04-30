@@ -1,7 +1,7 @@
-"""Generate printable Excel schedules for each vehicle block in a GTFS feed.
+""r"Generate printable Excel schedules for each vehicle block in a GTFS feed.
 
 The script reads the five core GTFS tables—``trips``, ``stop_times``, ``stops``,
-``routes`` and ``calendar``—and optionally filters them by *service ID* and/or
+``routes`` and ``calendar``—and optionally filters them by *service ID* and\or
 *route short name*.  For every vehicle ``block_id`` that survives filtering it
 produces a nicely-formatted ``.xlsx`` file ready for field auditing.
 
@@ -33,8 +33,8 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER_PATH = "Path/To/Your/Input/Folder"  # <<< EDIT HERE
-BASE_OUTPUT_PATH = "Path/To/Your/Output/Folder"  # <<< EDIT HERE
+GTFS_FOLDER_PATH = r"Path\To\Your\Input\Folder"  # <<< EDIT HERE
+BASE_OUTPUT_PATH = r"Path\To\Your\Output\Folder"  # <<< EDIT HERE
 
 REQUIRED_GTFS_FILES = [
     "trips.txt",
@@ -214,13 +214,13 @@ def filter_data(
 def prepare_stop_times(
     trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame
 ) -> pd.DataFrame:
-    """Enrich and tidy ``stop_times`` for Excel export.
+    ""r"Enrich and tidy ``stop_times`` for Excel export.
 
     Steps
     -----
     1. Ensure a numeric ``timepoint`` column (create if absent).
     2. Attach ``block_id``, ``route_short_name`` and ``direction_id``.
-    3. Convert arrival/departure times → seconds → ``HH:MM`` format.
+    3. Convert arrival\departure times → seconds → ``HH:MM`` format.
     4. Map ``stop_id`` → human-readable stop names.
     5. Sort by ``block_id``, ``trip_id``, ``stop_sequence``.
 

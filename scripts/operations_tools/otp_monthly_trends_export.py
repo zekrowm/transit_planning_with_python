@@ -1,4 +1,4 @@
-"""Process OTP CSV to compute metrics and export tables/plots.
+""r"Process OTP CSV to compute metrics and export tables\plots.
 
 This script ingests a CSV with columns resembling:
     Route, Direction, Month, Day of the Week, Sum # On Time, Sum # Early, Sum # Late
@@ -7,12 +7,12 @@ It produces:
   1) A cleaned, processed CSV with columns:
      route_raw, route_clean, direction, month_label, period, dow,
      on_time, early, late, total_trips, pct_on_time, pct_early, pct_late
-  2) Line plots (PNG) of OTP over time for each Route/Direction, split into:
+  2) Line plots (PNG) of OTP over time for each Route\Direction, split into:
      - Weekdays (Mon–Fri): shows average Weekday OTP with a min–max band (per month)
      - Saturday
      - Sunday
   3) Two plain-text trend logs:
-     - otp_trend_summary_all.txt: every route/direction with a single headline
+     - otp_trend_summary_all.txt: every route\direction with a single headline
        trend number (weekday OTP slope, in percentage points per month) plus
        Saturday and Sunday slopes for reference.
      - otp_trend_summary_concerning.txt: the most concerning subset (default
@@ -48,11 +48,11 @@ import pandas as pd
 # CONFIGURATION
 # ==============================
 
-DEFAULT_INPUT_CSV: str = "file/path/to/your/CLEVER_Runtime_and_OTP_by_Month.csv"
+DEFAULT_INPUT_CSV: str = r"file\path\to\your\CLEVER_Runtime_and_OTP_by_Month.csv"
 
 # Network paths provided by requester (escape backslashes if editing here).
-DEFAULT_OUT_TABLE_DIR: str = "folder/path/to/your/output"
-DEFAULT_OUT_PLOTS_DIR: str = "folder/path/to/your/plots"
+DEFAULT_OUT_TABLE_DIR: str = r"folder\path\to\your\output"
+DEFAULT_OUT_PLOTS_DIR: str = r"folder\path\to\your\plots"
 
 # Current period indicator in 'YY-MM' format (YY two-digit year, MM two-digit month).
 # '25-10' means October 2025.
@@ -182,7 +182,7 @@ def month_to_period(month_label: str, ref_year: int, ref_month: int) -> str:
 
 
 def coerce_numeric(series: pd.Series) -> pd.Series:
-    """Coerce string-like numeric series with commas/decimals to float."""
+    ""r"Coerce string-like numeric series with commas\decimals to float."""
     return (
         series.astype(str)
         .str.replace(",", "", regex=False)
@@ -272,13 +272,13 @@ def process(
     current_yy_mm: str,
     blacklisted_routes: frozenset = frozenset(),
 ) -> pd.DataFrame:
-    """Compute totals and percentages and produce a tidy DataFrame.
+    ""r"Compute totals and percentages and produce a tidy DataFrame.
 
     Args:
         df: Standardized input DataFrame.
         current_yy_mm: Reference period in 'YY-MM' form.
         blacklisted_routes: Optional set of route keys (will be passed through
-            clean_route) to drop entirely. Useful for excluding test/fake routes.
+            clean_route) to drop entirely. Useful for excluding test\fake routes.
     """
     ref_year, ref_month = parse_current_yy_mm(current_yy_mm)
     df = df.copy()
@@ -400,10 +400,10 @@ def _period_to_month_index(period: str) -> int:
 
 
 def _trip_weighted_otp_by_period(df_subset: pd.DataFrame) -> pd.DataFrame:
-    """Aggregate a (route, direction, day-set) subset into one row per period.
+    ""r"Aggregate a (route, direction, day-set) subset into one row per period.
 
     Returns a DataFrame with columns ['period', 'pct_on_time'] where pct_on_time
-    is computed as sum(on_time) / sum(total_trips) * 100 across the included rows
+    is computed as sum(on_time) \ sum(total_trips) * 100 across the included rows
     for that period (i.e., trip-weighted, so heavier service days dominate).
     """
     if df_subset.empty:
@@ -563,16 +563,16 @@ def compute_trend_summary(df: pd.DataFrame, otp_standard: float) -> pd.DataFrame
 
 
 def _fmt_signed(val: float, width: int = 6, decimals: int = 2) -> str:
-    """Format a signed float; show 'n/a' for NaN."""
+    ""r"Format a signed float; show 'n\a' for NaN."""
     if val is None or (isinstance(val, float) and np.isnan(val)):
-        return "n/a".rjust(width)
+        return r"n\a".rjust(width)
     return f"{val:+{width}.{decimals}f}"
 
 
 def _fmt_unsigned(val: float, width: int = 5, decimals: int = 1) -> str:
-    """Format an unsigned float; show 'n/a' for NaN."""
+    ""r"Format an unsigned float; show 'n\a' for NaN."""
     if val is None or (isinstance(val, float) and np.isnan(val)):
-        return "n/a".rjust(width)
+        return r"n\a".rjust(width)
     return f"{val:{width}.{decimals}f}"
 
 
@@ -616,7 +616,7 @@ def format_trend_log(
     lines.append(f"Reference period   : {current_yy_mm}")
     lines.append(f"OTP standard       : {std_pct:.1f}%")
     lines.append(f"Periods analyzed   : {period_min} through {period_max}")
-    lines.append(f"Routes/directions  : {len(summary)}")
+    lines.append(fr"Routes\directions  : {len(summary)}")
     lines.append("")
     lines.append("Headline metric: WEEKDAY OTP trend, in percentage points per YEAR.")
     lines.append(
@@ -707,8 +707,8 @@ def export_trend_logs(
 
     # Period span (for the header)
     periods_sorted = _sorted_periods(proc["period"])
-    period_min = periods_sorted[0] if periods_sorted else "n/a"
-    period_max = periods_sorted[-1] if periods_sorted else "n/a"
+    period_min = periods_sorted[0] if periods_sorted else r"n\a"
+    period_max = periods_sorted[-1] if periods_sorted else r"n\a"
 
     # All-routes log
     all_text = format_trend_log(
@@ -986,7 +986,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=float,
         default=DEFAULT_CONCERNING_PCT,
         help=(
-            "Fraction of route/direction groups to flag as 'most concerning' "
+            r"Fraction of route\direction groups to flag as 'most concerning' "
             "in the concerning .txt log (e.g., 0.10 for the top 10%%). "
             "Always rounds up to at least 1 row."
         ),
@@ -1069,7 +1069,7 @@ def main(argv: List[str] | None = None) -> None:
     logging.info("Plot export complete.")
     n_groups = proc.groupby(["route_clean", "direction"], dropna=False).ngroups
     logging.info(
-        "Processed %d rows across %d route/direction groups.",
+        r"Processed %d rows across %d route\direction groups.",
         len(proc),
         n_groups,
     )

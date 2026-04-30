@@ -24,12 +24,12 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-WKDY_FILE_PATH = "Your/Path/CLEVER_Runtime_by_Segment_by_Trip_Weekday.csv"
+WKDY_FILE_PATH = r"Your\Path\CLEVER_Runtime_by_Segment_by_Trip_Weekday.csv"
 SAT_FILE_PATH = r""
 SUN_FILE_PATH = r""
 OTHER_FILE_PATH = r""
 
-PARENT_OUTPUT_DIR = "Path/To/Outputs"  # or "" to save in current folder
+PARENT_OUTPUT_DIR = r"Path\To\Outputs"  # or "" to save in current folder
 
 ROUTES_TO_EXCLUDE = []
 ROUTES_TO_INCLUDE = []
@@ -88,12 +88,12 @@ def filter_routes(
     routes_to_exclude: Optional[Sequence[str]] = None,
     routes_to_include: Optional[Sequence[str]] = None,
 ) -> pd.DataFrame:
-    """Filter a CLEVER export by *Branch* (i.e. route) column.
+    ""r"Filter a CLEVER export by *Branch* (i.e. route) column.
 
     Args:
         df: The raw CLEVER DataFrame.
-        routes_to_exclude: Branch values to drop, or an empty list/None.
-        routes_to_include: Branch values to retain, or an empty list/None.
+        routes_to_exclude: Branch values to drop, or an empty list\None.
+        routes_to_include: Branch values to retain, or an empty list\None.
             When supplied, *routes_to_exclude* is ignored for overlapping
             entries (i.e. explicit inclusion wins).
 
@@ -114,12 +114,12 @@ def convert_time_columns(
     df: pd.DataFrame,
     time_columns: Optional[Union[Mapping[str, str], Sequence[str]]] = None,
 ) -> None:
-    """Convert selected time columns from seconds to minutes *in-place*.
+    ""r"Convert selected time columns from seconds to minutes *in-place*.
 
     Args:
         df: DataFrame whose columns are to be converted.
         time_columns: Either the same mapping used elsewhere in the script
-            (dict of *original column* → *suffix*) or a list/tuple of raw
+            (dict of *original column* → *suffix*) or a list\tuple of raw
             column names.  Columns that are absent are ignored.
 
     Notes:
@@ -158,11 +158,11 @@ def check_route_validity(
     segments: Sequence[str],
     variation_values: Sequence[str],
 ) -> bool:
-    """Perform sanity checks on a collection of *START – END* segments.
+    ""r"Perform sanity checks on a collection of *START – END* segments.
 
     The following issues are flagged (warnings only):
 
-    * Multiple *Variation* values in the same route/direction.
+    * Multiple *Variation* values in the same route\direction.
     * Malformed segment strings lacking ``" - "`` delimiter.
     * Branching or loops in the implied graph.
     * Missing or non-unique starting stop.
@@ -336,13 +336,13 @@ def sort_route_segments(segments: Iterable[str]) -> List[str]:
 
 
 def to_percent_of_total(pivot_tbl: pd.DataFrame) -> pd.DataFrame:
-    """Convert a minutes pivot table to row-wise percent-of-total.
+    ""r"Convert a minutes pivot table to row-wise percent-of-total.
 
     Args:
         pivot_tbl: Pivot with trips as rows and segments as columns.
 
     Returns:
-        DataFrame of percentages (0-100). Rows with a zero/NaN total become NaN.
+        DataFrame of percentages (0-100). Rows with a zero\NaN total become NaN.
     """
     row_total = pivot_tbl.sum(axis=1, skipna=True)
     pct_tbl = pivot_tbl.div(row_total.replace({0.0: pd.NA}), axis=0) * 100.0
@@ -460,10 +460,10 @@ def create_and_save_pivots(
 
 
 def process_file(file_path: str, dataset_label: str) -> None:
-    """Run the full workflow for one CLEVER export.
+    ""r"Run the full workflow for one CLEVER export.
 
     Args:
-        file_path: Path to the Weekday/Saturday/Sunday/Other CLEVER file.
+        file_path: Path to the Weekday\Saturday\Sunday\Other CLEVER file.
         dataset_label: Token used in output names (must match subdirectory).
 
     Raises:

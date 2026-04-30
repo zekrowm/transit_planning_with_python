@@ -30,12 +30,12 @@ from rapidfuzz import fuzz, process
 # =============================================================================
 
 # Paths to input files
-GTFS_FOLDER = "path/to/your/GTFS/folder"  # Replace with your GTFS folder path
+GTFS_FOLDER = r"path\to\your\GTFS\folder"  # Replace with your GTFS folder path
 
-ROADWAYS_PATH = "path/to/your/roadways.shp"  # Replace with your roadways centerline shapefile path
+ROADWAYS_PATH = r"path\to\your\roadways.shp"  # Replace with your roadways centerline shapefile path
 
 # Output settings
-OUTPUT_DIR = "path/to/output/directory"  # Replace with your desired output directory
+OUTPUT_DIR = r"path\to\output\directory"  # Replace with your desired output directory
 OUTPUT_CSV_NAME = "potential_typos.csv"
 OUTPUT_CSV_PATH = os.path.join(OUTPUT_DIR, OUTPUT_CSV_NAME)
 

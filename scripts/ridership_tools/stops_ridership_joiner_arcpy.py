@@ -26,10 +26,10 @@ import pandas as pd
 
 # INPUTS --------------------------------------------------------------------
 # Bus stops can be either a .shp or GTFS stops.txt
-BUS_STOPS_INPUT = "Your/File/Path/To/stops.txt"  # Replace as needed
+BUS_STOPS_INPUT = r"Your\File\Path\To\stops.txt"  # Replace as needed
 
 # Path to Excel with ridership data.
-EXCEL_FILE = "Your/File/Path/To/STOP_USAGE_(BY_STOP_ID).XLSX"
+EXCEL_FILE = r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).XLSX"
 
 # Optional: Filter your Excel data for certain routes. If empty, no filter.
 # Example: ROUTE_FILTER_LIST = ["101", "202"]
@@ -40,12 +40,12 @@ ROUTE_FILTER_LIST: list[str] = []
 SPLIT_BY_ROUTE = False
 
 # OUTPUTS -------------------------------------------------------------------
-OUTPUT_FOLDER = "Your/Folder/Path/To/Output"
+OUTPUT_FOLDER = r"Your\Folder\Path\To\Output"
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 # Optional: Polygon features to join ridership data to.
 # If empty, the spatial-join and aggregation steps will be skipped.
-POLYGON_LAYER = "Your/File/Path/To/census_blocks.shp"
+POLYGON_LAYER = r"Your\File\Path\To\census_blocks.shp"
 
 # File paths for intermediate & final outputs:
 GTFS_STOPS_FC = os.path.join(OUTPUT_FOLDER, "bus_stops_generated.shp")

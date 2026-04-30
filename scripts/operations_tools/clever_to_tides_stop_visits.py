@@ -1,8 +1,8 @@
-"""Convert CLEVER export into TIDES-compliant stop_visits records.
+""r"Convert CLEVER export into TIDES-compliant stop_visits records.
 
 This module reads a CLEVER “Stop Visit Events” report (CSV) and produces a
 `stop_visits.csv` file aligned with the TIDES `stop_visits` schema. It
-normalizes common real-world export issues (inconsistent whitespace, AM/PM
+normalizes common real-world export issues (inconsistent whitespace, AM\PM
 timestamps, mixed null tokens) and applies pragmatic, schema-aware rules so
 the output can be ingested by downstream validation and analytics pipelines.
 
@@ -14,7 +14,7 @@ best available ordering in the source data. Potential sequencing issues are
 logged for visibility.
 
 Key behaviors:
-- Parses scheduled and actual stop timestamps robustly (tolerates AM/PM,
+- Parses scheduled and actual stop timestamps robustly (tolerates AM\PM,
   inconsistent whitespace, and partial availability). Rows are not dropped
   solely due to incomplete timing data.
 - Uses Scheduled Passing Time for scheduled arrival and departure when
@@ -48,8 +48,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-INPUT_CSV: Path = Path("Path/To/Stop Visit Events.csv")
-OUTPUT_CSV: Path = Path("Path/To/stop_visits.csv")
+INPUT_CSV: Path = Path(r"Path\To\Stop Visit Events.csv")
+OUTPUT_CSV: Path = Path(r"Path\To\stop_visits.csv")
 
 # Trip ID strategy:
 # - "token": trip_id_performed = second token in CLEVER "Trip" (default)
@@ -142,12 +142,12 @@ def normalize_text(series: pd.Series) -> pd.Series:
         series.astype("string")
         .str.strip()
         .str.replace(r"\s+", " ", regex=True)
-        .replace({"": pd.NA, "nan": pd.NA, "NaN": pd.NA, "N/A": pd.NA})
+        .replace({"": pd.NA, "nan": pd.NA, "NaN": pd.NA, r"N\A": pd.NA})
     )
 
 
 def parse_service_date(date_series: pd.Series) -> pd.Series:
-    """Parse CLEVER Date (m/d/YYYY) into ISO service_date (YYYY-MM-DD)."""
+    ""r"Parse CLEVER Date (m\d\YYYY) into ISO service_date (YYYY-MM-DD)."""
     s = normalize_text(date_series)
     dt = pd.to_datetime(s, errors="coerce", format="%m/%d/%Y")
     bad = int(dt.isna().sum())

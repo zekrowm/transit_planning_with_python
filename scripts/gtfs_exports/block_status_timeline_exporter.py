@@ -18,8 +18,8 @@ import pandas as pd
 # CONFIGURATION
 # ==================================================================================================
 
-GTFS_FOLDER_PATH = "your_GTFS_folder_path/here"
-BLOCK_OUTPUT_FOLDER = "your_output_folder_path/here"
+GTFS_FOLDER_PATH = r"your_GTFS_folder_path\here"
+BLOCK_OUTPUT_FOLDER = r"your_output_folder_path\here"
 
 DEFAULT_HOURS = 26
 TIME_INTERVAL_MINUTES = 1
@@ -151,7 +151,7 @@ def _status_for_same_trip(minute: int, stop_info: tuple) -> Optional[tuple]:
         )
     if arr == dep and minute == arr:
         return (
-            "ARRIVE/DEPART",
+            r"ARRIVE\DEPART",
             s_id,
             s_name,
             minutes_to_hhmm(arr),
@@ -519,13 +519,13 @@ def _build_schedule_rows(
     block_id: str,
     bus_stop_clusters: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Create the minute-by-minute schedule rows for a single block.
+    ""r"Create the minute-by-minute schedule rows for a single block.
 
     Args:
         trips_summary: Output of :func:`_create_trips_summary`.
         timeline: Range object representing every minute to be evaluated.
         block_id: Identifier of the vehicle block.
-        bus_stop_clusters: Cluster definitions used for dwell/layover logic.
+        bus_stop_clusters: Cluster definitions used for dwell\layover logic.
 
     Returns:
         A list of dictionaries (one per minute) suitable for `pd.DataFrame`.
@@ -629,9 +629,9 @@ def process_block(
 def _merge_and_filter_data(
     trips_df: pd.DataFrame, stop_times_df: pd.DataFrame, stops_df: pd.DataFrame
 ) -> pd.DataFrame:
-    """Merge trips and stops, filter by service_id, route, etc.
+    ""r"Merge trips and stops, filter by service_id, route, etc.
 
-    Return a single merged DataFrame with arrival_min/departure_min.
+    Return a single merged DataFrame with arrival_min\departure_min.
     """
     # Filter by service_id if set
     if CALENDAR_SERVICE_IDS:

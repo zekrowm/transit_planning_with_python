@@ -1,9 +1,9 @@
-"""GTFS stop comparison (before vs after) with notebook-friendly execution.
+""r"GTFS stop comparison (before vs after) with notebook-friendly execution.
 
 Outputs (CSV):
 - stops_before.csv     : all stops from before feed
 - stops_after.csv      : all stops from after feed
-- stops_modified.csv   : overlap stop_id where relocated > threshold and/or attributes changed
+- stops_modified.csv   : overlap stop_id where relocated > threshold and\or attributes changed
 - stops_deleted.csv    : stop_id present only in before feed
 - stops_new.csv        : stop_id present only in after feed
 - summary.json
@@ -13,7 +13,7 @@ Also outputs:
   optional nearest_id_matches)
 - gtfs_stop_compare.log
 
-No arcpy / geopandas. pandas + numpy + scipy only.
+No arcpy \ geopandas. pandas + numpy + scipy only.
 """
 
 from __future__ import annotations
@@ -36,9 +36,9 @@ from scipy.spatial import cKDTree
 # Config
 # =============================================================================
 
-BEFORE_GTFS_DIR = Path("Path/To/GTFS/Dir")
-AFTER_GTFS_DIR = Path("Path/to/GTFS/Dir")
-OUTPUT_DIR = Path("Path/To/Output/Dir")
+BEFORE_GTFS_DIR = Path(r"Path\To\GTFS\Dir")
+AFTER_GTFS_DIR = Path(r"Path\to\GTFS\Dir")
+OUTPUT_DIR = Path(r"Path\To\Output\Dir")
 
 RELOCATE_THRESHOLD_FEET = 25.0
 OVERLAP_WARN_THRESHOLD = 0.10  # warn if overlap fraction < 10%
@@ -244,7 +244,7 @@ def load_stops(gtfs_path: Path, label: str) -> pd.DataFrame:
 def haversine_meters(
     lat1: np.ndarray, lon1: np.ndarray, lat2: np.ndarray, lon2: np.ndarray
 ) -> np.ndarray:
-    """Great-circle distance (meters) between arrays of lat/lon in degrees."""
+    ""r"Great-circle distance (meters) between arrays of lat\lon in degrees."""
     r = 6_371_000.0
     lat1r = np.deg2rad(lat1)
     lon1r = np.deg2rad(lon1)
@@ -326,7 +326,7 @@ def compare_stops(
     if min(overlap_fraction_of_before, overlap_fraction_of_after) < OVERLAP_WARN_THRESHOLD:
         logging.warning(
             "Stop_id overlap is under %.0f%%. This often means either a major system overhaul "
-            "or a stop_id renumbering/rekeying.",
+            r"or a stop_id renumbering\rekeying.",
             100.0 * OVERLAP_WARN_THRESHOLD,
         )
 

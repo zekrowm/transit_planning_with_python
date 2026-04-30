@@ -31,7 +31,7 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE: Final[str] = "File/Path/To/Your/STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
+INPUT_FILE: Final[str] = r"File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
 OUTPUT_FILE: Final[str] = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
 BUS_CAPACITY: Final[int] = 39
 
@@ -99,11 +99,11 @@ def load_data(input_file: str) -> pd.DataFrame:
 
 
 def assign_service_period(ts: pd.Timestamp | dt.time) -> str:
-    """Map a trip’s start time to a service-period label.
+    ""r"Map a trip’s start time to a service-period label.
 
     Args:
-        ts: A pandas/NumPy time-like scalar (``pd.Timestamp``, ``datetime.time``,
-            or ``None``/``NaT``).
+        ts: A pandas\NumPy time-like scalar (``pd.Timestamp``, ``datetime.time``,
+            or ``None``\``NaT``).
 
     Returns:
         One of the seven period strings shown in the table below.

@@ -31,9 +31,9 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER: Path = Path("Path/To/Your/GTFS_Folder")  # ←–– change me
+GTFS_FOLDER: Path = Path(r"Path\To\Your\GTFS_Folder")  # ←–– change me
 
-OUTPUT_FOLDER: Path = Path("Path/To/Your/Output_Folder")  # ←–– change me
+OUTPUT_FOLDER: Path = Path(r"Path\To\Your\Output_Folder")  # ←–– change me
 
 # Optional filters – leave empty to process everything
 FILTER_IN_ROUTE_SHORT_NAMES: List[str] = ["101", "660"]
@@ -113,10 +113,10 @@ def minutes_to_hhmm(total_minutes: Optional[int]) -> str:
 
 
 def convert_to_miles(dist: Union[str, float, int, None]) -> Optional[float]:
-    """Convert ``shape_dist_traveled`` to statute miles.
+    ""r"Convert ``shape_dist_traveled`` to statute miles.
 
     Args:
-        dist: Distance value in metres/feet (per :data:`INPUT_DISTANCE_UNIT`) or a
+        dist: Distance value in metres\feet (per :data:`INPUT_DISTANCE_UNIT`) or a
             textual representation.  ``None`` or empty values propagate.
 
     Returns:
@@ -404,14 +404,14 @@ def build_index(
 
 
 def band_rows(index_df: pd.DataFrame) -> pd.DataFrame:
-    """Collapse individual trips into time-of-day bands.
+    ""r"Collapse individual trips into time-of-day bands.
 
     Args:
         index_df: Output from :func:`build_index`.
 
     Returns:
         One row per unique (route, service_id, direction, pattern_hash,
-        speed_hash) × time-band, with first/last departure and trip count.
+        speed_hash) × time-band, with first\last departure and trip count.
     """
     grouped = index_df.groupby(
         ["route_id", "service_id", "direction_id", "pattern_hash", "speed_hash"],

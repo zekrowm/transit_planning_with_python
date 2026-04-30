@@ -28,8 +28,8 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-GTFS_DIR = Path("Path/To/GIS/Folder")
-OUTPUT_DIR = Path("Path/To/Output_Folder")
+GTFS_DIR = Path(r"Path\To\GIS\Folder")
+OUTPUT_DIR = Path(r"Path\To\Output_Folder")
 
 # Match against route_short_name OR route_id.
 TARGET_ROUTE_TOKENS = {"101"}
@@ -69,7 +69,7 @@ def _as_sorted_csv(values: Iterable[str]) -> str:
 
 
 def _dow_code_from_calendar_row(row: pd.Series) -> str:
-    """Return a code like 'M/T/W/R/F' or 'S' or 'U' based on calendar.txt flags."""
+    ""r"Return a code like 'M\T\W\R\F' or 'S' or 'U' based on calendar.txt flags."""
     mapping = [
         ("monday", "M"),
         ("tuesday", "T"),
@@ -87,7 +87,7 @@ def _dow_code_from_calendar_row(row: pd.Series) -> str:
 
 
 def _svc_ids_to_dow_list(service_ids_csv: str, svc_to_dow: dict[str, str]) -> str:
-    """Convert '12,34' -> 'M/T/W/R/F,S' (best-effort; falls back to service_id if unknown)."""
+    ""r"Convert '12,34' -> 'M\T\W\R\F,S' (best-effort; falls back to service_id if unknown)."""
     if not service_ids_csv:
         return ""
     out: list[str] = []
@@ -106,7 +106,7 @@ def _apply_service_id_filter_to_trips(
     svc = trips["service_id"].astype(str)
     out = trips[svc.isin(keep)].copy()
     logging.info(
-        "Service_id filter enabled: keeping %d/%d trips (service_ids=%s)",
+        r"Service_id filter enabled: keeping %d\%d trips (service_ids=%s)",
         len(out),
         len(trips),
         ",".join(sorted(keep)),
@@ -115,7 +115,7 @@ def _apply_service_id_filter_to_trips(
 
 
 def _clean_for_export(df: pd.DataFrame) -> pd.DataFrame:
-    """Make the export more Excel-friendly: remove NaNs in object/text columns."""
+    ""r"Make the export more Excel-friendly: remove NaNs in object\text columns."""
     out = df.copy()
     for col in out.columns:
         if out[col].dtype == object:
@@ -239,7 +239,7 @@ def build_stop_service_routes(
     trips: pd.DataFrame,
     routes: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Map every (stop_id, service_id) pair to the list of routes serving it.
+    ""r"Map every (stop_id, service_id) pair to the list of routes serving it.
 
     Args:
         stop_times: The stop_times DataFrame.
@@ -247,7 +247,7 @@ def build_stop_service_routes(
         routes: The routes DataFrame.
 
     Returns:
-        A DataFrame with unique (stop_id, service_id) rows and a list of route IDs/labels.
+        A DataFrame with unique (stop_id, service_id) rows and a list of route IDs\labels.
     """
     merged = stop_times.merge(trips, on="trip_id", how="inner", validate="many_to_one")
     merged = merged.merge(routes, on="route_id", how="left", validate="many_to_one")
@@ -280,7 +280,7 @@ def attach_calendar_info(
     df: pd.DataFrame,
     calendar: Optional[pd.DataFrame],
 ) -> tuple[pd.DataFrame, dict[str, str]]:
-    """Attach only day-of-week code; do not attach start/end dates or exceptions."""
+    ""r"Attach only day-of-week code; do not attach start\end dates or exceptions."""
     out = df.copy()
     svc_to_dow: dict[str, str] = {}
 
@@ -299,7 +299,7 @@ def attach_calendar_info(
     else:
         out["dow_code"] = ""
         logging.warning(
-            "calendar.txt missing/empty; dow_code will be blank (days conversion will fall back)."
+            r"calendar.txt missing\empty; dow_code will be blank (days conversion will fall back)."
         )
 
     return out, svc_to_dow
@@ -310,7 +310,7 @@ def classify_impacts(
     stops: pd.DataFrame,
     target_route_ids: set[str],
 ) -> pd.DataFrame:
-    """Classify each stop-service pair based on whether it is served by target routes.
+    ""r"Classify each stop-service pair based on whether it is served by target routes.
 
     classifications:
     - not_target: Not served by any target route.
@@ -318,7 +318,7 @@ def classify_impacts(
     - target_plus_other: Served by target routes AND other routes (route loss).
 
     Args:
-        stop_service_routes: DataFrame mapping stops/services to routes.
+        stop_service_routes: DataFrame mapping stops\services to routes.
         stops: The stops DataFrame (for attaching location info).
         target_route_ids: The set of route IDs considered 'target' (to be removed).
 
@@ -504,7 +504,7 @@ def main() -> None:
             "Check that the service_ids exist in trips.txt."
         )
 
-    logging.info("Building stop/service -> routes mapping …")
+    logging.info(r"Building stop\service -> routes mapping …")
     stop_service_routes = build_stop_service_routes(
         stop_times=stop_times, trips=trips_f, routes=routes
     )

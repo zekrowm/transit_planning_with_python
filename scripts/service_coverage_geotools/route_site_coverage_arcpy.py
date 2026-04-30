@@ -1,7 +1,7 @@
-"""Analyze GTFS route coverage of strategic land uses using ArcPy geometries.
+""r"Analyze GTFS route coverage of strategic land uses using ArcPy geometries.
 
 This module builds per-route buffers from GTFS shapes (or stop-based geometry for
-express routes / missing shapes), counts intersecting facilities from configured
+express routes \ missing shapes), counts intersecting facilities from configured
 shapefile layers, and writes per-route and systemwide CSV summaries.
 
 Optionally, it computes inter-route transfer opportunities from GTFS stop_times,
@@ -32,10 +32,10 @@ import pandas as pd
 # =============================================================================
 
 # Top-level directories
-GTFS_DIR = Path("Path/To/Your/GTFS_Data")  # folder containing GTFS .txt files
-# SHP_INPUT_DIR = Path(r"data/shapefiles")  # folder with .shp layers to test
-SHP_INPUT_DIR = Path("Path/To/Your/Shapefile_Data_Directory")  # folder with .shp layers to test
-OUTPUT_DIR = Path("Path/To/Your/Output_Folder")  # where CSVs and GDB output are written
+GTFS_DIR = Path(r"Path\To\Your\GTFS_Data")  # folder containing GTFS .txt files
+# SHP_INPUT_DIR = Path(rr"data\shapefiles")  # folder with .shp layers to test
+SHP_INPUT_DIR = Path(r"Path\To\Your\Shapefile_Data_Directory")  # folder with .shp layers to test
+OUTPUT_DIR = Path(r"Path\To\Your\Output_Folder")  # where CSVs and GDB output are written
 
 # File geodatabase for outputs
 GDB_NAME = "transit_coverage.gdb"
@@ -73,7 +73,7 @@ BUFFER_DIST_FT = 1320.0  # ¼ mile in feet
 # Optional parcels polygon layer: if set, facility coverage will be based on
 # buffered parcels intersecting the facility features, rather than buffering
 # the facility features themselves.
-PARCELS_SHP = Path("Path/To/Your/parcels.shp")
+PARCELS_SHP = Path(r"Path\To\Your\parcels.shp")
 # PARCELS_SHP: Optional[Path] = None
 
 # Transfer analysis options
@@ -224,7 +224,7 @@ def _compute_buffer_distance_units(
 
 
 def _parse_gtfs_time_to_seconds(time_str: object) -> Optional[int]:
-    """Parse a GTFS time string (HH:MM[:SS]) into seconds from midnight.
+    ""r"Parse a GTFS time string (HH:MM[:SS]) into seconds from midnight.
 
     GTFS allows hours >= 24. Returns None if parsing fails.
 
@@ -232,7 +232,7 @@ def _parse_gtfs_time_to_seconds(time_str: object) -> Optional[int]:
         time_str: Raw time value from stop_times.txt.
 
     Returns:
-        Number of seconds from midnight, or None if invalid/blank.
+        Number of seconds from midnight, or None if invalid\blank.
     """
     if time_str is None:
         return None
@@ -1041,7 +1041,7 @@ def _compute_route_transfer_tables(
 
     if not subjects:
         _add_message(
-            "No subject routes found in stop_times/trips – skipping transfers.",
+            r"No subject routes found in stop_times\trips – skipping transfers.",
             "WARNING",
         )
         return
@@ -1306,7 +1306,7 @@ def main() -> None:
     )
 
     if summary_df.empty:
-        _add_message("No summary produced – check logs for errors/warnings.", "ERROR")
+        _add_message(r"No summary produced – check logs for errors\warnings.", "ERROR")
         return
 
     summary_path = OUTPUT_DIR / "all_routes_feature_summary.csv"
@@ -1318,7 +1318,7 @@ def main() -> None:
     # -------------------------------------------------------------------------
     if EXPORT_ROUTE_TRANSFERS:
         _add_message(
-            "Computing per-route transfer opportunities (same/nearby stops).",
+            r"Computing per-route transfer opportunities (same\nearby stops).",
             "INFO",
         )
         try:

@@ -29,9 +29,9 @@ import pandas as pd
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER = "path/to/your/GTFS"
-ROADWAYS_PATH = "path/to/your/roadways.shp"
-OUTPUT_DIR = "path/to/output"  # any writable folder
+GTFS_FOLDER = r"path\to\your\GTFS"
+ROADWAYS_PATH = r"path\to\your\roadways.shp"
+OUTPUT_DIR = r"path\to\output"  # any writable folder
 OUTPUT_CSV = "potential_typos.csv"
 
 # Spatial references
@@ -70,7 +70,7 @@ arcpy.env.overwriteOutput = True
 
 
 def create_work_gdb(base_dir: str) -> str:
-    """Create <base_dir>/typo_work_<timestamp>.gdb and return its path.
+    ""r"Create <base_dir>\typo_work_<timestamp>.gdb and return its path.
 
     Re-use if it already exists in this session.
     """
@@ -148,9 +148,9 @@ def normalize_street(name: str, mods: set[str]) -> str:
 
 
 def split_stop_name(stop_name: str, mods: set[str]) -> list[str]:
-    """Splits a GTFS stop name into normalized street name components.
+    ""r"Splits a GTFS stop name into normalized street name components.
 
-    Uses common intersection separators (e.g., '@', '&', '/') to divide the
+    Uses common intersection separators (e.g., '@', '&', '\') to divide the
     stop name and then normalizes each resulting part.
 
     Args:

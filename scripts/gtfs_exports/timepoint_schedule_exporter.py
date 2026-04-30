@@ -28,9 +28,9 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-GTFS_FOLDER_PATH = "Path/To/Your/GTFS_Folder"  # Folder contains GTFS .txt files
+GTFS_FOLDER_PATH = r"Path\To\Your\GTFS_Folder"  # Folder contains GTFS .txt files
 
-BASE_OUTPUT_PATH = "Path/To/Your/Output_Folder"
+BASE_OUTPUT_PATH = r"Path\To\Your\Output_Folder"
 if not os.path.exists(BASE_OUTPUT_PATH):
     os.makedirs(BASE_OUTPUT_PATH)
 
@@ -88,7 +88,7 @@ def format_output_folder_name(service_id: str, schedule_type: str) -> str:
 
 
 def _in_ipython() -> bool:
-    """Return True if running under IPython/Jupyter."""
+    ""r"Return True if running under IPython\Jupyter."""
     return "IPYKERNEL" in os.environ or hasattr(sys, "ps1")
 
 
@@ -98,9 +98,9 @@ def _slugify(label: str) -> str:
 
 
 def time_to_minutes(time_str: str) -> Optional[int]:
-    """Convert a time string to minutes after midnight.
+    ""r"Convert a time string to minutes after midnight.
 
-    Supports both *HH:MM* and *HH:MM AM/PM* tokens.  Times such as
+    Supports both *HH:MM* and *HH:MM AM\PM* tokens.  Times such as
     ``'25:15'`` (for past-midnight service) are accepted.  ``MISSING_TIME``
     or invalid inputs return ``None``.
 
@@ -608,7 +608,7 @@ def process_trips_for_direction(params: dict[str, Any]) -> pd.DataFrame:
 
     if trips_dir.empty or master_trip_stops.empty:
         logging.info(
-            "No usable trips/stops for route '%s', schedule '%s', direction '%s'. Skipping.",
+            r"No usable trips\stops for route '%s', schedule '%s', direction '%s'. Skipping.",
             route_short,
             sched_type,
             dir_id,

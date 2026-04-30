@@ -35,10 +35,10 @@ import pandas as pd
 # =============================================================================
 
 # GTFS source – folder containing *.txt or a .zip GTFS package.
-GTFS_PATH: str = "Path/To/Your/GTFS_Folder"
+GTFS_PATH: str = r"Path\To\Your\GTFS_Folder"
 
 # Output folder for shapefiles and QA logs (NOT a geodatabase).
-OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
+OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
 
 # Route filtering
 FILTER_OUT_LIST: list[str] = []
@@ -146,7 +146,7 @@ def _filter_routes(
     include_ids: Sequence[str],
     exclude_ids: Sequence[str],
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Apply include/exclude lists and return filtered routes and trips.
+    ""r"Apply include\exclude lists and return filtered routes and trips.
 
     Args:
         routes: routes.txt DataFrame.
@@ -416,17 +416,17 @@ def _build_stop_aggregates(
     trips_selected: pd.DataFrame,
     routes_selected: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Return stop layers for all routes and for the filtered subset.
+    ""r"Return stop layers for all routes and for the filtered subset.
 
     Args:
         dfs: Dictionary of raw GTFS tables.
-        trips_selected: Trips that survived the include/exclude filter.
-        routes_selected: Routes that survived the include/exclude filter.
+        trips_selected: Trips that survived the include\exclude filter.
+        routes_selected: Routes that survived the include\exclude filter.
 
     Returns:
         (all_stops_df, selected_stops_df) where each DataFrame contains:
         stop_id, stop_name, stop_lat, stop_lon, route_id, direction_id,
-        route_short_name. The three *_id/name columns are Python lists with
+        route_short_name. The three *_id\name columns are Python lists with
         normalized types (route_id → str, direction_id → int, route_short_name → str).
     """
     stops = dfs["stops"]
@@ -973,7 +973,7 @@ def _flag_long_spacing_csv(
             for rid, drn in sorted(flagged_pairs):
                 fh.write(f"{rid}\t{drn}\n")
         logging.info(
-            "Wrote summary → %s (%d route/direction pairs).",
+            r"Wrote summary → %s (%d route\direction pairs).",
             summ_path.name,
             len(flagged_pairs),
         )
@@ -1011,7 +1011,7 @@ def main() -> None:  # noqa: D401
         FILTER_OUT_LIST,
     )
     logging.info(
-        "Routes kept: %d; Trips kept: %d (after include/exclude).",
+        r"Routes kept: %d; Trips kept: %d (after include\exclude).",
         len(routes_df),
         len(trips_df),
     )

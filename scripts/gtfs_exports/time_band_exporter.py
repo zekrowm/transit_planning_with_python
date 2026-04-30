@@ -1,11 +1,11 @@
-"""Export consolidated time-band tables from GTFS schedule data.
+""r"Export consolidated time-band tables from GTFS schedule data.
 
 The script groups trips that share **both** an identical sequence of
 time-points *and* identical segment run-times. For each unique
 (time-point pattern + segment runtimes) combination it produces a single
 row with:
 
-- **FrTime / ToTime** – earliest and latest first-stop departures
+- **FrTime \ ToTime** – earliest and latest first-stop departures
 - **Segment columns** – runtime (minutes) from the previous time-point
   (first cell is ``MISSING_TIME``)
 
@@ -30,8 +30,8 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # ==================================================================================================
 
-GTFS_FOLDER = Path("Path/To/Your/GTFS_Folder")
-OUTPUT_FOLDER = Path("Path/To/Your/Output_Folder")
+GTFS_FOLDER = Path(r"Path\To\Your\GTFS_Folder")
+OUTPUT_FOLDER = Path(r"Path\To\Your\Output_Folder")
 
 # Optional filters – leave empty to take everything
 FILTER_IN_ROUTE_SHORT_NAMES: List[str] = []
@@ -140,11 +140,11 @@ RuntimeSegTuple = Tuple[Union[int, str], ...]  # first element is "–"
 
 
 def segment_runtimes(grp: pd.DataFrame) -> RuntimeSegTuple:
-    """Calculate segment runtimes for a single trip.
+    ""r"Calculate segment runtimes for a single trip.
 
     Args:
         grp: A stop_times subset for one trip, ordered by
-            stop_sequence and containing arrival_time and/or departure_time.
+            stop_sequence and containing arrival_time and\or departure_time.
 
     Returns:
         A tuple where element 0 is MISSING_TIME followed by the running
@@ -171,7 +171,7 @@ def build_index(
     Dict[int, RuntimeSegTuple],
     Dict[int, List[str]],
 ]:
-    """Build the master trip index and ancillary lookup tables.
+    ""r"Build the master trip index and ancillary lookup tables.
 
     Filtering is applied according to the global FILTER_* lists.
 
@@ -180,7 +180,7 @@ def build_index(
 
     Returns:
         Tuple of:
-            - trips_df: One row per trip with pattern/segment hashes.
+            - trips_df: One row per trip with pattern\segment hashes.
             - stop_dict: Pattern hash → tuple of stop_id strings.
             - seg_dict: Segment hash → tuple of segment runtimes.
             - header_names: Pattern hash → list of 'Stop name (code)' strings.
@@ -288,7 +288,7 @@ def export_excel(
     header_names: Dict[int, List[str]],
     routes: pd.DataFrame,
 ) -> None:
-    """Write one workbook per route/service with time-band tables.
+    ""r"Write one workbook per route\service with time-band tables.
 
     Args:
         bands: Output from make_bands().

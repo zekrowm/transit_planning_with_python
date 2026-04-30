@@ -1,7 +1,7 @@
-"""Join ridership data to bus stop point features (GeoPandas port; no dataclass).
+""r"Join ridership data to bus stop point features (GeoPandas port; no dataclass).
 
 This script merges stop-level ridership data from an Excel file with stop locations
-(from a shapefile/GeoPackage/GeoJSON/etc. or GTFS stops.txt), and optionally performs
+(from a shapefile\GeoPackage\GeoJSON\etc. or GTFS stops.txt), and optionally performs
 a spatial join to polygons (e.g., Census Blocks) for geographic aggregation.
 
 Outputs:
@@ -24,17 +24,17 @@ import pandas as pd
 # =============================================================================
 
 # INPUTS --------------------------------------------------------------------
-BUS_STOPS_INPUT = Path("Your/File/Path/To/stops.txt")  # GTFS stops.txt OR vector file
-EXCEL_FILE = Path("Your/File/Path/To/STOP_USAGE_(BY_STOP_ID).XLSX")
+BUS_STOPS_INPUT = Path(r"Your\File\Path\To\stops.txt")  # GTFS stops.txt OR vector file
+EXCEL_FILE = Path(r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).XLSX")
 
 ROUTE_FILTER_LIST: list[str] = []
 SPLIT_BY_ROUTE = False
 
-OUTPUT_FOLDER = Path("Your/Folder/Path/To/Output")
+OUTPUT_FOLDER = Path(r"Your\Folder\Path\To\Output")
 OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 
 # Optional polygons (set to None to disable)
-POLYGON_LAYER: Optional[Path] = Path("Your/File/Path/To/census_blocks.shp")
+POLYGON_LAYER: Optional[Path] = Path(r"Your\File\Path\To\census_blocks.shp")
 
 # OUTPUT FORMAT: "gpkg" strongly recommended; "shp" supported
 OUT_FORMAT = "gpkg"  # "gpkg" | "shp"
@@ -91,7 +91,7 @@ def _require_columns(df: pd.DataFrame, required: Iterable[str], context: str) ->
 def _to_common_crs(
     points: gpd.GeoDataFrame, polygons: gpd.GeoDataFrame
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    """Reproject points/polygons to a common CRS (prefers polygons CRS)."""
+    ""r"Reproject points\polygons to a common CRS (prefers polygons CRS)."""
     if polygons.crs is None and points.crs is None:
         raise ValueError("Both points and polygons are missing CRS; cannot spatial-join safely.")
     if polygons.crs is None:
@@ -241,7 +241,7 @@ def merge_ridership(
 
 
 def add_output_ridership_fields(stops_joined: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """Create standardized output fields (XBOARD/XALIGHT/XTOTAL)."""
+    ""r"Create standardized output fields (XBOARD\XALIGHT\XTOTAL)."""
     out = stops_joined.copy()
     out[OUT_BOARD] = out[EXCEL_BOARD_FIELD].astype(float)
     out[OUT_ALIGHT] = out[EXCEL_ALIGHT_FIELD].astype(float)

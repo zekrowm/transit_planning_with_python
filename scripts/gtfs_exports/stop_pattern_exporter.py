@@ -35,11 +35,11 @@ from openpyxl.utils import get_column_letter
 
 # Folder containing the raw GTFS feed (must include at least stops.txt, trips.txt,
 # stop_times.txt, and routes.txt). Use a raw string (r"") for Windows UNC paths.
-INPUT_DIR: Path = Path("Path/To/Your/GTFS_Folder")
+INPUT_DIR: Path = Path(r"Path\To\Your\GTFS_Folder")
 
 # Folder where the output Excel files will be saved. Subfolders will be created
 # for each service_id based on calendar.txt (if available).
-OUTPUT_DIR: Path = Path("Path/To/Output_Folder")
+OUTPUT_DIR: Path = Path(r"Path\To\Output_Folder")
 
 # Include only these route_short_name values. Leave empty to include all routes.
 FILTER_IN_ROUTE_SHORT_NAMES: List[str] = []

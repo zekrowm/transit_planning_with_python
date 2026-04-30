@@ -37,8 +37,8 @@ import seaborn as sns
 # CONFIGURATION
 # =============================================================================
 
-INPUT_ROOT_DIR: Final[Path] = Path("Path/To/Your/Data_Folder_with_observed_trips")
-OUTPUT_ROOT_DIR: Final[Path] = Path("Path/To/Your/Output_Folder")
+INPUT_ROOT_DIR: Final[Path] = Path(r"Path\To\Your\Data_Folder_with_observed_trips")
+OUTPUT_ROOT_DIR: Final[Path] = Path(r"Path\To\Your\Output_Folder")
 
 ROUTES_TO_INCLUDE: Final[set[str]] = {"101", "202"}  # optional whitelist
 
@@ -406,13 +406,13 @@ def filter_service_day(df: pd.DataFrame, which: str | None) -> pd.DataFrame:
 
 
 def add_deviation_cols(df: pd.DataFrame) -> pd.DataFrame:
-    """Add schedule vs. actual time deviation columns to the DataFrame.
+    ""r"Add schedule vs. actual time deviation columns to the DataFrame.
 
     Args:
         df: Trip data with scheduled and actual time columns.
 
     Returns:
-        DataFrame with new columns for start/finish/runtime deviations.
+        DataFrame with new columns for start\finish\runtime deviations.
     """
     df = df.copy()
     df["start_dev_min"] = (
@@ -624,7 +624,7 @@ def write_summary_table(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
-    """Bar‐plot scheduled vs. 85th‑percentile runtime for each start time.
+    ""r"Bar‐plot scheduled vs. 85th‑percentile runtime for each start time.
 
     The function computes, for every distinct ``trip_start_time`` token:
 
@@ -637,7 +637,7 @@ def plot_runtime_p85_vs_sched(df: pd.DataFrame) -> None:
       ``TRIM_FRAC``).
 
     A grouped bar chart is saved to
-    ``PLOTS_DIR / "bar_runtime_p85_vs_sched.png"``.  It visually highlights
+    ``PLOTS_DIR \ "bar_runtime_p85_vs_sched.png"``.  It visually highlights
     start‑times where the observed P85 runtime exceeds the scheduled value.
 
     Parameters
@@ -1030,13 +1030,13 @@ def suggest_time_bands(
 
 
 def main() -> None:  # pragma: no cover
-    """Run the end-to-end analysis for every route.
+    ""r"Run the end-to-end analysis for every route.
 
     * If ``SPLIT_BY_DIRECTION`` is **True** (default), rows are subdivided
       by the ``Direction`` column and written to
-      ``<OUTPUT_ROOT>/<route>/<direction-slug>/``.
+      ``<OUTPUT_ROOT>\<route>\<direction-slug>\``.
     * If **False**, all rows for the route are written directly to
-      ``<OUTPUT_ROOT>/<route>/``.
+      ``<OUTPUT_ROOT>\<route>\``.
     """
     logging.basicConfig(
         level=LOG_LEVEL,

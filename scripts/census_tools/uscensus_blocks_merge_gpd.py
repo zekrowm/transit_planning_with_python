@@ -43,7 +43,7 @@ import pandas as pd
 
 #: Root folder that contains one or more TIGER/Line shapefiles.
 #: Path can be absolute or relative; sub‑folders are searched automatically.
-INPUT_DIR: str = "path/to/your/tiger_shapefiles"
+INPUT_DIR: str = r"path\to\your\tiger_shapefiles"
 
 #: Unix‑style glob that must match the **.shp** filenames you want.
 #: Typical TIGER naming examples:  tl_2023_11_tabblock20.shp,
@@ -67,7 +67,7 @@ FIPS_TO_FILTER: List[str] = [
 ]
 
 # Output file (Shapefile *.shp, GeoPackage *.gpkg, etc.)
-OUTPUT_PATH: str = "output/va_md_dc_blocks_fips_merge.shp"
+OUTPUT_PATH: str = r"output\va_md_dc_blocks_fips_merge.shp"
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 

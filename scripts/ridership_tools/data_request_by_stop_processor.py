@@ -26,11 +26,11 @@ from openpyxl.utils import get_column_letter
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILE_PATH: Path = Path("Path/To/Your/RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX")
+INPUT_FILE_PATH: Path = Path(r"Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX")
 OUTPUT_FILE_SUFFIX: str = "_processed"
 OUTPUT_FILE_EXTENSION: str = ".xlsx"
 # If OUTPUT_DIR is None ⇒ use same directory as INPUT_FILE_PATH
-OUTPUT_DIR: Path | None = Path("Path/To/Output/Folder")  # e.g. r"C:\Data\Outputs"
+OUTPUT_DIR: Path | None = Path(r"Path\To\Output\Folder")  # e.g. r"C:\Data\Outputs"
 
 # ROUTES = keep-only list   |  ROUTES_EXCLUDE = toss-out list
 ROUTES: List[str] = []  # keep these (empty → keep all)
@@ -90,10 +90,10 @@ def _join_unique_routes(x: Any) -> str:
 
 
 def bin_ridership_value(value: float) -> str:
-    """Convert a numeric ridership value into a categorical range.
+    ""r"Convert a numeric ridership value into a categorical range.
 
     Args:
-        value: The boarding/alighting count for a stop.
+        value: The boarding\alighting count for a stop.
 
     Returns:
         A string bucket—``"0-4.9"``, ``"5-24.9"``, or ``"25 or more"``.
@@ -110,7 +110,7 @@ def aggregate_by_stop(
     *,
     aggregate_routes_together: bool,
 ) -> pd.DataFrame:
-    """Aggregate boardings/alightings by stop, with optional cross-route rollup.
+    ""r"Aggregate boardings\alightings by stop, with optional cross-route rollup.
 
     When ``aggregate_routes_together`` is True, rows for different routes serving the
     same stop are summed together and a ``ROUTES`` column lists the unique routes.
@@ -244,7 +244,7 @@ def filter_data(
     stop_ids: Sequence[int] | None = None,
     routes_exclude: Sequence[str] | None = None,
 ) -> pd.DataFrame:
-    """Apply optional filters in a deterministic order.
+    ""r"Apply optional filters in a deterministic order.
 
     Filters are applied in-place (on a copy) with this precedence:
 
@@ -252,7 +252,7 @@ def filter_data(
     2. Exclusive   ``routes_exclude``→ drop-only  rows where ROUTE_NAME ∈ routes_exclude
     3. Inclusive   ``stop_ids``      → keep-only rows where STOP_ID   ∈ stop_ids
 
-    Empty/None arguments are ignored.
+    Empty\None arguments are ignored.
 
     Args:
         data_frame: Original DataFrame.
@@ -283,7 +283,7 @@ def write_to_excel(
     aggregated_peaks: Dict[str, pd.DataFrame],
     all_time_aggregated: pd.DataFrame,
 ) -> None:
-    """Write the processed data sets to *output_file* in a sensible order.
+    ""r"Write the processed data sets to *output_file* in a sensible order.
 
     The workbook receives:
         1. ``Original``           – raw (but optionally rounded) rows
@@ -291,7 +291,7 @@ def write_to_excel(
         3. One sheet per entry in ``aggregated_peaks`` (already upper-cased)
 
     Args:
-        output_file: Path to the workbook to create/overwrite.
+        output_file: Path to the workbook to create\overwrite.
         filtered_data: DataFrame for the "Original" sheet.
         aggregated_peaks: Mapping ``TIME_PERIOD → aggregated DataFrame``.
         all_time_aggregated: Aggregation across *all* rows.
@@ -349,7 +349,7 @@ def adjust_excel_formatting(output_file: Path) -> None:
 def process_aggregations(
     filtered_data: pd.DataFrame,
 ) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame], pd.DataFrame]:
-    """Orchestrate rounding/bucketing and aggregation for output sheets.
+    ""r"Orchestrate rounding\bucketing and aggregation for output sheets.
 
     This function:
       1) Standardizes ``ROUTE_NAME`` as ``str``.

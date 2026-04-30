@@ -50,9 +50,9 @@ from shapely.ops import substring
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-GTFS_PATH: str = "Path/To/Your/GTFS_Folder"  # folder or .zip
-OUTPUT_FOLDER: str = "Path/To/Your/Output_Folder"
-ROAD_CENTERLINE_SHP: str | None = "Path/To/Your/Roadway_Centerlines.shp"  # ← set to None to skip
+GTFS_PATH: str = r"Path\To\Your\GTFS_Folder"  # folder or .zip
+OUTPUT_FOLDER: str = r"Path\To\Your\Output_Folder"
+ROAD_CENTERLINE_SHP: str | None = r"Path\To\Your\Roadway_Centerlines.shp"  # ← set to None to skip
 
 INCLUDE_ROUTE_IDS: list[str] = []  # empty = keep all
 EXCLUDE_ROUTE_IDS: list[str] = ["9999A", "9999B", "9999C"]  # e.g. ["9999A"]
@@ -205,7 +205,7 @@ def _build_stops_gdf(
     routes: pd.DataFrame,
     crs: str,
 ) -> gpd.GeoDataFrame:
-    """GeoDataFrame of served stops with per‑stop route/direction lists."""
+    ""r"GeoDataFrame of served stops with per‑stop route\direction lists."""
     served = stop_times[stop_times["trip_id"].isin(trips["trip_id"])]
     stops = stops[stops["stop_id"].isin(served["stop_id"])].copy()
 
