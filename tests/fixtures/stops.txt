@@ -1,0 +1,11 @@
+stop_id,stop_name,stop_lat,stop_lon
+S1,Main St & Mt Vernon Ln,38.7400,-77.0800
+S2,Main St & Robin Hood Rd,38.7460,-77.0820
+S3,Main St & Doe St,38.7520,-77.0840
+S4,Main St & Lockheed Blvd,38.7580,-77.0860
+S5,Main St & Ox Rd,38.7640,-77.0880
+S6,Main St & Beacon Hill Rd,38.7700,-77.0900
+S7,Doe St & Beulah St,38.7520,-77.0950
+S8,Lighthouse Blvd & Old Mill Rd,38.7660,-77.0780
+S9,Robin Hood Rd & Old Mill Rd,38.7460,-77.0720
+S10,Doe St & Fordson Rd,38.7520,-77.0740
