@@ -90,6 +90,7 @@ def test_ntd_route_trends_integration(input_df, tmp_path) -> None:
         patch.object(ntd_route_trends, "START_MONTH", start_month),
         patch.object(ntd_route_trends, "END_MONTH", end_month),
         patch.object(ntd_route_trends, "ROUTES", test_routes),
+        patch.object(ntd_route_trends, "DATA_ROOT", tmp_path),
         patch.object(ntd_route_trends, "OUTPUT_ROOT", tmp_path),
         patch.object(ntd_route_trends, "read_month_workbook", side_effect=mock_read_month_workbook),
     ):
