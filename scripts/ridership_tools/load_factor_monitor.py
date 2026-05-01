@@ -420,6 +420,15 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    _DEFAULT_INPUT = r"File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
+    if INPUT_FILE == _DEFAULT_INPUT:
+        logging.warning(
+            "File path is still set to its default. Update INPUT_FILE in the "
+            "CONFIGURATION section before running."
+        )
+        return
+
     # Load data
     data_frame = load_data(INPUT_FILE)
 
@@ -459,6 +468,8 @@ def main() -> None:
     # -------------------------------------------------------------------------
     if WRITE_VIOLATION_LOG:
         write_violation_log(processed_data, VIOLATION_LOG_FILE)
+
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

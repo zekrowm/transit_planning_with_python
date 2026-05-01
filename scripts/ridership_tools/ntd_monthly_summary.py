@@ -622,7 +622,7 @@ def generate_all_plots(df_time: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    """Run the end-to-end NTD performance workflow.
+    “””Run the end-to-end NTD performance workflow.
 
     Export policy
     -------------
@@ -630,11 +630,26 @@ def main() -> None:
       → **CSV only** – lightweight and ready for BI/plotting ingestion.
     * All other deliverables (route-level, service-type, monthly workbooks, etc.)
       → **XLSX only** – analyst-friendly, no redundant CSV versions.
-    """
+    “””
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format=”%(asctime)s | %(levelname)s | %(message)s”,
+        datefmt=”%Y-%m-%d %H:%M:%S”,
+    )
+
+    _DEFAULT_DATA_ROOT = r”Path\To\Your\NTD_Folder”
+    _DEFAULT_OUTPUT_DIR = r”Path\To\Your\Output\Folder”
+    if str(DATA_ROOT) == _DEFAULT_DATA_ROOT or str(OUTPUT_DIR) == _DEFAULT_OUTPUT_DIR:
+        logging.warning(
+            “File paths are still set to their defaults. Update DATA_ROOT and “
+            “OUTPUT_DIR in the CONFIGURATION section before running.”
+        )
+        return
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # === STEP 1: READ EXCEL FILES ============================================
-    logging.info("=== STEP 1: READ EXCEL FILES ===")
+    logging.info(“=== STEP 1: READ EXCEL FILES ===”)
     data_dict = read_excel_data()
 
     # === STEP 2: CLASSIFY & DERIVE ===========================================
@@ -741,7 +756,7 @@ def main() -> None:
 
         logging.info("%s: %d rows → %s", tw.label, len(subset), w_dir.relative_to(OUTPUT_DIR))
 
-    logging.info("\nAll processing complete.")
+    logging.info("All processing complete. Script completed successfully.")
 
 
 if __name__ == "__main__":

@@ -463,6 +463,16 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    _DEFAULT_BUS_STOPS = r"Your\File\Path\To\stops.txt"
+    _DEFAULT_EXCEL = r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).XLSX"
+    if BUS_STOPS_INPUT == _DEFAULT_BUS_STOPS or EXCEL_FILE == _DEFAULT_EXCEL:
+        logging.warning(
+            "File paths are still set to their defaults. Update BUS_STOPS_INPUT and "
+            "EXCEL_FILE in the CONFIGURATION section before running."
+        )
+        return
+
     # >>>>> NEW BRANCHING LOGIC <<<<<
     if not SPLIT_BY_ROUTE:
         # ---- Original single-run approach ----
@@ -550,6 +560,8 @@ def main() -> None:
         aggregate_ridership(df_excel)
 
         logging.info("Per-route process complete.")
+
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

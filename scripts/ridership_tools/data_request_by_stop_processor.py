@@ -437,6 +437,18 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    _DEFAULT_INPUT = r"Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX"
+    _DEFAULT_OUTPUT_DIR = r"Path\To\Output\Folder"
+    if str(INPUT_FILE_PATH) == _DEFAULT_INPUT or (
+        OUTPUT_DIR is not None and str(OUTPUT_DIR) == _DEFAULT_OUTPUT_DIR
+    ):
+        logging.warning(
+            "File paths are still set to their defaults. Update INPUT_FILE_PATH and "
+            "OUTPUT_DIR in the CONFIGURATION section before running."
+        )
+        return
+
     input_file: Path = INPUT_FILE_PATH
 
     # Build output file path
@@ -476,6 +488,8 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
         aggregated_peaks,
         all_time_aggregated,
     )
+
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":
