@@ -382,6 +382,16 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    _DEFAULT_BUS_STOPS = r"Your\File\Path\To\stops.txt"
+    _DEFAULT_EXCEL = r"Your\File\Path\To\STOP_USAGE_(BY_STOP_ID).XLSX"
+    if str(BUS_STOPS_INPUT) == _DEFAULT_BUS_STOPS or str(EXCEL_FILE) == _DEFAULT_EXCEL:
+        logging.warning(
+            "File paths are still set to their defaults. Update BUS_STOPS_INPUT and "
+            "EXCEL_FILE in the CONFIGURATION section before running."
+        )
+        return
+
     if not BUS_STOPS_INPUT.exists():
         raise FileNotFoundError(f"BUS_STOPS_INPUT not found: {BUS_STOPS_INPUT}")
     if not EXCEL_FILE.exists():
@@ -398,7 +408,7 @@ def main() -> None:
     else:
         run_single()
 
-    logging.info("Done.")
+    logging.info("Done. Script completed successfully.")
 
 
 if __name__ == "__main__":

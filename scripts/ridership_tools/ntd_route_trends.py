@@ -630,12 +630,22 @@ def export_route(
 
 def main() -> None:
     """Run the end-to-end subset workflow."""
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         level=LOG_LEVEL,
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    _DEFAULT_DATA_ROOT = r"Path\To\Your\Input_Folder"
+    _DEFAULT_OUTPUT_ROOT = r"Path\To\Your\Output_Folder"
+    if str(DATA_ROOT) == _DEFAULT_DATA_ROOT or str(OUTPUT_ROOT) == _DEFAULT_OUTPUT_ROOT:
+        logging.warning(
+            "File paths are still set to their defaults. Update DATA_ROOT and "
+            "OUTPUT_ROOT in the CONFIGURATION section before running."
+        )
+        return
+
+    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
     start_dt = parse_month(START_MONTH)
     end_dt = parse_month(END_MONTH)
@@ -667,6 +677,7 @@ def main() -> None:
     flags.to_csv(combined_dir / "all_routes_outage_flags.csv", index=False)
 
     logging.info("Done. Outputs written to: %s", OUTPUT_ROOT)
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":
