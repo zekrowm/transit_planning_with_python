@@ -1,0 +1,4 @@
+route_id,agency_id,route_short_name,route_long_name,route_type
+R1,1,R1,Downtown Express,3
+R2,1,R2,Main Street,3
+R3,1,R3,Crosstown,3
