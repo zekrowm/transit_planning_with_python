@@ -31,7 +31,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 _DEFAULT_OBSERVED_DATA_PATH = r"Path\To\Your\Field_Data_Folder"
 _DEFAULT_ANALYSIS_RESULTS_PATH = r"Path\To\Your\Output_Folder"
 
-OBSERVED_DATA_PATH = _DEFAULT_OBSERVED_DATA_PATH    # <<< EDIT HERE
+OBSERVED_DATA_PATH = _DEFAULT_OBSERVED_DATA_PATH  # <<< EDIT HERE
 ANALYSIS_RESULTS_PATH = _DEFAULT_ANALYSIS_RESULTS_PATH  # <<< EDIT HERE
 
 EARLY_TOLERANCE_MIN = -1  # minutes early that STILL counts on-time

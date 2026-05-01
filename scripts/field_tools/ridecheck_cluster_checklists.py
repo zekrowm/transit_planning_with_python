@@ -56,7 +56,7 @@ _DEFAULT_BASE_INPUT_PATH = r"transit\gtfs\connector_YYYY_MM_DD"
 BASE_OUTPUT_PATH = _DEFAULT_BASE_OUTPUT_PATH  # <<< EDIT HERE
 # Input directory containing a complete GTFS feed (trips.txt, stop_times.txt,
 # routes.txt, stops.txt, calendar.txt).
-BASE_INPUT_PATH = _DEFAULT_BASE_INPUT_PATH    # <<< EDIT HERE
+BASE_INPUT_PATH = _DEFAULT_BASE_INPUT_PATH  # <<< EDIT HERE
 
 # How CLUSTERS are specified:
 # - "stop_id"  -> CLUSTERS lists are stop_id values from stops.txt
