@@ -4,36 +4,36 @@ Welcome to **Transit Planning With Python**, a toolkit of off‑the‑shelf Pyth
 
 ## 🚀 Features
 
-Our scripts automate complex transit analysis. The current modules and data types supported include:
+A toolkit for transit planners and analysts. Most spatial tools ship in both `arcpy` and GeoPandas flavors, so the repo is usable whether or not your agency licenses ArcGIS Pro.
 
-Data Preparation and Visualization
+### Ridership & NTD Trend Analysis *(arcpy + GeoPandas)*
+Turn NTD-format monthly summaries into route-level trend reports, process ridership by stop, and join ridership figures to stop geometries. Load factor monitoring is also included, built on ridecheck outputs — the data shape varies between agencies, but the underlying structure is robust and adaptable.
+*Folder:* `ridership_tools/`
 
-- ***Ridership Maps:*** Automate the processing of ridership, stop, and area data for use in heatmaps.
-- ***Choropleth Data:*** Generate ready-to-map data for ridership trends and demographic overlays.
+### OTP & Runtime Diagnostics
+Stop guessing where buses are getting delayed. Pivot route-level OTP trends, diagnose runtime by trip event, and analyze segment-level runtimes. Includes CleverWorks-to-TIDES converters for stop visits and trips performed.
+*Folder:* `operations_tools/`
 
-Operational Analysis
+### Service Coverage & Catchments *(arcpy + GeoPandas)*
+Generate GTFS-to-Census catchment areas and calculate service coverage by district — built for **Title VI** equity/demographic analysis and service planning. Site-to-route proximity tools support site planning collaboration with developers, elected officials, and partner agencies.
+*Folders:* `service_coverage_geotools/`, `census_tools/`
 
-- ***Bus Bay Conflict Optimization:*** Identify scheduling conflicts and suggest improved assignments to reduce them.
-- ***Headway and Schedule Analysis:*** Automatically calculate headways, span, and trip frequencies for any schedule.
+### GTFS Data Quality & Validation *(arcpy + GeoPandas)*
+Catch errors before they go live. Cross-check GTFS stops against road centerlines, flag skipped stops, validate stop spacing and proximity, check USPS suffix conventions, and identify stops that conflict with road geometry.
+*Folder:* `data_quality/`
 
-Fieldwork Tools
+### Network & Stop Impact Analysis *(arcpy + GeoPandas)*
+Quantify what changes when you remove or relocate a stop. Score the downstream impact of stop removals on target routes, flag stop-spacing outliers, and compare GTFS stop sets across versions.
+*Folder:* `network_analysis/`
 
-- ***On-Site Checklists:*** Create field checklists for monitoring on-time performance and ridership at stops or while riding routes.
+### Fieldwork & Ridechecks
+Manual data collection that supplements or backstops modern AVL and APC systems when they go down or produce questionable data. Generate printable block schedules, build ridecheck cluster checklists for stationary surveyors, and process ridecheck results back into analysis-ready data.
+*Folder:* `field_tools/`
 
-Network Analysis
-
-- ***Route Identification:*** Quickly find transit routes operating near a defined point.
-- ***Isochrone and Accessibility Mapping:*** Build transit and roadway networks to analyze travel times and service coverage.
-
-GTFS Validation and Export
-
-- ***GTFS Location and Name Validation:*** Cross-check GTFS stop and route data against standard shapefiles like roadway_centerlines.shp and bus_routes.shp.
-- ***Schedule Export:*** Export transit schedules directly to Excel (.xlsx) format for sharing and reporting.
-
-Demographic Analysis
-
-- ***Census Integration:*** Process and combine Census tables with shapefiles for demographic insights.
-- ***Service Population Analysis:*** Calculate residential and employee populations served by individual transit routes and systems.
+### Plus
+- **GTFS Exports** (`gtfs_exports/`) — GTFS-to-shapefile, segment speeds, time-band summaries, stop patterns, and timepoint schedule exports
+- **Facility Tools** (`facilities_tools/`) — bay usage analysis and stop upgrade flagging
+- **Shared utilities** (`utils/gtfs_helpers.py`) and contributor tooling (`dev_tools/`)
 
 ## 📂 Repository Structure
 
