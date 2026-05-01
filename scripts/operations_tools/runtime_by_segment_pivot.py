@@ -470,6 +470,14 @@ def process_file(file_path: str, dataset_label: str) -> None:
         ValueError: Propagated from :func:`load_data` for unsupported file
             extensions.
     """
+    if not os.path.exists(file_path):
+        logging.warning(
+            "File not found for %r: %s — update the corresponding path in the "
+            "CONFIGURATION section to your actual CLEVER Runtime by Segment export.",
+            dataset_label,
+            file_path,
+        )
+        return
     logging.info("\nProcessing file: %s (label='%s')", file_path, dataset_label)
     df = load_data(file_path)
     df = filter_routes(df, ROUTES_TO_EXCLUDE, ROUTES_TO_INCLUDE)
@@ -523,6 +531,8 @@ def main() -> None:
         process_file(OTHER_FILE_PATH, "other")
     else:
         logging.info("Skipping 'other' (blank path).")
+
+    logging.info("Completed successfully.")
 
 
 if __name__ == "__main__":

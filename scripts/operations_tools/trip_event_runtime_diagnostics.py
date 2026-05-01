@@ -1047,11 +1047,27 @@ def main() -> None:  # pragma: no cover
     # 0.  Locate all CSVs and assign them to routes                      #
     # ------------------------------------------------------------------ #
     whitelist = {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
+
+    if not INPUT_ROOT_DIR.exists():
+        logging.warning(
+            "INPUT_ROOT_DIR does not exist: %s — update INPUT_ROOT_DIR in the CONFIGURATION "
+            "section to your actual folder of observed trip CSV files before running.",
+            INPUT_ROOT_DIR,
+        )
+        logging.info("Completed (no data processed — update INPUT_ROOT_DIR to proceed).")
+        return
+
     logging.info("→ Crawling %s for CSVs …", INPUT_ROOT_DIR)
     route_files = _discover_route_csvs(INPUT_ROOT_DIR, whitelist)
 
     if not route_files:
-        raise FileNotFoundError("No CSV files found under the supplied folder.")
+        logging.warning(
+            "No CSV files found under %s — ensure the folder contains CLEVER or TIDES "
+            "trip export CSVs and that INPUT_ROOT_DIR points to the correct location.",
+            INPUT_ROOT_DIR,
+        )
+        logging.info("Completed (no data processed — no CSV files found).")
+        return
 
     # ------------------------------------------------------------------ #
     # 1.  Process each route                                             #

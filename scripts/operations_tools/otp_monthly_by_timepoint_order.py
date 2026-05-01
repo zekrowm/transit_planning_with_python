@@ -878,7 +878,13 @@ def main() -> None:
 
     input_path = Path(args.input)
     if not input_path.exists():
-        sys.exit(f"ERROR: input file not found – {input_path}")
+        logging.warning(
+            "Input file not found: %s — update CSV_PATH in the CONFIGURATION section "
+            "(or pass --input) to your actual OTP by Timepoint Aggregated export before running.",
+            input_path,
+        )
+        logging.info("Completed (no data processed — update CSV_PATH to proceed).")
+        return
 
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -992,6 +998,8 @@ def main() -> None:
         logging.info(
             "Wrote %s* files for %s %s %s (n=%d).", stem, route, direction, variation, n_total
         )
+
+    logging.info("Completed successfully.")
 
 
 if __name__ == "__main__":
