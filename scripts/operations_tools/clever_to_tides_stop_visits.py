@@ -519,6 +519,15 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    if not INPUT_CSV.exists():
+        logging.warning(
+            "INPUT_CSV path does not exist: %s — update INPUT_CSV in the CONFIGURATION "
+            "section to your actual Stop Visit Events export before running.",
+            INPUT_CSV,
+        )
+        logging.info("Completed (no data processed — update INPUT_CSV to proceed).")
+        return
+
     df = pd.read_csv(INPUT_CSV, low_memory=False)
     logging.info("Read %d rows, %d columns", len(df), df.shape[1])
 
@@ -527,6 +536,7 @@ def main() -> None:
     OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(OUTPUT_CSV, index=False)
     logging.info("Wrote %d rows -> %s", len(out), OUTPUT_CSV)
+    logging.info("Completed successfully.")
 
 
 if __name__ == "__main__":

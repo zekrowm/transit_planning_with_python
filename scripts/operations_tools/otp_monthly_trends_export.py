@@ -1015,6 +1015,11 @@ def main(argv: List[str] | None = None) -> None:
     Args:
         argv: Optional explicit argv list (e.g., [] for notebooks). If None, uses sys.argv.
     """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     parser = build_arg_parser()
     # Accept unknown args to be notebook/IPython friendly (swallows "-f <kernel.json>").
     args, unknown = parser.parse_known_args(argv)
@@ -1037,6 +1042,16 @@ def main(argv: List[str] | None = None) -> None:
         concerning_pct=args.concerning_pct,
         blacklisted_routes=blacklist,
     )
+
+    if not cfg.input_csv.exists():
+        logging.warning(
+            "Input file not found: %s — update DEFAULT_INPUT_CSV in the CONFIGURATION "
+            "section (or pass --input) to your actual OTP CSV export before running.",
+            cfg.input_csv,
+        )
+        logging.info("Completed (no data processed — update DEFAULT_INPUT_CSV to proceed).")
+        return
+
     logging.info("Reading: %s", cfg.input_csv)
     raw = read_csv_safely(cfg.input_csv)
     logging.info("Rows read: %d", len(raw))
@@ -1073,8 +1088,8 @@ def main(argv: List[str] | None = None) -> None:
         len(proc),
         n_groups,
     )
+    logging.info("Completed successfully.")
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     main()
