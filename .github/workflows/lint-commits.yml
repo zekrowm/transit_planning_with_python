@@ -1,0 +1,35 @@
+name: "Lint Commits"
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+jobs:
+  lint-commit-subjects:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate commit subjects
+        run: |
+          base="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}"
+          failed=0
+          while IFS= read -r subject; do
+            tmp=$(mktemp)
+            printf '%s\n' "$subject" > "$tmp"
+            python dev_tools/lint_commit.py "$tmp" || failed=1
+            rm "$tmp"
+          done < <(git log "$base"..HEAD --format=%s)
+          exit $failed
