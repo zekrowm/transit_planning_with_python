@@ -38,7 +38,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, Sequence, Tuple, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -227,7 +227,7 @@ def _build_stops_gdf(
     gdf = gdf.merge(agg, on="stop_id", how="left")
 
     logging.info("Stops layer: %d served stops.", len(gdf))
-    return gdf
+    return cast(gpd.GeoDataFrame, gdf)
 
 
 def _build_routes_gdf(

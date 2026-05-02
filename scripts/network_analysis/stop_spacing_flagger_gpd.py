@@ -22,7 +22,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple, cast
 
 import geopandas as gpd
 import numpy as np
@@ -305,7 +305,7 @@ def _build_stops_gdf(
     gdf = gdf.merge(agg, on="stop_id", how="left")
 
     logging.info("Stops GDF – kept %d served stops.", len(gdf))
-    return gdf
+    return cast(gpd.GeoDataFrame, gdf)
 
 
 def _build_routes_gdf(

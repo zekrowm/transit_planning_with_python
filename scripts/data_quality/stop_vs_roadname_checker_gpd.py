@@ -18,7 +18,7 @@ import logging
 import os
 import re
 from collections.abc import Mapping, Sequence
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, cast
 
 import geopandas as gpd
 import pandas as pd
@@ -272,7 +272,7 @@ def create_buffered_stops(stops_gdf: gpd.GeoDataFrame, buffer_distance: float) -
         gpd.GeoDataFrame: The GeoDataFrame with a new 'buffered_geometry' column.
     """
     stops_gdf["buffered_geometry"] = stops_gdf.geometry.buffer(buffer_distance)
-    return stops_gdf.set_geometry("buffered_geometry")  # type: ignore[no-any-return]
+    return cast(gpd.GeoDataFrame, stops_gdf.set_geometry("buffered_geometry"))
 
 
 def spatial_join_stops_roadways(

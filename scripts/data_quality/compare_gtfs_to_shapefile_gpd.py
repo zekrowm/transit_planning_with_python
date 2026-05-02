@@ -18,7 +18,7 @@ import re
 import warnings
 from math import isfinite
 from pathlib import Path
-from typing import Iterable, Optional, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union, cast
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -219,7 +219,7 @@ def _build_shapes_gdf(shapes_df: pd.DataFrame, target_epsg: int | None) -> gpd.G
     g = g.to_crs(epsg=target_epsg) if target_epsg else g
     g = g.set_index("shape_id", drop=True)
     log(f"[INFO] Built shapes GDF with {len(g):,} geometries | target_epsg={target_epsg}")
-    return g
+    return cast(gpd.GeoDataFrame, g)
 
 
 def _stops_gdf(stops_df: pd.DataFrame, target_epsg: int | None) -> gpd.GeoDataFrame:
@@ -243,7 +243,7 @@ def _stops_gdf(stops_df: pd.DataFrame, target_epsg: int | None) -> gpd.GeoDataFr
     g = g.to_crs(epsg=target_epsg) if target_epsg else g
     g = g.set_index("stop_id", drop=True)
     log(f"[INFO] Built stops GDF with {len(g):,} points | target_epsg={target_epsg}")
-    return g
+    return cast(gpd.GeoDataFrame, g)
 
 
 def _merge_lines(geoms: Iterable) -> LineString | MultiLineString:
