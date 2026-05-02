@@ -11,14 +11,74 @@ target-version = "py312"
 line-length    = 100
 
 [tool.ruff.lint]
-# I  → isort-compatible import ordering
-# F  → Pyflakes-equivalent static analysis
-# D  → pydocstyle (Google-style enforced below)
-# ANN = flake8-annotations
-# TC = flake8-type-checking
-select   = ["I", "F", "D", "ANN", "TCH", "B", "E", "W", "PD", "T20"]
-fixable  = ["F401", "D", "I"]
-ignore   = ["ANN401", "TC002", "TC003"]
+# ----------------------------------------------------------------
+# Rule selection
+# ----------------------------------------------------------------
+select = [
+    # --- Import hygiene ---
+    "I",    # isort: enforces a consistent import order (stdlib →
+            #   third-party → first-party), grouped and alphabetized.
+    "F",    # Pyflakes: catches unused imports, undefined names,
+            #   redefinitions, unused variables
+
+    # --- Documentation ---
+    "D",    # pydocstyle: enforces docstring presence and formatting.
+            #   Convention is pinned to Google style below.
+
+    # --- Typing ---
+    "ANN",  # flake8-annotations: requires type hints on function
+            #   signatures
+    "TC",   # flake8-type-checking: flags imports used *only* in
+            #   annotations and suggests moving them under
+            #   `if TYPE_CHECKING:` to avoid runtime cost.
+
+    # --- General code quality ---
+    "B",    # flake8-bugbear: opinionated checks for likely bugs
+            #   and design problems
+    "E",    # pycodestyle errors: PEP 8 layout rules
+            #   (indentation, whitespace, statement structure).
+    "W",    # pycodestyle warnings: softer PEP 8 issues
+            #   (trailing whitespace, deprecated syntax).
+
+    # --- Domain-specific ---
+    "PD",   # pandas-vet: catches common pandas anti-patterns —
+            #   chained .ix/.iat misuse, inplace=True,
+            #   df.values over df.to_numpy(), etc.
+            #   High value here because most of the repo is
+            #   pandas/geopandas pipelines.
+    "T20",  # flake8-print: bans print() and pprint()
+            #   (T201, T203). CONTRIBUTING.md mandates logging
+            #   instead, so this enforces the stated policy in CI
+            #   rather than relying on reviewer memory.
+]
+
+# ----------------------------------------------------------------
+# Auto-fixable rules
+# ----------------------------------------------------------------
+# Ruff *can* auto-fix many rules, but this list restricts which
+# ones it's *allowed* to touch via `--fix`. The intent is "fix
+# only changes that are mechanical and unambiguous"; everything
+# else should require a human decision.
+fixable = [
+    "F401", # Unused imports — safe to remove automatically.
+    "D",    # Docstring formatting (quote style, period at end of
+            #   summary line, blank-line placement).
+    "I",    # Import ordering — purely a sort operation.
+]
+
+# ----------------------------------------------------------------
+# Suppressed rules
+# ----------------------------------------------------------------
+ignore = [
+    "ANN401", # Allow `typing.Any`. Strict typing is the goal, but
+              #   wrapping arcpy/geopandas/3rd-party return values
+              #   in `Any` is sometimes the only honest annotation.
+    "TC002",  # Don't force third-party imports used only in type
+              #   hints into a `TYPE_CHECKING` block. The runtime
+              #   cost is negligible for this repo and the
+              #   refactor noise isn't worth it.
+    "TC003",  # Same rationale for standard-library imports.
+]
 
 [tool.ruff.lint.per-file-ignores]
 # Keep tests lean: skip module docstrings and param annotations for fixtures.
