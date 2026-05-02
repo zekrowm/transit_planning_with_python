@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
 from shapely.geometry import LineString, Point, box
 from shapely.ops import substring
 from shapely.strtree import STRtree
@@ -837,7 +837,7 @@ def main() -> None:
         if not kept_stops.empty
         else np.empty((0, 2))
     )  # noqa: E501
-    kd = cKDTree(kept_coords) if kept_coords.size else None
+    kd = KDTree(kept_coords) if kept_coords.size else None
 
     results: Dict[str, Dict[str, object]] = {}
 
