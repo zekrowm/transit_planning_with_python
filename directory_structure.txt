@@ -91,6 +91,7 @@ transit_planning_with_python/
 │   └── test_trip_event_runtime_diagnostics.py
 ├── utils/
 │   └── gtfs_helpers.py
+├── .gitignore
 ├── CONTRIBUTING.md
 ├── LICENSE
 ├── README.md
