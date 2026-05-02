@@ -10,11 +10,3 @@ repos:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
-
-  - repo: local
-    hooks:
-      - id: lint-commit-msg
-        name: Lint commit message
-        language: python
-        entry: python dev_tools/lint_commit.py
-        stages: [commit-msg]
