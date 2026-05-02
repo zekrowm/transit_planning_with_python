@@ -228,10 +228,10 @@ def safe_nearest(seg_index: STRtree, pt: Point) -> int | LineString:
     """Return the nearest result from an STRtree (Shapely 2.x or pygeos style)."""
     try:
         # Shapely 1.x
-        return cast(int | LineString, seg_index.nearest(pt))
+        return cast("int | LineString", seg_index.nearest(pt))
     except TypeError:
         # Shapely 2.x
-        return cast(int | LineString, seg_index.nearest(pt)[0])
+        return cast("int | LineString", seg_index.nearest(pt)[0])
 
 
 def linestring_substring(line: LineString, start_m: float, end_m: float) -> LineString:

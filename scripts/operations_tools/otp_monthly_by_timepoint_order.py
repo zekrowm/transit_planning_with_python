@@ -274,7 +274,7 @@ def normalize_directions_column(df: pd.DataFrame, allowed: List[str]) -> pd.Data
 def parse_month_yyyy_mm(value: str) -> pd.Period:
     """Parse a month string in YYYY-MM format into a monthly Period."""
     try:
-        return cast(pd.Period, pd.Period(value, freq="M"))
+        return cast("pd.Period", pd.Period(value, freq="M"))
     except Exception as exc:  # noqa: BLE001
         sys.exit(f"ERROR: invalid month {value!r}; expected 'YYYY-MM'. {exc}")
 
