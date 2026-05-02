@@ -4,11 +4,13 @@ transit_planning_with_python/
 │       ├── format-lint-autofix-weekly.yml
 │       ├── format-lint-typecheck.yml
 │       ├── helper-audit.yml
+│       ├── lint-commits.yml
 │       ├── lint-pr.yml
 │       └── tests.yml
 ├── dev_tools/
 │   ├── audit_helper_functions.py
 │   ├── export_requirements.py
+│   ├── lint_commit.py
 │   ├── lint_pr.py
 │   └── print_repo_file_tree.py
 ├── scripts/
@@ -76,6 +78,13 @@ transit_planning_with_python/
 │       └── site_route_proximity_gpd.py
 ├── tests/
 │   ├── fixtures/
+│   │   ├── gtfs_basic/
+│   │   │   ├── agency.txt
+│   │   │   ├── calendar.txt
+│   │   │   ├── routes.txt
+│   │   │   ├── stop_times.txt
+│   │   │   ├── stops.txt
+│   │   │   └── trips.txt
 │   │   ├── CLEVER_Runtime_and_OTP_by_Month_sample.csv
 │   │   ├── ntd_monthly_multi_month.csv
 │   │   ├── ridership_by_route_and_stop.csv
