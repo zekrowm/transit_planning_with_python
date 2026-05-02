@@ -30,7 +30,7 @@ from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
 
 # =============================================================================
 # Config
@@ -504,7 +504,7 @@ def try_build_nearest_matches(
     ax = a["stop_lon"].to_numpy() * cos0 * meters_per_degree
     ay = a["stop_lat"].to_numpy() * meters_per_degree
 
-    tree = cKDTree(np.column_stack([bx, by]))
+    tree = KDTree(np.column_stack([bx, by]))
     _, idx = tree.query(np.column_stack([ax, ay]), k=1)
 
     nearest_before_ids = b["stop_id"].to_numpy()[idx]

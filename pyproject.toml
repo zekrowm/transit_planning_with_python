@@ -103,7 +103,7 @@ extra-paths = ["scripts/ridership_tools", "scripts/operations_tools"]
 
 [tool.ty.rules]
 unsupported-operator = "warn"
-invalid-return-type = "warn"
+invalid-return-type = "error"
 unresolved-import = "error"
 invalid-assignment = "warn"
 invalid-argument-type = "warn"
