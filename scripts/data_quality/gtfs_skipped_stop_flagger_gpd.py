@@ -27,7 +27,7 @@ import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, cast
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -310,7 +310,7 @@ def build_shapes_gdf(shapes_df: pd.DataFrame, crs: str) -> gpd.GeoDataFrame:
 
     shapes_gdf = gpd.GeoDataFrame(records, crs=crs)
     shapes_gdf = shapes_gdf.set_index("shape_id")
-    return cast("gpd.GeoDataFrame", shapes_gdf)
+    return shapes_gdf
 
 
 def build_stops_gdf(
@@ -355,7 +355,7 @@ def build_stops_gdf(
     geometry = gpd.points_from_xy(stops_df["stop_lon"], stops_df["stop_lat"])
     stops_gdf = gpd.GeoDataFrame(stops_df, geometry=geometry, crs=crs)
     stops_gdf = stops_gdf.set_index(stop_key_field)
-    return cast("gpd.GeoDataFrame", stops_gdf)
+    return stops_gdf
 
 
 def select_representative_shapes(trips_df: pd.DataFrame) -> pd.DataFrame:

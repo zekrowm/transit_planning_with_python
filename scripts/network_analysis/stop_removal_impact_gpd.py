@@ -266,7 +266,7 @@ def explode_segments(centerlines: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     segs = segs[segs.geom_type == "LineString"].copy()
     segs = segs.reset_index(drop=True)
     segs["edge_id"] = segs.index.astype(int)
-    return segs[["edge_id", "geometry"]]  # type: ignore[no-any-return]
+    return cast("gpd.GeoDataFrame", segs[["edge_id", "geometry"]])
 
 
 def build_graph(
