@@ -11,6 +11,7 @@ No further data wrangling is performed here—just a clean spatial join.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 from typing import Final, Literal
 
@@ -27,6 +28,11 @@ SHAPEFILE_PATH: Final[str] = r"PATH\TO\SHP\va_md_dc_blocks_fips_merge.shp"
 TABLE_CSV_PATH: Final[str] = r"PATH\TO\CSV\joined_blocks.csv"
 OUTPUT_PATH: Final[str] = r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.shp"
 MAX_FIELD_LEN: Final[int] = 10  # Shapefile DBF column-name limit
+
+# Sentinel values — detect un-edited placeholder paths
+_DEFAULT_SHAPEFILE_PATH: str = r"PATH\TO\SHP\va_md_dc_blocks_fips_merge.shp"
+_DEFAULT_TABLE_CSV_PATH: str = r"PATH\TO\CSV\joined_blocks.csv"
+_DEFAULT_OUTPUT_PATH: str = r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.shp"
 
 LEFT_KEY: Final[str] = "GEOID20"  # geometry field carrying the 15-digit ID
 RIGHT_KEY: Final[str] = "GEO_ID"  # CSV field carrying the 15-digit ID
@@ -219,11 +225,31 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    blocks_gdf = load_blocks(SHAPEFILE_PATH)
-    attrs_df = load_attributes(TABLE_CSV_PATH)
 
-    joined = join_blocks_to_attributes(blocks_gdf, attrs_df)
-    save_output(joined, OUTPUT_PATH)
+    defaults_found = False
+    if SHAPEFILE_PATH == _DEFAULT_SHAPEFILE_PATH:
+        logging.warning("SHAPEFILE_PATH is still the placeholder value — update it before running.")
+        defaults_found = True
+    if TABLE_CSV_PATH == _DEFAULT_TABLE_CSV_PATH:
+        logging.warning("TABLE_CSV_PATH is still the placeholder value — update it before running.")
+        defaults_found = True
+    if OUTPUT_PATH == _DEFAULT_OUTPUT_PATH:
+        logging.warning("OUTPUT_PATH is still the placeholder value — update it before running.")
+        defaults_found = True
+    if defaults_found:
+        logging.info("No processing performed. Update the configuration paths and re-run.")
+        return
+
+    try:
+        blocks_gdf = load_blocks(SHAPEFILE_PATH)
+        attrs_df = load_attributes(TABLE_CSV_PATH)
+
+        joined = join_blocks_to_attributes(blocks_gdf, attrs_df)
+        save_output(joined, OUTPUT_PATH)
+        logging.info("Completed successfully.")
+    except Exception:  # noqa: BLE001
+        logging.exception("Processing failed")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

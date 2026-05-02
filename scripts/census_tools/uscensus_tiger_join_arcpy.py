@@ -102,6 +102,15 @@ arcpy.env.overwriteOutput = True
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
+# Sentinel values — detect un-edited placeholder paths
+_DEFAULT_INPUT_CSV_DIR: str = r"Folder\Path\To\Your\input_csvs"
+_DEFAULT_INPUT_SHP_DIR: str = r"Folder\Path\To\Your\input_shps"
+_DEFAULT_INTERMEDIATE_MERGED_SHP: str = "File/Path/To/Your/output_intermediate/merged_blocks.shp"
+_DEFAULT_INTERMEDIATE_COMBINED_CSV: str = (
+    r"File\Path\To\Your\output_intermediate\combined_blocks.csv"
+)
+_DEFAULT_FINAL_JOINED_FEATURES: str = "File/Path/To/Your/output_final/blocks_with_attrs.shp"
+
 
 def _gp(msg: str, level: str = "info") -> None:
     """Emit a message to ArcGIS geoprocessor console and Python logger."""
@@ -1161,6 +1170,33 @@ def run_pipeline() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    defaults_found = False
+    if str(INPUT_CSV_DIR) == _DEFAULT_INPUT_CSV_DIR:
+        logging.warning("INPUT_CSV_DIR is still the placeholder value — update it before running.")
+        defaults_found = True
+    if str(INPUT_SHP_DIR) == _DEFAULT_INPUT_SHP_DIR:
+        logging.warning("INPUT_SHP_DIR is still the placeholder value — update it before running.")
+        defaults_found = True
+    if INTERMEDIATE_MERGED_SHP == _DEFAULT_INTERMEDIATE_MERGED_SHP:
+        logging.warning(
+            "INTERMEDIATE_MERGED_SHP is still the placeholder value — update it before running."
+        )
+        defaults_found = True
+    if INTERMEDIATE_COMBINED_CSV == _DEFAULT_INTERMEDIATE_COMBINED_CSV:
+        logging.warning(
+            "INTERMEDIATE_COMBINED_CSV is still the placeholder value — update it before running."
+        )
+        defaults_found = True
+    if FINAL_JOINED_FEATURES == _DEFAULT_FINAL_JOINED_FEATURES:
+        logging.warning(
+            "FINAL_JOINED_FEATURES is still the placeholder value — update it before running."
+        )
+        defaults_found = True
+    if defaults_found:
+        logging.info("No processing performed. Update the configuration paths and re-run.")
+        return
+
     try:
         # 1) CSV stage: build combined attributes
         logging.info("Discovering & merging CSVs under %s ...", INPUT_CSV_DIR)

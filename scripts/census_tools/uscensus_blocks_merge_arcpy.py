@@ -72,6 +72,10 @@ USE_IN_MEMORY: bool = True
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
 
+# Sentinel values — detect un-edited placeholder paths
+_DEFAULT_INPUT_DIR: str = r"path\to\your\tiger_shapefiles"
+_DEFAULT_OUTPUT_PATH: str = r"output\va_md_dc_blocks_fips_merge.shp"
+
 
 # ArcPy can also echo messages to the GP window
 def _gp(msg: str, level: str = "info") -> None:
@@ -304,6 +308,18 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+
+    defaults_found = False
+    if INPUT_DIR == _DEFAULT_INPUT_DIR:
+        logging.warning("INPUT_DIR is still the placeholder value — update it before running.")
+        defaults_found = True
+    if OUTPUT_PATH == _DEFAULT_OUTPUT_PATH:
+        logging.warning("OUTPUT_PATH is still the placeholder value — update it before running.")
+        defaults_found = True
+    if defaults_found:
+        logging.info("No processing performed. Update the configuration paths and re-run.")
+        return
+
     try:
         shp_paths = discover_tiger_datasets(INPUT_DIR, INPUT_GLOB)
 
