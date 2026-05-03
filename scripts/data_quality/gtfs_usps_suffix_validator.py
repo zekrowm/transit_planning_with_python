@@ -465,6 +465,7 @@ def main() -> None:
 
     # Quick peek at the first few violations
     logging.info(errors_df.head())
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":
