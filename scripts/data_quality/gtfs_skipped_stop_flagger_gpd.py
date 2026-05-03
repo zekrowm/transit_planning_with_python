@@ -1785,6 +1785,12 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_DIR == Path("/path/to/gtfs_directory"):
+        logging.warning(
+            "GTFS_DIR is still set to a placeholder value. "
+            "Please update it in the CONFIGURATION section before running."
+        )
+        return
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -1810,6 +1816,7 @@ def main() -> None:
 
     # Always run plotting; it already knows how to handle the empty case.
     run_plotting(ctx, mismatches_df)
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

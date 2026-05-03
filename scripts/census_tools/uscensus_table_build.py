@@ -643,7 +643,7 @@ def main() -> None:
             df_joined.to_csv(out_path, index=False)
             logging.info("CSV written to %s", out_path)
 
-        logging.info("Completed successfully.")
+        logging.info("Script completed successfully.")
     except Exception:  # noqa: BLE001
         logging.exception("Processing failed")
         sys.exit(1)

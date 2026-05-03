@@ -668,6 +668,21 @@ def parse_args(argv: Sequence[str] | None = None) -> tuple[argparse.Namespace, l
 
 def main(argv: Sequence[str] | None = None) -> None:
     """CLI entry point (notebook-safe)."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    if (
+        BEFORE_GTFS_DIR == Path(r"Path\To\GTFS\Dir")
+        or AFTER_GTFS_DIR == Path(r"Path\to\GTFS\Dir")
+        or OUTPUT_DIR == Path(r"Path\To\Output\Dir")
+    ):
+        logging.warning(
+            "BEFORE_GTFS_DIR and/or AFTER_GTFS_DIR and/or OUTPUT_DIR are still set to "
+            "placeholder values. Please update them in the CONFIGURATION section before running."
+        )
+        return
     args, _unknown = parse_args(argv)
     run_compare(
         before_dir=args.before,
@@ -675,6 +690,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         out_dir=args.out,
         threshold_feet=args.threshold_feet,
     )
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

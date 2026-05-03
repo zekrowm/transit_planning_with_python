@@ -246,7 +246,7 @@ def main() -> None:
 
         joined = join_blocks_to_attributes(blocks_gdf, attrs_df)
         save_output(joined, OUTPUT_PATH)
-        logging.info("Completed successfully.")
+        logging.info("Script completed successfully.")
     except Exception:  # noqa: BLE001
         logging.exception("Processing failed")
         sys.exit(1)

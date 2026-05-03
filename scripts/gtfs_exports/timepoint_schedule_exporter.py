@@ -1024,7 +1024,7 @@ def main() -> None:
     # Produce schedules
     try:
         process_route_service_combinations(ctx)
-        logging.info("Script finished successfully.")
+        logging.info("Script completed successfully.")
     except Exception as e:
         logging.error("An error occurred during schedule processing: %s", e, exc_info=True)
         if _in_ipython():

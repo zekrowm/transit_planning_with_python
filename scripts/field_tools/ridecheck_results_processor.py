@@ -554,6 +554,7 @@ def main() -> None:
         ANALYSIS_RESULTS_PATH,
     )
     logging.info("✓ All done.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

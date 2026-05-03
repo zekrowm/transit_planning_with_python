@@ -470,6 +470,15 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if (
+        GTFS_FOLDER == r"/path/to/your/gtfs_folder"
+        or OUTPUT_FOLDER == r"/path/to/your/output_folder"
+    ):
+        logging.warning(
+            "GTFS_FOLDER and/or OUTPUT_FOLDER are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     # Step 1: Read GTFS
@@ -519,6 +528,7 @@ def main() -> None:
     flag_suspicious_data(summary)
 
     logging.info("Script execution completed.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

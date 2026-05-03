@@ -556,6 +556,15 @@ def main() -> None:  # noqa: D401
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if (
+        GTFS_PATH == r"Path\To\Your\GTFS_Folder"
+        or OUTPUT_FOLDER == r"Path\To\Your\Output_Folder"
+    ):
+        logging.warning(
+            "GTFS_PATH and/or OUTPUT_FOLDER are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
     # -------------------------------------------------------------
     # STEP 0 — Read & validate GTFS
     # -------------------------------------------------------------
@@ -636,6 +645,7 @@ def main() -> None:  # noqa: D401
     # FIN
     # -------------------------------------------------------------
     logging.info("Done. Outputs in: %s", out_dir)
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

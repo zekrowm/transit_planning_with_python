@@ -522,6 +522,7 @@ def main() -> None:
 
         export_blocks(prepared)
         logging.info("Script finished successfully.")
+        logging.info("Script completed successfully.")
 
     except (OSError, ValueError, RuntimeError) as err:
         logging.error("%s", err)
