@@ -669,6 +669,27 @@ def parse_args(argv: Sequence[str] | None = None) -> tuple[argparse.Namespace, l
 def main(argv: Sequence[str] | None = None) -> None:
     """CLI entry point (notebook-safe)."""
     args, _unknown = parse_args(argv)
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    # Pre-flight: warn if placeholder paths have not been updated
+    _stale: list[str] = []
+    if args.before == BEFORE_GTFS_DIR:
+        _stale.append("BEFORE_GTFS_DIR")
+    if args.after == AFTER_GTFS_DIR:
+        _stale.append("AFTER_GTFS_DIR")
+    if args.out == OUTPUT_DIR:
+        _stale.append("OUTPUT_DIR")
+    if _stale:
+        logging.warning(
+            "Default placeholder paths detected for: %s. "
+            "Update these variables at the top of the script before running.",
+            ", ".join(_stale),
+        )
+        logging.info("Script completed — no analysis performed.")
+        return
     run_compare(
         before_dir=args.before,
         after_dir=args.after,

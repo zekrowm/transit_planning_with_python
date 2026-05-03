@@ -788,6 +788,22 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    # Pre-flight: warn if placeholder paths have not been updated
+    _stale: list[str] = []
+    if SIDEWALK_SHP == Path(r"Path\To\Your\Sidewalks_Centerline.shp"):
+        _stale.append("SIDEWALK_SHP")
+    if GTFS_DIR == Path(r"Path\To\Your\GTFS_Folder"):
+        _stale.append("GTFS_DIR")
+    if OUTPUT_DIR == Path(r"Path\To\Your\Output_Folder"):
+        _stale.append("OUTPUT_DIR")
+    if _stale:
+        logging.warning(
+            "Default placeholder paths detected for: %s. "
+            "Update these variables at the top of the script before running.",
+            ", ".join(_stale),
+        )
+        logging.info("Script completed — no analysis performed.")
+        return
     logging.info("Reading centerlines …")
     centerlines = load_centerlines(SIDEWALK_SHP, TARGET_CRS)
 

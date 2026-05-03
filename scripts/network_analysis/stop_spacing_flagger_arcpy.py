@@ -991,6 +991,21 @@ def main() -> None:  # noqa: D401
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    # Pre-flight: warn if placeholder paths have not been updated
+    _stale: list[str] = []
+    if GTFS_PATH == r"Path\To\Your\GTFS_Folder":
+        _stale.append("GTFS_PATH")
+    if OUTPUT_FOLDER == r"Path\To\Your\Output_Folder":
+        _stale.append("OUTPUT_FOLDER")
+    if _stale:
+        logging.warning(
+            "Default placeholder paths detected for: %s. "
+            "Update these variables at the top of the script before running.",
+            ", ".join(_stale),
+        )
+        logging.info("Script completed — no analysis performed.")
+        return
+
     arcpy.env.overwriteOutput = True
 
     out_dir = _ensure_output_folder(OUTPUT_FOLDER)
