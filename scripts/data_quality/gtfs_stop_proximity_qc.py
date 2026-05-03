@@ -409,10 +409,7 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    if (
-        GTFS_DIR == Path(r"path\to\gtfs")
-        or OUT_DIR == Path(r"path\to\output")
-    ):
+    if GTFS_DIR == Path(r"path\to\gtfs") or OUT_DIR == Path(r"path\to\output"):
         logging.warning(
             "GTFS_DIR and/or OUT_DIR are still set to placeholder values. "
             "Please update them in the CONFIGURATION section before running."

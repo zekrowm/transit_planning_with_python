@@ -1048,6 +1048,15 @@ def main() -> None:  # pragma: no cover
     # ------------------------------------------------------------------ #
     whitelist = {r.lstrip("0") for r in ROUTES_TO_INCLUDE} if ROUTES_TO_INCLUDE else None
 
+    if INPUT_ROOT_DIR == Path(
+        r"Path\To\Your\Data_Folder_with_observed_trips"
+    ) or OUTPUT_ROOT_DIR == Path(r"Path\To\Your\Output_Folder"):
+        logging.warning(
+            "INPUT_ROOT_DIR and/or OUTPUT_ROOT_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     if not INPUT_ROOT_DIR.exists():
         logging.warning(
             "INPUT_ROOT_DIR does not exist: %s — update INPUT_ROOT_DIR in the CONFIGURATION "
@@ -1180,6 +1189,7 @@ def main() -> None:  # pragma: no cover
         logging.info("✓ Finished route %s", route)
 
     logging.info("✓✓ All routes processed.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

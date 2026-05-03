@@ -455,9 +455,8 @@ def main() -> None:
         ],
         force=True,
     )
-    if (
-        STOPS_FILE == Path(r"Path\To\Your\GTFS_Folder\stops.txt")
-        or OUTPUT_CSV == Path(r"Path\To\Your\stop_name_suffix_errors.csv")
+    if STOPS_FILE == Path(r"Path\To\Your\GTFS_Folder\stops.txt") or OUTPUT_CSV == Path(
+        r"Path\To\Your\stop_name_suffix_errors.csv"
     ):
         logging.warning(
             "STOPS_FILE and/or OUTPUT_CSV are still set to placeholder values. "

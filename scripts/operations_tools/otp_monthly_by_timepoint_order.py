@@ -873,6 +873,16 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if (
+        CSV_PATH == r"Path\To\Your\OTP by Timepoint Aggregated.csv"
+        or OUTPUT_DIR == r"Path\To\Your\Output_Folder"
+    ):
+        logging.warning(
+            "CSV_PATH and/or OUTPUT_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     parser = build_argparser()
     args, _unknown = parser.parse_known_args()
 
@@ -999,7 +1009,7 @@ def main() -> None:
             "Wrote %s* files for %s %s %s (n=%d).", stem, route, direction, variation, n_total
         )
 
-    logging.info("Completed successfully.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

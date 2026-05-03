@@ -512,6 +512,16 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if (
+        WKDY_FILE_PATH == r"Your\Path\CLEVER_Runtime_by_Segment_by_Trip_Weekday.csv"
+        or PARENT_OUTPUT_DIR == r"Path\To\Outputs"
+    ):
+        logging.warning(
+            "WKDY_FILE_PATH and/or PARENT_OUTPUT_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     if WKDY_FILE_PATH:
         process_file(WKDY_FILE_PATH, "wkdy")
     else:
@@ -532,7 +542,7 @@ def main() -> None:
     else:
         logging.info("Skipping 'other' (blank path).")
 
-    logging.info("Completed successfully.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

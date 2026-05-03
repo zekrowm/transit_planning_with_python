@@ -1242,10 +1242,7 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    if (
-        str(INPUT_CSV_DIR) == _DEFAULT_INPUT_CSV_DIR
-        or str(INPUT_SHP_DIR) == _DEFAULT_INPUT_SHP_DIR
-    ):
+    if str(INPUT_CSV_DIR) == _DEFAULT_INPUT_CSV_DIR or str(INPUT_SHP_DIR) == _DEFAULT_INPUT_SHP_DIR:
         logging.warning(
             "INPUT_CSV_DIR and/or INPUT_SHP_DIR are still set to placeholder values. "
             "Please update them in the CONFIGURATION section before running."

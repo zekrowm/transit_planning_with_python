@@ -332,6 +332,17 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    if (
+        GTFS_DIR == r"Path\To\Your\GTFS_data"
+        or DISTRICTS_SHP == r"Path\To\Your\Districts.shp"
+        or OUTPUT_EXCEL == r"Path\To\Your\Excel_File.xlsx"
+    ):
+        logging.warning(
+            "GTFS_DIR, DISTRICTS_SHP, and/or OUTPUT_EXCEL are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     # ------------------------------------------------------------------ 2 — GTFS
     try:
         gtfs_data = load_gtfs_data(
@@ -370,6 +381,7 @@ def main() -> None:
     os.makedirs(os.path.dirname(OUTPUT_EXCEL), exist_ok=True)
     write_dataframe_to_excel(df_matrix, OUTPUT_EXCEL)
     logging.info("Done! Excel written to: %s", OUTPUT_EXCEL)
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

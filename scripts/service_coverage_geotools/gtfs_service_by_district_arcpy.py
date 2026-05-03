@@ -392,6 +392,21 @@ def build_route_district_matrix(
 
 def main() -> None:
     """Main execution function to run the GTFS-district spatial analysis workflow."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    if (
+        GTFS_DIR == r"Path\To\Your\GTFS_data"
+        or DISTRICTS_FC == r"Path\To\Your\Districts.shp"
+        or OUTPUT_EXCEL == r"Path\To\Your\Excel_File.xlsx"
+    ):
+        logging.warning(
+            "GTFS_DIR, DISTRICTS_FC, and/or OUTPUT_EXCEL are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
     configure_logging(LOG_DIR)
     arcpy.env.overwriteOutput = True
 
@@ -423,6 +438,7 @@ def main() -> None:
     os.makedirs(os.path.dirname(OUTPUT_EXCEL), exist_ok=True)
     df.to_excel(OUTPUT_EXCEL, index=False)
     logging.info("Done. Excel written to: %s", OUTPUT_EXCEL)
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":
