@@ -971,6 +971,7 @@ def main() -> None:
         TARGET_MAX_BUFFER_FEET,
         TARGET_MAX_NAME_DEVIATION_PCT,
     )
+    _log.info("Script completed successfully.")
 
 
 if __name__ == "__main__":
