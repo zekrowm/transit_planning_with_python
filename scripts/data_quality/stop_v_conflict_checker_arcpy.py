@@ -430,6 +430,7 @@ def main() -> None:
         csv_path if csv_path else "(CSV disabled)",
         "and " + xlsx_path if xlsx_path else "",
     )
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

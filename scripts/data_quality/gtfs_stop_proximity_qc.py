@@ -446,6 +446,7 @@ def main() -> None:
     logging.info("Close pairs found (after filtering): %s", 0 if pairs.empty else len(pairs))
     logging.info("Wrote: %s", pairs_path)
     logging.info("Wrote: %s", summary_path)
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":
