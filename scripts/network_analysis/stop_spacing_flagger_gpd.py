@@ -548,6 +548,20 @@ def main() -> None:  # noqa: D401
     # -----------------------------------------------------------------
     # STEP 0  Read GTFS tables and validate
     # -----------------------------------------------------------------
+    # Pre-flight: warn if placeholder paths have not been updated
+    _stale: list[str] = []
+    if GTFS_PATH == r"Path\To\Your\GTFS_Data_Folder":
+        _stale.append("GTFS_PATH")
+    if OUTPUT_FOLDER == r"Path\To\Your\Output_Folder":
+        _stale.append("OUTPUT_FOLDER")
+    if _stale:
+        logging.warning(
+            "Default placeholder paths detected for: %s. "
+            "Update these variables at the top of the script before running.",
+            ", ".join(_stale),
+        )
+        logging.info("Script completed — no analysis performed.")
+        return
     logging.info("STEP 0  Reading GTFS tables …")
     gtfs_path = Path(GTFS_PATH)
     dfs = _read_gtfs_tables(gtfs_path)

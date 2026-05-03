@@ -470,6 +470,21 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    # Pre-flight: warn if placeholder paths have not been updated
+    _stale: list[str] = []
+    if GTFS_FOLDER == r"/path/to/your/gtfs_folder":
+        _stale.append("GTFS_FOLDER")
+    if OUTPUT_FOLDER == r"/path/to/your/output_folder":
+        _stale.append("OUTPUT_FOLDER")
+    if _stale:
+        logging.warning(
+            "Default placeholder paths detected for: %s. "
+            "Update these variables at the top of the script before running.",
+            ", ".join(_stale),
+        )
+        logging.info("Script completed — no analysis performed.")
+        return
+
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
     # Step 1: Read GTFS

@@ -472,6 +472,20 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    # Pre-flight: warn if placeholder paths have not been updated
+    _stale: list[str] = []
+    if GTFS_DIR == Path(r"Path\To\GIS\Folder"):
+        _stale.append("GTFS_DIR")
+    if OUTPUT_DIR == Path(r"Path\To\Output_Folder"):
+        _stale.append("OUTPUT_DIR")
+    if _stale:
+        logging.warning(
+            "Default placeholder paths detected for: %s. "
+            "Update these variables at the top of the script before running.",
+            ", ".join(_stale),
+        )
+        logging.info("Script completed — no analysis performed.")
+        return
     logging.info("Loading GTFS tables from: %s", GTFS_DIR)
     t = load_gtfs_tables(GTFS_DIR)
 
