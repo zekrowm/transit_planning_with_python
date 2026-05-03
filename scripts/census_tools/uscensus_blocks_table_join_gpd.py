@@ -11,6 +11,7 @@ No further data wrangling is performed here—just a clean spatial join.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 from typing import Final, Literal
 
@@ -219,11 +220,30 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    blocks_gdf = load_blocks(SHAPEFILE_PATH)
-    attrs_df = load_attributes(TABLE_CSV_PATH)
+    _defaults = {
+        "SHAPEFILE_PATH": (SHAPEFILE_PATH, r"PATH\TO\SHP\va_md_dc_blocks_fips_merge.shp"),
+        "TABLE_CSV_PATH": (TABLE_CSV_PATH, r"PATH\TO\CSV\joined_blocks.csv"),
+        "OUTPUT_PATH": (OUTPUT_PATH, r"PATH\TO\OUTPUT\va_md_dc_blocks_plus_data.shp"),
+    }
+    _unset = [name for name, (val, dflt) in _defaults.items() if val == dflt]
+    if _unset:
+        for name in _unset:
+            logging.warning(
+                "Default placeholder detected for %s — update this value before running.", name
+            )
+        logging.warning("Edit the CONFIGURATION section at the top of this script, then re-run.")
+        logging.info("Completed with no processing (default paths in use).")
+        return
+    try:
+        blocks_gdf = load_blocks(SHAPEFILE_PATH)
+        attrs_df = load_attributes(TABLE_CSV_PATH)
 
-    joined = join_blocks_to_attributes(blocks_gdf, attrs_df)
-    save_output(joined, OUTPUT_PATH)
+        joined = join_blocks_to_attributes(blocks_gdf, attrs_df)
+        save_output(joined, OUTPUT_PATH)
+        logging.info("Completed successfully.")
+    except Exception:  # noqa: BLE001
+        logging.exception("Processing failed")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

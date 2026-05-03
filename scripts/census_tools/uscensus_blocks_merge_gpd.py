@@ -271,6 +271,19 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    _defaults = {
+        "INPUT_DIR": (INPUT_DIR, r"path\to\your\tiger_shapefiles"),
+        "OUTPUT_PATH": (OUTPUT_PATH, r"output\va_md_dc_blocks_fips_merge.shp"),
+    }
+    _unset = [name for name, (val, dflt) in _defaults.items() if val == dflt]
+    if _unset:
+        for name in _unset:
+            logging.warning(
+                "Default placeholder detected for %s — update this value before running.", name
+            )
+        logging.warning("Edit the CONFIGURATION section at the top of this script, then re-run.")
+        logging.info("Completed with no processing (default paths in use).")
+        return
     try:
         shp_paths = discover_tiger_datasets(INPUT_DIR, INPUT_GLOB, prefer="shp")
         merged = merge_shapefiles(shp_paths)

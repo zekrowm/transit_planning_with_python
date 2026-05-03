@@ -1161,6 +1161,31 @@ def run_pipeline() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    _defaults = {
+        "INPUT_CSV_DIR": (str(INPUT_CSV_DIR), r"Folder\Path\To\Your\input_csvs"),
+        "INPUT_SHP_DIR": (str(INPUT_SHP_DIR), r"Folder\Path\To\Your\input_shps"),
+        "INTERMEDIATE_MERGED_SHP": (
+            INTERMEDIATE_MERGED_SHP,
+            "File/Path/To/Your/output_intermediate/merged_blocks.shp",
+        ),
+        "INTERMEDIATE_COMBINED_CSV": (
+            INTERMEDIATE_COMBINED_CSV,
+            r"File\Path\To\Your\output_intermediate\combined_blocks.csv",
+        ),
+        "FINAL_JOINED_FEATURES": (
+            FINAL_JOINED_FEATURES,
+            "File/Path/To/Your/output_final/blocks_with_attrs.shp",
+        ),
+    }
+    _unset = [name for name, (val, dflt) in _defaults.items() if val == dflt]
+    if _unset:
+        for name in _unset:
+            logging.warning(
+                "Default placeholder detected for %s — update this value before running.", name
+            )
+        logging.warning("Edit the CONFIGURATION section at the top of this script, then re-run.")
+        logging.info("Completed with no processing (default paths in use).")
+        return
     try:
         # 1) CSV stage: build combined attributes
         logging.info("Discovering & merging CSVs under %s ...", INPUT_CSV_DIR)

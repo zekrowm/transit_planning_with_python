@@ -18,6 +18,7 @@ from __future__ import annotations
 import io
 import logging
 import re
+import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -601,27 +602,49 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    logging.info("Discovering Census datasets under %s …", ROOT_DATA_DIR)
-    discovered = discover_census_files(ROOT_DATA_DIR)
+    _defaults = {
+        "ROOT_DATA_DIR": (str(ROOT_DATA_DIR), r"Path\To\Your\Census_Table_Data_Files"),
+        "CSV_OUTPUT_PATH": (
+            CSV_OUTPUT_PATH,
+            r"Path\To\Your\Output_Folder\joined_blocks.csv",
+        ),
+    }
+    _unset = [name for name, (val, dflt) in _defaults.items() if val == dflt]
+    if _unset:
+        for name in _unset:
+            logging.warning(
+                "Default placeholder detected for %s — update this value before running.", name
+            )
+        logging.warning("Edit the CONFIGURATION section at the top of this script, then re-run.")
+        logging.info("Completed with no processing (default paths in use).")
+        return
+    try:
+        logging.info("Discovering Census datasets under %s …", ROOT_DATA_DIR)
+        discovered = discover_census_files(ROOT_DATA_DIR)
 
-    df_joined = build_joined_table(
-        pop_files=discovered["POP_FILES"],
-        hh_files=discovered["HH_FILES"],
-        jobs_files=discovered["JOBS_FILES"],
-        income_files=discovered["INCOME_FILES"],
-        ethnicity_files=discovered["ETHNICITY_FILES"],
-        language_files=discovered["LANGUAGE_FILES"],
-        vehicle_files=discovered["VEHICLE_FILES"],
-        age_files=discovered["AGE_FILES"],
-        county_fips_filter=COUNTY_FIPS_FILTER,
-    )
-    logging.info("Created DataFrame with shape %s", df_joined.shape)
+        df_joined = build_joined_table(
+            pop_files=discovered["POP_FILES"],
+            hh_files=discovered["HH_FILES"],
+            jobs_files=discovered["JOBS_FILES"],
+            income_files=discovered["INCOME_FILES"],
+            ethnicity_files=discovered["ETHNICITY_FILES"],
+            language_files=discovered["LANGUAGE_FILES"],
+            vehicle_files=discovered["VEHICLE_FILES"],
+            age_files=discovered["AGE_FILES"],
+            county_fips_filter=COUNTY_FIPS_FILTER,
+        )
+        logging.info("Created DataFrame with shape %s", df_joined.shape)
 
-    if CSV_OUTPUT_PATH:
-        out_path = Path(CSV_OUTPUT_PATH).expanduser().resolve()
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        df_joined.to_csv(out_path, index=False)
-        logging.info("CSV written to %s", out_path)
+        if CSV_OUTPUT_PATH:
+            out_path = Path(CSV_OUTPUT_PATH).expanduser().resolve()
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            df_joined.to_csv(out_path, index=False)
+            logging.info("CSV written to %s", out_path)
+
+        logging.info("Completed successfully.")
+    except Exception:  # noqa: BLE001
+        logging.exception("Processing failed")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
