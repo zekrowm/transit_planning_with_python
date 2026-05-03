@@ -116,7 +116,7 @@ def _needs_aggregation(df: pd.DataFrame) -> bool:
         False: False,
         "auto": df[STOP_ID_FIELD].duplicated().any(),
     }
-    return decision_map[AGGREGATE_BY_STOP]
+    return bool(decision_map[AGGREGATE_BY_STOP])
 
 
 def _aggregate_by_stop(df: pd.DataFrame) -> pd.DataFrame:

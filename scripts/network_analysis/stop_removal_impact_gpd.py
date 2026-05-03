@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-from scipy.spatial import cKDTree
+from scipy.spatial import KDTree
 from shapely.geometry import LineString, Point, box
 from shapely.ops import substring
 from shapely.strtree import STRtree
@@ -228,10 +228,10 @@ def safe_nearest(seg_index: STRtree, pt: Point) -> int | LineString:
     """Return the nearest result from an STRtree (Shapely 2.x or pygeos style)."""
     try:
         # Shapely 1.x
-        return seg_index.nearest(pt)  # type: ignore[no-any-return]
+        return cast("int | LineString", seg_index.nearest(pt))
     except TypeError:
         # Shapely 2.x
-        return seg_index.nearest(pt)[0]  # type: ignore[no-any-return]
+        return cast("int | LineString", seg_index.nearest(pt)[0])
 
 
 def linestring_substring(line: LineString, start_m: float, end_m: float) -> LineString:
@@ -266,7 +266,7 @@ def explode_segments(centerlines: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     segs = segs[segs.geom_type == "LineString"].copy()
     segs = segs.reset_index(drop=True)
     segs["edge_id"] = segs.index.astype(int)
-    return segs[["edge_id", "geometry"]]  # type: ignore[no-any-return]
+    return cast("gpd.GeoDataFrame", segs[["edge_id", "geometry"]])
 
 
 def build_graph(
@@ -837,7 +837,7 @@ def main() -> None:
         if not kept_stops.empty
         else np.empty((0, 2))
     )  # noqa: E501
-    kd = cKDTree(kept_coords) if kept_coords.size else None
+    kd = KDTree(kept_coords) if kept_coords.size else None
 
     results: Dict[str, Dict[str, object]] = {}
 
