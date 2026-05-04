@@ -442,6 +442,15 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    if INPUT_CSV == Path(r"Path\To\Event Runtime Analysis.csv") or OUTPUT_CSV == Path(
+        r"Path\To\trips_performed.csv"
+    ):
+        logging.warning(
+            "INPUT_CSV and/or OUTPUT_CSV are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     if not INPUT_CSV.exists():
         logging.warning(
             "INPUT_CSV path does not exist: %s — update INPUT_CSV in the CONFIGURATION "
@@ -459,7 +468,7 @@ def main() -> None:
     OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(OUTPUT_CSV, index=False)
     logging.info("Wrote %d rows -> %s", len(out), OUTPUT_CSV)
-    logging.info("Completed successfully.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

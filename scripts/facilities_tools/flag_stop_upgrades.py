@@ -290,6 +290,7 @@ def main() -> None:
         logging.info("  (Aggregated %d duplicate STOP_ID rows.)", dup_ct)
 
     logging.info("flag_stop_upgrades.py completed successfully.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

@@ -788,6 +788,16 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    if (
+        SIDEWALK_SHP == Path(r"Path\To\Your\Sidewalks_Centerline.shp")
+        or GTFS_DIR == Path(r"Path\To\Your\GTFS_Folder")
+        or OUTPUT_DIR == Path(r"Path\To\Your\Output_Folder")
+    ):
+        logging.warning(
+            "SIDEWALK_SHP and/or GTFS_DIR and/or OUTPUT_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
     logging.info("Reading centerlines …")
     centerlines = load_centerlines(SIDEWALK_SHP, TARGET_CRS)
 
@@ -952,6 +962,7 @@ def main() -> None:
         logging.info("No lost coverage within %.2f mi buffers; nothing to export.", BUFFER_MILES)
 
     logging.info("Done ✔")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

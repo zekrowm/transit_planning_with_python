@@ -435,6 +435,12 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_FOLDER == r"path\to\your\GTFS" or OUTPUT_DIR == r"path\to\output":
+        logging.warning(
+            "GTFS_FOLDER and/or OUTPUT_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
     # workspace
     WORK_GDB = create_work_gdb(OUTPUT_DIR)
 
@@ -487,6 +493,7 @@ def main() -> None:
         logging.info("Wrote %d rows → %s", len(typos), out_csv)
 
     logging.info("All done. Workspace retained at %s for inspection.", WORK_GDB)
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

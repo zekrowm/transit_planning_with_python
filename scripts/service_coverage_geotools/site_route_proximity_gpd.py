@@ -202,6 +202,13 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_FOLDER == r"Path\To\Your\GTFS\Folder" or OUTPUT_FOLDER == r"Path\To\Your\Output\Folder":
+        logging.warning(
+            "GTFS_FOLDER and/or OUTPUT_FOLDER are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     try:
         _check_gtfs(GTFS_FOLDER)
         gtfs = _load_gtfs(GTFS_FOLDER)
@@ -270,6 +277,7 @@ def main() -> None:
         os.makedirs(OUTPUT_FOLDER, exist_ok=True)
         pd.DataFrame(rows).to_csv(out_csv, index=False, encoding="utf-8-sig")
         logging.info("✔  Results written → %s", out_csv)
+        logging.info("Script completed successfully.")
 
     except Exception as exc:  # pylint: disable=broad-except
         logging.error("✖  %s", exc)

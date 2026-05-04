@@ -1242,6 +1242,17 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if (
+        GTFS_DIR == Path(r"Path\To\Your\GTFS_Data")
+        or SHP_INPUT_DIR == Path(r"Path\To\Your\Shapefile_Data_Directory")
+        or OUTPUT_DIR == Path(r"Path\To\Your\Output_Folder")
+    ):
+        logging.warning(
+            "GTFS_DIR, SHP_INPUT_DIR, and/or OUTPUT_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     gdb_path = OUTPUT_DIR / GDB_NAME
 
@@ -1336,6 +1347,7 @@ def main() -> None:
             )
 
     _add_message("Done.", "INFO")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

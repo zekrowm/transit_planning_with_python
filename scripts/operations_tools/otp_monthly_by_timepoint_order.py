@@ -876,6 +876,16 @@ def main() -> None:
     parser = build_argparser()
     args, _unknown = parser.parse_known_args()
 
+    if (
+        args.input == r"Path\To\Your\OTP by Timepoint Aggregated.csv"
+        and args.outdir == r"Path\To\Your\Output_Folder"
+    ):
+        logging.warning(
+            "CSV_PATH and/or OUTPUT_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
+
     input_path = Path(args.input)
     if not input_path.exists():
         logging.warning(
@@ -999,7 +1009,7 @@ def main() -> None:
             "Wrote %s* files for %s %s %s (n=%d).", stem, route, direction, variation, n_total
         )
 
-    logging.info("Completed successfully.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

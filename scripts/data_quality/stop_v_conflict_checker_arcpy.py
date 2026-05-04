@@ -335,6 +335,15 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if (
+        OUTPUT_DIR == r"projects\my_stop_analysis\output"
+        or GTFS_DIR == r"data\gtfs_feed_2025_10_30"
+    ):
+        logging.warning(
+            "OUTPUT_DIR and/or GTFS_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
     arcpy.env.overwriteOutput = OVERWRITE_OUTPUT
     _validate_config()
 

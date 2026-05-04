@@ -974,6 +974,13 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_FOLDER == r"data\gtfs\your_gtfs_folder":
+        logging.warning(
+            "GTFS_FOLDER is still set to a placeholder value. "
+            "Please update it in the CONFIGURATION section before running."
+        )
+        return
+
     arcpy.env.overwriteOutput = True
     try:
         _ensure_dir(OUTPUT_FOLDER)
@@ -1095,6 +1102,7 @@ def main() -> None:
         out_csv = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME)
         pd.DataFrame(rows).to_csv(out_csv, index=False, encoding="utf-8-sig")
         logging.info("Results written -> %s", out_csv)
+        logging.info("Script completed successfully.")
 
     except Exception as exc:  # pylint: disable=broad-except
         # In notebooks, re-raise to avoid IPython's nested 'inspect' failure with sys.exit

@@ -340,8 +340,8 @@ def main() -> None:
 
         write_output(final_fc, OUTPUT_PATH)
 
-        logging.info("Finished successfully")
-        _gp("Finished successfully.")
+        logging.info("Script completed successfully.")
+        _gp("Script completed successfully.")
 
     except Exception as exc:  # noqa: BLE001
         # ArcPy environment should see this

@@ -537,7 +537,17 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if (
+        BLOCK_OUTPUT_FOLDER == r"Path\To\Your\Input_Folder"
+        or CLUSTER_CONFLICT_OUTPUT_FOLDER == r"Path\To\Your\Output_Folder"
+    ):
+        logging.warning(
+            "BLOCK_OUTPUT_FOLDER and/or CLUSTER_CONFLICT_OUTPUT_FOLDER are still set to "
+            "placeholder values. Please update them in the CONFIGURATION section before running."
+        )
+        return
     run_step2_conflict_detection()
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

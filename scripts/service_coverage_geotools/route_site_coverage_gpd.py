@@ -311,6 +311,7 @@ def main() -> None:
     summary_df.to_csv(summary_path)
     logging.info("Summary written to %s", summary_path)
     logging.info("Done.")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

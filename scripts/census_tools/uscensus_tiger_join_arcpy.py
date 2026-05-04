@@ -1235,5 +1235,22 @@ def run_pipeline() -> None:
         sys.exit(1)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Script entry point."""
+    logging.basicConfig(
+        level=LOG_LEVEL,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    if str(INPUT_CSV_DIR) == _DEFAULT_INPUT_CSV_DIR or str(INPUT_SHP_DIR) == _DEFAULT_INPUT_SHP_DIR:
+        logging.warning(
+            "INPUT_CSV_DIR and/or INPUT_SHP_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
     run_pipeline()
+    logging.info("Script completed successfully.")
+
+
+if __name__ == "__main__":
+    main()

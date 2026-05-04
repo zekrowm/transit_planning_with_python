@@ -835,5 +835,10 @@ def run() -> None:
     logging.info("Script completed successfully.")
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Master entry point."""
     run()
+
+
+if __name__ == "__main__":
+    main()

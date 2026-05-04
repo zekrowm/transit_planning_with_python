@@ -942,6 +942,14 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_DIR == Path(r"Folder\Path\To\Your\GTFS") or OUTPUT_CSV == Path(
+        r"File\Path\To\Your\route_comparison_summary.csv"
+    ):
+        logging.warning(
+            "GTFS_DIR and/or OUTPUT_CSV are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
     try:
         df = compute_per_route_metrics()
     except (FileNotFoundError, ValueError) as exc:

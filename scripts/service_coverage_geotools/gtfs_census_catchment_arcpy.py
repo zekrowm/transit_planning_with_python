@@ -1262,6 +1262,13 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_FOLDER == r"Path\To\Your\GTFS_Folder":
+        logging.warning(
+            "GTFS_FOLDER is still set to a placeholder value. "
+            "Please update it in the CONFIGURATION section before running."
+        )
+        return
+
     arcpy.env.overwriteOutput = OVERWRITE_OUTPUTS
 
     # Basic input checks (mode-specific)

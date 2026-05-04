@@ -471,6 +471,12 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    if GTFS_DIR == Path(r"Path\To\GIS\Folder") or OUTPUT_DIR == Path(r"Path\To\Output_Folder"):
+        logging.warning(
+            "GTFS_DIR and/or OUTPUT_DIR are still set to placeholder values. "
+            "Please update them in the CONFIGURATION section before running."
+        )
+        return
 
     logging.info("Loading GTFS tables from: %s", GTFS_DIR)
     t = load_gtfs_tables(GTFS_DIR)
@@ -587,6 +593,7 @@ def main() -> None:
     write_single_output(flagged, OUTPUT_DIR, OUTPUT_FILENAME)
 
     logging.info("Done ✔")
+    logging.info("Script completed successfully.")
 
 
 if __name__ == "__main__":

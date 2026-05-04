@@ -300,7 +300,7 @@ def main() -> None:
         # 4. Export
         write_output(final_gdf, OUTPUT_PATH)
 
-        logging.info("Finished successfully")
+        logging.info("Script completed successfully.")
 
     except Exception:  # noqa: BLE001
         logging.exception("Processing failed")
