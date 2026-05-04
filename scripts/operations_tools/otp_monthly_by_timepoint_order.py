@@ -873,18 +873,18 @@ def main() -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    parser = build_argparser()
+    args, _unknown = parser.parse_known_args()
+
     if (
-        CSV_PATH == r"Path\To\Your\OTP by Timepoint Aggregated.csv"
-        or OUTPUT_DIR == r"Path\To\Your\Output_Folder"
+        args.input == r"Path\To\Your\OTP by Timepoint Aggregated.csv"
+        and args.outdir == r"Path\To\Your\Output_Folder"
     ):
         logging.warning(
             "CSV_PATH and/or OUTPUT_DIR are still set to placeholder values. "
             "Please update them in the CONFIGURATION section before running."
         )
         return
-
-    parser = build_argparser()
-    args, _unknown = parser.parse_known_args()
 
     input_path = Path(args.input)
     if not input_path.exists():

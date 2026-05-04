@@ -1020,16 +1020,16 @@ def main(argv: List[str] | None = None) -> None:
         format="%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    if DEFAULT_INPUT_CSV == r"file\path\to\your\CLEVER_Runtime_and_OTP_by_Month.csv":
+    parser = build_arg_parser()
+    # Accept unknown args to be notebook/IPython friendly (swallows "-f <kernel.json>").
+    args, unknown = parser.parse_known_args(argv)
+
+    if args.input == r"file\path\to\your\CLEVER_Runtime_and_OTP_by_Month.csv":
         logging.warning(
             "DEFAULT_INPUT_CSV is still set to a placeholder value. "
             "Please update it in the CONFIGURATION section before running."
         )
         return
-
-    parser = build_arg_parser()
-    # Accept unknown args to be notebook/IPython friendly (swallows "-f <kernel.json>").
-    args, unknown = parser.parse_known_args(argv)
     if unknown:
         logging.warning("Ignoring unknown CLI args (likely from IPython): %s", unknown)
     # Parse the blacklist: CLI overrides the constant if provided.
