@@ -85,6 +85,8 @@ ignore = [
 "tests/**/*" = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107", "ANN001"]
 # dev_tools are CLI scripts where print() is the intended output mechanism.
 "dev_tools/**/*" = ["T201"]
+# arcpy scripts target the ArcPy-bundled Python (<3.10) where zip() has no strict= parameter.
+"**/*arcpy*" = ["B905"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
