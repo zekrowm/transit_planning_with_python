@@ -359,13 +359,9 @@ def build_route_district_matrix(
         found = set(routes["route_short_name"].astype(str))
         missing = whitelist - found
         if missing:
-            logging.warning(
-                "Routes in whitelist not found in feed: %s", sorted(missing)
-            )
+            logging.warning("Routes in whitelist not found in feed: %s", sorted(missing))
         if routes.empty:
-            logging.warning(
-                "Whitelist filtered out every route; output will be empty."
-            )
+            logging.warning("Whitelist filtered out every route; output will be empty.")
         kept_route_ids = set(routes["route_id"].astype(str))
         trips = trips[trips["route_id"].astype(str).isin(kept_route_ids)]
 
@@ -373,12 +369,14 @@ def build_route_district_matrix(
         zip(
             routes["route_id"].astype(str),
             routes["route_short_name"].astype(str),
+            strict=False,
         )
     )
     trip_route = dict(
         zip(
             trips["trip_id"].astype(str),
             trips["route_id"].astype(str),
+            strict=False,
         )
     )
 
