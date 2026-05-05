@@ -5,6 +5,12 @@ optionally filters by route or stop ID, aggregates boardings and alightings by
 stop and time period, and saves the results to a new Excel file. Aggregated data
 can optionally be rounded or categorized into bins.
 
+When a GTFS feed is supplied (GTFS_PATH), aggregation sheets are enriched with
+LATITUDE/LONGITUDE columns and an additional ``Stops Clean`` sheet is produced
+with Stop Code, Stop Name, Latitude, Longitude, Boardings, Alightings, and Total.
+A ``Summary`` sheet is also written that compares the post-filter selection
+against the full input dataset (stop counts and total ridership, with percents).
+
 The script is designed for analysts and data scientists who need a quick and
 repeatable tool for ad-hoc stop ridership data requests, and it is suitable
 for use in environments like ArcGIS Pro or Jupyter Notebooks.
@@ -14,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple
 
@@ -60,6 +67,13 @@ APPLY_ROUNDING: bool = True
 # If True → convert aggregated totals to textual bins; numeric rounding is
 # suppressed.  If False → leave numeric (subject to APPLY_ROUNDING).
 AGGREGATE_BIN_RANGES: bool = False
+
+# Optional GTFS enrichment.
+# GTFS_PATH may point to a stops.txt file, a GTFS .zip archive, or an
+# unzipped GTFS directory. If None, GTFS enrichment is skipped.
+GTFS_PATH: Path | None = None  # e.g. Path(r"C:\Data\gtfs.zip")
+GTFS_JOIN_KEY: str = "stop_id"  # "stop_id" or "stop_code" — which GTFS field
+                                # the ridership STOP_ID column should match
 
 REQUIRED_COLUMNS: Sequence[str] = (
     "TIME_PERIOD",
@@ -200,6 +214,88 @@ def log_missing_stop_ids(
         logging.info("All requested STOP_IDs are present in the processed data.")
 
 
+def build_selection_summary(
+    full_data: pd.DataFrame,
+    filtered_data: pd.DataFrame,
+) -> pd.DataFrame:
+    """Compute and log selection-vs-system totals.
+
+    Compares the post-filter ``filtered_data`` against the full input
+    ``full_data`` and reports unique stop counts and total boardings /
+    alightings, both as raw values and as percentages of the system total.
+
+    Args:
+        full_data: The unfiltered DataFrame loaded from the input workbook.
+        filtered_data: The DataFrame after route/stop/exclude filters
+            have been applied.
+
+    Returns:
+        A DataFrame with one row per metric (Stops, Boardings, Alightings,
+        Total Ridership) and columns ``Selected``, ``Total``, ``Percent``,
+        suitable for writing to its own worksheet.
+    """
+    def _safe_pct(numerator: float, denominator: float) -> float:
+        return (numerator / denominator * 100.0) if denominator else 0.0
+
+    selected_stops: int = int(filtered_data["STOP_ID"].nunique())
+    total_stops: int = int(full_data["STOP_ID"].nunique())
+    pct_stops: float = _safe_pct(selected_stops, total_stops)
+
+    selected_board: float = float(filtered_data["BOARD_ALL"].sum())
+    total_board: float = float(full_data["BOARD_ALL"].sum())
+    pct_board: float = _safe_pct(selected_board, total_board)
+
+    selected_alight: float = float(filtered_data["ALIGHT_ALL"].sum())
+    total_alight: float = float(full_data["ALIGHT_ALL"].sum())
+    pct_alight: float = _safe_pct(selected_alight, total_alight)
+
+    selected_ridership: float = selected_board + selected_alight
+    total_ridership: float = total_board + total_alight
+    pct_ridership: float = _safe_pct(selected_ridership, total_ridership)
+
+    logging.info("=" * 72)
+    logging.info("SELECTION SUMMARY (filtered vs. full dataset)")
+    logging.info("=" * 72)
+    logging.info(
+        "Stops selected:        %s of %s  (%.2f%%)",
+        f"{selected_stops:,}", f"{total_stops:,}", pct_stops,
+    )
+    logging.info(
+        "Boardings selected:    %s of %s  (%.2f%%)",
+        f"{selected_board:,.1f}", f"{total_board:,.1f}", pct_board,
+    )
+    logging.info(
+        "Alightings selected:   %s of %s  (%.2f%%)",
+        f"{selected_alight:,.1f}", f"{total_alight:,.1f}", pct_alight,
+    )
+    logging.info(
+        "Total ridership:       %s of %s  (%.2f%%)",
+        f"{selected_ridership:,.1f}", f"{total_ridership:,.1f}", pct_ridership,
+    )
+    logging.info("=" * 72)
+
+    return pd.DataFrame(
+        [
+            {"Metric": "Stops (unique STOP_ID)",
+             "Selected": selected_stops,
+             "Total": total_stops,
+             "Percent": round(pct_stops, 2)},
+            {"Metric": "Boardings (BOARD_ALL sum)",
+             "Selected": round(selected_board, 1),
+             "Total": round(total_board, 1),
+             "Percent": round(pct_board, 2)},
+            {"Metric": "Alightings (ALIGHT_ALL sum)",
+             "Selected": round(selected_alight, 1),
+             "Total": round(total_alight, 1),
+             "Percent": round(pct_alight, 2)},
+            {"Metric": "Total Ridership (Board + Alight)",
+             "Selected": round(selected_ridership, 1),
+             "Total": round(total_ridership, 1),
+             "Percent": round(pct_ridership, 2)},
+        ]
+    )
+
+
 def read_excel_file(input_file: Path) -> pd.DataFrame:
     """Load an Excel workbook into a DataFrame.
 
@@ -220,6 +316,163 @@ def read_excel_file(input_file: Path) -> pd.DataFrame:
     except ValueError as exc:  # pandas re-raises most Excel errors as ValueError
         logging.error("Error reading the Excel file: %s", exc)
         sys.exit(1)
+
+
+def load_gtfs_stops(gtfs_path: Path) -> pd.DataFrame:
+    """Load and normalize the GTFS stops table.
+
+    Accepts a path to a ``stops.txt`` file, a GTFS ``.zip`` archive
+    containing one, or an unzipped GTFS directory.
+
+    Args:
+        gtfs_path: Path to stops.txt, a GTFS .zip, or a GTFS directory.
+
+    Returns:
+        DataFrame with columns ``stop_id``, ``stop_code``, ``stop_name``
+        (all stripped strings) and ``stop_lat``, ``stop_lon`` (floats).
+        ``stop_code`` is filled with empty strings when absent from the feed.
+
+    Raises:
+        SystemExit: If the file cannot be located, opened, or is missing
+            required GTFS columns.
+    """
+    try:
+        if gtfs_path.is_file() and gtfs_path.suffix.lower() == ".zip":
+            with zipfile.ZipFile(gtfs_path) as zf:
+                with zf.open("stops.txt") as f:
+                    stops: pd.DataFrame = pd.read_csv(f, dtype=str)
+        elif gtfs_path.is_file():
+            stops = pd.read_csv(gtfs_path, dtype=str)
+        elif gtfs_path.is_dir():
+            stops = pd.read_csv(gtfs_path / "stops.txt", dtype=str)
+        else:
+            logging.error("GTFS path '%s' does not exist.", gtfs_path)
+            sys.exit(1)
+    except (FileNotFoundError, KeyError, OSError, zipfile.BadZipFile) as exc:
+        logging.error("Error reading GTFS stops: %s", exc)
+        sys.exit(1)
+
+    required: set[str] = {"stop_id", "stop_name", "stop_lat", "stop_lon"}
+    missing: set[str] = required - set(stops.columns)
+    if missing:
+        logging.error("GTFS stops.txt missing required columns: %s", sorted(missing))
+        sys.exit(1)
+
+    if "stop_code" not in stops.columns:
+        stops["stop_code"] = ""
+
+    for col in ("stop_id", "stop_code", "stop_name"):
+        stops[col] = stops[col].fillna("").astype(str).str.strip()
+    stops["stop_lat"] = pd.to_numeric(stops["stop_lat"], errors="coerce")
+    stops["stop_lon"] = pd.to_numeric(stops["stop_lon"], errors="coerce")
+
+    return stops[["stop_id", "stop_code", "stop_name", "stop_lat", "stop_lon"]]
+
+
+def enrich_with_gtfs(
+    df: pd.DataFrame,
+    gtfs_stops: pd.DataFrame,
+    join_key: str,
+    *,
+    stop_id_col: str = "STOP_ID",
+) -> pd.DataFrame:
+    """Left-join GTFS coordinates onto a DataFrame keyed by stop.
+
+    Args:
+        df: DataFrame containing a stop identifier column.
+        gtfs_stops: Output of :func:`load_gtfs_stops`.
+        join_key: ``"stop_id"`` or ``"stop_code"`` — which GTFS column to
+            match against ``df[stop_id_col]``.
+        stop_id_col: Column in ``df`` that carries the ridership stop ID.
+
+    Returns:
+        A copy of ``df`` with ``LATITUDE`` and ``LONGITUDE`` columns
+        appended.  Stops with no GTFS match get NaN coordinates.
+
+    Raises:
+        ValueError: If ``join_key`` is not ``"stop_id"`` or ``"stop_code"``.
+    """
+    if join_key not in {"stop_id", "stop_code"}:
+        raise ValueError(f"join_key must be 'stop_id' or 'stop_code', got '{join_key}'")
+
+    out: pd.DataFrame = df.copy()
+    out["_join_key"] = out[stop_id_col].astype(str).str.strip()
+
+    gtfs_subset: pd.DataFrame = (
+        gtfs_stops[[join_key, "stop_lat", "stop_lon"]]
+        .drop_duplicates(subset=[join_key])
+        .rename(columns={join_key: "_join_key",
+                         "stop_lat": "LATITUDE",
+                         "stop_lon": "LONGITUDE"})
+    )
+
+    return out.merge(gtfs_subset, on="_join_key", how="left").drop(columns=["_join_key"])
+
+
+def build_clean_stops_sheet(
+    filtered_data: pd.DataFrame,
+    gtfs_stops: pd.DataFrame,
+    join_key: str,
+) -> pd.DataFrame:
+    """Build a tidy per-stop summary enriched with GTFS attributes.
+
+    Aggregates BOARD_ALL and ALIGHT_ALL across all rows of ``filtered_data``
+    by STOP_ID (collapsing routes and time periods), joins authoritative
+    ``stop_code``, ``stop_name``, and coordinates from GTFS, and adds a
+    ``Total`` column.
+
+    Args:
+        filtered_data: Post-filter ridership rows. Must contain STOP_ID,
+            BOARD_ALL, ALIGHT_ALL.
+        gtfs_stops: Output of :func:`load_gtfs_stops`.
+        join_key: ``"stop_id"`` or ``"stop_code"``.
+
+    Returns:
+        DataFrame with columns ``Stop Code``, ``Stop Name``, ``Latitude``,
+        ``Longitude``, ``Boardings``, ``Alightings``, ``Total`` — one row
+        per unique STOP_ID.
+    """
+    if join_key not in {"stop_id", "stop_code"}:
+        raise ValueError(f"join_key must be 'stop_id' or 'stop_code', got '{join_key}'")
+
+    per_stop: pd.DataFrame = (
+        filtered_data.groupby("STOP_ID", as_index=False)
+        .agg(Boardings=("BOARD_ALL", "sum"), Alightings=("ALIGHT_ALL", "sum"))
+    )
+    per_stop["_join_key"] = per_stop["STOP_ID"].astype(str).str.strip()
+
+    # Build _join_key as a derived column so we don't collide when
+    # join_key itself is "stop_code" (which is also kept as an output column).
+    gtfs_subset: pd.DataFrame = (
+        gtfs_stops.assign(_join_key=gtfs_stops[join_key])
+        [["_join_key", "stop_code", "stop_name", "stop_lat", "stop_lon"]]
+        .drop_duplicates(subset=["_join_key"])
+        .rename(columns={"stop_code": "Stop Code",
+                         "stop_name": "Stop Name",
+                         "stop_lat": "Latitude",
+                         "stop_lon": "Longitude"})
+    )
+
+    merged: pd.DataFrame = per_stop.merge(
+        gtfs_subset, on="_join_key", how="left"
+    ).drop(columns=["_join_key"])
+
+    unmatched_mask: pd.Series = merged["Latitude"].isna()
+    if unmatched_mask.any():
+        missing_ids: List[Any] = merged.loc[unmatched_mask, "STOP_ID"].tolist()
+        logging.warning(
+            "%d stop(s) had no GTFS match on '%s' and will lack coordinates: %s",
+            unmatched_mask.sum(), join_key, missing_ids,
+        )
+
+    merged["Total"] = merged["Boardings"].fillna(0) + merged["Alightings"].fillna(0)
+
+    if APPLY_ROUNDING:
+        for col in ("Boardings", "Alightings", "Total"):
+            merged[col] = merged[col].round(1)
+
+    return merged[["Stop Code", "Stop Name", "Latitude", "Longitude",
+                   "Boardings", "Alightings", "Total"]]
 
 
 def verify_required_columns(data_frame: pd.DataFrame, required_columns: Sequence[str]) -> None:
@@ -282,25 +535,38 @@ def write_to_excel(
     filtered_data: pd.DataFrame,
     aggregated_peaks: Dict[str, pd.DataFrame],
     all_time_aggregated: pd.DataFrame,
+    selection_summary: pd.DataFrame | None = None,
+    clean_stops: pd.DataFrame | None = None,
 ) -> None:
     """Write the processed data sets to *output_file* in a sensible order.
 
-    The workbook receives:
-        1. ``Original``           – raw (but optionally rounded) rows
-        2. ``All Time Periods``   – aggregation across *all* rows
-        3. One sheet per entry in ``aggregated_peaks`` (already upper-cased)
+    The workbook receives, in order:
+        1. ``Summary``           – selection-vs-system totals (if provided)
+        2. ``Stops Clean``       – per-stop summary with GTFS attributes
+                                   (if provided)
+        3. ``Original``          – raw (but optionally rounded) rows
+        4. ``All Time Periods``  – aggregation across *all* rows
+        5. One sheet per entry in ``aggregated_peaks``
 
     Args:
         output_file: Path to the workbook to create/overwrite.
         filtered_data: DataFrame for the "Original" sheet.
         aggregated_peaks: Mapping ``TIME_PERIOD → aggregated DataFrame``.
         all_time_aggregated: Aggregation across *all* rows.
+        selection_summary: Optional summary DataFrame from
+            :func:`build_selection_summary`.
+        clean_stops: Optional clean per-stop sheet from
+            :func:`build_clean_stops_sheet`.
 
     Raises:
         SystemExit: On any I/O error (permission, disk full, etc.).
     """
     try:
         with pd.ExcelWriter(output_file) as writer:
+            if selection_summary is not None:
+                selection_summary.to_excel(writer, sheet_name="Summary", index=False)
+            if clean_stops is not None:
+                clean_stops.to_excel(writer, sheet_name="Stops Clean", index=False)
             filtered_data.to_excel(writer, sheet_name="Original", index=False)
             all_time_aggregated.to_excel(writer, sheet_name="All Time Periods", index=False)
             for period, df_agg in aggregated_peaks.items():
@@ -431,7 +697,7 @@ def process_aggregations(
 
 
 def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
-    """Run the full read → filter → aggregate → write pipeline."""
+    """Run the full read → filter → aggregate → (enrich) → write pipeline."""
     logging.basicConfig(
         level=LOG_LEVEL,
         format="%(asctime)s | %(levelname)s | %(message)s",
@@ -448,6 +714,12 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
             "OUTPUT_DIR in the CONFIGURATION section before running."
         )
         return
+
+    if GTFS_JOIN_KEY not in {"stop_id", "stop_code"}:
+        logging.error(
+            "GTFS_JOIN_KEY must be 'stop_id' or 'stop_code'; got '%s'.", GTFS_JOIN_KEY,
+        )
+        sys.exit(1)
 
     input_file: Path = INPUT_FILE_PATH
 
@@ -472,6 +744,9 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
         routes_exclude=ROUTES_EXCLUDE,
     )
 
+    # Build & log selection-vs-system summary (filtered rows vs. full input)
+    selection_summary: pd.DataFrame = build_selection_summary(ridership_df, filtered_data)
+
     # Log missing optional STOP_IDS
     log_missing_stop_ids(STOP_IDS, filtered_data["STOP_ID"])
 
@@ -481,12 +756,29 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
     # Aggregate + format
     final_filtered, aggregated_peaks, all_time_aggregated = process_aggregations(filtered_data)
 
+    # Optional GTFS enrichment
+    clean_stops: pd.DataFrame | None = None
+    if GTFS_PATH is not None:
+        gtfs_stops: pd.DataFrame = load_gtfs_stops(GTFS_PATH)
+        logging.info(
+            "Loaded GTFS: %d stops; joining ridership STOP_ID against GTFS '%s'.",
+            len(gtfs_stops), GTFS_JOIN_KEY,
+        )
+        all_time_aggregated = enrich_with_gtfs(all_time_aggregated, gtfs_stops, GTFS_JOIN_KEY)
+        aggregated_peaks = {
+            period: enrich_with_gtfs(df_agg, gtfs_stops, GTFS_JOIN_KEY)
+            for period, df_agg in aggregated_peaks.items()
+        }
+        clean_stops = build_clean_stops_sheet(final_filtered, gtfs_stops, GTFS_JOIN_KEY)
+
     # Write to disk
     write_to_excel(
         output_file,
         final_filtered,
         aggregated_peaks,
         all_time_aggregated,
+        selection_summary=selection_summary,
+        clean_stops=clean_stops,
     )
 
     logging.info("Script completed successfully.")
