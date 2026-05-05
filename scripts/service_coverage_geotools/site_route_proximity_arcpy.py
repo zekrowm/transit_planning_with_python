@@ -653,7 +653,7 @@ def _single_fc_sites(
                     nearest = merged.loc[idx]
                     pair_set = {
                         (str(r), str(d))
-                        for r, d in zip(nearest.route_short_name, nearest.direction_id, strict=True)
+                        for r, d in zip(nearest.route_short_name, nearest.direction_id)
                     }
                     routes_str = ", ".join(sorted(f"{rt} (dir {di})" for rt, di in pair_set))
                     stops_str = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
@@ -908,7 +908,7 @@ def _points_driven_sites(
                     nearest = merged.loc[idx]
                     pair_set = {
                         (str(r), str(d))
-                        for r, d in zip(nearest.route_short_name, nearest.direction_id, strict=True)
+                        for r, d in zip(nearest.route_short_name, nearest.direction_id)
                     }
                     routes_str = ", ".join(sorted(f"{rt} (dir {di})" for rt, di in pair_set))
                     stops_str = ", ".join(sorted(nearest.stop_id.astype(str).unique()))

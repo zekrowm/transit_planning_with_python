@@ -292,7 +292,7 @@ def aggregate_monthly_long(
 
     observed_keys = set(
         (str(r), dt, str(sp))
-        for r, dt, sp in zip(agg["route"], agg["period_dt"], agg["service_period"])  # noqa: B905
+        for r, dt, sp in zip(agg["route"], agg["period_dt"], agg["service_period"])
     )
 
     idx = pd.MultiIndex.from_product(

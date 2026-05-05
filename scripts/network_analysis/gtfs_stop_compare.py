@@ -393,8 +393,7 @@ def compare_stops(
     relocated_arr = relocated_mask.to_numpy()
     attr_changed_arr = attr_changed_mask.to_numpy()
     merged["change_type"] = [
-        classify_type(bool(r), bool(a))
-        for r, a in zip(relocated_arr, attr_changed_arr)  # noqa: B905
+        classify_type(bool(r), bool(a)) for r, a in zip(relocated_arr, attr_changed_arr)
     ]
 
     # Friendly description

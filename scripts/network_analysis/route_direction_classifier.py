@@ -163,9 +163,7 @@ def classify_direction(
         if coords[0] != coords[-1]:
             coords.append(coords[0])
 
-        area = sum(
-            (x1 * y2 - x2 * y1) for (x1, y1), (x2, y2) in zip(coords, coords[1:], strict=True)
-        )
+        area = sum((x1 * y2 - x2 * y1) for (x1, y1), (x2, y2) in zip(coords, coords[1:]))
 
         if area > 0:
             return "CCW"
@@ -263,7 +261,7 @@ def create_lines_from_shapes(shapes: pd.DataFrame) -> gpd.GeoDataFrame:
 
     lines = []
     for sid, group in shapes_grouped:
-        line = LineString(zip(group["shape_pt_lon"], group["shape_pt_lat"], strict=True))
+        line = LineString(zip(group["shape_pt_lon"], group["shape_pt_lat"]))
         lines.append((sid, line))
 
     gdf = gpd.GeoDataFrame(lines, columns=["shape_id", "geometry"], crs="EPSG:4326")
@@ -290,7 +288,6 @@ def merge_and_classify_shapes(
     for row_4326, row_proj in zip(
         gdf_shapes.itertuples(index=False),
         gdf_shapes_proj.itertuples(index=False),
-        strict=True,
     ):
         directions.append(
             (row_4326.shape_id, classify_direction(row_4326.geometry, row_proj.geometry))

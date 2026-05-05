@@ -279,9 +279,8 @@ def segment_metrics(grp: pd.DataFrame) -> Tuple[SegSpeeds, float, int]:
     seg_mph: List[Union[float, str]] = [MISSING_VAL]
 
     for (t0, t1), (d0, d1) in zip(
-        zip(times, times[1:], strict=True),
-        zip(dists, dists[1:], strict=True),
-        strict=True,
+        zip(times, times[1:]),
+        zip(dists, dists[1:]),
     ):
         run = None if None in (t0, t1) else t1 - t0
         dist = None if None in (d0, d1) else d1 - d0

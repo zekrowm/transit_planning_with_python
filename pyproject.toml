@@ -78,6 +78,9 @@ ignore = [
               #   cost is negligible for this repo and the
               #   refactor noise isn't worth it.
     "TC003",  # Same rationale for standard-library imports.
+    "B905",   # zip() without strict= is intentional: strict= was
+              #   added in Python 3.10 and this codebase targets
+              #   3.9+.
 ]
 
 [tool.ruff.lint.per-file-ignores]

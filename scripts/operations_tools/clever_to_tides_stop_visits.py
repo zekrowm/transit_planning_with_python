@@ -349,7 +349,7 @@ def clever_to_tides(df: pd.DataFrame) -> pd.DataFrame:
 
         out["trip_id_performed"] = [
             f"perf_{stable_id(str(sd), str(tt), str(vv))}"
-            for sd, tt, vv in zip(service_date_str, trip_tok_str, veh_str, strict=True)
+            for sd, tt, vv in zip(service_date_str, trip_tok_str, veh_str)
         ]
         out["trip_id_performed"] = pd.Series(
             out["trip_id_performed"], index=df.index, dtype="string"

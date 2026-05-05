@@ -248,7 +248,6 @@ def _build_routes_gdf(
                 zip(
                     g["shape_pt_lon"].to_numpy(),
                     g["shape_pt_lat"].to_numpy(),
-                    strict=True,
                 )
             )
         )
