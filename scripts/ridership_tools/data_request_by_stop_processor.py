@@ -73,7 +73,7 @@ AGGREGATE_BIN_RANGES: bool = False
 # unzipped GTFS directory. If None, GTFS enrichment is skipped.
 GTFS_PATH: Path | None = None  # e.g. Path(r"C:\Data\gtfs.zip")
 GTFS_JOIN_KEY: str = "stop_id"  # "stop_id" or "stop_code" — which GTFS field
-                                # the ridership STOP_ID column should match
+# the ridership STOP_ID column should match
 
 REQUIRED_COLUMNS: Sequence[str] = (
     "TIME_PERIOD",
@@ -234,6 +234,7 @@ def build_selection_summary(
         Total Ridership) and columns ``Selected``, ``Total``, ``Percent``,
         suitable for writing to its own worksheet.
     """
+
     def _safe_pct(numerator: float, denominator: float) -> float:
         return (numerator / denominator * 100.0) if denominator else 0.0
 
@@ -258,40 +259,56 @@ def build_selection_summary(
     logging.info("=" * 72)
     logging.info(
         "Stops selected:        %s of %s  (%.2f%%)",
-        f"{selected_stops:,}", f"{total_stops:,}", pct_stops,
+        f"{selected_stops:,}",
+        f"{total_stops:,}",
+        pct_stops,
     )
     logging.info(
         "Boardings selected:    %s of %s  (%.2f%%)",
-        f"{selected_board:,.1f}", f"{total_board:,.1f}", pct_board,
+        f"{selected_board:,.1f}",
+        f"{total_board:,.1f}",
+        pct_board,
     )
     logging.info(
         "Alightings selected:   %s of %s  (%.2f%%)",
-        f"{selected_alight:,.1f}", f"{total_alight:,.1f}", pct_alight,
+        f"{selected_alight:,.1f}",
+        f"{total_alight:,.1f}",
+        pct_alight,
     )
     logging.info(
         "Total ridership:       %s of %s  (%.2f%%)",
-        f"{selected_ridership:,.1f}", f"{total_ridership:,.1f}", pct_ridership,
+        f"{selected_ridership:,.1f}",
+        f"{total_ridership:,.1f}",
+        pct_ridership,
     )
     logging.info("=" * 72)
 
     return pd.DataFrame(
         [
-            {"Metric": "Stops (unique STOP_ID)",
-             "Selected": selected_stops,
-             "Total": total_stops,
-             "Percent": round(pct_stops, 2)},
-            {"Metric": "Boardings (BOARD_ALL sum)",
-             "Selected": round(selected_board, 1),
-             "Total": round(total_board, 1),
-             "Percent": round(pct_board, 2)},
-            {"Metric": "Alightings (ALIGHT_ALL sum)",
-             "Selected": round(selected_alight, 1),
-             "Total": round(total_alight, 1),
-             "Percent": round(pct_alight, 2)},
-            {"Metric": "Total Ridership (Board + Alight)",
-             "Selected": round(selected_ridership, 1),
-             "Total": round(total_ridership, 1),
-             "Percent": round(pct_ridership, 2)},
+            {
+                "Metric": "Stops (unique STOP_ID)",
+                "Selected": selected_stops,
+                "Total": total_stops,
+                "Percent": round(pct_stops, 2),
+            },
+            {
+                "Metric": "Boardings (BOARD_ALL sum)",
+                "Selected": round(selected_board, 1),
+                "Total": round(total_board, 1),
+                "Percent": round(pct_board, 2),
+            },
+            {
+                "Metric": "Alightings (ALIGHT_ALL sum)",
+                "Selected": round(selected_alight, 1),
+                "Total": round(total_alight, 1),
+                "Percent": round(pct_alight, 2),
+            },
+            {
+                "Metric": "Total Ridership (Board + Alight)",
+                "Selected": round(selected_ridership, 1),
+                "Total": round(total_ridership, 1),
+                "Percent": round(pct_ridership, 2),
+            },
         ]
     )
 
@@ -401,9 +418,7 @@ def enrich_with_gtfs(
     gtfs_subset: pd.DataFrame = (
         gtfs_stops[[join_key, "stop_lat", "stop_lon"]]
         .drop_duplicates(subset=[join_key])
-        .rename(columns={join_key: "_join_key",
-                         "stop_lat": "LATITUDE",
-                         "stop_lon": "LONGITUDE"})
+        .rename(columns={join_key: "_join_key", "stop_lat": "LATITUDE", "stop_lon": "LONGITUDE"})
     )
 
     return out.merge(gtfs_subset, on="_join_key", how="left").drop(columns=["_join_key"])
@@ -435,34 +450,40 @@ def build_clean_stops_sheet(
     if join_key not in {"stop_id", "stop_code"}:
         raise ValueError(f"join_key must be 'stop_id' or 'stop_code', got '{join_key}'")
 
-    per_stop: pd.DataFrame = (
-        filtered_data.groupby("STOP_ID", as_index=False)
-        .agg(Boardings=("BOARD_ALL", "sum"), Alightings=("ALIGHT_ALL", "sum"))
+    per_stop: pd.DataFrame = filtered_data.groupby("STOP_ID", as_index=False).agg(
+        Boardings=("BOARD_ALL", "sum"), Alightings=("ALIGHT_ALL", "sum")
     )
     per_stop["_join_key"] = per_stop["STOP_ID"].astype(str).str.strip()
 
     # Build _join_key as a derived column so we don't collide when
     # join_key itself is "stop_code" (which is also kept as an output column).
     gtfs_subset: pd.DataFrame = (
-        gtfs_stops.assign(_join_key=gtfs_stops[join_key])
-        [["_join_key", "stop_code", "stop_name", "stop_lat", "stop_lon"]]
+        gtfs_stops.assign(_join_key=gtfs_stops[join_key])[
+            ["_join_key", "stop_code", "stop_name", "stop_lat", "stop_lon"]
+        ]
         .drop_duplicates(subset=["_join_key"])
-        .rename(columns={"stop_code": "Stop Code",
-                         "stop_name": "Stop Name",
-                         "stop_lat": "Latitude",
-                         "stop_lon": "Longitude"})
+        .rename(
+            columns={
+                "stop_code": "Stop Code",
+                "stop_name": "Stop Name",
+                "stop_lat": "Latitude",
+                "stop_lon": "Longitude",
+            }
+        )
     )
 
-    merged: pd.DataFrame = per_stop.merge(
-        gtfs_subset, on="_join_key", how="left"
-    ).drop(columns=["_join_key"])
+    merged: pd.DataFrame = per_stop.merge(gtfs_subset, on="_join_key", how="left").drop(
+        columns=["_join_key"]
+    )
 
     unmatched_mask: pd.Series = merged["Latitude"].isna()
     if unmatched_mask.any():
         missing_ids: List[Any] = merged.loc[unmatched_mask, "STOP_ID"].tolist()
         logging.warning(
             "%d stop(s) had no GTFS match on '%s' and will lack coordinates: %s",
-            unmatched_mask.sum(), join_key, missing_ids,
+            unmatched_mask.sum(),
+            join_key,
+            missing_ids,
         )
 
     merged["Total"] = merged["Boardings"].fillna(0) + merged["Alightings"].fillna(0)
@@ -471,8 +492,9 @@ def build_clean_stops_sheet(
         for col in ("Boardings", "Alightings", "Total"):
             merged[col] = merged[col].round(1)
 
-    return merged[["Stop Code", "Stop Name", "Latitude", "Longitude",
-                   "Boardings", "Alightings", "Total"]]
+    return merged[
+        ["Stop Code", "Stop Name", "Latitude", "Longitude", "Boardings", "Alightings", "Total"]
+    ]
 
 
 def verify_required_columns(data_frame: pd.DataFrame, required_columns: Sequence[str]) -> None:
@@ -717,7 +739,8 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
 
     if GTFS_JOIN_KEY not in {"stop_id", "stop_code"}:
         logging.error(
-            "GTFS_JOIN_KEY must be 'stop_id' or 'stop_code'; got '%s'.", GTFS_JOIN_KEY,
+            "GTFS_JOIN_KEY must be 'stop_id' or 'stop_code'; got '%s'.",
+            GTFS_JOIN_KEY,
         )
         sys.exit(1)
 
@@ -762,7 +785,8 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
         gtfs_stops: pd.DataFrame = load_gtfs_stops(GTFS_PATH)
         logging.info(
             "Loaded GTFS: %d stops; joining ridership STOP_ID against GTFS '%s'.",
-            len(gtfs_stops), GTFS_JOIN_KEY,
+            len(gtfs_stops),
+            GTFS_JOIN_KEY,
         )
         all_time_aggregated = enrich_with_gtfs(all_time_aggregated, gtfs_stops, GTFS_JOIN_KEY)
         aggregated_peaks = {
