@@ -369,14 +369,12 @@ def build_route_district_matrix(
         zip(
             routes["route_id"].astype(str),
             routes["route_short_name"].astype(str),
-            strict=False,
         )
     )
     trip_route = dict(
         zip(
             trips["trip_id"].astype(str),
             trips["route_id"].astype(str),
-            strict=False,
         )
     )
 
