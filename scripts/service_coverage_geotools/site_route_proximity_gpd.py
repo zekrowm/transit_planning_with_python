@@ -176,9 +176,7 @@ def _nearby_routes(
             lambda x: x.loc[x.dist.idxmin()]
         )
 
-        pair_set = {
-            (r, d) for r, d in zip(nearest.route_short_name, nearest.direction_id, strict=True)
-        }
+        pair_set = {(r, d) for r, d in zip(nearest.route_short_name, nearest.direction_id)}
         routes = ", ".join(sorted(f"{r} (dir {d})" for r, d in pair_set))
         stops = ", ".join(sorted(nearest.stop_id.astype(str).unique()))
         results.append({**base, "Routes": routes, "Stops": stops})
@@ -259,10 +257,7 @@ def main() -> None:
             rows = []
             for sid, grp in df.groupby("stop_id"):
                 route_pairs = sorted(
-                    {
-                        f"{r} (dir {d})"
-                        for r, d in zip(grp.route_short_name, grp.direction_id, strict=True)
-                    }
+                    {f"{r} (dir {d})" for r, d in zip(grp.route_short_name, grp.direction_id)}
                 )
                 rows.append({"Stop_ID": sid, "Routes": "; ".join(route_pairs)})
 

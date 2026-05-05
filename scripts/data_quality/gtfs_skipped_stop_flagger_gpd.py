@@ -301,7 +301,6 @@ def build_shapes_gdf(shapes_df: pd.DataFrame, crs: str) -> gpd.GeoDataFrame:
             for lon, lat in zip(
                 group["shape_pt_lon"],
                 group["shape_pt_lat"],
-                strict=True,
             )
         ]
         if len(points) < 2:
@@ -486,7 +485,7 @@ def build_stop_key_lookup(
     df["stop_id"] = df["stop_id"].astype(str)
     df[stop_key_field] = df[stop_key_field].astype(str)
 
-    return dict(zip(df["stop_id"], df[stop_key_field], strict=True))
+    return dict(zip(df["stop_id"], df[stop_key_field]))
 
 
 def build_stop_names_lookup(
@@ -512,7 +511,7 @@ def build_stop_names_lookup(
     df[stop_key_field] = df[stop_key_field].astype(str)
     df["stop_name"] = df["stop_name"].astype(str)
 
-    return dict(zip(df[stop_key_field], df["stop_name"], strict=True))
+    return dict(zip(df[stop_key_field], df["stop_name"]))
 
 
 def choose_representative_trip_ids(
@@ -894,7 +893,7 @@ def compare_segments_for_route_pair(
     base_route_id, base_dir = base_key
     other_route_id, other_dir = other_key
 
-    for i0, i1 in zip(base_shared_idx[:-1], base_shared_idx[1:], strict=False):
+    for i0, i1 in zip(base_shared_idx[:-1], base_shared_idx[1:]):
         # Enforce a minimum span in index space to avoid trivial segments.
         if i1 - i0 < MIN_SEGMENT_SPAN_STOPS:
             continue

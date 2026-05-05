@@ -287,9 +287,7 @@ def attach_calendar_info(
     if calendar is not None and not calendar.empty:
         cal = calendar.copy()
         cal["dow_code"] = cal.apply(_dow_code_from_calendar_row, axis=1)
-        svc_to_dow = dict(
-            zip(cal["service_id"].astype(str), cal["dow_code"].astype(str), strict=True)
-        )
+        svc_to_dow = dict(zip(cal["service_id"].astype(str), cal["dow_code"].astype(str)))
         out = out.merge(
             cal[["service_id", "dow_code"]],
             on="service_id",

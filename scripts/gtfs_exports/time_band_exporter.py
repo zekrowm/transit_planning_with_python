@@ -158,7 +158,7 @@ def segment_runtimes(grp: pd.DataFrame) -> RuntimeSegTuple:
         times.append(dep if dep is not None else arr)
 
     segs: List[Union[int, str]] = [MISSING_TIME]
-    for a, b in zip(times, times[1:], strict=True):
+    for a, b in zip(times, times[1:]):
         segs.append(b - a if a is not None and b is not None else "")
     return tuple(segs)
 

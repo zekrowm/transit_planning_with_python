@@ -397,7 +397,6 @@ def _build_shapes_dict(
             zip(
                 grp["shape_pt_lon"].tolist(),
                 grp["shape_pt_lat"].tolist(),
-                strict=True,
             )
         )
         if len(pts) < MIN_POINTS_PER_SHAPE:

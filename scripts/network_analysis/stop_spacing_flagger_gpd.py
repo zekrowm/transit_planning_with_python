@@ -327,7 +327,7 @@ def _build_routes_gdf(
         shapes[shape_cols]
         .sort_values(["shape_id", "shape_pt_sequence"])
         .groupby("shape_id")
-        .apply(lambda g: LineString(zip(g.shape_pt_lon, g.shape_pt_lat, strict=True)))
+        .apply(lambda g: LineString(zip(g.shape_pt_lon, g.shape_pt_lat)))
         .to_frame("geometry")
         .reset_index()
     )

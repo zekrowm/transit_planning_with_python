@@ -1001,7 +1001,6 @@ def main() -> None:
             for name, df in zip(
                 ["stops", "trips", "stop_times", "routes"],
                 [stops_df, trips_df, stop_times_df, routes_df],
-                strict=True,
             )
             if df.empty
         ]

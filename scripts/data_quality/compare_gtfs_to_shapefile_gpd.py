@@ -206,7 +206,7 @@ def _build_shapes_gdf(shapes_df: pd.DataFrame, target_epsg: int | None) -> gpd.G
 
     parts: list[tuple[str, LineString]] = []
     for sid, grp in sdf.groupby("shape_id", sort=False):
-        pts = list(zip(grp["shape_pt_lon"], grp["shape_pt_lat"], strict=True))
+        pts = list(zip(grp["shape_pt_lon"], grp["shape_pt_lat"]))
         if len(pts) >= MIN_POINTS_PER_SHAPE:
             parts.append((sid, LineString(pts)))
     if not parts:
@@ -234,9 +234,7 @@ def _stops_gdf(stops_df: pd.DataFrame, target_epsg: int | None) -> gpd.GeoDataFr
 
     g = gpd.GeoDataFrame(
         sdf[["stop_id"]].assign(
-            geometry=[
-                Point(lon, lat) for lon, lat in zip(sdf["stop_lon"], sdf["stop_lat"], strict=True)
-            ]
+            geometry=[Point(lon, lat) for lon, lat in zip(sdf["stop_lon"], sdf["stop_lat"])]
         ),
         crs="EPSG:4326",
     )

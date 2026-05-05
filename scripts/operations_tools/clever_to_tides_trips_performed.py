@@ -239,7 +239,6 @@ def choose_trip_id_performed(
                 trip_id_scheduled.fillna(""),
                 vehicle_id.fillna(""),
                 best_start_str,
-                strict=True,
             )
         ],
         index=service_date.index,

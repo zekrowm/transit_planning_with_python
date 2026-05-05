@@ -276,7 +276,7 @@ def build_graph(
     """Build an undirected MultiGraph from exploded segments."""
     G = nx.MultiGraph()
     edge_endpoints: dict[EdgeID, Tuple[NodeKey, NodeKey]] = {}
-    for edge_id, geom in zip(segments.edge_id.values, segments.geometry.values, strict=True):
+    for edge_id, geom in zip(segments.edge_id.values, segments.geometry.values):
         x1, y1 = geom.coords[0]
         x2, y2 = geom.coords[-1]
         u = quantize_node(x1, y1, node_grid_ft)
@@ -297,9 +297,7 @@ def build_segment_index(
 ) -> tuple[STRtree, List[LineString], Dict[bytes, EdgeID]]:
     """Create an STRtree over the segments and a WKB→edge_id lookup."""
     seg_geoms: List[LineString] = list(segments.geometry.values)  # same order as edge_id
-    wkb_to_eid: Dict[bytes, int] = {
-        g.wkb: int(eid) for g, eid in zip(seg_geoms, segments.edge_id, strict=True)
-    }
+    wkb_to_eid: Dict[bytes, int] = {g.wkb: int(eid) for g, eid in zip(seg_geoms, segments.edge_id)}
     index = STRtree(seg_geoms)
     return index, seg_geoms, wkb_to_eid
 
@@ -346,7 +344,6 @@ def snap_stops_to_segments(
         stops.get("stop_name", pd.Series("", index=stops.index)),
         stops.get("stop_code", pd.Series("", index=stops.index)),
         stops.geometry,
-        strict=True,
     ):
         nearest_obj = safe_nearest(seg_index, pt)
 
@@ -475,7 +472,7 @@ def _concat_lines(lines: Sequence[LineString]) -> LineString:
 def _ensure_oriented(lines: Sequence[LineString], nodes: Sequence[NodeKey]) -> List[LineString]:
     """Orient each edge geometry to follow the node sequence."""
     out: List[LineString] = []
-    for (u, v), ln in zip(zip(nodes[:-1], nodes[1:], strict=True), lines, strict=True):
+    for (u, v), ln in zip(zip(nodes[:-1], nodes[1:]), lines):
         cs = list(ln.coords)
         if cs[0] == u and cs[-1] == v:
             out.append(ln)
@@ -507,7 +504,7 @@ def _build_path_geometry(
     )  # noqa: E501
 
     fulls: List[LineString] = []
-    for u, v in zip(node_path[:-1], node_path[1:], strict=True):
+    for u, v in zip(node_path[:-1], node_path[1:]):
         ed = _min_edge_data(G, u, v)
         geom: LineString = ed["geometry"]
         gcoords = list(geom.coords)
@@ -640,7 +637,7 @@ def export_results(
                 "network_dist_miles",
             ]
         ].copy(),
-        geometry=[Point(xy) for xy in zip(df.x, df.y, strict=True)],
+        geometry=[Point(xy) for xy in zip(df.x, df.y)],
         crs=crs,
     )
     gdf_pts.to_file(out_dir / "deleted_stops.shp")
@@ -686,12 +683,11 @@ def export_stop_maps(
     sidewalks_backdrop = _load_backdrop_layer_for_plots(PLOT_SIDEWALKS_SHP, crs)
 
     # Quick lookups
-    geom_by_id: dict[str, Point] = dict(zip(stops.stop_id.astype(str), stops.geometry, strict=True))
+    geom_by_id: dict[str, Point] = dict(zip(stops.stop_id.astype(str), stops.geometry))
     name_by_id: dict[str, str] = dict(
         zip(
             stops.stop_id.astype(str),
             stops.get("stop_name", pd.Series("", index=stops.index)).astype(str),
-            strict=True,
         )
     )
 
