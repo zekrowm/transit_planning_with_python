@@ -40,13 +40,17 @@ SEARCH_DISTANCE_FEET = 1320.0
 DISTRICT_FIELD = "DISTRICT"
 
 # FAST: local SSD for intermediates
-WORK_DIR = r"temp\gtfs_district_matrix_work"
+WORK_DIR = os.path.abspath(r"temp\gtfs_district_matrix_work")
 WORK_GDB_NAME = "work.gdb"
 
 OUTPUT_EXCEL = r"Path\To\Your\Excel_File.xlsx"
 LOG_DIR = r"Path\To\Your\Logs"
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
+# Optional whitelist of routes to include (matched against route_short_name).
+# Leave as None or an empty list to include all routes in the feed.
+ROUTE_WHITELIST: Optional[Sequence[str]] = None
 
 
 def configure_logging(log_dir: str) -> None:
@@ -330,6 +334,7 @@ def extract_stop_districts(fc: str, district_field: str) -> dict[str, set[str]]:
 def build_route_district_matrix(
     gtfs_data: dict[str, pd.DataFrame],
     stop_to_districts: dict[str, set[str]],
+    route_whitelist: Optional[Sequence[str]] = None,
 ) -> pd.DataFrame:
     """Builds the final route-district matrix DataFrame.
 
@@ -338,6 +343,8 @@ def build_route_district_matrix(
     Args:
         gtfs_data: Dictionary containing GTFS DataFrames (routes, trips, stop_times).
         stop_to_districts: Mapping of stop ID to the set of nearby district IDs.
+        route_whitelist: Optional iterable of route_short_name values to include.
+            If None or empty, all routes in the feed are included.
 
     Returns:
         A pandas DataFrame representing the route-district coverage matrix.
@@ -346,18 +353,30 @@ def build_route_district_matrix(
     trips = gtfs_data["trips"]
     stop_times = gtfs_data["stop_times"]
 
+    if route_whitelist:
+        whitelist = set(route_whitelist)
+        routes = routes[routes["route_short_name"].astype(str).isin(whitelist)]
+        found = set(routes["route_short_name"].astype(str))
+        missing = whitelist - found
+        if missing:
+            logging.warning("Routes in whitelist not found in feed: %s", sorted(missing))
+        if routes.empty:
+            logging.warning("Whitelist filtered out every route; output will be empty.")
+        kept_route_ids = set(routes["route_id"].astype(str))
+        trips = trips[trips["route_id"].astype(str).isin(kept_route_ids)]
+
     route_name = dict(
         zip(
             routes["route_id"].astype(str),
             routes["route_short_name"].astype(str),
-            strict=True,
+            strict=False,
         )
     )
     trip_route = dict(
         zip(
             trips["trip_id"].astype(str),
             trips["route_id"].astype(str),
-            strict=True,
+            strict=False,
         )
     )
 
@@ -385,6 +404,26 @@ def build_route_district_matrix(
     return pd.DataFrame(rows)
 
 
+def build_district_route_list(matrix: pd.DataFrame) -> pd.DataFrame:
+    """Inverts the route-district matrix into one row per district.
+
+    Args:
+        matrix: Output of build_route_district_matrix — one row per route,
+            one column per district, "y"/"n" cells.
+
+    Returns:
+        A DataFrame with two columns: 'district' and 'routes', where 'routes'
+        is a comma-separated list of route_short_names impacting that district.
+        Routes preserve the matrix's existing sort order.
+    """
+    district_cols = [c for c in matrix.columns if c != "route_short_name"]
+    rows: list[dict[str, str]] = []
+    for d in district_cols:
+        impacted = matrix.loc[matrix[d] == "y", "route_short_name"].tolist()
+        rows.append({"district": d, "routes": ", ".join(impacted)})
+    return pd.DataFrame(rows)
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -392,11 +431,6 @@ def build_route_district_matrix(
 
 def main() -> None:
     """Main execution function to run the GTFS-district spatial analysis workflow."""
-    logging.basicConfig(
-        level=LOG_LEVEL,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
     if (
         GTFS_DIR == r"Path\To\Your\GTFS_data"
         or DISTRICTS_FC == r"Path\To\Your\Districts.shp"
@@ -417,8 +451,10 @@ def main() -> None:
     gtfs = load_gtfs_data(GTFS_DIR, GTFS_FILES)
     stops_df = filter_stops(gtfs)
 
-    csv_path = os.path.join(WORK_DIR, "filtered_stops.csv")
+    csv_path = os.path.abspath(os.path.join(WORK_DIR, "filtered_stops.csv"))
     stops_df.to_csv(csv_path, index=False)
+    assert os.path.isfile(csv_path), f"CSV not written: {csv_path}"
+    logging.info("Wrote %s (%d rows)", csv_path, len(stops_df))
 
     stops_wgs84 = csv_to_points(csv_path, work_gdb)
     stops_proj = project_fc(stops_wgs84, work_gdb, TARGET_EPSG, "stops_proj")
@@ -433,10 +469,13 @@ def main() -> None:
     )
 
     stop_to_districts = extract_stop_districts(sj_fc, DISTRICT_FIELD)
-    df = build_route_district_matrix(gtfs, stop_to_districts)
+    df = build_route_district_matrix(gtfs, stop_to_districts, ROUTE_WHITELIST)
+    district_df = build_district_route_list(df)
 
     os.makedirs(os.path.dirname(OUTPUT_EXCEL), exist_ok=True)
-    df.to_excel(OUTPUT_EXCEL, index=False)
+    with pd.ExcelWriter(OUTPUT_EXCEL) as writer:
+        df.to_excel(writer, sheet_name="route_district_matrix", index=False)
+        district_df.to_excel(writer, sheet_name="districts_with_routes", index=False)
     logging.info("Done. Excel written to: %s", OUTPUT_EXCEL)
     logging.info("Script completed successfully.")
 
