@@ -820,6 +820,18 @@ def unique_preserve_order(items: Iterable[str]) -> List[str]:
     return result
 
 
+def _stop_near_shape(
+    stop_key: str,
+    shape: Optional[LineString],
+    stops_gdf_proj: gpd.GeoDataFrame,
+    max_dist_m: float,
+) -> bool:
+    """Return True if stop_key's projected geometry is within max_dist_m of shape."""
+    if shape is None or stop_key not in stops_gdf_proj.index:
+        return False
+    return float(stops_gdf_proj.loc[stop_key, "geometry"].distance(shape)) <= max_dist_m
+
+
 def compare_segments_for_route_pair(
     base_key: RouteKey,
     other_key: RouteKey,
@@ -828,7 +840,7 @@ def compare_segments_for_route_pair(
     shapes_proj: Mapping[RouteKey, LineString],
     stops_gdf_proj: gpd.GeoDataFrame,
     max_shape_hausdorff_m: Optional[float],
-    max_stop_to_shape_m: float,  # unused currently, kept for signature compat
+    max_stop_to_shape_m: float,
     segment_measure_padding_m: float,
 ) -> List[Dict[str, object]]:
     """Compare shared segments between two routes using sequences + shapes.
@@ -844,7 +856,9 @@ def compare_segments_for_route_pair(
       - For segments that pass gating, compare interior subsequences:
           * base_interior = stops between boundaries on the base.
           * other_interior = stops between boundaries on the other.
-          * Any stop present only on one side's interior is flagged.
+          * Any stop present only on one side's interior is flagged, but only
+            if it physically lies near the other route's projected shape
+            (within max_stop_to_shape_m meters).
 
     This generalizes the 2-1-2 pattern to arbitrary interior lengths.
 
@@ -857,8 +871,9 @@ def compare_segments_for_route_pair(
         stops_gdf_proj: Stops GeoDataFrame (PROJECTED_CRS), indexed by stop key.
         max_shape_hausdorff_m: Maximum allowed Hausdorff distance (meters)
             between the two route substrings for a segment to be considered
-            “same corridor”. If None, geometry gating is disabled.
-        max_stop_to_shape_m: Unused (kept for API compatibility).
+            "same corridor". If None, geometry gating is disabled.
+        max_stop_to_shape_m: Maximum distance (meters) from a stop to the
+            other route's shape for it to be retained as a "missing" candidate.
         segment_measure_padding_m: Padding (meters) to extend the segment on
             both sides along each shape when computing the substring.
 
@@ -952,6 +967,25 @@ def compare_segments_for_route_pair(
         stops_only_on_other = [s for s in other_interior_u if s not in set_base_int]
 
         # If there are no unique stops, this segment is consistent.
+        if not stops_only_on_base and not stops_only_on_other:
+            continue
+
+        # Filter false-positive candidates: a stop is only a real "miss" if it
+        # physically lies near the other route's corridor.
+        base_shape_proj = shapes_proj.get(base_key)
+        other_shape_proj = shapes_proj.get(other_key)
+
+        stops_only_on_other = [
+            s
+            for s in stops_only_on_other
+            if _stop_near_shape(s, base_shape_proj, stops_gdf_proj, max_stop_to_shape_m)
+        ]
+        stops_only_on_base = [
+            s
+            for s in stops_only_on_base
+            if _stop_near_shape(s, other_shape_proj, stops_gdf_proj, max_stop_to_shape_m)
+        ]
+
         if not stops_only_on_base and not stops_only_on_other:
             continue
 
