@@ -94,7 +94,7 @@ SUMMARY_TXT_NAME: str = "stop_improvement_summary.txt"
 DETAIL_CSV_NAME: str = "stop_improvement_detail.csv"
 
 # ---- Logging
-LOG_LEVEL: str = "INFO"
+LOG_LEVEL: int = logging.INFO
 
 # =============================================================================
 # REUSABLE HELPERS (copied from utils/gtfs_helpers.py)
@@ -505,10 +505,33 @@ def write_summary_txt(
 # MAIN
 # =============================================================================
 
+_PLACEHOLDER_MARKERS: Tuple[str, ...] = (
+    "path\\to\\your",
+    "path/to/your",
+)
+
+
+def _is_placeholder_path(p: Path) -> bool:
+    """Return True if *p* still points at a default placeholder location."""
+    s = str(p).lower()
+    return any(marker in s for marker in _PLACEHOLDER_MARKERS)
+
 
 def main() -> None:
     """Run the coverage summary pipeline."""
     logging.basicConfig(level=LOG_LEVEL, format="%(levelname)s | %(message)s")
+
+    placeholders = {"GTFS_DIR": GTFS_DIR, "OUTPUT_DIR": OUTPUT_DIR}
+    if IMPROVEMENTS_CSV is not None:
+        placeholders["IMPROVEMENTS_CSV"] = IMPROVEMENTS_CSV
+    unset = [name for name, p in placeholders.items() if _is_placeholder_path(p)]
+    if unset:
+        logging.warning(
+            "Default placeholder paths detected for: %s. "
+            "Update the CONFIGURATION section before running. Exiting.",
+            ", ".join(unset),
+        )
+        return
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -574,6 +597,9 @@ def main() -> None:
                 IMPROVEMENT_COLUMNS,
                 IMPROVEMENT_ALIASES,
             )
+            unmatched = int(
+                (~logical[stop_key_field].isin(improvements_df[IMPROVEMENTS_JOIN_FIELD])).sum()
+            )
             logical = attach_improvements(
                 logical,
                 improvements_df,
@@ -581,11 +607,10 @@ def main() -> None:
                 IMPROVEMENTS_JOIN_FIELD,
                 canonical_cols,
             )
-            unmatched = logical[canonical_cols[0]].isna().sum() if canonical_cols else 0
             if unmatched:
                 logging.warning(
                     "%d logical stops did not match any row in the improvements CSV.",
-                    int(unmatched),
+                    unmatched,
                 )
 
     # 8. Compute summary metrics.
