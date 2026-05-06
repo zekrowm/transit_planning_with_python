@@ -178,8 +178,12 @@ def load_gtfs_data(
 
 def _standardise_yn(series: pd.Series) -> pd.Series:
     """Normalise a Y/N column to uppercase 'Y' or 'N' with no whitespace."""
-    return series.fillna("N").astype(str).str.strip().str.upper().replace(
-        {"YES": "Y", "TRUE": "Y", "1": "Y", "NO": "N", "FALSE": "N", "0": "N"}
+    return (
+        series.fillna("N")
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .replace({"YES": "Y", "TRUE": "Y", "1": "Y", "NO": "N", "FALSE": "N", "0": "N"})
     )
 
 
@@ -436,18 +440,14 @@ def compute_summary(
             "system_count": sys_count,
             "system_pct": (sys_count / total * 100.0) if total else 0.0,
             "whitelist_count": wl_count,
-            "whitelist_pct": (
-                (wl_count / whitelist_total * 100.0) if whitelist_total else 0.0
-            ),
+            "whitelist_pct": ((wl_count / whitelist_total * 100.0) if whitelist_total else 0.0),
         }
 
     return {
         "system_total_stops": total,
         "whitelist_short_names": sorted(whitelist_short_names),
         "whitelist_total_stops": whitelist_total,
-        "whitelist_pct_of_system": (
-            (whitelist_total / total * 100.0) if total else 0.0
-        ),
+        "whitelist_pct_of_system": ((whitelist_total / total * 100.0) if total else 0.0),
         "per_improvement": per_improvement,
         "improvements_supplied": bool(canonical_cols),
     }
@@ -474,15 +474,9 @@ def write_summary_txt(
     if summary["whitelist_short_names"]:
         lines.append("Whitelist (priority) routes")
         lines.append("---------------------------")
-        lines.append(
-            f"Whitelist routes: {', '.join(summary['whitelist_short_names'])}"
-        )
-        lines.append(
-            f"Stops on whitelist routes:    {summary['whitelist_total_stops']:>8,}"
-        )
-        lines.append(
-            f"As % of system total:         {summary['whitelist_pct_of_system']:>7.1f}%"
-        )
+        lines.append(f"Whitelist routes: {', '.join(summary['whitelist_short_names'])}")
+        lines.append(f"Stops on whitelist routes:    {summary['whitelist_total_stops']:>8,}")
+        lines.append(f"As % of system total:         {summary['whitelist_pct_of_system']:>7.1f}%")
         lines.append("")
 
     if summary["improvements_supplied"]:
