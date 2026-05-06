@@ -826,10 +826,10 @@ def _stop_near_shape(
     stops_gdf_proj: gpd.GeoDataFrame,
     max_dist_m: float,
 ) -> bool:
-    “””Return True if stop_key's projected geometry is within max_dist_m of shape.”””
+    """Return True if stop_key's projected geometry is within max_dist_m of shape."""
     if shape is None or stop_key not in stops_gdf_proj.index:
         return False
-    return float(stops_gdf_proj.loc[stop_key, “geometry”].distance(shape)) <= max_dist_m
+    return float(stops_gdf_proj.loc[stop_key, "geometry"].distance(shape)) <= max_dist_m
 
 
 def compare_segments_for_route_pair(
@@ -843,7 +843,7 @@ def compare_segments_for_route_pair(
     max_stop_to_shape_m: float,
     segment_measure_padding_m: float,
 ) -> List[Dict[str, object]]:
-    “””Compare shared segments between two routes using sequences + shapes.
+    """Compare shared segments between two routes using sequences + shapes.
 
     Design:
       - Use logical stop sequences to identify candidate segments:
@@ -871,15 +871,15 @@ def compare_segments_for_route_pair(
         stops_gdf_proj: Stops GeoDataFrame (PROJECTED_CRS), indexed by stop key.
         max_shape_hausdorff_m: Maximum allowed Hausdorff distance (meters)
             between the two route substrings for a segment to be considered
-            “same corridor”. If None, geometry gating is disabled.
+            "same corridor". If None, geometry gating is disabled.
         max_stop_to_shape_m: Maximum distance (meters) from a stop to the
-            other route's shape for it to be retained as a “missing” candidate.
+            other route's shape for it to be retained as a "missing" candidate.
         segment_measure_padding_m: Padding (meters) to extend the segment on
             both sides along each shape when computing the substring.
 
     Returns:
         List of dictionaries describing segment-level stop mismatches.
-    “””
+    """
     base_seq = sequences.get(base_key)
     other_seq = sequences.get(other_key)
     if base_seq is None or other_seq is None:
@@ -976,11 +976,13 @@ def compare_segments_for_route_pair(
         other_shape_proj = shapes_proj.get(other_key)
 
         stops_only_on_other = [
-            s for s in stops_only_on_other
+            s
+            for s in stops_only_on_other
             if _stop_near_shape(s, base_shape_proj, stops_gdf_proj, max_stop_to_shape_m)
         ]
         stops_only_on_base = [
-            s for s in stops_only_on_base
+            s
+            for s in stops_only_on_base
             if _stop_near_shape(s, other_shape_proj, stops_gdf_proj, max_stop_to_shape_m)
         ]
 
