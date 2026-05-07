@@ -960,43 +960,28 @@ def compare_segments_for_route_pair(
         # Filter false-positive candidates: a stop is only a real "miss" if it
         # physically lies near the other route's corridor.
         base_shape_proj = shapes_proj.get(base_key)
-        other_shape_proj = shapes_proj.get(other_key)
 
         stops_only_on_other = [
             s
             for s in stops_only_on_other
             if _stop_near_shape(s, base_shape_proj, stops_gdf_proj, max_stop_to_shape_m)
         ]
-        stops_only_on_base = [
-            s
-            for s in stops_only_on_base
-            if _stop_near_shape(s, other_shape_proj, stops_gdf_proj, max_stop_to_shape_m)
-        ]
 
-        if not stops_only_on_base and not stops_only_on_other:
+        if not stops_only_on_other:  # nothing missing from base in this segment
             continue
 
         results.append(
             {
-                "base_route_id": base_route_id,
-                "base_direction_id": base_dir,
-                "other_route_id": other_route_id,
-                "other_direction_id": other_dir,
-                # Geometry-related field can be filled in later if you want to
-                # record segment_hd; for now, keep schema stable.
-                "shape_hausdorff_distance_m": None,
+                "missing_route_id": base_route_id,
+                "missing_route_direction_id": base_dir,
+                "reference_route_id": other_route_id,
+                "reference_route_direction_id": other_dir,
                 "segment_start_stop_key": start_key,
                 "segment_start_stop_name": stop_names.get(start_key, ""),
                 "segment_end_stop_key": end_key,
                 "segment_end_stop_name": stop_names.get(end_key, ""),
-                "base_segment_stop_keys": ";".join(base_interior_u),
-                "other_segment_stop_keys": ";".join(other_interior_u),
-                "stops_only_on_base": ";".join(stops_only_on_base),
-                "stops_only_on_base_names": ";".join(
-                    stop_names.get(s, "") for s in stops_only_on_base
-                ),
-                "stops_only_on_other": ";".join(stops_only_on_other),
-                "stops_only_on_other_names": ";".join(
+                "candidate_missing_stop_keys": ";".join(stops_only_on_other),
+                "candidate_missing_stop_names": ";".join(
                     stop_names.get(s, "") for s in stops_only_on_other
                 ),
             }
@@ -1080,10 +1065,10 @@ def plot_mismatch_segment(
     Returns:
         Path to the saved PNG file, or None if plotting was not possible.
     """
-    base_route_id = str(row["base_route_id"])
-    base_dir = str(row["base_direction_id"])
-    other_route_id = str(row["other_route_id"])
-    other_dir = str(row["other_direction_id"])
+    base_route_id = str(row["missing_route_id"])
+    base_dir = str(row["missing_route_direction_id"])
+    other_route_id = str(row["reference_route_id"])
+    other_dir = str(row["reference_route_direction_id"])
     start_key = str(row["segment_start_stop_key"])
     end_key = str(row["segment_end_stop_key"])
 
@@ -1112,13 +1097,12 @@ def plot_mismatch_segment(
     base_segment_keys = base_seq[i0 : i1 + 1]
     other_segment_keys = other_seq[j0 : j1 + 1]
 
-    unique_base = set(_parse_semicolon_list(row.get("stops_only_on_base", "")))
-    unique_other = set(_parse_semicolon_list(row.get("stops_only_on_other", "")))
+    candidate_missing = set(_parse_semicolon_list(row.get("candidate_missing_stop_keys", "")))
 
     base_interior = set(base_segment_keys[1:-1])
     other_interior = set(other_segment_keys[1:-1])
 
-    shared_interior = base_interior.intersection(other_interior) - unique_base - unique_other
+    shared_interior = base_interior.intersection(other_interior) - candidate_missing
 
     fig, ax = plt.subplots(figsize=(6, 6))
 
@@ -1171,12 +1155,11 @@ def plot_mismatch_segment(
     # Shared interior stops.
     _scatter_keys(shared_interior, marker=".", size=25, label="shared interior")
 
-    # Unique to base/other.
-    _scatter_keys(unique_base, marker="^", size=45, label="only on base route")
-    _scatter_keys(unique_other, marker="v", size=45, label="only on other route")
+    # Candidate missing stops (on reference route, absent from missing route).
+    _scatter_keys(candidate_missing, marker="v", size=45, label="candidate missing stops")
 
-    # Annotate unique stops (on top of markers).
-    for key in sorted(unique_base.union(unique_other)):
+    # Annotate candidate missing stops.
+    for key in sorted(candidate_missing):
         if key not in stops_gdf_geo.index:
             continue
         pt = stops_gdf_geo.loc[key, "geometry"]
@@ -1718,10 +1701,10 @@ def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
     df = pd.DataFrame(results)
     df = df.sort_values(
         [
-            "base_route_id",
-            "base_direction_id",
-            "other_route_id",
-            "other_direction_id",
+            "missing_route_id",
+            "missing_route_direction_id",
+            "reference_route_id",
+            "reference_route_direction_id",
             "segment_start_stop_key",
             "segment_end_stop_key",
         ]
