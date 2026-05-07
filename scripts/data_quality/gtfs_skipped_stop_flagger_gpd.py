@@ -893,34 +893,21 @@ def compare_segments_for_route_pair(
     if len(shared_stops) < MIN_SHARED_STOPS_FOR_PAIR:
         return []
 
-    # Map each stop in the other sequence to its first index.
-    other_pos: Dict[str, int] = {}
-    for idx, s in enumerate(other_seq):
-        if s not in other_pos:
-            other_pos[s] = idx
-
-    # Shared indices along the base route in base order.
-    base_shared_idx: List[int] = [i for i, s in enumerate(base_seq) if s in other_pos]
-    if len(base_shared_idx) < 2:
+    aligned_pairs = find_aligned_common_stops(base_seq, other_seq)
+    if len(aligned_pairs) < 2:
         return []
 
     results: List[Dict[str, object]] = []
     base_route_id, base_dir = base_key
     other_route_id, other_dir = other_key
 
-    for i0, i1 in zip(base_shared_idx[:-1], base_shared_idx[1:]):
-        # Enforce a minimum span in index space to avoid trivial segments.
+    for (i0, j0), (i1, j1) in zip(aligned_pairs[:-1], aligned_pairs[1:]):
         if i1 - i0 < MIN_SEGMENT_SPAN_STOPS:
             continue
 
         start_key = base_seq[i0]
         end_key = base_seq[i1]
-
-        # The boundaries must appear in the same order in the other sequence.
-        j0 = other_pos.get(start_key)
-        j1 = other_pos.get(end_key)
-        if j0 is None or j1 is None or j0 >= j1:
-            continue
+        # j0, j1 are already aligned; no recheck needed
 
         # Optional segment-level geometry gating.
         if max_shape_hausdorff_m is not None:
