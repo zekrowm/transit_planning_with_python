@@ -1,7 +1,8 @@
 """GTFS stop proximity checker.
 
-Reads GTFS stops.txt and flags stops closer than a configured distance threshold
-(default 50 feet).
+Reads GTFS stops.txt (and optionally stop_times.txt and trips.txt when the
+direction-based filter is enabled) and flags stops closer than a configured
+distance threshold (default 50 feet).
 
 Optionally excludes ("passes") stops whose stop_name contains any configured safe
 words (e.g., "bay", "metro"). When enabled, any close pair where either stop is
@@ -70,7 +71,7 @@ def _meters_to_feet(meters: float) -> float:
 def _approx_xy_meters(
     lat_deg: pd.Series,
     lon_deg: pd.Series,
-) -> tuple[pd.Series, pd.Series, float, float]:
+) -> tuple[pd.Series, pd.Series]:
     """Project lat/lon to local x/y in meters using equirectangular approximation."""
     lat0_rad = math.radians(float(lat_deg.mean()))
     lon0_rad = math.radians(float(lon_deg.mean()))
@@ -80,7 +81,7 @@ def _approx_xy_meters(
 
     x_m = (lon_rad - lon0_rad) * math.cos(lat0_rad) * EARTH_RADIUS_M
     y_m = (lat_rad - lat0_rad) * EARTH_RADIUS_M
-    return x_m, y_m, lat0_rad, lon0_rad
+    return x_m, y_m
 
 
 def _euclid_feet(dx_m: float, dy_m: float) -> float:
@@ -122,7 +123,7 @@ def compile_safe_words_regex(words: list[str], whole_word: bool) -> re.Pattern[s
     """Compile a case-insensitive regex that matches any provided words/phrases."""
     cleaned = [w.strip() for w in words if w and w.strip()]
     if not cleaned:
-        return re.compile(r"a\A", flags=re.IGNORECASE)  # match nothing
+        return re.compile(r"(?!)", flags=re.IGNORECASE)  # match nothing
 
     parts: list[str] = []
     for w in cleaned:
@@ -136,7 +137,7 @@ def add_safe_flag(df: pd.DataFrame, safe_words: list[str], whole_word: bool) -> 
     """Add is_safe_stop flag based on stop_name matching safe words/phrases."""
     rx = compile_safe_words_regex(safe_words, whole_word=whole_word)
     out = df.copy()
-    out["is_safe_stop"] = out["stop_name"].astype(str).map(lambda s: bool(rx.search(s)))
+    out["is_safe_stop"] = out["stop_name"].astype(str).str.contains(rx, na=False)
     return out
 
 
@@ -162,20 +163,13 @@ def validate_gtfs_files_exist(
         return
 
     if files is None:
+        # Only check files this script actually reads. stop_times.txt and
+        # trips.txt are consumed only when the direction filter is enabled,
+        # but a missing stops.txt is always fatal.
         files = (
-            "agency.txt",
             "stops.txt",
-            "routes.txt",
-            "trips.txt",
             "stop_times.txt",
-            "calendar.txt",
-            "calendar_dates.txt",
-            "fare_attributes.txt",
-            "fare_rules.txt",
-            "feed_info.txt",
-            "frequencies.txt",
-            "shapes.txt",
-            "transfers.txt",
+            "trips.txt",
         )
 
     for file_name in files:
@@ -282,6 +276,11 @@ def is_opposite_direction_pair_same_route(
     for r in shared_routes:
         a_dirs = a.get(r, set())
         b_dirs = b.get(r, set())
+        # Intentionally conservative: only suppress a pair when each stop is
+        # served *exclusively* by the opposite direction on this route. Stops
+        # that appear in both directions (terminals, loops, transfer points)
+        # are NOT filtered out, so legitimate missing-stop flags at those
+        # locations are preserved.
         if a_dirs == {0} and b_dirs == {1}:
             return True
         if a_dirs == {1} and b_dirs == {0}:
@@ -307,15 +306,27 @@ def find_close_stop_pairs(
         raise ValueError("Expected stops to include 'is_safe_stop'. Call add_safe_flag() first.")
 
     threshold_m = threshold_feet / FEET_PER_M
-    x_m, y_m, _, _ = _approx_xy_meters(stops["stop_lat"], stops["stop_lon"])
-    work = stops.copy()
-    work["x_m"] = x_m
-    work["y_m"] = y_m
+    x_m, y_m = _approx_xy_meters(stops["stop_lat"], stops["stop_lon"])
+
+    # Reset to a clean 0-based integer index so that the positional indices
+    # stored in the grid correspond exactly to array positions below.
+    work = stops.reset_index(drop=True).copy()
+    work["x_m"] = x_m.to_numpy()
+    work["y_m"] = y_m.to_numpy()
+
+    # Pull columns into numpy arrays for O(1) positional access in the hot loop,
+    # avoiding the per-lookup overhead of pandas .loc and the silent
+    # label-vs-position mismatch that would occur on non-default-indexed input.
+    x_arr = work["x_m"].to_numpy()
+    y_arr = work["y_m"].to_numpy()
+    is_safe_arr = work["is_safe_stop"].to_numpy()
+    stop_id_arr = work["stop_id"].to_numpy()
+    stop_name_arr = work["stop_name"].to_numpy()
 
     params = GridParams(cell_size_m=threshold_m)
 
     grid: dict[tuple[int, int], list[int]] = {}
-    for idx, (xv, yv) in enumerate(zip(work["x_m"], work["y_m"])):
+    for idx, (xv, yv) in enumerate(zip(x_arr, y_arr)):
         cell = _grid_cell(float(xv), float(yv), params.cell_size_m)
         grid.setdefault(cell, []).append(idx)
 
@@ -323,8 +334,8 @@ def find_close_stop_pairs(
     n = len(work)
 
     for i in range(n):
-        xi = float(work.loc[i, "x_m"])
-        yi = float(work.loc[i, "y_m"])
+        xi = float(x_arr[i])
+        yi = float(y_arr[i])
         cell_i = _grid_cell(xi, yi, params.cell_size_m)
 
         for nc in _neighbor_cells(cell_i):
@@ -332,13 +343,13 @@ def find_close_stop_pairs(
                 if j <= i:
                     continue
 
-                i_safe = bool(work.loc[i, "is_safe_stop"])
-                j_safe = bool(work.loc[j, "is_safe_stop"])
+                i_safe = bool(is_safe_arr[i])
+                j_safe = bool(is_safe_arr[j])
                 if pass_safe_stops and (i_safe or j_safe):
                     continue
 
-                stop_id_a = str(work.loc[i, "stop_id"])
-                stop_id_b = str(work.loc[j, "stop_id"])
+                stop_id_a = str(stop_id_arr[i])
+                stop_id_b = str(stop_id_arr[j])
 
                 if exclude_opposite_direction_same_route_pairs and stop_route_dir_index:
                     if is_opposite_direction_pair_same_route(
@@ -348,8 +359,8 @@ def find_close_stop_pairs(
                     ):
                         continue
 
-                dx = float(work.loc[j, "x_m"]) - xi
-                dy = float(work.loc[j, "y_m"]) - yi
+                dx = float(x_arr[j]) - xi
+                dy = float(y_arr[j]) - yi
 
                 if abs(dx) > threshold_m or abs(dy) > threshold_m:
                     continue
@@ -361,10 +372,10 @@ def find_close_stop_pairs(
                 rows.append(
                     {
                         "stop_id_a": stop_id_a,
-                        "stop_name_a": work.loc[i, "stop_name"],
+                        "stop_name_a": stop_name_arr[i],
                         "is_safe_a": i_safe,
                         "stop_id_b": stop_id_b,
-                        "stop_name_b": work.loc[j, "stop_name"],
+                        "stop_name_b": stop_name_arr[j],
                         "is_safe_b": j_safe,
                         "distance_feet": round(dist_ft, 2),
                         "threshold_feet": threshold_feet,
