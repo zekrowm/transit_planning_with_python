@@ -1047,9 +1047,9 @@ def aggregate_candidates(df: pd.DataFrame) -> pd.DataFrame:
     """
     if df.empty:
         return df
-    exploded = df.assign(
-        stop_key=df["candidate_missing_stop_keys"].str.split(";")
-    ).explode("stop_key")
+    exploded = df.assign(stop_key=df["candidate_missing_stop_keys"].str.split(";")).explode(
+        "stop_key"
+    )
     exploded = exploded[exploded["stop_key"].astype(bool)]
     agg = (
         exploded.groupby(
