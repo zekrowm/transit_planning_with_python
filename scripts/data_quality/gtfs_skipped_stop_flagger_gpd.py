@@ -23,8 +23,10 @@ Configuration section below.
 
 from __future__ import annotations
 
+import itertools
 import logging
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
@@ -52,8 +54,11 @@ GTFS_DIR = Path("/path/to/gtfs_directory")
 OUTPUT_DIR = Path("./output/gtfs_skipped_stop_flagger")
 OUTPUT_FILENAME = "skipped_stop_segments.csv"
 
-# Optional: a second CSV for the barebones 2-1-2 diagnostic, if you keep it.
-BAREBONES_2_1_2_FILENAME = "barebones_2_1_2_patterns.csv"
+# Aggregated per-stop suspicion scores (one row per missing route + candidate stop).
+AGGREGATE_FILENAME = "stop_suspicion_scores.csv"
+
+# Intra-route trip-level skipped-stop findings.
+INTRA_ROUTE_FILENAME = "intra_route_skipped_stops.csv"
 
 # Subfolder for PNG plots.
 PLOT_DIR = OUTPUT_DIR / "segment_plots"
@@ -991,6 +996,140 @@ def compare_segments_for_route_pair(
 
 
 # =============================================================================
+# Direction alignment, aggregation, and intra-route analysis
+# =============================================================================
+
+
+def sequences_are_reversed(base_seq: Sequence[str], other_seq: Sequence[str]) -> bool:
+    """Return True if other_seq runs in the opposite direction to base_seq.
+
+    Uses position-pair concordance/discordance on shared stops (Kendall-tau
+    sign test).  Returns False when fewer than 2 shared stops exist.
+
+    Args:
+        base_seq: Ordered stop keys for the base route.
+        other_seq: Ordered stop keys for the other route.
+
+    Returns:
+        True if discordant pairs outnumber concordant pairs.
+    """
+    base_pos = {s: i for i, s in enumerate(base_seq)}
+    other_pos = {s: i for i, s in enumerate(other_seq)}
+    shared = set(base_pos) & set(other_pos)
+    if len(shared) < 2:
+        return False
+    pairs = [(base_pos[s], other_pos[s]) for s in shared]
+    concordant = discordant = 0
+    for (a1, b1), (a2, b2) in itertools.combinations(pairs, 2):
+        d = (a1 - a2) * (b1 - b2)
+        if d > 0:
+            concordant += 1
+        elif d < 0:
+            discordant += 1
+    return discordant > concordant
+
+
+def aggregate_candidates(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate segment-level flags into a per-stop suspicion score.
+
+    Each row in the output describes a single (missing_route_id,
+    missing_route_direction_id, stop_key) triple and reports how many
+    distinct reference routes also serve that stop.  A stop corroborated
+    by many reference routes is more suspicious than one flagged by a single
+    reference.
+
+    Args:
+        df: Segment-level mismatch DataFrame produced by run_segment_comparison.
+
+    Returns:
+        Aggregated DataFrame sorted by n_reference_routes descending, or the
+        original (empty) DataFrame if input is empty.
+    """
+    if df.empty:
+        return df
+    exploded = df.assign(stop_key=df["candidate_missing_stop_keys"].str.split(";")).explode(
+        "stop_key"
+    )
+    exploded = exploded[exploded["stop_key"].astype(bool)]
+    agg = (
+        exploded.groupby(
+            ["missing_route_id", "missing_route_direction_id", "stop_key"],
+            as_index=False,
+        )
+        .agg(
+            n_reference_routes=("reference_route_id", "nunique"),
+            reference_route_ids=(
+                "reference_route_id",
+                lambda s: ";".join(sorted(set(s))),
+            ),
+            example_segments=("segment_start_stop_key", "count"),
+        )
+        .sort_values("n_reference_routes", ascending=False)
+    )
+    return agg
+
+
+def find_intra_route_skipped_stops(
+    trips_df: pd.DataFrame,
+    stop_times_df: pd.DataFrame,
+    stop_key_lookup: Mapping[str, str],
+) -> pd.DataFrame:
+    """Detect trips that skip stops their siblings on the same route serve.
+
+    For each (route_id, direction_id) the modal stop sequence (most common
+    ordered tuple of stop keys) is treated as canonical.  Any trip whose
+    sequence is a strict subset of the canonical sequence — and whose first
+    and last stops match the canonical first and last — is flagged for the
+    stops it omits.  Genuine short-turn or branched patterns are excluded by
+    the first/last stop guard.
+
+    Args:
+        trips_df: DataFrame from trips.txt (must include route_id, direction_id,
+            trip_id).
+        stop_times_df: DataFrame from stop_times.txt (must include trip_id,
+            stop_id, stop_sequence).
+        stop_key_lookup: Mapping from stop_id to logical stop key.
+
+    Returns:
+        DataFrame with columns: route_id, direction_id, trip_id,
+        n_canonical_trips, missing_stop_keys.
+    """
+    merged = stop_times_df.merge(
+        trips_df[["trip_id", "route_id", "direction_id"]], on="trip_id"
+    ).sort_values(["trip_id", "stop_sequence"])
+    merged["stop_key"] = merged["stop_id"].map(stop_key_lookup)
+    merged = merged.dropna(subset=["stop_key"])
+
+    trip_seqs = merged.groupby(["route_id", "direction_id", "trip_id"])["stop_key"].apply(
+        lambda s: tuple(s)
+    )
+
+    rows: List[Dict[str, object]] = []
+    for (rid, did), group in trip_seqs.groupby(level=[0, 1]):
+        seqs = group.tolist()
+        counter: Counter = Counter(seqs)
+        canonical, n_canonical = counter.most_common(1)[0]
+        canonical_set = set(canonical)
+        for trip_id, seq in zip(group.index.get_level_values("trip_id"), seqs):
+            if seq == canonical:
+                continue
+            if not seq or seq[0] != canonical[0] or seq[-1] != canonical[-1]:
+                continue  # genuine short-turn or branch
+            missing = canonical_set - set(seq)
+            if missing:
+                rows.append(
+                    {
+                        "route_id": rid,
+                        "direction_id": did,
+                        "trip_id": trip_id,
+                        "n_canonical_trips": n_canonical,
+                        "missing_stop_keys": ";".join(sorted(missing)),
+                    }
+                )
+    return pd.DataFrame(rows)
+
+
+# =============================================================================
 # Plotting helpers
 # =============================================================================
 
@@ -1679,12 +1818,34 @@ def run_segment_comparison(ctx: GTFSContext) -> pd.DataFrame:
             if shares_only_terminal_stops(base_seq, other_seq):
                 continue
 
+            # Fix 6: if the other route runs the corridor in the opposite
+            # direction, reverse its sequence (and shape) before comparing so
+            # that aligned shared-stop pairs are found correctly.
+            if sequences_are_reversed(base_seq, other_seq):
+                effective_other_seq: Sequence[str] = list(reversed(other_seq))
+                raw_other_shape = ctx.route_shapes_proj.get(other_key)
+                effective_shapes_proj: Mapping[RouteKey, LineString] = {
+                    **ctx.route_shapes_proj,
+                    other_key: (
+                        LineString(list(raw_other_shape.coords)[::-1])
+                        if raw_other_shape is not None
+                        else raw_other_shape
+                    ),
+                }
+                effective_sequences: Mapping[RouteKey, Sequence[str]] = {
+                    **ctx.route_sequences,
+                    other_key: effective_other_seq,
+                }
+            else:
+                effective_sequences = ctx.route_sequences
+                effective_shapes_proj = ctx.route_shapes_proj
+
             segment_results = compare_segments_for_route_pair(
                 base_key=base_key,
                 other_key=other_key,
-                sequences=ctx.route_sequences,
+                sequences=effective_sequences,
                 stop_names=ctx.stop_names,
-                shapes_proj=ctx.route_shapes_proj,
+                shapes_proj=effective_shapes_proj,
                 stops_gdf_proj=ctx.stops_gdf_proj,
                 max_shape_hausdorff_m=MAX_SHAPE_HAUSDORFF_M,
                 max_stop_to_shape_m=MAX_STOP_TO_SHAPE_M,
@@ -1812,10 +1973,26 @@ def main() -> None:
         logging.error("Error during segment comparison: %s", exc)
         sys.exit(1)
 
-    # Always write the CSV, even if it's empty.
+    # Always write the segment-level CSV, even if it's empty.
     output_path = OUTPUT_DIR / OUTPUT_FILENAME
     mismatches_df.to_csv(output_path, index=False)
     logging.info("Results exported to: %s", output_path)
+
+    # Fix 4: aggregate per-stop suspicion scores and write to a second CSV.
+    aggregate_df = aggregate_candidates(mismatches_df)
+    agg_path = OUTPUT_DIR / AGGREGATE_FILENAME
+    aggregate_df.to_csv(agg_path, index=False)
+    logging.info("Stop suspicion scores exported to: %s", agg_path)
+
+    # Fix 5: intra-route trip-level skipped-stop check, written to a third CSV.
+    intra_route_df = find_intra_route_skipped_stops(
+        trips_df=ctx.trips_df,
+        stop_times_df=ctx.stop_times_df,
+        stop_key_lookup=ctx.stop_key_lookup,
+    )
+    intra_path = OUTPUT_DIR / INTRA_ROUTE_FILENAME
+    intra_route_df.to_csv(intra_path, index=False)
+    logging.info("Intra-route skipped stops exported to: %s", intra_path)
 
     # Always run plotting; it already knows how to handle the empty case.
     run_plotting(ctx, mismatches_df)
