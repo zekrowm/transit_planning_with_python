@@ -114,9 +114,7 @@ def _deg_tolerance_for_meters(lat_deg: float, tol_m: float) -> tuple[float, floa
     return (tol_lon_deg, tol_lat_deg)
 
 
-def _pandas_dedupe_stops(
-    src_stops: str, keys: Sequence[str], xy_tol_m: float
-) -> pd.DataFrame:
+def _pandas_dedupe_stops(src_stops: str, keys: Sequence[str], xy_tol_m: float) -> pd.DataFrame:
     """Read stops.txt with pandas and return a deduplicated DataFrame.
 
     Args:
@@ -178,9 +176,7 @@ def _load_context(path: str, analysis_crs: str) -> Optional[gpd.GeoDataFrame]:
         return None
     gdf = gpd.read_file(path)
     if gdf.crs is None:
-        logging.warning(
-            "Context layer has no CRS; assuming it matches the analysis CRS: %s", path
-        )
+        logging.warning("Context layer has no CRS; assuming it matches the analysis CRS: %s", path)
         gdf = gdf.set_crs(analysis_crs)
     elif str(gdf.crs) != str(analysis_crs):
         gdf = gdf.to_crs(analysis_crs)
@@ -208,9 +204,7 @@ def _flag_intersections(
     return stops_gdf
 
 
-def _add_conflict_summary(
-    stops_gdf: gpd.GeoDataFrame, flags: Sequence[str]
-) -> gpd.GeoDataFrame:
+def _add_conflict_summary(stops_gdf: gpd.GeoDataFrame, flags: Sequence[str]) -> gpd.GeoDataFrame:
     """Add ``conflict_types`` (comma-joined) and ``has_conflict`` columns."""
     flag_df = stops_gdf[list(flags)].fillna(0).astype(int)
     stops_gdf["conflict_types"] = flag_df.apply(
@@ -224,8 +218,8 @@ def _add_conflict_summary(
 def _add_lon_lat(stops_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Add WGS84 lon/lat columns for CSV convenience."""
     wgs = stops_gdf.geometry.to_crs(WGS84_CRS)
-    stops_gdf["lon"] = wgs.x.values
-    stops_gdf["lat"] = wgs.y.values
+    stops_gdf["lon"] = wgs.x.to_numpy()
+    stops_gdf["lat"] = wgs.y.to_numpy()
     return stops_gdf
 
 
@@ -313,15 +307,9 @@ def main() -> None:
 
     work_gdf = stops_gdf.copy()
 
-    work_gdf = _flag_intersections(
-        work_gdf, road_gdf if FLAG_ROADWAYS else None, "in_roadway"
-    )
-    work_gdf = _flag_intersections(
-        work_gdf, drv_gdf if FLAG_DRIVEWAYS else None, "in_driveway"
-    )
-    work_gdf = _flag_intersections(
-        work_gdf, bld_gdf if FLAG_BUILDINGS else None, "in_building"
-    )
+    work_gdf = _flag_intersections(work_gdf, road_gdf if FLAG_ROADWAYS else None, "in_roadway")
+    work_gdf = _flag_intersections(work_gdf, drv_gdf if FLAG_DRIVEWAYS else None, "in_driveway")
+    work_gdf = _flag_intersections(work_gdf, bld_gdf if FLAG_BUILDINGS else None, "in_building")
 
     flags: list[str] = ["in_roadway", "in_driveway", "in_building"]
     work_gdf = _add_conflict_summary(work_gdf, flags)
