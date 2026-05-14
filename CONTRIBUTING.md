@@ -22,6 +22,7 @@ Participation is welcome from anyone, whether you’re new to Python, an experie
 - Include a clear **configuration section at the top** of each script.
   - Prefer inline variable configuration over `argparse`.
 - Use intuitive success messages (`logging`) at the end of script execution.
+- Scripts that write an output file **must** also write a `_runlog.txt` sidecar next to that file. The sidecar captures the CONFIGURATION block verbatim (bounded by `# === BEGIN CONFIG ===` / `# === END CONFIG ===` markers) plus a timestamp and source-script path. This creates a drift-proof record that lets anyone reconstruct exactly what settings produced a given output. See `scripts/ridership_tools/data_request_by_stop_processor.py` for the reference implementation (`extract_config_block` / `write_run_log`).
 - Do **not import** functions from the shared `utils/` directory at runtime.
   - Instead, **copy the relevant helper functions** into your script.
   - This keeps each script self-contained and easier for beginners to understand, run, and modify.
@@ -32,6 +33,7 @@ Participation is welcome from anyone, whether you’re new to Python, an experie
 - Prefer the `logging` module over `print()` for all success messages, diagnostics, or warnings.
 - Implement **graceful, actionable error handling** — no cryptic tracebacks.
 - Use placeholder filenames that are clean, minimal, and safe to run (e.g., r"Path\\To\\Output_Folder", "input_data.csv").
+- **Run logs are required.** Any script that produces an output file must write a matching `_runlog.txt` sidecar (same directory, same stem). A `REQUIRE_RUN_LOG: bool = True` config variable controls enforcement: when `True` (the default), a failed log write aborts the script so analysts are never left with an untraced output. Set it to `False` only when writing to a genuinely read-only location.
 - Default to:
   - **Washington, DC CRS** unless otherwise noted (chosen because DC is the U.S. capital).
   - **Imperial units** (feet/miles), with metric option available and clearly noted.
@@ -59,6 +61,7 @@ New or modified scripts under `scripts/` **must be manually tested** before open
 - [ ] Script runs end-to-end with appropriate logging output.
 - [ ] Configuration section at the top is clear and minimal; defaults produce a safe no-op or sample run.
 - [ ] Input/output paths are valid; exported files are created with expected names and sizes.
+- [ ] A `_runlog.txt` sidecar is created alongside the output file and contains the correct configuration block, timestamp, and source path.
 - [ ] Error messages are actionable (no cryptic tracebacks for expected user mistakes).
 - [ ] Runtime is reasonable on a small sample dataset; no hidden network or large temporary files.
 
