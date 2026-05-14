@@ -20,6 +20,8 @@ from __future__ import annotations
 import datetime as dt
 import logging
 import os
+import sys
+from pathlib import Path
 from typing import Final
 
 import pandas as pd
@@ -27,9 +29,17 @@ from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
+# Sentinel markers used by extract_config_block / write_run_log to identify
+# the configuration block within this file's source. Each string must appear
+# exactly once in this file as a stand-alone comment line (other than these
+# constant definitions themselves). Edit with care.
+CONFIG_BEGIN_MARKER: str = "# === BEGIN CONFIG ==="
+CONFIG_END_MARKER: str = "# === END CONFIG ==="
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+# === BEGIN CONFIG ===
 
 INPUT_FILE: Final[str] = r"File\Path\To\Your\STATISTICS_BY_ROUTE_AND_TRIP.XLSX"
 OUTPUT_FILE: Final[str] = INPUT_FILE.replace(".XLSX", "_processed.xlsx")
@@ -56,6 +66,12 @@ WRITE_VIOLATION_LOG: Final[bool] = True
 VIOLATION_LOG_FILE: Final[str] = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
+# When True, a failed run-log write aborts the script so the analyst is never
+# left with an output workbook that lacks a matching configuration record.
+REQUIRE_RUN_LOG: bool = True
+
+# === END CONFIG ===
 
 # =============================================================================
 # FUNCTIONS
@@ -409,6 +425,78 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
 
 
 # =============================================================================
+# RUN LOG
+# =============================================================================
+
+
+def extract_config_block(source_file: Path) -> str:
+    """Return the text between the CONFIG markers in *source_file*.
+
+    Raises:
+        ValueError: If either marker is missing or they appear out of order.
+        OSError: If ``source_file`` cannot be read.
+    """
+    lines: list[str] = source_file.read_text(encoding="utf-8").splitlines()
+
+    begin_idx: int | None = None
+    end_idx: int | None = None
+    for i, line in enumerate(lines):
+        stripped: str = line.strip()
+        if begin_idx is None and stripped == CONFIG_BEGIN_MARKER:
+            begin_idx = i
+        elif begin_idx is not None and stripped == CONFIG_END_MARKER:
+            end_idx = i
+            break
+
+    if begin_idx is None or end_idx is None:
+        raise ValueError(
+            f"Config markers not found in '{source_file}'. "
+            f"Expected '{CONFIG_BEGIN_MARKER}' and '{CONFIG_END_MARKER}'."
+        )
+
+    return "\n".join(lines[begin_idx + 1 : end_idx])
+
+
+def write_run_log(output_file: str) -> bool:
+    """Write a sidecar _runlog.txt alongside *output_file* capturing the config block.
+
+    Returns:
+        ``True`` if the log was written successfully, ``False`` otherwise.
+    """
+    out_path = Path(output_file)
+    log_path = out_path.with_name(f"{out_path.stem}_runlog.txt")
+
+    try:
+        config_text: str = extract_config_block(Path(__file__))
+    except (OSError, ValueError) as exc:
+        logging.error("Could not extract config block for run log: %s", exc)
+        return False
+
+    lines: list[str] = [
+        "=" * 72,
+        "LOAD FACTOR MONITOR RUN LOG",
+        "=" * 72,
+        f"Run timestamp:   {dt.datetime.now().isoformat(timespec='seconds')}",
+        f"Output file:     {output_file}",
+        f"Source script:   {Path(__file__).resolve()}",
+        "",
+        "-" * 72,
+        "CONFIGURATION (verbatim from source)",
+        "-" * 72,
+        config_text,
+        "=" * 72,
+    ]
+
+    try:
+        log_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        logging.info("Run log saved to '%s'.", log_path)
+        return True
+    except OSError as exc:
+        logging.error("Error writing run log: %s", exc)
+        return False
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -468,6 +556,13 @@ def main() -> None:
     # -------------------------------------------------------------------------
     if WRITE_VIOLATION_LOG:
         write_violation_log(processed_data, VIOLATION_LOG_FILE)
+
+    if not write_run_log(OUTPUT_FILE) and REQUIRE_RUN_LOG:
+        logging.error(
+            "Run log could not be written. Set REQUIRE_RUN_LOG = False to "
+            "suppress this error when a sidecar file is genuinely impossible."
+        )
+        sys.exit(1)
 
     logging.info("Script completed successfully.")
 

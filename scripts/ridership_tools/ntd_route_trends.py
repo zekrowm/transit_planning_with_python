@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -34,9 +35,17 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# Sentinel markers used by extract_config_block / write_run_log to identify
+# the configuration block within this file's source. Each string must appear
+# exactly once in this file as a stand-alone comment line (other than these
+# constant definitions themselves). Edit with care.
+CONFIG_BEGIN_MARKER: str = "# === BEGIN CONFIG ==="
+CONFIG_END_MARKER: str = "# === END CONFIG ==="
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+# === BEGIN CONFIG ===
 
 DATA_ROOT: Final[Path] = Path(r"Path\To\Your\Input_Folder")
 OUTPUT_ROOT: Final[Path] = Path(r"Path\To\Your\Output_Folder")
@@ -56,6 +65,12 @@ PROMPT_FOR_FIXES: Final[bool] = False
 
 # Logging level (INFO recommended; DEBUG if troubleshooting).
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
+# When True, a failed run-log write aborts the script so the analyst is never
+# left with an output directory that lacks a matching configuration record.
+REQUIRE_RUN_LOG: bool = True
+
+# === END CONFIG ===
 
 # Required columns for this simplified workflow.
 REQUIRED_COLS: Final[list[str]] = ["ROUTE_NAME", "SERVICE_PERIOD", "MTH_BOARD", "DAYS"]
@@ -624,6 +639,77 @@ def export_route(
 
 
 # =============================================================================
+# RUN LOG
+# =============================================================================
+
+
+def extract_config_block(source_file: Path) -> str:
+    """Return the text between the CONFIG markers in *source_file*.
+
+    Raises:
+        ValueError: If either marker is missing or they appear out of order.
+        OSError: If ``source_file`` cannot be read.
+    """
+    lines: list[str] = source_file.read_text(encoding="utf-8").splitlines()
+
+    begin_idx: int | None = None
+    end_idx: int | None = None
+    for i, line in enumerate(lines):
+        stripped: str = line.strip()
+        if begin_idx is None and stripped == CONFIG_BEGIN_MARKER:
+            begin_idx = i
+        elif begin_idx is not None and stripped == CONFIG_END_MARKER:
+            end_idx = i
+            break
+
+    if begin_idx is None or end_idx is None:
+        raise ValueError(
+            f"Config markers not found in '{source_file}'. "
+            f"Expected '{CONFIG_BEGIN_MARKER}' and '{CONFIG_END_MARKER}'."
+        )
+
+    return "\n".join(lines[begin_idx + 1 : end_idx])
+
+
+def write_run_log(output_dir: Path) -> bool:
+    """Write a run log of the configuration block into *output_dir*.
+
+    Returns:
+        ``True`` if the log was written successfully, ``False`` otherwise.
+    """
+    log_path = output_dir / "ntd_route_trends_runlog.txt"
+
+    try:
+        config_text: str = extract_config_block(Path(__file__))
+    except (OSError, ValueError) as exc:
+        logging.error("Could not extract config block for run log: %s", exc)
+        return False
+
+    lines: list[str] = [
+        "=" * 72,
+        "NTD ROUTE TRENDS RUN LOG",
+        "=" * 72,
+        f"Run timestamp:    {datetime.now().isoformat(timespec='seconds')}",
+        f"Output directory: {output_dir}",
+        f"Source script:    {Path(__file__).resolve()}",
+        "",
+        "-" * 72,
+        "CONFIGURATION (verbatim from source)",
+        "-" * 72,
+        config_text,
+        "=" * 72,
+    ]
+
+    try:
+        log_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        logging.info("Run log saved to '%s'.", log_path)
+        return True
+    except OSError as exc:
+        logging.error("Error writing run log: %s", exc)
+        return False
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -675,6 +761,13 @@ def main() -> None:
     monthly_long.to_csv(combined_dir / "all_routes_monthly_long.csv", index=False)
     wide.to_csv(combined_dir / "all_routes_monthly_wide.csv", index=False)
     flags.to_csv(combined_dir / "all_routes_outage_flags.csv", index=False)
+
+    if not write_run_log(OUTPUT_ROOT) and REQUIRE_RUN_LOG:
+        logging.error(
+            "Run log could not be written. Set REQUIRE_RUN_LOG = False to "
+            "suppress this error when a sidecar file is genuinely impossible."
+        )
+        sys.exit(1)
 
     logging.info("Done. Outputs written to: %s", OUTPUT_ROOT)
     logging.info("Script completed successfully.")

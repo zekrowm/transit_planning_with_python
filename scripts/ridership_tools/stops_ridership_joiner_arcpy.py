@@ -15,14 +15,25 @@ Typical use:
 import csv
 import logging
 import os
+import sys
+from datetime import datetime
+from pathlib import Path
 from typing import List, Tuple
 
 import arcpy
 import pandas as pd
 
+# Sentinel markers used by extract_config_block / write_run_log to identify
+# the configuration block within this file's source. Each string must appear
+# exactly once in this file as a stand-alone comment line (other than these
+# constant definitions themselves). Edit with care.
+CONFIG_BEGIN_MARKER: str = "# === BEGIN CONFIG ==="
+CONFIG_END_MARKER: str = "# === END CONFIG ==="
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+# === BEGIN CONFIG ===
 
 # INPUTS --------------------------------------------------------------------
 # Bus stops can be either a .shp or GTFS stops.txt
@@ -72,6 +83,12 @@ IS_GTFS_INPUT = BUS_STOPS_INPUT.lower().endswith(".txt")
 arcpy.env.overwriteOutput = True
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
+# When True, a failed run-log write aborts the script so the analyst is never
+# left with outputs that lack a matching configuration record.
+REQUIRE_RUN_LOG: bool = True
+
+# === END CONFIG ===
 
 # =============================================================================
 # FUNCTIONS
@@ -448,6 +465,77 @@ def process_stops_for_single_run() -> None:
 
 
 # =============================================================================
+# RUN LOG
+# =============================================================================
+
+
+def extract_config_block(source_file: Path) -> str:
+    """Return the text between the CONFIG markers in *source_file*.
+
+    Raises:
+        ValueError: If either marker is missing or they appear out of order.
+        OSError: If ``source_file`` cannot be read.
+    """
+    lines: list[str] = source_file.read_text(encoding="utf-8").splitlines()
+
+    begin_idx: int | None = None
+    end_idx: int | None = None
+    for i, line in enumerate(lines):
+        stripped: str = line.strip()
+        if begin_idx is None and stripped == CONFIG_BEGIN_MARKER:
+            begin_idx = i
+        elif begin_idx is not None and stripped == CONFIG_END_MARKER:
+            end_idx = i
+            break
+
+    if begin_idx is None or end_idx is None:
+        raise ValueError(
+            f"Config markers not found in '{source_file}'. "
+            f"Expected '{CONFIG_BEGIN_MARKER}' and '{CONFIG_END_MARKER}'."
+        )
+
+    return "\n".join(lines[begin_idx + 1 : end_idx])
+
+
+def write_run_log(output_folder: str) -> bool:
+    """Write a run log of the configuration block into *output_folder*.
+
+    Returns:
+        ``True`` if the log was written successfully, ``False`` otherwise.
+    """
+    log_path = Path(output_folder) / "stops_ridership_joiner_arcpy_runlog.txt"
+
+    try:
+        config_text: str = extract_config_block(Path(__file__))
+    except (OSError, ValueError) as exc:
+        logging.error("Could not extract config block for run log: %s", exc)
+        return False
+
+    lines: list[str] = [
+        "=" * 72,
+        "STOPS RIDERSHIP JOINER (ARCPY) RUN LOG",
+        "=" * 72,
+        f"Run timestamp:    {datetime.now().isoformat(timespec='seconds')}",
+        f"Output folder:    {output_folder}",
+        f"Source script:    {Path(__file__).resolve()}",
+        "",
+        "-" * 72,
+        "CONFIGURATION (verbatim from source)",
+        "-" * 72,
+        config_text,
+        "=" * 72,
+    ]
+
+    try:
+        log_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        logging.info("Run log saved to '%s'.", log_path)
+        return True
+    except OSError as exc:
+        logging.error("Error writing run log: %s", exc)
+        return False
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -560,6 +648,13 @@ def main() -> None:
         aggregate_ridership(df_excel)
 
         logging.info("Per-route process complete.")
+
+    if not write_run_log(OUTPUT_FOLDER) and REQUIRE_RUN_LOG:
+        logging.error(
+            "Run log could not be written. Set REQUIRE_RUN_LOG = False to "
+            "suppress this error when a sidecar file is genuinely impossible."
+        )
+        sys.exit(1)
 
     logging.info("Script completed successfully.")
 
