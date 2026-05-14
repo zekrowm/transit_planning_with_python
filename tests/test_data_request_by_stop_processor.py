@@ -15,6 +15,64 @@ import data_request_by_stop_processor as target  # noqa: E402
 FIXTURE_PATH = Path("tests/fixtures/ridership_by_route_and_stop.csv")
 
 
+def test_extract_config_block(tmp_path: Path) -> None:
+    """extract_config_block returns only the lines between the two markers."""
+    source = tmp_path / "script.py"
+    source.write_text(
+        "# preamble\n"
+        "# === BEGIN CONFIG ===\n"
+        "KEY = 1\n"
+        "OTHER = 2\n"
+        "# === END CONFIG ===\n"
+        "# epilogue\n",
+        encoding="utf-8",
+    )
+    block = target.extract_config_block(source)
+    assert "KEY = 1" in block
+    assert "OTHER = 2" in block
+    assert "preamble" not in block
+    assert "epilogue" not in block
+    assert "BEGIN CONFIG" not in block
+    assert "END CONFIG" not in block
+
+
+def test_extract_config_block_missing_markers(tmp_path: Path) -> None:
+    """extract_config_block raises ValueError when markers are absent."""
+    source = tmp_path / "script.py"
+    source.write_text("KEY = 1\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="Config markers not found"):
+        target.extract_config_block(source)
+
+
+def test_write_run_log_creates_file(tmp_path: Path) -> None:
+    """write_run_log writes a _runlog.txt next to the output file."""
+    output_file = tmp_path / "output.xlsx"
+    log_path = tmp_path / "output_runlog.txt"
+
+    with patch("data_request_by_stop_processor.extract_config_block", return_value="KEY = 1"):
+        result = target.write_run_log(output_file)
+
+    assert result is True
+    assert log_path.exists()
+    content = log_path.read_text(encoding="utf-8")
+    assert "RIDERSHIP PROCESSING RUN LOG" in content
+    assert "KEY = 1" in content
+    assert str(output_file) in content
+
+
+def test_write_run_log_returns_false_on_io_error(tmp_path: Path) -> None:
+    """write_run_log returns False (and logs) when the file cannot be written."""
+    output_file = tmp_path / "output.xlsx"
+
+    with (
+        patch("data_request_by_stop_processor.extract_config_block", return_value="K=1"),
+        patch("pathlib.Path.write_text", side_effect=OSError("disk full")),
+    ):
+        result = target.write_run_log(output_file)
+
+    assert result is False
+
+
 def test_full_processing_integration() -> None:
     """Verify the full processing pipeline using the CSV fixture."""
     # 1. Load the fixture data
@@ -28,6 +86,7 @@ def test_full_processing_integration() -> None:
     with (
         patch("data_request_by_stop_processor.read_excel_file") as mock_read,
         patch("data_request_by_stop_processor.write_to_excel") as mock_write,
+        patch("data_request_by_stop_processor.write_run_log", return_value=True),
         patch("data_request_by_stop_processor.INPUT_FILE_PATH", Path("dummy_input.xlsx")),
         patch("data_request_by_stop_processor.OUTPUT_DIR", Path("dummy_output")),
         patch("data_request_by_stop_processor.ROUTES", []),

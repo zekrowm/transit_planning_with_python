@@ -11,6 +11,14 @@ with Stop Code, Stop Name, Latitude, Longitude, Boardings, Alightings, and Total
 A ``Summary`` sheet is also written that compares the post-filter selection
 against the full input dataset (stop counts and total ridership, with percents).
 
+A sidecar ``_runlog.txt`` is written alongside the output workbook, capturing
+the CONFIGURATION block of this script verbatim (the text between the
+``# === BEGIN CONFIG ===`` and ``# === END CONFIG ===`` markers) along with a
+timestamp and source-script path. This provides a permanent, drift-proof record
+of the settings used to produce each output. Treat the run log as a required
+deliverable — set ``REQUIRE_RUN_LOG = False`` only when writing to a location
+where a sidecar file is genuinely impossible.
+
 The script is designed for analysts and data scientists who need a quick and
 repeatable tool for ad-hoc stop ridership data requests, and it is suitable
 for use in environments like ArcGIS Pro or Jupyter Notebooks.
@@ -21,6 +29,7 @@ from __future__ import annotations
 import logging
 import sys
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple
 
@@ -29,9 +38,17 @@ from openpyxl import load_workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 
+# Sentinel markers used by extract_config_block / write_run_log to identify
+# the configuration block within this file's source. Each string must appear
+# exactly once in this file as a stand-alone comment line (other than these
+# constant definitions themselves). Edit with care.
+CONFIG_BEGIN_MARKER: str = "# === BEGIN CONFIG ==="
+CONFIG_END_MARKER: str = "# === END CONFIG ==="
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+# === BEGIN CONFIG ===
 
 INPUT_FILE_PATH: Path = Path(r"Path\To\Your\RIDERSHIP_BY_ROUTE_AND_STOP_(ALL_TIME_PERIODS).XLSX")
 OUTPUT_FILE_SUFFIX: str = "_processed"
@@ -92,6 +109,14 @@ COLUMNS_TO_RETAIN: Sequence[str] = (
 )
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
+
+# When True, a failed run-log write aborts the script so the analyst is never
+# left with an output workbook that lacks a matching configuration record.
+# Set to False only when writing to a location where a sidecar file cannot
+# be created (e.g. a read-only share).
+REQUIRE_RUN_LOG: bool = True
+
+# === END CONFIG ===
 
 # =============================================================================
 # FUNCTIONS
@@ -713,6 +738,98 @@ def process_aggregations(
     return filtered_data, aggregated_peaks, all_time_aggregated
 
 
+def extract_config_block(source_file: Path) -> str:
+    r"""Return the text between the CONFIG markers in *source_file*.
+
+    Reads ``source_file`` as UTF-8 text and slices out the lines strictly
+    *between* the first occurrence of :data:`CONFIG_BEGIN_MARKER` and the
+    first subsequent occurrence of :data:`CONFIG_END_MARKER`. The marker
+    lines themselves are excluded; whitespace and inline comments inside
+    the block are preserved verbatim.
+
+    Args:
+        source_file: Path to the Python source file to scan (typically
+            ``Path(__file__)``).
+
+    Returns:
+        The verbatim text of the configuration block, joined with ``\n``.
+
+    Raises:
+        ValueError: If either marker is missing or they appear out of order.
+        OSError: If ``source_file`` cannot be read.
+    """
+    lines: List[str] = source_file.read_text(encoding="utf-8").splitlines()
+
+    begin_idx: int | None = None
+    end_idx: int | None = None
+    for i, line in enumerate(lines):
+        stripped: str = line.strip()
+        if begin_idx is None and stripped == CONFIG_BEGIN_MARKER:
+            begin_idx = i
+        elif begin_idx is not None and stripped == CONFIG_END_MARKER:
+            end_idx = i
+            break
+
+    if begin_idx is None or end_idx is None:
+        raise ValueError(
+            f"Config markers not found in '{source_file}'. "
+            f"Expected '{CONFIG_BEGIN_MARKER}' and '{CONFIG_END_MARKER}'."
+        )
+
+    return "\n".join(lines[begin_idx + 1 : end_idx])
+
+
+def write_run_log(output_file: Path) -> bool:
+    """Write a sidecar .txt log of the configuration block for recordkeeping.
+
+    The log is saved next to ``output_file`` with the same stem and a
+    ``_runlog.txt`` suffix. It captures the CONFIGURATION section of this
+    script verbatim — text between :data:`CONFIG_BEGIN_MARKER` and
+    :data:`CONFIG_END_MARKER` — so the log can never drift from the actual
+    values used. Comments and whitespace inside the block are preserved.
+
+    The run log is a **required** deliverable for every output workbook
+    produced by this script. If ``REQUIRE_RUN_LOG`` is ``True`` (the default),
+    the caller should treat a ``False`` return as a fatal error and abort.
+
+    Args:
+        output_file: Path to the Excel workbook this run produced.
+
+    Returns:
+        ``True`` if the log was written successfully, ``False`` otherwise.
+    """
+    log_path: Path = output_file.with_name(f"{output_file.stem}_runlog.txt")
+
+    try:
+        config_text: str = extract_config_block(Path(__file__))
+    except (OSError, ValueError) as exc:
+        logging.error("Could not extract config block for run log: %s", exc)
+        return False
+
+    lines: List[str] = [
+        "=" * 72,
+        "RIDERSHIP PROCESSING RUN LOG",
+        "=" * 72,
+        f"Run timestamp:   {datetime.now().isoformat(timespec='seconds')}",
+        f"Output workbook: {output_file}",
+        f"Source script:   {Path(__file__).resolve()}",
+        "",
+        "-" * 72,
+        "CONFIGURATION (verbatim from source)",
+        "-" * 72,
+        config_text,
+        "=" * 72,
+    ]
+
+    try:
+        log_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        logging.info("Run log saved to '%s'.", log_path)
+        return True
+    except OSError as exc:
+        logging.error("Error writing run log: %s", exc)
+        return False
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -804,6 +921,14 @@ def main() -> None:  # noqa: D401 – imperative mood is OK for main entry point
         selection_summary=selection_summary,
         clean_stops=clean_stops,
     )
+
+    # Sidecar run log — required by default so outputs are always traceable.
+    if not write_run_log(output_file) and REQUIRE_RUN_LOG:
+        logging.error(
+            "Run log could not be written. Set REQUIRE_RUN_LOG = False to "
+            "suppress this error when a sidecar file is genuinely impossible."
+        )
+        sys.exit(1)
 
     logging.info("Script completed successfully.")
 
