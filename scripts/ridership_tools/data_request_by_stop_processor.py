@@ -739,7 +739,7 @@ def process_aggregations(
 
 
 def extract_config_block(source_file: Path) -> str:
-    """Return the text between the CONFIG markers in *source_file*.
+    r"""Return the text between the CONFIG markers in *source_file*.
 
     Reads ``source_file`` as UTF-8 text and slices out the lines strictly
     *between* the first occurrence of :data:`CONFIG_BEGIN_MARKER` and the
@@ -752,7 +752,7 @@ def extract_config_block(source_file: Path) -> str:
             ``Path(__file__)``).
 
     Returns:
-        The verbatim text of the configuration block, joined with ``\\n``.
+        The verbatim text of the configuration block, joined with ``\n``.
 
     Raises:
         ValueError: If either marker is missing or they appear out of order.
