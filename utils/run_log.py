@@ -49,8 +49,7 @@ def extract_config_block(source_file: Path) -> str:
 
     if begin_idx is None or end_idx is None:
         raise ValueError(
-            f"Config markers not found in '{source_file}'. "
-            f"Expected '{_BEGIN}' and '{_END}'."
+            f"Config markers not found in '{source_file}'. Expected '{_BEGIN}' and '{_END}'."
         )
 
     return "\n".join(lines[begin_idx + 1 : end_idx])
