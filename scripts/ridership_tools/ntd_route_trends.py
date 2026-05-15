@@ -643,6 +643,7 @@ def export_route(
 # =============================================================================
 
 
+# Canonical version lives in utils/run_log.py — keep this copy in sync.
 def extract_config_block(source_file: Path) -> str:
     """Return the text between the CONFIG markers in *source_file*.
 
