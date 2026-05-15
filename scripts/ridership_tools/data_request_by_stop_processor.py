@@ -738,6 +738,7 @@ def process_aggregations(
     return filtered_data, aggregated_peaks, all_time_aggregated
 
 
+# Canonical version lives in utils/run_log.py — keep this copy in sync.
 def extract_config_block(source_file: Path) -> str:
     r"""Return the text between the CONFIG markers in *source_file*.
 
