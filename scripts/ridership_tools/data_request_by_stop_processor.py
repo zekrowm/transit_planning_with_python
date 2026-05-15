@@ -135,13 +135,15 @@ def bin_ridership_value(value: float) -> str:
         value: The boarding/alighting count for a stop.
 
     Returns:
-        A string bucket—``"0-4.9"``, ``"5-24.9"``, or ``"25 or more"``.
+        A string bucket—``"0-4.9"``, ``"5-24.9"``, ``"25-49.9"``, or ``"50 or more"``.
     """
     if value < 5:
         return "0-4.9"
     if value < 25:
         return "5-24.9"
-    return "25 or more"
+    if value < 50:
+        return "25-49.9"
+    return "50 or more"
 
 
 def aggregate_by_stop(
