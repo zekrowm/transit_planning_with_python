@@ -106,14 +106,16 @@ class FileResult(NamedTuple):
 # =============================================================================
 
 # EPSG codes appropriate for the Washington DC area.
-_DC_EPSG: frozenset[int] = frozenset({
-    32618,  # WGS 84 / UTM zone 18N (meters)
-    26918,  # NAD83 / UTM zone 18N (meters)
-    2248,   # NAD83 / Maryland State Plane (feet)
-    2804,   # NAD83 / Maryland State Plane (old)
-    2893,   # NAD83(HARN) / Maryland
-    4326,   # WGS84 geographic (universal baseline)
-})
+_DC_EPSG: frozenset[int] = frozenset(
+    {
+        32618,  # WGS 84 / UTM zone 18N (meters)
+        26918,  # NAD83 / UTM zone 18N (meters)
+        2248,  # NAD83 / Maryland State Plane (feet)
+        2804,  # NAD83 / Maryland State Plane (old)
+        2893,  # NAD83(HARN) / Maryland
+        4326,  # WGS84 geographic (universal baseline)
+    }
+)
 
 # Patterns that suggest a script writes file output to disk.
 _OUTPUT_WRITE_PAT: re.Pattern[str] = re.compile(
@@ -160,26 +162,30 @@ def check_no_utils_import(src: str, path: Path) -> list[Violation]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 if alias.name == "utils" or alias.name.startswith("utils."):
-                    found.append(Violation(
-                        check="no_utils_import",
-                        line=node.lineno,
-                        message=(
-                            f"`import {alias.name}` detected — copy helpers from "
-                            "utils/ into the script instead of importing at runtime"
-                        ),
-                    ))
+                    found.append(
+                        Violation(
+                            check="no_utils_import",
+                            line=node.lineno,
+                            message=(
+                                f"`import {alias.name}` detected — copy helpers from "
+                                "utils/ into the script instead of importing at runtime"
+                            ),
+                        )
+                    )
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
             if module == "utils" or module.startswith("utils."):
                 names = ", ".join(a.name for a in node.names)
-                found.append(Violation(
-                    check="no_utils_import",
-                    line=node.lineno,
-                    message=(
-                        f"`from {module} import {names}` detected — copy helpers "
-                        "from utils/ into the script instead of importing at runtime"
-                    ),
-                ))
+                found.append(
+                    Violation(
+                        check="no_utils_import",
+                        line=node.lineno,
+                        message=(
+                            f"`from {module} import {names}` detected — copy helpers "
+                            "from utils/ into the script instead of importing at runtime"
+                        ),
+                    )
+                )
     return found
 
 
@@ -190,38 +196,46 @@ def check_config_section(src: str) -> list[Violation]:
     has_end = "# === END CONFIG ===" in src
 
     if not has_header:
-        return [Violation(
-            check="config_section",
-            line=None,
-            message=(
-                "No CONFIGURATION section found — add a config block near the top "
-                "of the script with `# === BEGIN CONFIG ===` / `# === END CONFIG ===` markers"
-            ),
-        )]
+        return [
+            Violation(
+                check="config_section",
+                line=None,
+                message=(
+                    "No CONFIGURATION section found — add a config block near the top "
+                    "of the script with `# === BEGIN CONFIG ===` / `# === END CONFIG ===` markers"
+                ),
+            )
+        ]
 
     violations: list[Violation] = []
     if has_begin and not has_end:
-        violations.append(Violation(
-            check="config_section",
-            line=None,
-            message="Found `# === BEGIN CONFIG ===` but no matching `# === END CONFIG ===`",
-        ))
+        violations.append(
+            Violation(
+                check="config_section",
+                line=None,
+                message="Found `# === BEGIN CONFIG ===` but no matching `# === END CONFIG ===`",
+            )
+        )
     elif has_end and not has_begin:
-        violations.append(Violation(
-            check="config_section",
-            line=None,
-            message="Found `# === END CONFIG ===` but no matching `# === BEGIN CONFIG ===`",
-        ))
+        violations.append(
+            Violation(
+                check="config_section",
+                line=None,
+                message="Found `# === END CONFIG ===` but no matching `# === BEGIN CONFIG ===`",
+            )
+        )
     elif not has_begin:
-        violations.append(Violation(
-            check="config_section",
-            line=None,
-            message=(
-                "CONFIGURATION section present but lacks BEGIN/END markers — "
-                "add `# === BEGIN CONFIG ===` / `# === END CONFIG ===` so "
-                "write_run_log can capture settings verbatim"
-            ),
-        ))
+        violations.append(
+            Violation(
+                check="config_section",
+                line=None,
+                message=(
+                    "CONFIGURATION section present but lacks BEGIN/END markers — "
+                    "add `# === BEGIN CONFIG ===` / `# === END CONFIG ===` so "
+                    "write_run_log can capture settings verbatim"
+                ),
+            )
+        )
     return violations
 
 
@@ -232,15 +246,17 @@ def check_run_log_present(src: str) -> list[Violation]:
 
     indicators = ["_runlog.txt", "write_run_log", "REQUIRE_RUN_LOG", "extract_config_block"]
     if not any(ind in src for ind in indicators):
-        return [Violation(
-            check="run_log_present",
-            line=None,
-            message=(
-                "Script writes output file(s) but has no run-log machinery "
-                "(_runlog.txt / write_run_log / REQUIRE_RUN_LOG / extract_config_block) — "
-                "add a _runlog.txt sidecar per CONTRIBUTING.md"
-            ),
-        )]
+        return [
+            Violation(
+                check="run_log_present",
+                line=None,
+                message=(
+                    "Script writes output file(s) but has no run-log machinery "
+                    "(_runlog.txt / write_run_log / REQUIRE_RUN_LOG / extract_config_block) — "
+                    "add a _runlog.txt sidecar per CONTRIBUTING.md"
+                ),
+            )
+        ]
     return []
 
 
@@ -252,7 +268,7 @@ def check_raw_string_paths(src: str) -> list[Violation]:
     # Matches uppercase variable names with PATH|DIR|FOLDER|FILE|ROOT, then an
     # assignment whose right-hand side starts with a plain (non-raw) quote.
     assignment_pat = re.compile(
-        r'^[ \t]*([A-Z_]*(?:PATH|DIR|FOLDER|FILE|ROOT)[A-Z_]*)[ \t]*(?::[^\n=]+)?=[ \t]*'
+        r"^[ \t]*([A-Z_]*(?:PATH|DIR|FOLDER|FILE|ROOT)[A-Z_]*)[ \t]*(?::[^\n=]+)?=[ \t]*"
         r'(?:Path\s*\(\s*)?(["\'])',
         re.MULTILINE,
     )
@@ -263,16 +279,18 @@ def check_raw_string_paths(src: str) -> list[Violation]:
         # Walk back to start of line and check whether a raw prefix exists.
         line_start = search_in.rfind("\n", 0, m.start()) + 1
         line_end = search_in.find("\n", m.start())
-        line = search_in[line_start:line_end if line_end != -1 else None]
+        line = search_in[line_start : line_end if line_end != -1 else None]
         if not re.search(r'=[ \t]*(?:Path\s*\(\s*)?[rR]["\']', line):
-            found.append(Violation(
-                check="raw_string_paths",
-                line=None,
-                message=(
-                    f'Config variable `{var_name}` uses a plain string for a path — '
-                    r'use r"…" (raw string) to avoid backslash-escape issues on Windows'
-                ),
-            ))
+            found.append(
+                Violation(
+                    check="raw_string_paths",
+                    line=None,
+                    message=(
+                        f"Config variable `{var_name}` uses a plain string for a path — "
+                        r'use r"…" (raw string) to avoid backslash-escape issues on Windows'
+                    ),
+                )
+            )
     return found
 
 
@@ -280,7 +298,8 @@ def check_dc_crs(src: str) -> list[Violation]:
     """Flag CRS config variables whose EPSG codes don't match a DC projection."""
     # Match uppercase config names containing CRS, EPSG, PROJECTION, or SPATIAL_REF.
     crs_var_pat = re.compile(
-        r'^[ \t]*([A-Z_]*(?:CRS|EPSG|PROJECTION|SPATIAL_REF)[A-Z_]*)[ \t]*(?::[^\n=]+)?=[ \t]*([^\n#]+)',
+        r"^[ \t]*([A-Z_]*(?:CRS|EPSG|PROJECTION|SPATIAL_REF)[A-Z_]*)"
+        r"[ \t]*(?::[^\n=]+)?=[ \t]*([^\n#]+)",
         re.MULTILINE,
     )
 
@@ -293,45 +312,51 @@ def check_dc_crs(src: str) -> list[Violation]:
         if not raw_value or raw_value in {"None", "Optional[int]", "Optional[str]"}:
             continue
 
-        epsg_numbers = [int(n) for n in re.findall(r'\b(\d{4,6})\b', raw_value)]
+        epsg_numbers = [int(n) for n in re.findall(r"\b(\d{4,6})\b", raw_value)]
         for epsg in epsg_numbers:
             if epsg not in _DC_EPSG:
-                found.append(Violation(
-                    check="dc_crs",
-                    line=None,
-                    message=(
-                        f"Config variable `{var_name}` uses EPSG:{epsg} — "
-                        "default to a Washington DC CRS "
-                        "(EPSG:32618, 26918, or 2248) per CONTRIBUTING.md; "
-                        "add an inline comment if a different CRS is intentional"
-                    ),
-                ))
+                found.append(
+                    Violation(
+                        check="dc_crs",
+                        line=None,
+                        message=(
+                            f"Config variable `{var_name}` uses EPSG:{epsg} — "
+                            "default to a Washington DC CRS "
+                            "(EPSG:32618, 26918, or 2248) per CONTRIBUTING.md; "
+                            "add an inline comment if a different CRS is intentional"
+                        ),
+                    )
+                )
     return found
 
 
 def check_imperial_units(src: str) -> list[Violation]:
     """Flag metric-only distance variables that lack an imperial counterpart."""
     metric_vars = re.findall(
-        r'\b([A-Z_]*(?:METERS?|METRES?|_KM|_KILOMETERS?|_KILOMETRES?)[A-Z_]*)\b',
+        r"\b([A-Z_]*(?:METERS?|METRES?|_KM|_KILOMETERS?|_KILOMETRES?)[A-Z_]*)\b",
         src,
     )
-    has_imperial = bool(re.search(
-        r'\b(?:feet|foot|FEET|FOOT|_FT\b|MILES?|_MI\b)',
-        src,
-    ))
+    has_imperial = bool(
+        re.search(
+            r"\b(?:feet|foot|FEET|FOOT|_FT\b|MILES?|_MI\b)",
+            src,
+        )
+    )
 
     if metric_vars and not has_imperial:
         preview = ", ".join(sorted({v for v in metric_vars})[:4])
-        return [Violation(
-            check="imperial_units",
-            line=None,
-            message=(
-                f"Metric distance variable(s) found ({preview}) "
-                "but no feet/miles reference detected — "
-                "imperial units should be the default per CONTRIBUTING.md, "
-                "with metric available as a secondary option"
-            ),
-        )]
+        return [
+            Violation(
+                check="imperial_units",
+                line=None,
+                message=(
+                    f"Metric distance variable(s) found ({preview}) "
+                    "but no feet/miles reference detected — "
+                    "imperial units should be the default per CONTRIBUTING.md, "
+                    "with metric available as a secondary option"
+                ),
+            )
+        ]
     return []
 
 
@@ -341,14 +366,16 @@ def check_notebook_guard(src: str) -> list[Violation]:
         r'if\s+__name__\s*==\s*["\']__main__["\']\s*:\s*\n[ \t]+main\s*\(',
         src,
     ):
-        return [Violation(
-            check="notebook_guard",
-            line=None,
-            message=(
-                'Missing `if __name__ == "__main__": main()` guard — '
-                "required so the script runs from both a Jupyter notebook and the CLI"
-            ),
-        )]
+        return [
+            Violation(
+                check="notebook_guard",
+                line=None,
+                message=(
+                    'Missing `if __name__ == "__main__": main()` guard — '
+                    "required so the script runs from both a Jupyter notebook and the CLI"
+                ),
+            )
+        ]
     return []
 
 
@@ -361,55 +388,63 @@ def check_main_function(src: str, path: Path) -> list[Violation]:
     for node in tree.body:
         if isinstance(node, ast.FunctionDef) and node.name == "main":
             return []
-    return [Violation(
-        check="main_function",
-        line=None,
-        message=(
-            "No top-level `def main()` function — "
-            "scripts must be modular with a clearly defined main() entry point"
-        ),
-    )]
+    return [
+        Violation(
+            check="main_function",
+            line=None,
+            message=(
+                "No top-level `def main()` function — "
+                "scripts must be modular with a clearly defined main() entry point"
+            ),
+        )
+    ]
 
 
 def check_logging_present(src: str) -> list[Violation]:
     """Flag scripts that don't import and use the logging module."""
     violations: list[Violation] = []
-    if not re.search(r'^import logging\b', src, re.MULTILINE):
-        violations.append(Violation(
-            check="logging_present",
-            line=None,
-            message=(
-                "Missing `import logging` — "
-                "prefer the logging module over print() for all diagnostics and status messages"
-            ),
-        ))
-    elif not re.search(r'\blogging\.', src):
-        violations.append(Violation(
-            check="logging_present",
-            line=None,
-            message=(
-                "`import logging` present but no `logging.` calls found — "
-                "replace print() calls with logging.info() / logging.warning() etc."
-            ),
-        ))
+    if not re.search(r"^import logging\b", src, re.MULTILINE):
+        violations.append(
+            Violation(
+                check="logging_present",
+                line=None,
+                message=(
+                    "Missing `import logging` — "
+                    "prefer the logging module over print() for all diagnostics and status messages"
+                ),
+            )
+        )
+    elif not re.search(r"\blogging\.", src):
+        violations.append(
+            Violation(
+                check="logging_present",
+                line=None,
+                message=(
+                    "`import logging` present but no `logging.` calls found — "
+                    "replace print() calls with logging.info() / logging.warning() etc."
+                ),
+            )
+        )
     return violations
 
 
 def check_success_message(src: str) -> list[Violation]:
     """Flag scripts that don't log a success or completion message."""
     if not re.search(
-        r'logging\.\w+\s*\([^)]*(?:success|complet|finish|done)',
+        r"logging\.\w+\s*\([^)]*(?:success|complet|finish|done)",
         src,
         re.IGNORECASE,
     ):
-        return [Violation(
-            check="success_message",
-            line=None,
-            message=(
-                "No success/completion log message detected — "
-                'add e.g. logging.info("Script completed successfully.") at the end of main()'
-            ),
-        )]
+        return [
+            Violation(
+                check="success_message",
+                line=None,
+                message=(
+                    "No success/completion log message detected — "
+                    'add e.g. logging.info("Script completed successfully.") at the end of main()'
+                ),
+            )
+        ]
     return []
 
 
@@ -422,9 +457,10 @@ def audit_file(path: Path) -> FileResult:
     """Run all enabled checks against a single Python file."""
     src = _read_source(path)
     if src is None:
-        return FileResult(path=path, violations=[
-            Violation(check="io", line=None, message="File could not be read")
-        ])
+        return FileResult(
+            path=path,
+            violations=[Violation(check="io", line=None, message="File could not be read")],
+        )
 
     enabled = CHECKS_ENABLED
     violations: list[Violation] = []
