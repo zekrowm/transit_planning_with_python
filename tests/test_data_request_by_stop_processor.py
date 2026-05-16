@@ -15,19 +15,17 @@ import data_request_by_stop_processor as target  # noqa: E402
 FIXTURE_PATH = Path("tests/fixtures/ridership_by_route_and_stop.csv")
 
 
-def test_extract_config_block(tmp_path: Path) -> None:
-    """extract_config_block returns only the lines between the two markers."""
-    source = tmp_path / "script.py"
-    source.write_text(
+def test_extract_config_block_from_text() -> None:
+    """extract_config_block_from_text returns only the lines between the two markers."""
+    source = (
         "# preamble\n"
         "# === BEGIN CONFIG ===\n"
         "KEY = 1\n"
         "OTHER = 2\n"
         "# === END CONFIG ===\n"
-        "# epilogue\n",
-        encoding="utf-8",
+        "# epilogue\n"
     )
-    block = target.extract_config_block(source)
+    block = target.extract_config_block_from_text(source, "<test>")
     assert "KEY = 1" in block
     assert "OTHER = 2" in block
     assert "preamble" not in block
@@ -36,12 +34,10 @@ def test_extract_config_block(tmp_path: Path) -> None:
     assert "END CONFIG" not in block
 
 
-def test_extract_config_block_missing_markers(tmp_path: Path) -> None:
-    """extract_config_block raises ValueError when markers are absent."""
-    source = tmp_path / "script.py"
-    source.write_text("KEY = 1\n", encoding="utf-8")
+def test_extract_config_block_from_text_missing_markers() -> None:
+    """extract_config_block_from_text raises ValueError when markers are absent."""
     with pytest.raises(ValueError, match="Config markers not found"):
-        target.extract_config_block(source)
+        target.extract_config_block_from_text("KEY = 1\n", "<test>")
 
 
 def test_write_run_log_creates_file(tmp_path: Path) -> None:
@@ -49,7 +45,15 @@ def test_write_run_log_creates_file(tmp_path: Path) -> None:
     output_file = tmp_path / "output.xlsx"
     log_path = tmp_path / "output_runlog.txt"
 
-    with patch("data_request_by_stop_processor.extract_config_block", return_value="KEY = 1"):
+    source_text = (
+        "# === BEGIN CONFIG ===\n"
+        "KEY = 1\n"
+        "# === END CONFIG ===\n"
+    )
+    with patch(
+        "data_request_by_stop_processor._resolve_script_source",
+        return_value=(source_text, "<test>"),
+    ):
         result = target.write_run_log(output_file)
 
     assert result is True
@@ -64,8 +68,16 @@ def test_write_run_log_returns_false_on_io_error(tmp_path: Path) -> None:
     """write_run_log returns False (and logs) when the file cannot be written."""
     output_file = tmp_path / "output.xlsx"
 
+    source_text = (
+        "# === BEGIN CONFIG ===\n"
+        "K = 1\n"
+        "# === END CONFIG ===\n"
+    )
     with (
-        patch("data_request_by_stop_processor.extract_config_block", return_value="K=1"),
+        patch(
+            "data_request_by_stop_processor._resolve_script_source",
+            return_value=(source_text, "<test>"),
+        ),
         patch("pathlib.Path.write_text", side_effect=OSError("disk full")),
     ):
         result = target.write_run_log(output_file)

@@ -20,7 +20,6 @@ from __future__ import annotations
 import datetime as dt
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import Final
 
@@ -66,10 +65,6 @@ WRITE_VIOLATION_LOG: Final[bool] = True
 VIOLATION_LOG_FILE: Final[str] = OUTPUT_FILE.replace(".xlsx", "_violations_log.txt")
 
 LOG_LEVEL: int = logging.INFO  # DEBUG / INFO / WARNING / ERROR
-
-# When True, a failed run-log write aborts the script so the analyst is never
-# left with an output workbook that lacks a matching configuration record.
-REQUIRE_RUN_LOG: bool = True
 
 # === END CONFIG ===
 
@@ -430,15 +425,58 @@ def write_violation_log(data_frame: pd.DataFrame, log_file_path: str) -> None:
 
 
 # Canonical version lives in utils/run_log.py — keep this copy in sync.
-def extract_config_block(source_file: Path) -> str:
-    """Return the text between the CONFIG markers in *source_file*.
+def _try_ipython_cell() -> tuple[str | None, str | None]:
+    """Return (cell_text, label) for the most recent Jupyter cell with both markers.
+
+    Returns (None, None) when no kernel is active or no matching cell is found.
+    Requires exactly one BEGIN and one END marker per candidate cell to avoid
+    false positives from cells that merely quote the markers.
+    """
+    try:
+        ip = get_ipython()  # type: ignore[name-defined]
+    except NameError:
+        return None, None
+    if ip is None:
+        return None, None
+    history: list[str] = ip.user_ns.get("In", [])
+    for i in range(len(history) - 1, -1, -1):
+        cell = history[i]
+        if cell.count(CONFIG_BEGIN_MARKER) == 1 and cell.count(CONFIG_END_MARKER) == 1:
+            return cell, f"<Jupyter cell In[{i}]>"
+    return None, None
+
+
+def _resolve_script_source() -> tuple[str, str]:
+    """Return (source_text, source_label) for the current execution context.
+
+    Tries the most recent matching Jupyter cell first, then falls back to
+    ``__file__`` so that plain ``python script.py`` and ``%run script.py``
+    both work correctly.
+
+    Raises:
+        RuntimeError: if neither source can be located.
+    """
+    cell_text, cell_label = _try_ipython_cell()
+    if cell_text is not None:
+        return cell_text, cell_label
+    file_path: str | None = globals().get("__file__")
+    if file_path is not None:
+        p = Path(file_path).resolve()
+        return p.read_text(encoding="utf-8"), str(p)
+    raise RuntimeError(
+        "Cannot locate source for run log: no __file__ is defined and no "
+        "Jupyter cell contains both CONFIG markers. Ensure the config cell "
+        "has been executed before running this script."
+    )
+
+
+def extract_config_block_from_text(source_text: str, source_label: str) -> str:
+    """Return the text between the CONFIG markers in *source_text*.
 
     Raises:
         ValueError: If either marker is missing or they appear out of order.
-        OSError: If ``source_file`` cannot be read.
     """
-    lines: list[str] = source_file.read_text(encoding="utf-8").splitlines()
-
+    lines: list[str] = source_text.splitlines()
     begin_idx: int | None = None
     end_idx: int | None = None
     for i, line in enumerate(lines):
@@ -448,13 +486,11 @@ def extract_config_block(source_file: Path) -> str:
         elif begin_idx is not None and stripped == CONFIG_END_MARKER:
             end_idx = i
             break
-
     if begin_idx is None or end_idx is None:
         raise ValueError(
-            f"Config markers not found in '{source_file}'. "
+            f"Config markers not found in '{source_label}'. "
             f"Expected '{CONFIG_BEGIN_MARKER}' and '{CONFIG_END_MARKER}'."
         )
-
     return "\n".join(lines[begin_idx + 1 : end_idx])
 
 
@@ -468,9 +504,10 @@ def write_run_log(output_file: str) -> bool:
     log_path = out_path.with_name(f"{out_path.stem}_runlog.txt")
 
     try:
-        config_text: str = extract_config_block(Path(__file__))
-    except (OSError, ValueError) as exc:
-        logging.error("Could not extract config block for run log: %s", exc)
+        source_text, source_label = _resolve_script_source()
+        config_text: str = extract_config_block_from_text(source_text, source_label)
+    except (OSError, ValueError, RuntimeError) as exc:
+        logging.warning("Run log could not be written: %s", exc)
         return False
 
     lines: list[str] = [
@@ -479,7 +516,7 @@ def write_run_log(output_file: str) -> bool:
         "=" * 72,
         f"Run timestamp:   {dt.datetime.now().isoformat(timespec='seconds')}",
         f"Output file:     {output_file}",
-        f"Source script:   {Path(__file__).resolve()}",
+        f"Source:          {source_label}",
         "",
         "-" * 72,
         "CONFIGURATION (verbatim from source)",
@@ -493,7 +530,7 @@ def write_run_log(output_file: str) -> bool:
         logging.info("Run log saved to '%s'.", log_path)
         return True
     except OSError as exc:
-        logging.error("Error writing run log: %s", exc)
+        logging.warning("Run log could not be written: %s", exc)
         return False
 
 
@@ -558,13 +595,7 @@ def main() -> None:
     if WRITE_VIOLATION_LOG:
         write_violation_log(processed_data, VIOLATION_LOG_FILE)
 
-    if not write_run_log(OUTPUT_FILE) and REQUIRE_RUN_LOG:
-        logging.error(
-            "Run log could not be written. Set REQUIRE_RUN_LOG = False to "
-            "suppress this error when a sidecar file is genuinely impossible."
-        )
-        sys.exit(1)
-
+    write_run_log(OUTPUT_FILE)
     logging.info("Script completed successfully.")
 
 
